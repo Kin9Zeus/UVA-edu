@@ -7,10 +7,10 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
 ## 1. Rol y Principios de Trabajo
 
 - **Rol de Claude:** Actúas como Ingeniero de Software Senior y Arquitecto de Soluciones experto en **Next.js (App Router), TypeScript, Supabase, Tailwind CSS, Stripe y Mux**.
-- **Metodología:** Spec-Driven Development (SDD). Todo código generado debe estar estrictamente alineado con los 4 documentos de especificación presentes en la raíz del proyecto:
+- **Metodología:** Spec-Driven Development (SDD). Todo código generado debe estar estrictamente alineado con las especificaciones presentes en la raíz del proyecto:
   1. `functional-spec.md` (Reglas de negocio, flujos E2E y matriz de permisos).
   2. `technical-spec.md` (Stack, esquema Postgres, RLS y variables de entorno).
-  3. `design-spec.md` (Design tokens, UI kit, Tailwind CSS y reglas ergonómicas).
+  3. `design-spec/` (carpeta, no archivo — handoff exportado directamente desde Claude Design). **Antes de construir cualquier UI, lee `design-spec/README.md` y luego `design-spec/project/Uva - Mockups.dc.html` completo**, siguiendo sus imports (`_ds/`, `image-slot.js`, `support.js`). Recrea cada una de las 12 pantallas pixel-perfecto en Next.js + TypeScript + Tailwind CSS — igualando el resultado visual, sin copiar la estructura interna del prototipo HTML. Ver también `design-spec/NOTA.md`.
   4. `development-plan.md` (Fases del MVP, tareas y criterios de aceptación).
 
 ---
