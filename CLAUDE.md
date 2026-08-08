@@ -48,10 +48,19 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
 
 ---
 
-## 4. Estructura del Proyecto
+## 4. Notas para Agentes de IA sobre Next.js (AGENTS.md)
+
+El proyecto usa **Next.js 16.3.0**, una versión que puede incluir cambios posteriores al conocimiento de entrenamiento del modelo. El propio framework genera y mantiene el archivo `AGENTS.md` en la raíz (`node_modules/next/dist/server/lib/generate-agent-files.js` es quien lo regenera en cada `next dev`).
+
+@AGENTS.md
+
+- **No lo edites manualmente ni lo borres del control de versiones** — Next.js lo regenera automáticamente; quitarlo de un diff solo recrea el cambio sin confirmar.
+- Antes de escribir código que use APIs de Next.js, consulta `node_modules/next/dist/docs/` (resuelto desde la raíz del proyecto) por si existen cambios o convenciones nuevas respecto a versiones anteriores.
+
+## 5. Estructura del Proyecto
 
 ```text
-uva-platform/
+UVA_EDU/
 ├── prisma/               # Esquema (schema.prisma) y migraciones
 ├── src/
 │   ├── app/              # App Router (public, student, admin, api/webhooks)

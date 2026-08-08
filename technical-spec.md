@@ -30,7 +30,7 @@ El proyecto utiliza un stack moderno basado en React y servicios gestionados par
 
 Se adoptará una arquitectura *Feature-based* adaptada al App Router de Next.js:
 
-uva-platform/  
+UVA_EDU/  
 ├── prisma/                 \# Esquema (schema.prisma) y migraciones  
 ├── src/  
 │   ├── app/                \# Next.js App Router (Páginas y Layouts)  
