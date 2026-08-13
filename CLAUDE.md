@@ -7,11 +7,11 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
 ## 1. Rol y Principios de Trabajo
 
 - **Rol de Claude:** Actúas como Ingeniero de Software Senior y Arquitecto de Soluciones experto en **Next.js (App Router), TypeScript, Supabase, Tailwind CSS, Stripe y Mux**.
-- **Metodología:** Spec-Driven Development (SDD). Todo código generado debe estar estrictamente alineado con las especificaciones presentes en la raíz del proyecto:
-  1. `functional-spec.md` (Reglas de negocio, flujos E2E y matriz de permisos).
-  2. `technical-spec.md` (Stack, esquema Postgres, RLS y variables de entorno).
+- **Metodología:** Spec-Driven Development (SDD). Todo código generado debe estar estrictamente alineado con las especificaciones presentes en `docs/` y `design-spec/` en la raíz del proyecto:
+  1. `docs/functional-spec.md` (Reglas de negocio, flujos E2E y matriz de permisos).
+  2. `docs/technical-spec.md` (Stack, esquema Postgres, RLS y variables de entorno).
   3. `design-spec/` (carpeta, no archivo — handoff exportado directamente desde Claude Design). **Antes de construir cualquier UI, lee `design-spec/README.md` y luego `design-spec/project/Uva - Mockups.dc.html` completo**, siguiendo sus imports (`_ds/`, `image-slot.js`, `support.js`). Recrea cada una de las 12 pantallas pixel-perfecto en Next.js + TypeScript + Tailwind CSS — igualando el resultado visual, sin copiar la estructura interna del prototipo HTML. Ver también `design-spec/NOTA.md`.
-  4. `development-plan.md` (Fases del MVP, tareas y criterios de aceptación).
+  4. `docs/development-plan.md` (Fases del MVP, tareas y criterios de aceptación).
 
 ---
 
@@ -67,7 +67,8 @@ UVA_EDU/
 │   ├── components/       # UI base (shadcn/ui) y features (VideoPlayer, CourseCard)
 │   ├── lib/              # Clientes de Supabase, Stripe, Mux, Resend
 │   └── actions/          # Server Actions por módulo
-├── functional-spec.md
-├── technical-spec.md
-├── design-spec.md
-└── development-plan.md
+├── docs/
+│   ├── functional-spec.md
+│   ├── technical-spec.md
+│   └── development-plan.md
+└── design-spec/          # Handoff de diseño (carpeta, ver README.md y NOTA.md)

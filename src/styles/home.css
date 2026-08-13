@@ -1,0 +1,629 @@
+/* ==========================================================================
+   home.css — landing pública de U.V.A.
+   Usa los tokens definidos en variables.css. Organizado por secciones:
+
+     1. Header
+     2. Botones compartidos
+     3. Hero
+     4. Banda de producto
+     5. Planes
+     6. CTA final
+     7. Footer
+     8. Botón flotante de WhatsApp
+     9. Responsive
+   ========================================================================== */
+
+/* — 1. Header — */
+.home-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 14px clamp(20px, 4vw, 56px);
+  border-bottom: 1px solid transparent;
+  background: rgba(9, 9, 11, 0.4);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.home-header.is-scrolled {
+  background: rgba(9, 9, 11, 0.86);
+  border-bottom-color: var(--color-divider);
+}
+
+.home-header__brand {
+  flex: none;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: 0.1em;
+  color: var(--color-text);
+}
+.home-header__brand span {
+  color: var(--color-accent);
+}
+
+.home-search {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+.home-search__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-faint);
+  pointer-events: none;
+}
+.home-search input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px 0 42px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+}
+.home-search input::placeholder {
+  color: var(--color-text-faint);
+}
+.home-search input:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+.home-search input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-color: var(--color-accent);
+}
+
+.home-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex: none;
+}
+.home-nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.home-nav__links a {
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
+.home-nav__links a:hover {
+  color: var(--color-text);
+}
+
+/* — 2. Botones compartidos — */
+.btn-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-solid:hover {
+  background: var(--color-accent-hover);
+  text-decoration: none;
+}
+.btn-solid:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-outline:hover {
+  background: #1c1c20;
+  text-decoration: none;
+}
+.btn-outline:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-text);
+  border-radius: var(--radius-pill);
+  padding: 17px 46px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 10px 30px rgba(255, 0, 122, 0.28);
+  transition: filter 0.16s ease;
+}
+.btn-cta:hover {
+  filter: brightness(1.08);
+  text-decoration: none;
+}
+.btn-cta:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* — 3. Hero — */
+.hero {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(72px, 12vw, 128px) clamp(20px, 4vw, 56px)
+    clamp(56px, 8vw, 96px);
+}
+.hero__glow {
+  position: absolute;
+  z-index: 0;
+  top: -140px;
+  left: 50%;
+  width: 900px;
+  height: 560px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-accent) 30%, transparent) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
+}
+.hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero h1 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: clamp(44px, 6vw, 72px);
+  line-height: 1.08;
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+}
+.hero h1 span {
+  display: block;
+  color: var(--color-accent);
+}
+.hero__lead {
+  max-width: 560px;
+  font-size: 18px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-6);
+}
+.hero__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(24px, 4vw, 48px);
+  margin-top: var(--space-6);
+}
+.hero__metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  color: var(--color-text);
+}
+.hero__metric-label {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--color-text-faint);
+}
+
+/* — 4. Banda de producto — */
+.product-band {
+  background: #0d0d10;
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+  padding: clamp(56px, 8vw, 96px) clamp(20px, 4vw, 56px);
+}
+.product-band__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.product-band__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  margin-bottom: var(--space-7);
+}
+.product-band__head h2 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: clamp(28px, 4vw, 40px);
+  color: var(--color-text);
+  margin: 0;
+}
+.product-band__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(32px, 6vw, 64px);
+}
+.product-band__benefits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+}
+.product-band__benefit {
+  display: flex;
+  gap: 10px;
+}
+.product-band__benefit-bullet {
+  flex: none;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+.product-band__benefit-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 2px;
+}
+.product-band__benefit-desc {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.product-band__shot {
+  height: 340px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-divider);
+  background-color: #141417;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(250, 250, 250, 0.045) 0 2px,
+    transparent 2px 9px
+  );
+}
+
+/* — 5. Planes — */
+.pricing {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(72px, 10vw, 112px) clamp(20px, 4vw, 56px);
+}
+.pricing__head {
+  text-align: center;
+  margin-bottom: var(--space-7);
+}
+.pricing__head h2 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: clamp(28px, 4vw, 40px);
+  color: var(--color-text);
+  margin: 0 0 var(--space-2);
+}
+.pricing__head p {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.pricing__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+  gap: var(--space-5);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  padding: var(--space-6) var(--space-5);
+}
+.plan-card--featured {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+}
+.plan-card__badge {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-2-soft);
+  color: var(--color-accent-2-text);
+  margin-bottom: var(--space-3);
+}
+.plan-card__name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+.plan-card__meta {
+  font-size: 12.5px;
+  color: var(--color-text-faint);
+  margin: 0 0 var(--space-4);
+}
+.plan-card__price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  color: var(--color-text);
+  margin: 0 0 2px;
+}
+.plan-card__price span {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.plan-card__note {
+  font-size: 12px;
+  color: var(--color-text-faint);
+  margin: 0 0 var(--space-5);
+}
+.plan-card__list {
+  list-style: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+.plan-card__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--color-text);
+}
+.plan-card__item svg {
+  flex: none;
+}
+.plan-card__item.is-check svg {
+  color: var(--color-accent-2-text);
+}
+.plan-card__item.is-cross {
+  color: var(--color-text-disabled);
+}
+.plan-card__item.is-cross svg {
+  color: var(--color-text-disabled);
+}
+.plan-card .btn-solid,
+.plan-card .btn-outline {
+  width: 100%;
+}
+
+/* — 6. CTA final — */
+.final-cta {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 96px clamp(20px, 4vw, 56px);
+  text-align: center;
+}
+.final-cta h2 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-size: clamp(30px, 4.4vw, 52px);
+  color: var(--color-text);
+  margin: 0 0 var(--space-4);
+}
+.final-cta h2 .gradient-text {
+  background: var(--gradient-cta);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.final-cta p {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-6);
+}
+
+/* — 7. Footer — */
+.home-footer {
+  background: #0d0d10;
+  border-top: 1px solid var(--color-divider);
+  padding: clamp(48px, 6vw, 72px) clamp(20px, 4vw, 56px) var(--space-6);
+}
+.home-footer__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.home-footer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-6);
+  padding-bottom: var(--space-7);
+}
+.home-footer__brand {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+  margin: 0 0 var(--space-2);
+}
+.home-footer__brand span {
+  color: var(--color-accent);
+}
+.home-footer__desc {
+  max-width: 220px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.home-footer__heading {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-3);
+}
+.home-footer__links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+.home-footer__links a {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.home-footer__links a:hover {
+  color: var(--color-text);
+}
+
+.home-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-divider);
+}
+.home-footer__copy {
+  font-size: 12.5px;
+  color: var(--color-text-faint);
+}
+.home-footer__social {
+  display: flex;
+  gap: 10px;
+}
+.home-footer__social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+.home-footer__social-btn:hover {
+  text-decoration: none;
+}
+.home-footer__social-btn:nth-child(odd):hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
+}
+.home-footer__social-btn:nth-child(even):hover {
+  background: var(--color-accent-2);
+  border-color: var(--color-accent-2);
+  color: var(--color-bg);
+}
+.home-footer__social-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* — 8. Botón flotante de WhatsApp — */
+.whatsapp-float {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-whatsapp);
+  color: #09090b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter 0.16s ease;
+}
+.whatsapp-float:hover {
+  filter: brightness(1.08);
+  text-decoration: none;
+}
+.whatsapp-float:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* — 9. Responsive — */
+@media (max-width: 860px) {
+  .home-search,
+  .home-nav__links {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .product-band__grid {
+    grid-template-columns: 1fr;
+  }
+  .product-band__shot {
+    order: -1;
+    height: 240px;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-footer__bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -11,3 +11,296 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ============================================================
+// Enums — ver docs/technical-spec.md sección 4 (Diccionario de Datos)
+// ============================================================
+
+enum RolPerfil {
+  ESTUDIANTE
+  ADMINISTRADOR
+}
+
+enum EstadoPerfil {
+  ACTIVO
+  SUSPENDIDO
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  PAST_DUE
+  VENCIDA
+  CANCELADA
+}
+
+enum EstadoPago {
+  EXITOSO
+  FALLIDO
+  PENDIENTE
+}
+
+enum EstadoProcesamientoLeccion {
+  SUBIENDO
+  PROCESANDO
+  LISTO
+}
+
+// ============================================================
+// Módulo de Usuarios y Membresía
+// ============================================================
+
+/// La contraseña y el proveedor de login viven en auth.users de Supabase.
+/// `id` se sincroniza vía trigger de Postgres (ver docs/technical-spec.md §6),
+/// no como Foreign Key real de Prisma hacia el esquema `auth`.
+model Perfiles {
+  id             String       @id @db.Uuid
+  nombre         String
+  correo         String       @unique
+  rol            RolPerfil    @default(ESTUDIANTE)
+  estado         EstadoPerfil @default(ACTIVO)
+  fecha_registro DateTime     @default(now())
+
+  cursos_creados          Cursos[]                 @relation("CursosCreadosPorAdmin")
+  suscripciones           Suscripciones[]          @relation("SuscripcionesDelUsuario")
+  suscripciones_otorgadas Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
+  progreso                Progreso[]
+  certificados            Certificados[]
+  inscripciones           Inscripciones[]          @relation("InscripcionesDelUsuario")
+  inscripciones_otorgadas Inscripciones[]          @relation("InscripcionesOtorgadasPorAdmin")
+  acciones_bitacora       BitacoraAdministrativa[]
+
+  @@map("perfiles")
+}
+
+model Planes {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre          String
+  descripcion     String?
+  precio_centavos Int
+  moneda          String
+  duracion_dias   Int
+  nivel_acceso    String?
+  activo          Boolean @default(true)
+  orden           Int     @default(0)
+
+  suscripciones Suscripciones[]
+
+  @@map("planes")
+}
+
+model Suscripciones {
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario             String            @db.Uuid
+  id_plan                String            @db.Uuid
+  fecha_inicio           DateTime
+  fecha_renovacion       DateTime?
+  estado                 EstadoSuscripcion
+  proveedor              String
+  id_cliente_externo     String?
+  id_suscripcion_externa String?
+  monto_centavos         Int
+  moneda                 String
+  id_cupon               String?           @db.Uuid
+  acceso_manual          Boolean           @default(false)
+  otorgado_por           String?           @db.Uuid
+
+  usuario      Perfiles  @relation("SuscripcionesDelUsuario", fields: [id_usuario], references: [id])
+  plan         Planes    @relation(fields: [id_plan], references: [id])
+  cupon        Cupones?  @relation(fields: [id_cupon], references: [id])
+  admin_otorgo Perfiles? @relation("SuscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
+  pagos        Pagos[]
+
+  @@index([id_usuario])
+  @@index([id_plan])
+  @@index([proveedor, id_suscripcion_externa])
+  @@map("suscripciones")
+}
+
+model Pagos {
+  id                      String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_suscripcion          String     @db.Uuid
+  fecha                   DateTime   @default(now())
+  estado                  EstadoPago
+  monto_centavos          Int
+  moneda                  String
+  ref_transaccion_externa String     @unique
+  ref_factura_dian        String?
+  url_pdf_factura         String?
+
+  suscripcion Suscripciones @relation(fields: [id_suscripcion], references: [id])
+
+  @@index([id_suscripcion])
+  @@map("pagos")
+}
+
+// ============================================================
+// Módulo de Contenido (Catálogo LMS)
+// ============================================================
+
+model Categorias {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String
+  descripcion String?
+
+  cursos Cursos[]
+
+  @@map("categorias")
+}
+
+model Cursos {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_categoria     String   @db.Uuid
+  titulo           String
+  descripcion      String
+  imagen_portada   String
+  instructor       String
+  mostrado         Boolean  @default(false)
+  id_admin_creador String   @db.Uuid
+  fecha_creacion   DateTime @default(now())
+  fecha_edicion    DateTime @updatedAt
+
+  categoria     Categorias      @relation(fields: [id_categoria], references: [id])
+  admin_creador Perfiles        @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  modulos       Modulos[]
+  certificados  Certificados[]
+  inscripciones Inscripciones[]
+
+  @@index([id_categoria])
+  @@map("cursos")
+}
+
+model Modulos {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso String @db.Uuid
+  titulo   String
+  orden    Int    @default(0)
+
+  curso     Cursos      @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  lecciones Lecciones[]
+
+  @@index([id_curso])
+  @@map("modulos")
+}
+
+model Lecciones {
+  id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_modulo            String                     @db.Uuid
+  titulo               String
+  orden                Int                        @default(0)
+  id_video_mux         String?
+  duracion             Int?
+  estado_procesamiento EstadoProcesamientoLeccion @default(SUBIENDO)
+  resumen              String?
+
+  modulo   Modulos                @relation(fields: [id_modulo], references: [id], onDelete: Cascade)
+  progreso Progreso[]
+  recursos RecursosDescargables[]
+
+  @@index([id_modulo])
+  @@map("lecciones")
+}
+
+// ============================================================
+// Módulo de Operaciones y Seguimiento
+// ============================================================
+
+model Progreso {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario          String   @db.Uuid
+  id_leccion          String   @db.Uuid
+  completado          Boolean  @default(false)
+  segundo_actual      Int      @default(0)
+  fecha_actualizacion DateTime @updatedAt
+
+  usuario Perfiles  @relation(fields: [id_usuario], references: [id])
+  leccion Lecciones @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+
+  @@unique([id_usuario, id_leccion])
+  @@map("progreso")
+}
+
+model Certificados {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario          String   @db.Uuid
+  id_curso            String   @db.Uuid
+  fecha_emision       DateTime @default(now())
+  codigo_verificacion String   @unique
+  archivo_pdf         String?
+
+  usuario Perfiles @relation(fields: [id_usuario], references: [id])
+  curso   Cursos   @relation(fields: [id_curso], references: [id])
+
+  @@index([id_usuario])
+  @@map("certificados")
+}
+
+model Cupones {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo            String   @unique
+  tipo_descuento    String
+  valor             Int
+  fecha_vencimiento DateTime
+  limite_usos       Int?
+  veces_usado       Int      @default(0)
+
+  suscripciones Suscripciones[]
+
+  @@map("cupones")
+}
+
+model Inscripciones {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario   String  @db.Uuid
+  id_curso     String? @db.Uuid
+  otorgado_por String? @db.Uuid
+  tipo_acceso  String
+
+  usuario      Perfiles  @relation("InscripcionesDelUsuario", fields: [id_usuario], references: [id])
+  curso        Cursos?   @relation(fields: [id_curso], references: [id])
+  admin_otorgo Perfiles? @relation("InscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
+
+  @@unique([id_usuario, id_curso])
+  @@map("inscripciones")
+}
+
+model BitacoraAdministrativa {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_admin            String   @db.Uuid
+  accion              String
+  id_entidad_afectada String?  @db.Uuid
+  entidad_afectada    String
+  fecha               DateTime @default(now())
+  detalles            String?
+
+  admin Perfiles @relation(fields: [id_admin], references: [id])
+
+  @@index([id_admin])
+  @@map("bitacora_administrativa")
+}
+
+model EventosWebhook {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proveedor         String
+  id_evento_externo String   @unique
+  tipo_evento       String
+  payload           Json
+  procesado         Boolean  @default(false)
+  fecha_recibida    DateTime @default(now())
+
+  @@map("eventos_webhook")
+}
+
+model RecursosDescargables {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_leccion     String   @db.Uuid
+  nombre         String
+  tipo_archivo   String
+  url_archivo    String
+  tamano_bytes   Int?
+  fecha_creacion DateTime @default(now())
+
+  leccion Lecciones @relation(fields: [id_leccion], references: [id])
+
+  @@index([id_leccion])
+  @@map("recursos_descargables")
+}
