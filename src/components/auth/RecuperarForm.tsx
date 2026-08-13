@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,7 +36,10 @@ export function RecuperarForm() {
 
   if (status === "sent") {
     return (
-      <div className="alert-success" role="status">
+      <div
+        role="status"
+        className="mt-4 rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-valid"
+      >
         Si el correo existe en nuestra base de datos, te llegará un enlace en
         unos minutos.
       </div>
@@ -41,11 +47,14 @@ export function RecuperarForm() {
   }
 
   return (
-    <form className="form-fields" onSubmit={handleSubmit} noValidate>
-      <div className="field">
-        <label htmlFor="recuperar-email">Correo</label>
-        <input
-          className="input"
+    <form
+      className="flex flex-col gap-3.5"
+      onSubmit={handleSubmit}
+      noValidate
+    >
+      <div>
+        <Label htmlFor="recuperar-email">Correo</Label>
+        <Input
           id="recuperar-email"
           name="email"
           type="email"
@@ -54,23 +63,30 @@ export function RecuperarForm() {
           value={email}
           onChange={handleChange}
         />
-        {error && <p className="field-error">{error}</p>}
+        {error && (
+          <p className="mt-1.5 text-xs text-uva-danger-text">{error}</p>
+        )}
       </div>
 
-      <button
+      <Button
         type="submit"
-        className="btn btn-primary"
+        variant="uva-primary"
+        size="uva"
         disabled={status === "loading"}
+        className="mt-4 min-h-[46px] text-[15px]"
       >
         {status === "loading" ? (
           <>
-            <span className="btn-spinner" aria-hidden="true" />
+            <span
+              aria-hidden="true"
+              className="size-4 animate-[uva-btn-spinner-spin_0.7s_linear_infinite] rounded-full border-2 border-[rgba(250,250,250,0.35)] border-t-uva-text"
+            />
             Enviando…
           </>
         ) : (
           "Enviar enlace"
         )}
-      </button>
+      </Button>
     </form>
   );
 }

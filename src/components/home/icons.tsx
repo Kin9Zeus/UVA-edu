@@ -17,7 +17,7 @@ export function SearchIcon() {
   );
 }
 
-export function CheckIcon() {
+export function CheckIcon({ className }: { className?: string }) {
   return (
     <svg
       width="14"
@@ -29,13 +29,14 @@ export function CheckIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      className={className}
     >
       <path d="m4 12 5.5 5.5L20 7" />
     </svg>
   );
 }
 
-export function CrossIcon() {
+export function CrossIcon({ className }: { className?: string }) {
   return (
     <svg
       width="14"
@@ -47,6 +48,7 @@ export function CrossIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      className={className}
     >
       <path d="m5 5 14 14M19 5 5 19" />
     </svg>
@@ -57,7 +59,7 @@ export function YoutubeIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M22.5 12s0-3.2-.4-4.7c-.24-.86-.93-1.55-1.8-1.79C18.8 5.1 12 5.1 12 5.1s-6.8 0-8.3.41c-.87.24-1.56.93-1.8 1.79C1.5 8.8 1.5 12 1.5 12s0 3.2.4 4.7c.24.86.93 1.55 1.8 1.79 1.5.41 8.3.41 8.3.41s6.8 0 8.3-.41c.87-.24 1.56-.93 1.8-1.79.4-1.5.4-4.7.4-4.7z" />
-      <path d="M9.9 15.1V8.9L15.5 12l-5.6 3.1z" fill="var(--color-bg)" />
+      <path d="M9.9 15.1V8.9L15.5 12l-5.6 3.1z" fill="var(--uva-bg)" />
     </svg>
   );
 }

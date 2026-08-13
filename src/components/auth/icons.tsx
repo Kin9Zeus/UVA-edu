@@ -1,6 +1,6 @@
 export function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="size-[18px]" viewBox="0 0 24 24" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M21.35 12.23c0-.79-.07-1.55-.22-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42z"
@@ -56,8 +56,7 @@ export function DotIcon() {
 export function EyeIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      className="size-[18px]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -75,8 +74,7 @@ export function EyeIcon() {
 export function EyeOffIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      className="size-[18px]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
