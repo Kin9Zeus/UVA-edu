@@ -45,6 +45,11 @@ enum EstadoProcesamientoLeccion {
   LISTO
 }
 
+enum TipoDescuento {
+  PORCENTAJE
+  MONTO_FIJO
+}
+
 // ============================================================
 // Módulo de Usuarios y Membresía
 // ============================================================
@@ -230,18 +235,19 @@ model Certificados {
   usuario Perfiles @relation(fields: [id_usuario], references: [id])
   curso   Cursos   @relation(fields: [id_curso], references: [id])
 
+  @@unique([id_usuario, id_curso])
   @@index([id_usuario])
   @@map("certificados")
 }
 
 model Cupones {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  codigo            String   @unique
-  tipo_descuento    String
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo            String        @unique
+  tipo_descuento    TipoDescuento
   valor             Int
   fecha_vencimiento DateTime
   limite_usos       Int?
-  veces_usado       Int      @default(0)
+  veces_usado       Int           @default(0)
 
   suscripciones Suscripciones[]
 
@@ -251,12 +257,12 @@ model Cupones {
 model Inscripciones {
   id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_usuario   String  @db.Uuid
-  id_curso     String? @db.Uuid
+  id_curso     String  @db.Uuid
   otorgado_por String? @db.Uuid
   tipo_acceso  String
 
   usuario      Perfiles  @relation("InscripcionesDelUsuario", fields: [id_usuario], references: [id])
-  curso        Cursos?   @relation(fields: [id_curso], references: [id])
+  curso        Cursos    @relation(fields: [id_curso], references: [id])
   admin_otorgo Perfiles? @relation("InscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
 
   @@unique([id_usuario, id_curso])
