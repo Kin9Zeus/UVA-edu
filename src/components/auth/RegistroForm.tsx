@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { GoogleIcon, CheckIcon, DotIcon } from "@/components/auth/icons";
 import { passwordRules, isPasswordValid } from "@/lib/password";
+import { registro, type RegistroState } from "@/actions/auth/registro";
 
 /* Este formulario solo se renderiza dentro de /registro, cuya columna de
    formulario se comprime (auth-shell--fit en el CSS original) para caber sin
@@ -16,19 +17,34 @@ import { passwordRules, isPasswordValid } from "@/lib/password";
    .btn/.input/.divider, etc. */
 export function RegistroForm() {
   const [step, setStep] = useState<1 | 2>(1);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [registroState, formAction, pending] = useActionState<
+    RegistroState,
+    FormData
+  >(registro, null);
 
   const passwordValid = isPasswordValid(password);
   const passwordsMatch = password.length > 0 && password === password2;
   const canContinue = passwordValid && passwordsMatch;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleStep1Submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (step === 1) {
-      if (!canContinue) return;
-      setStep(2);
-    }
+    if (!canContinue) return;
+    setStep(2);
+  }
+
+  if (registroState?.needsConfirmation) {
+    return (
+      <div
+        role="status"
+        className="mt-4 rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
+      >
+        Creamos tu cuenta. Revisa tu correo y confirma tu cuenta para poder
+        iniciar sesión.
+      </div>
+    );
   }
 
   return (
@@ -68,9 +84,11 @@ export function RegistroForm() {
         </>
       )}
 
-      <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-        {step === 1 ? (
-          <>
+      {step === 1 ? (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={handleStep1Submit}
+        >
             <div>
               <Label htmlFor="reg-email">Correo</Label>
               <Input
@@ -79,6 +97,9 @@ export function RegistroForm() {
                 type="email"
                 placeholder="tu@correo.com"
                 autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 className="h-9"
               />
             </div>
@@ -92,6 +113,7 @@ export function RegistroForm() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 inputClassName="h-9"
+                required
               />
 
               <ul className="mt-1.5 grid grid-cols-2 gap-x-2.5 gap-y-1">
@@ -124,6 +146,7 @@ export function RegistroForm() {
                 value={password2}
                 onChange={(event) => setPassword2(event.target.value)}
                 inputClassName="h-9"
+                required
               />
               {password2.length > 0 && !passwordsMatch && (
                 <p className="mt-1.5 text-xs text-uva-danger-text">
@@ -141,12 +164,24 @@ export function RegistroForm() {
             >
               Continuar
             </Button>
-          </>
-        ) : (
-          <>
+        </form>
+      ) : (
+        <form className="flex flex-col gap-2" action={formAction}>
+            <input type="hidden" name="email" value={email} />
+            <input type="hidden" name="password" value={password} />
+
             <div className="mb-2 inline-flex items-center gap-2.5 rounded-full bg-uva-success-soft px-3.5 py-2.5 text-[13px] text-uva-success-text">
               <span>Paso 2 · Cuéntanos quién eres</span>
             </div>
+
+            {registroState?.error && (
+              <div
+                role="alert"
+                className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-center text-[13px] text-uva-danger-text"
+              >
+                {registroState.error}
+              </div>
+            )}
 
             <div>
               <Label htmlFor="reg-name">¿Cómo te llamas?</Label>
@@ -156,6 +191,7 @@ export function RegistroForm() {
                 type="text"
                 placeholder="Nombre y apellido"
                 autoComplete="name"
+                required
                 className="h-9"
               />
             </div>
@@ -174,9 +210,10 @@ export function RegistroForm() {
               type="submit"
               variant="uva-primary"
               size="uva"
+              disabled={pending}
               className="mt-1.5 min-h-10 text-[15px]"
             >
-              Crear mi cuenta
+              {pending ? "Creando cuenta…" : "Crear mi cuenta"}
             </Button>
             <Button
               type="button"
@@ -184,12 +221,12 @@ export function RegistroForm() {
               size="uva"
               className="mt-0.5"
               onClick={() => setStep(1)}
+              disabled={pending}
             >
               ← Volver
             </Button>
-          </>
-        )}
-      </form>
+        </form>
+      )}
 
       <p className="mt-2 text-center text-[13px] text-uva-text-muted">
         ¿Ya tienes cuenta? <Link href="/login">Inicia sesión</Link>

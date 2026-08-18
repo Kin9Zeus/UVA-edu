@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthVisual } from "@/components/auth/AuthVisual";
-import { PasswordInput } from "@/components/auth/PasswordInput";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm } from "@/components/auth/LoginForm";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/auth/icons";
 
@@ -11,7 +9,13 @@ export const metadata: Metadata = {
   title: "U.V.A. — Iniciar sesión",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>;
+}) {
+  const { redirect } = await searchParams;
+
   return (
     <div className="grid min-h-screen grid-cols-1 min-[900px]:grid-cols-2">
       <AuthVisual />
@@ -38,42 +42,7 @@ export default function LoginPage() {
             <div className="h-px flex-1 bg-uva-divider" />
           </div>
 
-          <form className="flex flex-col gap-3.5">
-            <div>
-              <Label htmlFor="login-email">Correo</Label>
-              <Input
-                id="login-email"
-                name="email"
-                type="email"
-                placeholder="Ingresa tu correo electrónico"
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <Label htmlFor="login-pass">Contraseña</Label>
-              <PasswordInput
-                id="login-pass"
-                name="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
-            </div>
-
-            <div className="mt-2.5 flex justify-end">
-              <Link href="/recuperar" className="text-xs">
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              variant="uva-primary"
-              size="uva"
-              className="mt-4 min-h-[46px] text-[15px]"
-            >
-              Entrar
-            </Button>
-          </form>
+          <LoginForm redirectTo={redirect?.startsWith("/") ? redirect : "/dashboard"} />
 
           <p className="mt-5 text-center text-[13px] text-uva-text-muted">
             ¿No tienes cuenta? <Link href="/registro">Créala gratis</Link>

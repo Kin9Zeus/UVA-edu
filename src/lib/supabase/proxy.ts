@@ -72,7 +72,7 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (perfil?.rol !== "administrador") {
+    if (perfil?.rol !== "ADMINISTRADOR") {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }

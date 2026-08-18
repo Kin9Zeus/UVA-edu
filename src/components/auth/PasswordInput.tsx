@@ -13,6 +13,7 @@ interface PasswordInputProps {
   value?: string;
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
   inputClassName?: string;
+  required?: boolean;
 }
 
 export function PasswordInput({
@@ -23,6 +24,7 @@ export function PasswordInput({
   value,
   onChange,
   inputClassName,
+  required,
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
   const toggleId = useId();
@@ -37,6 +39,7 @@ export function PasswordInput({
         autoComplete={autoComplete}
         value={value}
         onChange={onChange}
+        required={required}
         className={`pr-[42px] ${inputClassName ?? ""}`}
       />
       <Button
