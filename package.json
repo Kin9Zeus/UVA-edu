@@ -9,7 +9,9 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:seed": "prisma db seed",
+    "db:seed:clean": "tsx prisma/seed.ts --clean"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -35,15 +37,19 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "pg": "^8.23.0",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   },
   "allowScripts": {
