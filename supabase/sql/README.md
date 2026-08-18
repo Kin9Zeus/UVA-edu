@@ -76,13 +76,55 @@ warning. En una instalación nueva, `000` + `001` son suficientes y `002`
 no aplica (no rompe nada si se corre de todos modos: usa `create or
 replace` y `drop if exists`).
 
+### `003_rls_membresia_y_gestion.sql`
+Agrega las políticas de las 8 tablas que `001_rls_policies.sql` había
+dejado con RLS activo pero sin política propia (pendientes de Fase 2/4
+del `development-plan.md`, según quedó documentado ahí). No modifica
+ninguna política de `000`/`001`/`002` — solo añade nuevas:
+
+- **`planes`**: `SELECT` público solo si `activo = true` (igual que
+  `cursos`/`mostrado`); admin gestiona todo.
+- **`suscripciones`**: cada usuario lee las suyas; admin ve todas. Sin
+  `insert`/`update` para `authenticated` — el estado lo cambia
+  exclusivamente el backend al procesar webhooks de Stripe/Wompi con
+  la Service Role Key, que ignora RLS.
+- **`pagos`**: cada usuario lee los pagos de sus propias suscripciones
+  (vía `join`); admin ve todos. Igual que `suscripciones`, cero
+  escritura de cliente.
+- **`cupones`**: sin ninguna policy de `SELECT` para `anon`/
+  `authenticated` — evita exponer código, tipo de descuento, límite y
+  usos. La validación de un cupón en checkout se hace vía Server
+  Action con Service Role Key, nunca con una query directa del
+  cliente. Solo admin gestiona (`all`).
+- **`inscripciones`**: el estudiante ve las suyas e inserta su propia
+  fila de tipo `MEMBRESIA` (alta automática al entrar por primera vez
+  a un curso con suscripción `ACTIVA`/`PAST_DUE`, ver
+  `docs/functional-spec.md` Flujo 01), validado con un `exists` contra
+  `suscripciones` en el `with check`. Sin `update`/`delete` para el
+  estudiante. Admin gestiona todo, incluyendo las cortesías del
+  Flujo 11.
+- **`recursos_descargables`**: mismo criterio que el video de la
+  lección — `SELECT` si hay inscripción vigente al curso o suscripción
+  `ACTIVA`/`PAST_DUE` (join `lecciones` → `modulos` → `cursos`); admin
+  gestiona la escritura.
+- **`bitacora_administrativa`**: exclusivo admin, sin excepción.
+- **`eventos_webhook`**: **sin ninguna policy**, a propósito — la tabla
+  ya tiene RLS activo desde `001` y queda 100% inaccesible para
+  `anon`/`authenticated` (incluido un admin logueado vía PostgREST),
+  solo la usan los endpoints `/api/webhooks/*` con Service Role Key.
+  No es un olvido.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate dev` — crea las tablas a partir de `prisma/schema.prisma`.
 2. `000_trigger_perfiles.sql` — sincroniza `auth.users` → `perfiles` al registrarse.
 3. `001_rls_policies.sql` — activa RLS y define las políticas base.
+4. `002_harden_security_definer_functions.sql` — opcional en instalaciones
+   nuevas (no rompe nada si se corre igual, ver nota arriba); solo hace
+   falta en proyectos ya provisionados con la versión anterior de las
+   funciones en `public`.
+5. `003_rls_membresia_y_gestion.sql` — políticas de planes, suscripciones,
+   pagos, cupones, inscripciones, recursos descargables y bitácora.
 
-Repetir los 3 pasos en cada entorno nuevo (Staging y Production son
-proyectos de Supabase separados, ver `docs/technical-spec.md` §10). `002`
-no hace falta en instalaciones nuevas — solo se documenta como registro
-histórico del parche aplicado en desarrollo.
+Repetir los pasos en cada entorno nuevo (Staging y Production son
+proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
