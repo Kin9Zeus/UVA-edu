@@ -50,6 +50,15 @@ enum TipoDescuento {
   MONTO_FIJO
 }
 
+/// MEMBRESIA: alta automática al entrar por primera vez a un curso con
+/// Suscripción activa (no es una compra separada). CORTESIA: acceso manual
+/// otorgado por un Administrador a un estudiante específico, con fecha de
+/// expiración obligatoria (ver docs/functional-spec.md Flujo 11).
+enum TipoAcceso {
+  MEMBRESIA
+  CORTESIA
+}
+
 // ============================================================
 // Módulo de Usuarios y Membresía
 // ============================================================
@@ -255,11 +264,11 @@ model Cupones {
 }
 
 model Inscripciones {
-  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_usuario   String  @db.Uuid
-  id_curso     String  @db.Uuid
-  otorgado_por String? @db.Uuid
-  tipo_acceso  String
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario   String     @db.Uuid
+  id_curso     String     @db.Uuid
+  otorgado_por String?    @db.Uuid
+  tipo_acceso  TipoAcceso
 
   usuario      Perfiles  @relation("InscripcionesDelUsuario", fields: [id_usuario], references: [id])
   curso        Cursos    @relation(fields: [id_curso], references: [id])
