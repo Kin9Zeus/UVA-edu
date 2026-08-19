@@ -1,12 +1,17 @@
+import Link from "next/link";
+
 export function AuthVisual() {
   return (
     <section
       aria-label="Presentación"
       className="relative flex min-h-[320px] flex-col justify-between overflow-hidden bg-uva-surface/35 p-7 min-[900px]:min-h-0 min-[900px]:p-11"
     >
-      <div className="relative z-[2] flex items-center gap-[11px] font-heading text-2xl font-bold tracking-[0.1em]">
+      <Link
+        href="/"
+        className="relative z-[2] flex w-fit items-center gap-[11px] font-heading text-2xl font-bold tracking-[0.1em] text-uva-text no-underline hover:text-uva-text hover:no-underline"
+      >
         U.V.A<span className="text-uva-accent">.</span>
-      </div>
+      </Link>
 
       <div className="relative z-[2] max-w-[490px]">
         <h1 className="mb-3.5 text-[34px] text-uva-text min-[900px]:text-[46px]">

@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { CheckIcon, DotIcon } from "@/components/auth/icons";
-import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { passwordRules, isPasswordValid } from "@/lib/password";
 import { registro, type RegistroState } from "@/actions/auth/registro";
 
@@ -62,23 +61,6 @@ export function RegistroForm() {
           className={`h-1 flex-1 rounded-full ${step === 2 ? "bg-uva-accent" : "bg-uva-divider"}`}
         />
       </div>
-
-      {step === 1 && (
-        <>
-          <GoogleAuthButton
-            label="Registrarme con Google"
-            className="min-h-[38px]"
-          />
-
-          <div className="my-2 flex items-center gap-3">
-            <div className="h-px flex-1 bg-uva-divider" />
-            <span className="text-[11px] whitespace-nowrap text-uva-text-faint">
-              o con correo y contraseña
-            </span>
-            <div className="h-px flex-1 bg-uva-divider" />
-          </div>
-        </>
-      )}
 
       {step === 1 ? (
         <form

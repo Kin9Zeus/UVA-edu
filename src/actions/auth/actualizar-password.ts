@@ -35,5 +35,10 @@ export async function actualizarPassword(
     return { error: "No pudimos actualizar tu contraseña. Intenta de nuevo." };
   }
 
-  redirect("/dashboard");
+  // El enlace de recuperación deja una sesión activa; la cerramos para que
+  // el usuario tenga que iniciar sesión con la contraseña nueva en vez de
+  // quedar autenticado de una vez en el dashboard.
+  await supabase.auth.signOut();
+
+  redirect("/login");
 }
