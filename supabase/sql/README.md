@@ -144,9 +144,24 @@ suspender/activar cuentas y cambiar el rol de otro usuario, ver
 `docs/functional-spec.md` Flujo 13 — `001` solo dejaba actualizar el propio
 perfil).
 
+### `006_rls_instructores.sql`
+RLS de la tabla `instructores`, creada por la migración que convirtió
+`cursos.instructor` de texto libre a relación. Incluye el `alter table …
+enable row level security` explícito: `001` solo activó RLS sobre las tablas
+que existían entonces, así que una tabla creada después nace **sin** RLS —
+legible y escribible por `anon` vía PostgREST.
+
+Mismo criterio que `categorias` en `005`: `SELECT` público (el catálogo
+muestra quién dicta cada curso sin login) y escritura solo para
+`private.es_administrador()`. Sin filtro de `activo` porque el modelo no
+tiene esa columna.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
-1. `npx prisma migrate dev` — crea las tablas a partir de `prisma/schema.prisma`.
+1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
+   del historial completo de `prisma/migrations`. Va primero y de una sola
+   vez: los scripts de abajo asumen columnas que introducen las migraciones
+   (`categorias.activo` para `005`, la tabla `instructores` para `006`).
 2. `000_trigger_perfiles.sql` — sincroniza `auth.users` → `perfiles` al registrarse.
 3. `001_rls_policies.sql` — activa RLS y define las políticas base.
 4. `002_harden_security_definer_functions.sql` — opcional en instalaciones
@@ -156,12 +171,11 @@ perfil).
 5. `003_rls_membresia_y_gestion.sql` — políticas de planes, suscripciones,
    pagos, cupones, inscripciones, recursos descargables y bitácora.
 6. `004_categorias_select_publico.sql` — lectura pública de `categorias`.
-7. `npx prisma migrate dev` (de nuevo) — aplica la migración del panel admin
-   que agrega `categorias.activo` / `categorias.id_admin_creador` y
-   `cursos.nivel` / `destacado` / `orden_visualizacion`.
-8. `005_rls_categorias_y_perfiles_admin.sql` — ajusta `categorias_select_publico`
-   para respetar `activo`, y agrega la escritura de categorías y perfiles
-   para admin.
+7. `005_rls_categorias_y_perfiles_admin.sql` — reemplaza la policy de lectura
+   de `004` añadiéndole el filtro por `categorias.activo`, y agrega la
+   escritura de `categorias` y `perfiles` para admin.
+8. `006_rls_instructores.sql` — lectura pública y escritura solo admin de
+   `instructores`.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).

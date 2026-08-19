@@ -14,8 +14,7 @@ export default async function AdminInstructoresPage() {
       <div>
         <h1 className="text-xl text-uva-text">Instructores</h1>
         <p className="text-sm text-uva-text-faint">
-          Se listan a partir de los cursos existentes; un instructor aparece aquí en cuanto tiene al menos un
-          curso asignado.
+          Información de catálogo: los instructores no tienen cuenta ni inician sesión.
         </p>
       </div>
       <InstructoresTable instructores={instructores} />

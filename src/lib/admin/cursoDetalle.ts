@@ -31,6 +31,7 @@ export type CursoDetalle = {
   descripcion: string;
   categoriaId: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  instructorId: string;
   instructor: string;
   mostrado: boolean;
   destacado: boolean;
@@ -45,7 +46,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, id_categoria, nivel, instructor, mostrado, destacado, orden_visualizacion",
+      "id, titulo, descripcion, id_categoria, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
     )
     .eq("id", cursoId)
     .single();
@@ -113,13 +114,16 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     };
   });
 
+  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
+
   return {
     id: curso.id,
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     categoriaId: curso.id_categoria,
     nivel: curso.nivel,
-    instructor: curso.instructor,
+    instructorId: curso.id_instructor,
+    instructor: instructor?.nombre ?? "Sin instructor",
     mostrado: curso.mostrado,
     destacado: curso.destacado,
     ordenVisualizacion: curso.orden_visualizacion,

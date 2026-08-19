@@ -14,17 +14,16 @@ export async function crearCurso(input: {
   descripcion: string;
   categoriaId: string;
   nivel: NivelCurso;
-  instructor: string;
+  idInstructor: string;
   publicar: boolean;
 }): Promise<AdminActionResult & { id?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   const titulo = input.titulo.trim();
-  const instructor = input.instructor.trim();
   if (!titulo) return { error: "El nombre del curso es obligatorio." };
   if (!input.categoriaId) return { error: "Selecciona una categoría." };
-  if (!instructor) return { error: "El instructor es obligatorio." };
+  if (!input.idInstructor) return { error: "Selecciona un instructor." };
 
   const { data, error } = await admin.supabase
     .from("cursos")
@@ -34,7 +33,7 @@ export async function crearCurso(input: {
       imagen_portada: IMAGEN_PLACEHOLDER,
       id_categoria: input.categoriaId,
       nivel: input.nivel,
-      instructor,
+      id_instructor: input.idInstructor,
       mostrado: input.publicar,
       id_admin_creador: admin.adminId,
     })

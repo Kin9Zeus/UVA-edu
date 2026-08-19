@@ -48,6 +48,8 @@
  *
  * Contenido y operación:
  *   - 4 categorías temáticas (arquitectura / construcción).
+ *   - 3 instructores con especialidad. No son cuentas de usuario: no existen
+ *     en auth.users ni inician sesión, son catálogo que gestiona el admin.
  *   - 3 planes: Mensual y Anual activos, Trimestral descontinuado (activo=false).
  *   - 6 cursos (4 con mostrado=true, 2 con mostrado=false), creados por el admin.
  *   - 2-3 módulos por curso, 2-3 lecciones por módulo. Casi todas en estado
@@ -157,6 +159,7 @@ function uuid(bloque: string, n: number): string {
 
 const B = {
   categoria: "0a000000",
+  instructor: "2a000000",
   plan: "0b000000",
   curso: "0c000000",
   modulo: "0d000000",
@@ -197,6 +200,24 @@ const CATEGORIAS = [
   },
 ];
 
+/// Instructores del catálogo. No son cuentas: no existen en auth.users ni
+/// inician sesión (ver el modelo Instructores en schema.prisma). Se siembran
+/// antes que los cursos porque `cursos.id_instructor` es una FK obligatoria.
+const INSTRUCTORES = [
+  {
+    nombre: "Ana Ruiz",
+    especialidad: "Modelado BIM y coordinación de disciplinas",
+  },
+  {
+    nombre: "Daniel Castaño",
+    especialidad: "Visualización arquitectónica y render",
+  },
+  {
+    nombre: "Mauricio Gallego",
+    especialidad: "Estructuras y dirección de obra",
+  },
+];
+
 type LeccionSeed = {
   titulo: string;
   duracion: number;
@@ -207,7 +228,8 @@ type CursoSeed = {
   categoria: number;
   titulo: string;
   descripcion: string;
-  instructor: string;
+  /** Índice dentro de INSTRUCTORES, no el nombre suelto. */
+  instructor: number;
   mostrado: boolean;
   modulos: { titulo: string; lecciones: LeccionSeed[] }[];
 };
@@ -218,7 +240,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "Revit desde Cero para Arquitectos",
     descripcion:
       "Del muro básico al modelo coordinado: aprende Revit resolviendo un proyecto de vivienda completo, desde los ejes hasta la documentación para licencia.",
-    instructor: "Ana Ruiz",
+    instructor: 0,
     mostrado: true,
     modulos: [
       {
@@ -250,7 +272,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "BIM 4D y 5D: Tiempo y Costos",
     descripcion:
       "Vincula el modelo con el cronograma y el presupuesto. Simulación constructiva, cantidades de obra y control de desviaciones sobre el modelo federado.",
-    instructor: "Ana Ruiz",
+    instructor: 0,
     mostrado: false,
     modulos: [
       {
@@ -278,7 +300,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "Render Fotorrealista con V-Ray",
     descripcion:
       "Iluminación física, materiales PBR y postproducción. Aprende a leer un render como fotografía y a controlar el ruido sin quemar horas de cómputo.",
-    instructor: "Daniel Castaño",
+    instructor: 1,
     mostrado: true,
     modulos: [
       {
@@ -303,7 +325,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "Lumion y Twinmotion: Visualización en Tiempo Real",
     descripcion:
       "Recorridos, animaciones y presentaciones de cliente en horas, no en días. Flujo de sincronización en vivo desde Revit, SketchUp y Rhino.",
-    instructor: "Daniel Castaño",
+    instructor: 1,
     mostrado: true,
     modulos: [
       {
@@ -331,7 +353,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "Diseño Estructural en Concreto Reforzado",
     descripcion:
       "Predimensionamiento, análisis y detallado de vigas, columnas y losas. Del diagrama de momentos al despiece que realmente se construye en obra.",
-    instructor: "Mauricio Gallego",
+    instructor: 2,
     mostrado: true,
     modulos: [
       {
@@ -362,7 +384,7 @@ const CURSOS: CursoSeed[] = [
     titulo: "Gestión de Obra y Normativa NSR-10",
     descripcion:
       "Programación, presupuesto y control de una obra real, con el marco normativo colombiano como columna vertebral de las decisiones de diseño.",
-    instructor: "Mauricio Gallego",
+    instructor: 2,
     mostrado: false,
     modulos: [
       {
@@ -460,6 +482,7 @@ function verificarEntorno(): void {
 // ---------------------------------------------------------------------------
 
 const IDS_CATEGORIAS = CATEGORIAS.map((_, i) => uuid(B.categoria, i + 1));
+const IDS_INSTRUCTORES = INSTRUCTORES.map((_, i) => uuid(B.instructor, i + 1));
 const IDS_PLANES = [1, 2, 3].map((i) => uuid(B.plan, i));
 const IDS_CURSOS = CURSOS.map((_, i) => uuid(B.curso, i + 1));
 const CODIGOS_CUPONES = [
@@ -522,6 +545,24 @@ async function limpiar(): Promise<void> {
     where: { id_admin: { in: idsUsuarios } },
   });
   await prisma.cursos.deleteMany({ where: { id: { in: IDS_CURSOS } } });
+  // Después de cursos, nunca antes: `cursos.id_instructor` es una FK con
+  // ON DELETE RESTRICT, así que Postgres bloquea el borrado de un instructor
+  // mientras le quede algún curso apuntando.
+  //
+  // Se borra por ID fijo *o* por nombre, no solo por ID: `instructores.nombre`
+  // es UNIQUE, y pueden existir filas con estos mismos nombres pero con otro
+  // id — las creó la migración que convirtió `cursos.instructor` de texto
+  // libre a relación, con `gen_random_uuid()`. Si solo se filtrara por id,
+  // sobrevivirían y la siembra fallaría con P2002. Mismo criterio que se usa
+  // con `cupones.codigo`.
+  await prisma.instructores.deleteMany({
+    where: {
+      OR: [
+        { id: { in: IDS_INSTRUCTORES } },
+        { nombre: { in: INSTRUCTORES.map((i) => i.nombre) } },
+      ],
+    },
+  });
   await prisma.categorias.deleteMany({ where: { id: { in: IDS_CATEGORIAS } } });
   await prisma.cupones.deleteMany({ where: { codigo: { in: CODIGOS_CUPONES } } });
   await prisma.planes.deleteMany({ where: { id: { in: IDS_PLANES } } });
@@ -695,6 +736,17 @@ async function sembrar(): Promise<void> {
   });
   console.log("💳 3 planes (2 activos, 1 descontinuado)");
 
+  // --- Instructores --------------------------------------------------------
+  // Antes que los cursos: `cursos.id_instructor` es obligatorio.
+  await prisma.instructores.createMany({
+    data: INSTRUCTORES.map((instructor, i) => ({
+      id: IDS_INSTRUCTORES[i],
+      ...instructor,
+      id_admin_creador: idAdmin,
+    })),
+  });
+  console.log(`🎓 ${INSTRUCTORES.length} instructores`);
+
   // --- Cursos, módulos y lecciones ----------------------------------------
   await prisma.cursos.createMany({
     data: CURSOS.map((c, i) => ({
@@ -703,7 +755,7 @@ async function sembrar(): Promise<void> {
       titulo: c.titulo,
       descripcion: c.descripcion,
       imagen_portada: `https://picsum.photos/seed/uva-curso-${i + 1}/1200/675`,
-      instructor: c.instructor,
+      id_instructor: IDS_INSTRUCTORES[c.instructor],
       mostrado: c.mostrado,
       id_admin_creador: idAdmin,
     })),
@@ -1008,6 +1060,9 @@ async function resumen(): Promise<void> {
       where: { correo: { endsWith: DOMINIO_SEED } },
     }),
     categorias: await prisma.categorias.count({ where: { id: { in: IDS_CATEGORIAS } } }),
+    instructores: await prisma.instructores.count({
+      where: { id: { in: IDS_INSTRUCTORES } },
+    }),
     planes: await prisma.planes.count({ where: { id: { in: IDS_PLANES } } }),
     cursos: await prisma.cursos.count({ where: { id: { in: IDS_CURSOS } } }),
     modulos: await prisma.modulos.count({ where: { id_curso: { in: IDS_CURSOS } } }),

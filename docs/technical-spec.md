@@ -122,6 +122,21 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **activo** | Boolean | Default true. Agregado para el panel admin (prompt-panel-admin-claude-code.md) |
 | **id\_admin\_creador** | UUID (Foreign Key, nullable) | Admin que la creó. Agregado para el panel admin |
 
+#### **Tabla: Instructores**
+
+Información de catálogo, **no cuentas de usuario**: un instructor no existe en
+`auth.users`, no inicia sesión y no tiene perfil. Solo sirve para identificar
+quién dicta cada curso, y lo gestiona el administrador desde el panel.
+Sustituye al antiguo campo de texto libre `Cursos.instructor`.
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **nombre** | String (Unique) | Nombre del instructor. Único: el formulario de curso permite dar de alta uno nuevo sin salir, y sin la restricción se duplicarían |
+| **especialidad** | String (nullable) | Área en la que dicta. Nullable porque los instructores migrados desde el texto libre no la traían |
+| **id\_admin\_creador** | UUID (Foreign Key, nullable) | Admin que lo creó. Solo para auditoría — no se muestra en el listado |
+| **fecha\_creacion** | DateTime | Default now() |
+
 #### **Tabla: Cursos**
 
 | Parámetro | Tipo de Dato | Descripción   |
@@ -131,7 +146,7 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **titulo** | String | Nombre del curso |
 | **descripcion** | Text | Descripción del curso |
 | **imagen\_portada** | String | URL de Supabase Storage |
-| **instructor** | String | Nombre del instructor |
+| **id\_instructor** | UUID (Foreign Key) | Instructor que dicta el curso |
 | **nivel** | Enum | BASICO, INTERMEDIO, AVANZADO. Agregado para el panel admin |
 | **destacado** | Boolean | Default false. Agregado para el panel admin |
 | **orden\_visualizacion** | Int | Default 0. Agregado para el panel admin |

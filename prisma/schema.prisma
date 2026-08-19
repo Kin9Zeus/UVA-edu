@@ -86,6 +86,7 @@ model Perfiles {
 
   cursos_creados          Cursos[]                 @relation("CursosCreadosPorAdmin")
   categorias_creadas      Categorias[]             @relation("CategoriasCreadasPorAdmin")
+  instructores_creados    Instructores[]           @relation("InstructoresCreadosPorAdmin")
   suscripciones           Suscripciones[]          @relation("SuscripcionesDelUsuario")
   suscripciones_otorgadas Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
   progreso                Progreso[]
@@ -163,16 +164,34 @@ model Pagos {
 // ============================================================
 
 model Categorias {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre           String
   descripcion      String?
-  activo           Boolean  @default(true)
-  id_admin_creador String?  @db.Uuid
+  activo           Boolean @default(true)
+  id_admin_creador String? @db.Uuid
 
   cursos        Cursos[]
   admin_creador Perfiles? @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
 
   @@map("categorias")
+}
+
+/// Instructor del catálogo. NO es una cuenta: no existe en auth.users ni
+/// inicia sesión — es información que el administrador gestiona desde el
+/// panel para identificar quién dicta cada curso. `nombre` es único porque
+/// el formulario de curso permite dar de alta uno nuevo sin salir, y sin
+/// esa restricción se duplicarían.
+model Instructores {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre           String   @unique
+  especialidad     String?
+  id_admin_creador String?  @db.Uuid
+  fecha_creacion   DateTime @default(now())
+
+  admin_creador Perfiles? @relation("InstructoresCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  cursos        Cursos[]
+
+  @@map("instructores")
 }
 
 model Cursos {
@@ -181,7 +200,7 @@ model Cursos {
   titulo              String
   descripcion         String
   imagen_portada      String
-  instructor          String
+  id_instructor       String     @db.Uuid
   nivel               NivelCurso @default(BASICO)
   destacado           Boolean    @default(false)
   orden_visualizacion Int        @default(0)
@@ -191,12 +210,14 @@ model Cursos {
   fecha_edicion       DateTime   @updatedAt
 
   categoria     Categorias      @relation(fields: [id_categoria], references: [id])
+  instructor    Instructores    @relation(fields: [id_instructor], references: [id])
   admin_creador Perfiles        @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   modulos       Modulos[]
   certificados  Certificados[]
   inscripciones Inscripciones[]
 
   @@index([id_categoria])
+  @@index([id_instructor])
   @@map("cursos")
 }
 

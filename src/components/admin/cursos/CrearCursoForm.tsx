@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,21 +17,24 @@ import {
 } from "@/components/ui/select";
 import { crearCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
+import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
 
 const NIVEL_ITEMS = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" };
 
 export function CrearCursoForm({
   categorias,
-  instructoresSugeridos,
+  instructores: instructoresIniciales,
 }: {
   categorias: { id: string; nombre: string }[];
-  instructoresSugeridos: string[];
+  instructores: { id: string; nombre: string }[];
 }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [nivel, setNivel] = useState<NivelCurso>("BASICO");
-  const [instructor, setInstructor] = useState("");
+  const [instructores, setInstructores] = useState(instructoresIniciales);
+  const [idInstructor, setIdInstructor] = useState("");
+  const [instructorDialogOpen, setInstructorDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"borrador" | "publicar" | null>(null);
   const router = useRouter();
@@ -42,6 +45,21 @@ export function CrearCursoForm({
     [categorias],
   );
 
+  const instructorItems = useMemo(
+    () => Object.fromEntries(instructores.map((i) => [i.id, i.nombre])),
+    [instructores],
+  );
+
+  // El instructor recién creado se añade a la lista local y queda
+  // seleccionado, para no perder lo que ya se llevaba escrito en el resto
+  // del formulario mientras el Server Component se revalida.
+  function handleInstructorCreado(id: string, nombre: string) {
+    setInstructores((actuales) =>
+      [...actuales, { id, nombre }].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    );
+    setIdInstructor(id);
+  }
+
   async function handleGuardar(publicar: boolean) {
     setPending(publicar ? "publicar" : "borrador");
     setError(null);
@@ -51,7 +69,7 @@ export function CrearCursoForm({
       descripcion,
       categoriaId,
       nivel,
-      instructor,
+      idInstructor,
       publicar,
     });
 
@@ -150,19 +168,38 @@ export function CrearCursoForm({
 
         <div>
           <Label htmlFor="curso-instructor">Instructor</Label>
-          <Input
-            id="curso-instructor"
-            list="instructores-sugeridos"
-            value={instructor}
-            onChange={(event) => setInstructor(event.target.value)}
-            placeholder="Nombre del instructor"
-            required
-          />
-          <datalist id="instructores-sugeridos">
-            {instructoresSugeridos.map((nombre) => (
-              <option key={nombre} value={nombre} />
-            ))}
-          </datalist>
+          <div className="flex items-center gap-2">
+            <Select
+              items={instructorItems}
+              value={idInstructor}
+              onValueChange={(value) => setIdInstructor(value ?? "")}
+            >
+              <SelectTrigger id="curso-instructor" className="w-full">
+                <SelectValue placeholder="Selecciona un instructor" />
+              </SelectTrigger>
+              <SelectContent>
+                {instructores.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-auto shrink-0"
+              onClick={() => setInstructorDialogOpen(true)}
+            >
+              <Plus className="size-4" />
+              Nuevo
+            </Button>
+          </div>
+          {instructores.length === 0 && (
+            <p className="mt-1.5 text-xs text-uva-text-faint">
+              Todavía no hay instructores. Crea el primero con el botón de al lado.
+            </p>
+          )}
         </div>
 
         <div className="flex gap-3">
@@ -174,6 +211,12 @@ export function CrearCursoForm({
           </Button>
         </div>
       </CardContent>
+
+      <InstructorFormDialog
+        open={instructorDialogOpen}
+        onOpenChange={setInstructorDialogOpen}
+        onCreado={handleInstructorCreado}
+      />
     </Card>
   );
 }

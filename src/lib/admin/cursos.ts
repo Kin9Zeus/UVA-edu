@@ -5,6 +5,7 @@ export type CursoListado = {
   titulo: string;
   categoria: string;
   categoriaId: string;
+  instructor: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   estudiantes: number;
   mostrado: boolean;
@@ -17,7 +18,9 @@ export async function getCursosListado(): Promise<CursoListado[]> {
   const [{ data: cursos }, { data: inscripciones }] = await Promise.all([
     supabase
       .from("cursos")
-      .select("id, titulo, nivel, mostrado, fecha_creacion, id_categoria, categoria:categorias(nombre)")
+      .select(
+        "id, titulo, nivel, mostrado, fecha_creacion, id_categoria, categoria:categorias(nombre), instructor:instructores(nombre)",
+      )
       .order("fecha_creacion", { ascending: false }),
     supabase.from("inscripciones").select("id_curso"),
   ]);
@@ -29,11 +32,13 @@ export async function getCursosListado(): Promise<CursoListado[]> {
 
   return (cursos ?? []).map((curso) => {
     const categoria = Array.isArray(curso.categoria) ? curso.categoria[0] : curso.categoria;
+    const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
     return {
       id: curso.id,
       titulo: curso.titulo,
       categoria: categoria?.nombre ?? "Sin categoría",
       categoriaId: curso.id_categoria,
+      instructor: instructor?.nombre ?? "Sin instructor",
       nivel: curso.nivel,
       estudiantes: conteo.get(curso.id) ?? 0,
       mostrado: curso.mostrado,
@@ -48,8 +53,6 @@ export async function getCategoriasActivas() {
   return data ?? [];
 }
 
-export async function getInstructoresSugeridos() {
-  const supabase = await createClient();
-  const { data } = await supabase.from("cursos").select("instructor");
-  return Array.from(new Set((data ?? []).map((curso) => curso.instructor))).sort();
-}
+// getInstructoresSugeridos() desapareció al pasar los instructores a tabla
+// propia: ya no hay que deducirlos de los cursos existentes. El formulario
+// usa getInstructoresParaSelector() de @/lib/admin/instructores.

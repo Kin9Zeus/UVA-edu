@@ -73,6 +73,10 @@ y **luego** corrige rol y estado con Prisma (única forma de obtener un
 **Contenido y operación:**
 
 - 4 categorías de arquitectura/construcción.
+- 3 instructores con especialidad (`Ana Ruiz`, `Daniel Castaño`,
+  `Mauricio Gallego`). No son cuentas: no existen en `auth.users` ni inician
+  sesión. Se siembran antes que los cursos porque `cursos.id_instructor` es
+  una FK obligatoria.
 - 3 planes: Mensual y Anual activos, Trimestral con `activo = false`.
 - 6 cursos (4 con `mostrado = true`, 2 ocultos), 14 módulos, 30 lecciones.
   28 lecciones en `LISTO`; 1 en `PROCESANDO` y 1 en `SUBIENDO` — estas dos sin
@@ -101,7 +105,13 @@ Correr el seed dos veces seguidas deja la base idéntica. Tres mecanismos:
 - **Limpieza previa** respetando el orden de las Foreign Keys. `cursos` cascadea
   a `modulos` → `lecciones` → `progreso`, pero `recursos_descargables`,
   `certificados` e `inscripciones` **no** cascadean: se borran antes a mano o el
-  `DELETE` de cursos falla.
+  `DELETE` de cursos falla. `instructores` va justo *después* de `cursos`:
+  `cursos.id_instructor` es `ON DELETE RESTRICT`.
+- **Borrado por nombre además de por id** en `instructores`, porque
+  `instructores.nombre` es `UNIQUE` y pueden existir filas con esos mismos
+  nombres pero otro id — las creó la migración que convirtió
+  `cursos.instructor` de texto libre a relación. Filtrando solo por id
+  sobrevivirían y la siembra fallaría con P2002.
 - **Reutilización de cuentas de Auth**: si un usuario `@uva.test` sobrevivió a
   una limpieza parcial, se reutiliza su `id` y se le reescribe la contraseña, en
   vez de fallar con «email already registered».
