@@ -1,40 +1,23 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type Status = "idle" | "loading" | "sent";
+import { recuperar, type RecuperarState } from "@/actions/auth/recuperar";
 
 export function RecuperarForm() {
   const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
+  const [state, formAction, pending] = useActionState<
+    RecuperarState,
+    FormData
+  >(recuperar, null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     setEmail(event.target.value);
-    if (error) setError("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (status !== "idle") return;
-
-    if (!EMAIL_PATTERN.test(email)) {
-      setError("Ingresa un correo electrónico válido.");
-      return;
-    }
-
-    setStatus("loading");
-    window.setTimeout(() => {
-      setStatus("sent");
-    }, 900);
-  }
-
-  if (status === "sent") {
+  if (state?.success) {
     return (
       <div
         role="status"
@@ -47,11 +30,7 @@ export function RecuperarForm() {
   }
 
   return (
-    <form
-      className="flex flex-col gap-3.5"
-      onSubmit={handleSubmit}
-      noValidate
-    >
+    <form action={formAction} className="flex flex-col gap-3.5" noValidate>
       <div>
         <Label htmlFor="recuperar-email">Correo</Label>
         <Input
@@ -63,8 +42,8 @@ export function RecuperarForm() {
           value={email}
           onChange={handleChange}
         />
-        {error && (
-          <p className="mt-1.5 text-xs text-uva-danger-text">{error}</p>
+        {state?.error && (
+          <p className="mt-1.5 text-xs text-uva-danger-text">{state.error}</p>
         )}
       </div>
 
@@ -72,10 +51,10 @@ export function RecuperarForm() {
         type="submit"
         variant="uva-primary"
         size="uva"
-        disabled={status === "loading"}
+        disabled={pending}
         className="mt-4 min-h-[46px] text-[15px]"
       >
-        {status === "loading" ? (
+        {pending ? (
           <>
             <span
               aria-hidden="true"

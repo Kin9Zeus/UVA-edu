@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthVisual } from "@/components/auth/AuthVisual";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { Button } from "@/components/ui/button";
-import { GoogleIcon } from "@/components/auth/icons";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Iniciar sesión",
@@ -29,10 +28,10 @@ export default async function LoginPage({
             Retoma tu ruta donde la dejaste.
           </p>
 
-          <Button type="button" variant="uva-secondary" size="uva">
-            <GoogleIcon />
-            Continuar con Google
-          </Button>
+          <GoogleAuthButton
+            label="Continuar con Google"
+            next={redirect?.startsWith("/") ? redirect : "/dashboard"}
+          />
 
           <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-uva-divider" />
