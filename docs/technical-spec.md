@@ -119,6 +119,8 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **id** | UUID (Primary Key) | Identificador único |
 | **nombre** | String | Nombre de la categoría |
 | **descripcion** | String (nullable) | Descripción breve |
+| **activo** | Boolean | Default true. Agregado para el panel admin (prompt-panel-admin-claude-code.md) |
+| **id\_admin\_creador** | UUID (Foreign Key, nullable) | Admin que la creó. Agregado para el panel admin |
 
 #### **Tabla: Cursos**
 
@@ -130,6 +132,9 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **descripcion** | Text | Descripción del curso |
 | **imagen\_portada** | String | URL de Supabase Storage |
 | **instructor** | String | Nombre del instructor |
+| **nivel** | Enum | BASICO, INTERMEDIO, AVANZADO. Agregado para el panel admin |
+| **destacado** | Boolean | Default false. Agregado para el panel admin |
+| **orden\_visualizacion** | Int | Default 0. Agregado para el panel admin |
 | **mostrado** | Boolean | Default false |
 | **id\_admin\_creador** | UUID (Foreign Key) | Admin que lo creó |
 | **fecha\_creacion** | DateTime | Default now() |

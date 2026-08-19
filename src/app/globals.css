@@ -74,6 +74,12 @@
   --color-uva-success-text: var(--uva-success-text);
   --color-uva-valid: var(--uva-valid);
   --color-uva-valid-soft: var(--uva-valid-soft);
+  --color-uva-warning: var(--uva-warning);
+  --color-uva-warning-soft: var(--uva-warning-soft);
+  --color-uva-warning-text: var(--uva-warning-text);
+  --color-uva-error: var(--uva-error);
+  --color-uva-error-soft: var(--uva-error-soft);
+  --color-uva-error-text: var(--uva-error-text);
   --radius-uva-xs: 4px;
   --radius-uva-sm: 8px;
   --radius-uva-md: 10px;
@@ -146,6 +152,14 @@
   --uva-success-text: #ffdd55;
   --uva-valid: #22c55e;
   --uva-valid-soft: rgba(34, 197, 94, 0.16);
+
+  /* U.V.A — semáforo de estado del panel admin (ver prompt-panel-admin-claude-code.md) */
+  --uva-warning: #f59e0b;
+  --uva-warning-soft: rgba(245, 158, 11, 0.16);
+  --uva-warning-text: #fbbf24;
+  --uva-error: #ef4444;
+  --uva-error-soft: rgba(239, 68, 68, 0.16);
+  --uva-error-text: #f87171;
 }
 
 .dark {

@@ -22,12 +22,13 @@ export default async function DashboardLayout({
     .eq("id_usuario", user.id);
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
+  const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
   return (
     <div className="flex min-h-screen">
       <Sidebar certificadosCount={certificadosCount ?? 0} />
       <div className="flex min-h-screen flex-1 flex-col">
-        <Header nombre={nombre} />
+        <Header nombre={nombre} esAdmin={esAdmin} />
         <main className="flex-1">{children}</main>
       </div>
     </div>

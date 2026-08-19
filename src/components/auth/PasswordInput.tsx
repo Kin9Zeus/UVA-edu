@@ -47,7 +47,7 @@ export function PasswordInput({
         variant="uva-icon"
         size="auto"
         id={toggleId}
-        className="absolute top-1/2 right-1 size-8 -translate-y-1/2"
+        className="absolute top-1 right-1 size-8"
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}

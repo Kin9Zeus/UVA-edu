@@ -29,7 +29,7 @@ const buttonVariants = cva(
         "uva-ghost":
           "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-icon":
-          "rounded-uva-sm border-0 bg-transparent text-uva-text-faint transition-none hover:text-uva-text-muted hover:bg-uva-text/8 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none",
+          "rounded-uva-sm border-0 bg-transparent text-uva-text-faint !transition-none hover:text-uva-text-muted hover:bg-uva-text/8 active:not-aria-[haspopup]:!translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none",
       },
       size: {
         default:

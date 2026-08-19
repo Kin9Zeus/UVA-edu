@@ -1,0 +1,37 @@
+const UNIDADES: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 60 * 60 * 24 * 365],
+  ["month", 60 * 60 * 24 * 30],
+  ["week", 60 * 60 * 24 * 7],
+  ["day", 60 * 60 * 24],
+  ["hour", 60 * 60],
+  ["minute", 60],
+];
+
+const rtf = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+
+export function tiempoRelativo(fechaIso: string) {
+  const segundos = (new Date(fechaIso).getTime() - Date.now()) / 1000;
+
+  for (const [unidad, segundosPorUnidad] of UNIDADES) {
+    if (Math.abs(segundos) >= segundosPorUnidad) {
+      return rtf.format(Math.round(segundos / segundosPorUnidad), unidad);
+    }
+  }
+  return rtf.format(Math.round(segundos), "second");
+}
+
+export function formatFecha(fechaIso: string) {
+  return new Date(fechaIso).toLocaleDateString("es-CO", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+export function formatMoneda(centavos: number, moneda: string) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: moneda,
+    maximumFractionDigits: 0,
+  }).format(centavos / 100);
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ChevronDown, LogOut, CreditCard, Award, User } from "lucide-react";
+import { Search, ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,7 +19,7 @@ function iniciales(nombre: string) {
   return letras.join("") || "U";
 }
 
-export function Header({ nombre }: { nombre: string }) {
+export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: boolean }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
   return (
@@ -70,6 +70,18 @@ export function Header({ nombre }: { nombre: string }) {
               <Award className="size-4" />
               Mis certificados
             </DropdownMenuLinkItem>
+            {esAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLinkItem
+                  render={<Link href="/admin" />}
+                  className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+                >
+                  <ShieldCheck className="size-4" />
+                  Panel de administración
+                </DropdownMenuLinkItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}

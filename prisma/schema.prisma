@@ -50,6 +50,16 @@ enum TipoDescuento {
   MONTO_FIJO
 }
 
+/// Nivel de dificultad del curso, usado en filtros del catálogo y del
+/// panel admin (ver prompt-panel-admin-claude-code.md). No estaba en el
+/// diccionario de datos original de docs/technical-spec.md; se agrega
+/// aquí como campo del CMS.
+enum NivelCurso {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+}
+
 /// MEMBRESIA: alta automática al entrar por primera vez a un curso con
 /// Suscripción activa (no es una compra separada). CORTESIA: acceso manual
 /// otorgado por un Administrador a un estudiante específico, con fecha de
@@ -75,6 +85,7 @@ model Perfiles {
   fecha_registro DateTime     @default(now())
 
   cursos_creados          Cursos[]                 @relation("CursosCreadosPorAdmin")
+  categorias_creadas      Categorias[]             @relation("CategoriasCreadasPorAdmin")
   suscripciones           Suscripciones[]          @relation("SuscripcionesDelUsuario")
   suscripciones_otorgadas Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
   progreso                Progreso[]
@@ -152,26 +163,32 @@ model Pagos {
 // ============================================================
 
 model Categorias {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre      String
-  descripcion String?
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre           String
+  descripcion      String?
+  activo           Boolean  @default(true)
+  id_admin_creador String?  @db.Uuid
 
-  cursos Cursos[]
+  cursos        Cursos[]
+  admin_creador Perfiles? @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
 
   @@map("categorias")
 }
 
 model Cursos {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_categoria     String   @db.Uuid
-  titulo           String
-  descripcion      String
-  imagen_portada   String
-  instructor       String
-  mostrado         Boolean  @default(false)
-  id_admin_creador String   @db.Uuid
-  fecha_creacion   DateTime @default(now())
-  fecha_edicion    DateTime @updatedAt
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_categoria        String     @db.Uuid
+  titulo              String
+  descripcion         String
+  imagen_portada      String
+  instructor          String
+  nivel               NivelCurso @default(BASICO)
+  destacado           Boolean    @default(false)
+  orden_visualizacion Int        @default(0)
+  mostrado            Boolean    @default(false)
+  id_admin_creador    String     @db.Uuid
+  fecha_creacion      DateTime   @default(now())
+  fecha_edicion       DateTime   @updatedAt
 
   categoria     Categorias      @relation(fields: [id_categoria], references: [id])
   admin_creador Perfiles        @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])

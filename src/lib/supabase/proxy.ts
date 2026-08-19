@@ -67,7 +67,7 @@ export async function updateSession(request: NextRequest) {
     // TODO: optimizar esta consulta (ej. leer el rol desde un claim del
     // JWT en vez de golpear Perfiles en cada request al panel admin).
     const { data: perfil } = await supabase
-      .from("Perfiles")
+      .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .single();
