@@ -16,7 +16,7 @@ crearon vía `npx prisma migrate dev --name init` (migración
 IPv4, y el Transaction pooler (puerto `6543`) no soporta bien los locks que
 usa Prisma Migrate.
 
-Sobre esas tablas se corrieron los 3 scripts de esta carpeta (ver detalle
+Sobre esas tablas se corrieron los scripts de esta carpeta (ver detalle
 de cada uno abajo) y luego se revisó **Database → Advisors** en el
 dashboard de Supabase: quedó en 0 errores y 0 warnings. Los 10 "Info"
 restantes son esperados — son tablas con RLS activo pero sin política
@@ -27,7 +27,7 @@ Service Role) porque pertenecen a fases futuras del `development-plan.md`
 `recursos_descargables`, `bitacora_administrativa`, `eventos_webhook`, y
 `_prisma_migrations`.
 
-## Los 3 scripts
+## Los scripts
 
 ### `000_trigger_perfiles.sql`
 Crea la función `private.handle_new_user()` y el trigger
@@ -54,7 +54,8 @@ Las tablas sin política explícita (`planes`, `suscripciones`, `pagos`,
 `bitacora_administrativa`, `eventos_webhook`) quedan bloqueadas a
 propósito para `anon`/`authenticated` — se abrirán con reglas propias en
 la Fase 2/4 del `development-plan.md` (panel admin, muro de acceso), no se
-inventaron reglas de negocio que el spec no define todavía.
+inventaron reglas de negocio que el spec no define todavía. `003` abrió
+casi todas; `categorias` se quedó por fuera de ese lote y la abre `004`.
 
 ### `002_harden_security_definer_functions.sql`
 Parche de seguridad aplicado una sola vez sobre el proyecto de Supabase ya
@@ -114,6 +115,21 @@ ninguna política de `000`/`001`/`002` — solo añade nuevas:
   solo la usan los endpoints `/api/webhooks/*` con Service Role Key.
   No es un olvido.
 
+### `004_categorias_select_publico.sql`
+`SELECT` público sobre `categorias`, la única tabla de catálogo que `003`
+no cubrió: `001` le activó RLS y nunca le creó política, así que quedaba
+inaccesible para `anon`/`authenticated`.
+
+Hizo falta al conectar el Home a datos reales — la sección "Escuelas" del
+footer lista las categorías sin login. El síntoma sin política es
+traicionero: PostgREST **no devuelve error**, RLS simplemente filtra todas
+las filas y la consulta responde `[]`, así que parece una tabla vacía.
+
+Una categoría es metadato público del catálogo (nombre + descripción), el
+mismo criterio que `planes_select_publico` y `cursos_select_publicos`. No
+agrega política de escritura: el CMS de categorías es Fase 4, hasta
+entonces solo se tocan con Service Role / Prisma.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate dev` — crea las tablas a partir de `prisma/schema.prisma`.
@@ -125,6 +141,7 @@ ninguna política de `000`/`001`/`002` — solo añade nuevas:
    funciones en `public`.
 5. `003_rls_membresia_y_gestion.sql` — políticas de planes, suscripciones,
    pagos, cupones, inscripciones, recursos descargables y bitácora.
+6. `004_categorias_select_publico.sql` — lectura pública de `categorias`.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
