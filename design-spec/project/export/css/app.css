@@ -1,0 +1,43 @@
+/* app.css — tema U.V.A. sobre el sistema de diseño Organic */
+:root{
+  --color-bg:#09090B; --color-surface:#18181B; --color-text:#FAFAFA;
+  --color-divider:#27272A;
+  --color-accent:#FF007A; --color-accent-2:#F2C012;
+  --status-warning:#F59E0B; --status-danger:#EF4444;
+  --font-heading:"Plus Jakarta Sans",system-ui,sans-serif;
+  --font-heading-weight:700;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  --note-d:inline-flex;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow-md:0 4px 14px rgba(0,0,0,.45);
+  --shadow-lg:0 18px 44px rgba(0,0,0,.55);
+}
+body{background:linear-gradient(168deg,#101013 0%,#09090B 52%,#09090B 100%);background-attachment:fixed;color:var(--color-text);font-family:var(--font-body);min-height:100vh}
+h1,h2,h3,h4,h5,h6{font-family:var(--font-heading);font-weight:700;letter-spacing:-0.03em}
+a{color:var(--color-accent)}
+a:hover{color:#FF4D9E}
+.btn{font-family:var(--font-body);font-weight:600;letter-spacing:0}
+.btn-primary{background:var(--color-accent);color:#FAFAFA}
+.btn-primary:hover{background:#E00069}
+.btn-primary:active{background:#C2005B}
+.btn-secondary{border-color:var(--color-divider)}
+.btn-secondary:hover{background:#27272A}
+.card{background:#18181B;border:1px solid #27272A}
+.input{background:#18181B;color:var(--color-text);border-color:#27272A}
+.tag{font-family:var(--font-body);font-weight:600}
+.tag-accent{background:color-mix(in srgb,#FF007A 18%,transparent);color:#FF7AB8}
+.tag-accent-2{background:color-mix(in srgb,#F2C012 16%,transparent);color:#FFDD55}
+.tag-neutral{background:#27272A;color:#A1A1AA}
+.tag-outline{border-color:var(--color-accent);color:#FF7AB8}
+.table th{color:#A1A1AA;font-family:var(--font-mono);letter-spacing:.04em}
+.table td{border-bottom-color:#27272A;font-variant-numeric:tabular-nums}
+.seg{border-color:#27272A}
+.seg-opt+.seg-opt{border-left-color:#27272A}
+.seg-opt:has(input:checked){background:var(--color-accent);color:#FAFAFA}
+.seg-opt:not(:has(input:checked)):hover{background:#27272A}
+select.input option{background:#18181B;color:#FAFAFA}
+image-slot{--is-bg:#18181B}
+.card,.input,textarea.input,select.input,.table,.seg,.dialog{border-radius:10px}
+.btn{border-radius:10px}
+.tag{border-radius:4px}
