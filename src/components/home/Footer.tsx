@@ -5,17 +5,11 @@ import {
   SpotifyIcon,
   TiktokIcon,
 } from "@/components/home/icons";
+import { createPublicClient } from "@/lib/supabase/public";
 
+// La columna "Escuelas" sale de la tabla `categorias`; estas dos son
+// contenido editorial del sitio, sin fuente en base de datos.
 const columns = [
-  {
-    heading: "Escuelas",
-    links: [
-      "Arquitectura",
-      "Residencia de obra",
-      "Presupuestos y APU",
-      "Coordinación BIM",
-    ],
-  },
   {
     heading: "U.V.A. y comunidad",
     links: ["Sobre nosotros", "Blog del gremio", "Casos de éxito", "Empleo"],
@@ -54,7 +48,31 @@ const socials = [
   },
 ];
 
-export function Footer() {
+const headingClass =
+  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent uppercase";
+const linkClass =
+  "text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline";
+
+export async function Footer() {
+  const supabase = createPublicClient();
+
+  // Todas las categorías son públicas (policy `categorias_select_publico`,
+  // supabase/sql/004): no hay filtro, solo un orden estable por nombre —
+  // `categorias` no tiene columna `orden` en el esquema.
+  const { data, error } = await supabase
+    .from("categorias")
+    .select("id, nombre")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    console.error(
+      "[Home/Footer] No se pudieron cargar las categorías:",
+      error.message,
+    );
+  }
+
+  const escuelas = data ?? [];
+
   return (
     <footer className="border-t border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] pb-9">
       <div className="mx-auto max-w-[1180px]">
@@ -68,18 +86,30 @@ export function Footer() {
             </p>
           </div>
 
+          {/* Sin categorías se omite la columna entera en vez de dejar un
+              encabezado huérfano; el grid auto-fit reacomoda el resto. */}
+          {escuelas.length > 0 && (
+            <div>
+              <p className={headingClass}>Escuelas</p>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                {escuelas.map((escuela) => (
+                  <li key={escuela.id}>
+                    <a href="#" className={linkClass}>
+                      {escuela.nombre}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {columns.map((column) => (
             <div key={column.heading}>
-              <p className="mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent uppercase">
-                {column.heading}
-              </p>
+              <p className={headingClass}>{column.heading}</p>
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 {column.links.map((link) => (
                   <li key={link}>
-                    <a
-                      href="#"
-                      className="text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
-                    >
+                    <a href="#" className={linkClass}>
                       {link}
                     </a>
                   </li>
