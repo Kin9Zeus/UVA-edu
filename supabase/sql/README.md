@@ -130,6 +130,20 @@ mismo criterio que `planes_select_publico` y `cursos_select_publicos`. No
 agrega política de escritura: el CMS de categorías es Fase 4, hasta
 entonces solo se tocan con Service Role / Prisma.
 
+**Nota:** esta policy queda reemplazada por `005_rls_categorias_y_perfiles_admin.sql`
+en cuanto el panel admin (Fase 2) agrega la columna `categorias.activo` — ver ese
+archivo para el porqué.
+
+### `005_rls_categorias_y_perfiles_admin.sql`
+Panel admin (Fase 2): recrea `categorias_select_publico` para que respete la
+columna `activo` que agrega la migración de Prisma del panel (una categoría
+desactivada deja de listarse en el catálogo público, igual que
+`cursos.mostrado`/`planes.activo`), agrega `categorias_admin_escritura`
+(CRUD de categorías para admin) y `perfiles_admin_escritura` (un admin puede
+suspender/activar cuentas y cambiar el rol de otro usuario, ver
+`docs/functional-spec.md` Flujo 13 — `001` solo dejaba actualizar el propio
+perfil).
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate dev` — crea las tablas a partir de `prisma/schema.prisma`.
@@ -142,6 +156,12 @@ entonces solo se tocan con Service Role / Prisma.
 5. `003_rls_membresia_y_gestion.sql` — políticas de planes, suscripciones,
    pagos, cupones, inscripciones, recursos descargables y bitácora.
 6. `004_categorias_select_publico.sql` — lectura pública de `categorias`.
+7. `npx prisma migrate dev` (de nuevo) — aplica la migración del panel admin
+   que agrega `categorias.activo` / `categorias.id_admin_creador` y
+   `cursos.nivel` / `destacado` / `orden_visualizacion`.
+8. `005_rls_categorias_y_perfiles_admin.sql` — ajusta `categorias_select_publico`
+   para respetar `activo`, y agrega la escritura de categorías y perfiles
+   para admin.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).

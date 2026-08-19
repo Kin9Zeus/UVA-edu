@@ -2,26 +2,35 @@
 -- Row Level Security (RLS): Categorías y gestión de Perfiles por Admin
 -- Ver docs/technical-spec.md §5 y prompt-panel-admin-claude-code.md.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000, 001, 002 y 003,
--- y después de aplicar la migración de Prisma que agrega
--- categorias.activo / categorias.id_admin_creador (ver prisma/migrations).
+-- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000, 001, 002, 003 y
+-- 004_categorias_select_publico.sql, y después de aplicar la migración de
+-- Prisma que agrega categorias.activo / categorias.id_admin_creador (ver
+-- prisma/migrations).
 --
--- Cubre dos huecos que dejó 001_rls_policies.sql:
---   1. `categorias` tenía RLS activo pero CERO políticas (bloqueada por
---      completo salvo Service Role) — ni el catálogo público ni el
---      panel admin podían leerla.
+-- Cubre dos cosas:
+--   1. SUPERSEDE la policy "categorias_select_publico" que crea
+--      004_categorias_select_publico.sql. Ese archivo se escribió antes de
+--      que existiera la columna `categorias.activo` (la trae el panel
+--      admin), así que dejaba la lectura pública sin ningún filtro
+--      (`using (true)`). Aquí se recrea la misma policy — mismo nombre,
+--      `drop policy if exists` antes del `create` — para que una
+--      categoría desactivada por un admin deje de listarse en el
+--      catálogo público, igual que ya hacen `cursos.mostrado` y
+--      `planes.activo`. El admin sigue viendo todas (activas e
+--      inactivas) vía el `or private.es_administrador()`.
 --   2. `perfiles` solo tenía policy de UPDATE para el dueño de la fila
 --      (auth.uid() = id); un administrador no podía suspender/activar
 --      cuentas ni cambiar el rol de otro usuario desde el panel.
 --
--- Mismo patrón que 002/003: cada `create policy` va precedido de un
+-- Mismo patrón que 002/003/004: cada `create policy` va precedido de un
 -- `drop policy if exists` del mismo nombre.
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- CATEGORIAS
 -- Lectura pública solo de categorías activas (mismo criterio que
--- cursos.mostrado); el admin ve y gestiona todo.
+-- cursos.mostrado); el admin ve y gestiona todo. Reemplaza la policy
+-- "using (true)" de 004_categorias_select_publico.sql (ver nota arriba).
 -- ------------------------------------------------------------
 drop policy if exists "categorias_select_publico" on public.categorias;
 create policy "categorias_select_publico" on public.categorias
