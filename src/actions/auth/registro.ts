@@ -9,27 +9,28 @@ export type RegistroState =
   | { error?: never; needsConfirmation: true }
   | null;
 
+function safeRedirectTarget(value: FormDataEntryValue | null): string {
+  const target = String(value ?? "");
+  return target.startsWith("/") ? target : "/dashboard";
+}
+
 export async function registro(
   _prevState: RegistroState,
   formData: FormData,
 ): Promise<RegistroState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const nombre = String(formData.get("name") ?? "").trim();
+  const redirectTo = safeRedirectTarget(formData.get("redirect"));
 
-  if (!email || !nombre) {
-    return { error: "Completa tu correo y tu nombre." };
+  if (!email) {
+    return { error: "Completa tu correo." };
   }
   if (!isPasswordValid(password)) {
     return { error: "La contraseña no cumple los requisitos." };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { nombre } },
-  });
+  const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
     console.error("[registro] supabase.auth.signUp error:", error);
@@ -47,5 +48,5 @@ export async function registro(
     return { needsConfirmation: true };
   }
 
-  redirect("/dashboard");
+  redirect(redirectTo);
 }
