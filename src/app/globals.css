@@ -276,7 +276,6 @@
   }
   a:hover {
     color: #ff4d9e;
-    text-decoration: underline;
   }
   :focus-visible {
     outline: 2px solid var(--uva-accent);

@@ -9,7 +9,7 @@ import { RegistroForm } from "@/components/auth/RegistroForm";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { checkEmail } from "@/actions/auth/check-email";
 
-type Step = "email" | "login" | "signup" | "oauth" | "both";
+type Step = "email" | "login" | "signup" | "oauth" | "both" | "confirmar";
 
 const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   email: {
@@ -22,7 +22,7 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   },
   signup: {
     title: "Vamos a crear tu cuenta",
-    subtitle: "Elige una contraseña para tu cuenta nueva.",
+    subtitle: "Completa tus datos para tu cuenta nueva.",
   },
   oauth: {
     title: "¡Hola de nuevo!",
@@ -31,6 +31,10 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   both: {
     title: "Ingresa a tu cuenta",
     subtitle: "Puedes continuar con Google o con tu contraseña.",
+  },
+  confirmar: {
+    title: "¡Ya casi!",
+    subtitle: "Creamos tu cuenta. Revisa tu correo y confírmala para poder iniciar sesión.",
   },
 };
 
@@ -68,6 +72,15 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
   function handleCambiar() {
     setStep("email");
     setCheckError(null);
+  }
+
+  function handleCrearCuenta() {
+    setCheckError(null);
+    setStep("signup");
+  }
+
+  function handleCuentaCreada() {
+    setStep("confirmar");
   }
 
   const { title, subtitle } = STEP_COPY[step];
@@ -122,6 +135,17 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
             </Button>
           </form>
 
+          <p className="mt-4 text-center text-[13px] text-uva-text-muted">
+            ¿No tienes cuenta?{" "}
+            <button
+              type="button"
+              onClick={handleCrearCuenta}
+              className="text-uva-accent hover:underline"
+            >
+              Crear cuenta
+            </button>
+          </p>
+
           <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-uva-divider" />
             <span className="text-[11px] whitespace-nowrap text-uva-text-faint">
@@ -137,23 +161,50 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
         </>
       ) : (
         <>
-          <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 px-3.5 py-2.5 text-sm text-uva-text">
-            <span className="truncate">{email}</span>
-            <button
-              type="button"
-              onClick={handleCambiar}
-              className="shrink-0 text-xs text-uva-accent hover:underline"
-            >
-              Cambiar
-            </button>
-          </div>
+          {step !== "signup" && step !== "confirmar" && (
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 px-3.5 py-2.5 text-sm text-uva-text">
+              <span className="truncate">{email}</span>
+              <button
+                type="button"
+                onClick={handleCambiar}
+                className="shrink-0 text-xs text-uva-accent hover:underline"
+              >
+                Cambiar
+              </button>
+            </div>
+          )}
 
           {step === "login" && (
             <LoginForm email={email} redirectTo={redirectTo} />
           )}
 
           {step === "signup" && (
-            <RegistroForm email={email} redirectTo={redirectTo} />
+            <>
+              <RegistroForm
+                email={email}
+                redirectTo={redirectTo}
+                onCuentaCreada={handleCuentaCreada}
+              />
+              <p className="mt-4 text-center text-[13px] text-uva-text-muted">
+                ¿Ya tienes cuenta?{" "}
+                <button
+                  type="button"
+                  onClick={handleCambiar}
+                  className="text-uva-accent hover:underline"
+                >
+                  Inicia sesión
+                </button>
+              </p>
+            </>
+          )}
+
+          {step === "confirmar" && (
+            <div
+              role="status"
+              className="rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
+            >
+              Te enviamos un correo de confirmación a {email || "tu correo"}.
+            </div>
           )}
 
           {step === "oauth" && (

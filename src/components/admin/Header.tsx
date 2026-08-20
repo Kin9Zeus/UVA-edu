@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, LogOut, Search, Settings, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Search, Settings, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAdminSearch } from "@/components/admin/SearchContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -88,17 +88,25 @@ export function Header({ nombre }: { nombre: string }) {
             </span>
             <ChevronDown className="size-3 text-uva-muted-2" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-56">
+            <DropdownMenuLinkItem
+              render={<Link href="/dashboard" />}
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
+            >
+              <LayoutDashboard className="size-4" />
+              Volver al dashboard
+            </DropdownMenuLinkItem>
+            <DropdownMenuSeparator />
             <DropdownMenuLinkItem
               render={<Link href="/admin/configuracion" />}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <User className="size-4" />
               Ver perfil
             </DropdownMenuLinkItem>
             <DropdownMenuLinkItem
               render={<Link href="/admin/configuracion" />}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <Settings className="size-4" />
               Configuración
@@ -106,7 +114,7 @@ export function Header({ nombre }: { nombre: string }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <LogOut className="size-4" />
               Cerrar sesión

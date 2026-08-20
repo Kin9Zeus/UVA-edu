@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
+import { checkEmail } from "@/actions/auth/check-email";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never }
@@ -19,18 +20,34 @@ export async function registro(
   formData: FormData,
 ): Promise<RegistroState> {
   const email = String(formData.get("email") ?? "").trim();
+  const nombre = String(formData.get("nombre") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const redirectTo = safeRedirectTarget(formData.get("redirect"));
 
   if (!email) {
     return { error: "Completa tu correo." };
   }
+  if (!nombre) {
+    return { error: "Completa tu nombre." };
+  }
   if (!isPasswordValid(password)) {
     return { error: "La contraseña no cumple los requisitos." };
   }
 
+  const check = await checkEmail(email);
+  if ("error" in check) {
+    return { error: check.error };
+  }
+  if (check.exists) {
+    return { error: "Ya existe una cuenta con ese correo. Inicia sesión en su lugar." };
+  }
+
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { nombre } },
+  });
 
   if (error) {
     console.error("[registro] supabase.auth.signUp error:", error);

@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { CheckIcon, DotIcon } from "@/components/auth/icons";
@@ -12,9 +13,11 @@ import { registro, type RegistroState } from "@/actions/auth/registro";
 export function RegistroForm({
   email,
   redirectTo,
+  onCuentaCreada,
 }: {
   email: string;
   redirectTo: string;
+  onCuentaCreada?: () => void;
 }) {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -28,21 +31,18 @@ export function RegistroForm({
   const passwordsMatch = password.length > 0 && password === password2;
   const canSubmit = passwordValid && passwordsMatch && aceptaTerminos;
 
+  useEffect(() => {
+    if (registroState?.needsConfirmation) {
+      onCuentaCreada?.();
+    }
+  }, [registroState, onCuentaCreada]);
+
   if (registroState?.needsConfirmation) {
-    return (
-      <div
-        role="status"
-        className="mt-4 rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
-      >
-        Creamos tu cuenta. Revisa tu correo y confirma tu cuenta para poder
-        iniciar sesión.
-      </div>
-    );
+    return null;
   }
 
   return (
     <form className="flex flex-col gap-2" action={formAction}>
-      <input type="hidden" name="email" value={email} />
       <input type="hidden" name="redirect" value={redirectTo} />
 
       {registroState?.error && (
@@ -53,6 +53,30 @@ export function RegistroForm({
           {registroState.error}
         </div>
       )}
+
+      <div>
+        <Label htmlFor="reg-email">Correo electrónico</Label>
+        <Input
+          id="reg-email"
+          name="email"
+          type="email"
+          placeholder="Ingresa tu correo electrónico"
+          autoComplete="email"
+          defaultValue={email}
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="reg-nombre">Nombre completo</Label>
+        <Input
+          id="reg-nombre"
+          name="nombre"
+          placeholder="Tu nombre y apellido"
+          autoComplete="name"
+          required
+        />
+      </div>
 
       <div>
         <Label htmlFor="reg-pass">Contraseña</Label>

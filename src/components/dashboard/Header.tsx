@@ -48,24 +48,24 @@ export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: 
             </span>
             <ChevronDown className="size-4 text-uva-text-faint" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-56">
             <DropdownMenuLinkItem
               render={<Link href="/dashboard/perfil" />}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <User className="size-4" />
               Ver mi perfil
             </DropdownMenuLinkItem>
             <DropdownMenuLinkItem
               render={<Link href="/dashboard/suscripcion" />}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <CreditCard className="size-4" />
               Mi suscripción
             </DropdownMenuLinkItem>
             <DropdownMenuLinkItem
               render={<Link href="/dashboard/certificados" />}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <Award className="size-4" />
               Mis certificados
@@ -75,7 +75,7 @@ export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: 
                 <DropdownMenuSeparator />
                 <DropdownMenuLinkItem
                   render={<Link href="/admin" />}
-                  className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+                  className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
                 >
                   <ShieldCheck className="size-4" />
                   Panel de administración
@@ -85,7 +85,7 @@ export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: 
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}
-              className="text-uva-text no-underline hover:bg-transparent hover:text-uva-text hover:no-underline focus:bg-transparent focus:text-uva-text"
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <LogOut className="size-4" />
               Cerrar sesión

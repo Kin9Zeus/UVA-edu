@@ -4,7 +4,7 @@ export function AuthVisual() {
   return (
     <section
       aria-label="Presentación"
-      className="relative flex min-h-[320px] flex-col justify-between overflow-hidden bg-uva-surface/35 p-7 min-[900px]:min-h-0 min-[900px]:p-11"
+      className="relative flex min-h-[320px] flex-col justify-between overflow-hidden bg-uva-surface/35 p-7 min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:p-11"
     >
       <Link
         href="/"
