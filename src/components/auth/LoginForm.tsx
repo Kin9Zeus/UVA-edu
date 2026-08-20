@@ -2,13 +2,18 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { login, type LoginState } from "@/actions/auth/login";
 
-export function LoginForm({ redirectTo }: { redirectTo: string }) {
+export function LoginForm({
+  email,
+  redirectTo,
+}: {
+  email: string;
+  redirectTo: string;
+}) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     login,
     null,
@@ -16,6 +21,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form className="flex flex-col gap-3.5" action={formAction} noValidate>
+      <input type="hidden" name="email" value={email} />
       <input type="hidden" name="redirect" value={redirectTo} />
 
       {state?.error && (
@@ -27,17 +33,6 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         </div>
       )}
 
-      <div>
-        <Label htmlFor="login-email">Correo</Label>
-        <Input
-          id="login-email"
-          name="email"
-          type="email"
-          placeholder="Ingresa tu correo electrónico"
-          autoComplete="email"
-          required
-        />
-      </div>
       <div>
         <Label htmlFor="login-pass">Contraseña</Label>
         <PasswordInput

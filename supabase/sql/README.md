@@ -156,6 +156,28 @@ muestra quién dicta cada curso sin login) y escritura solo para
 `private.es_administrador()`. Sin filtro de `activo` porque el modelo no
 tiene esa columna.
 
+### `007_check_email_provider.sql`
+Crea `public.check_email_provider(p_email text)`, usada por el flujo de
+"correo inteligente" de login/registro (`promptauthflowplatzi.md`,
+`src/actions/auth/check-email.ts`): dado un correo, dice si existe una
+cuenta y con qué proveedor(es) se registró (`password`, `google` o `both`
+si tiene contraseña y una identidad de Google vinculadas), para que el
+frontend muestre "crear cuenta", "iniciar sesión", "continuar con Google" o
+ambas opciones — sin pedir nunca una contraseña que la cuenta nunca tuvo.
+
+A diferencia de `000`/`001`/`002` (que mueven todo lo `SECURITY DEFINER` a
+`private` para que PostgREST no lo exponga), esta función se queda en
+`public` a propósito: el backend de Next.js no tiene conexión Postgres
+directa (Prisma es solo schema/migraciones, CLAUDE.md §2), así que solo
+puede llamarla vía `supabase.rpc(...)` con la Service Role Key, y eso
+requiere que la función viva en un schema que PostgREST sí exponga. Queda
+igual de inalcanzable para clientes no autorizados: se revoca `EXECUTE` de
+`PUBLIC`/`anon`/`authenticated` y solo se otorga a `service_role`.
+
+**Nota de seguridad:** este endpoint revela deliberadamente si un correo
+está registrado (a diferencia de `recuperar.ts`, que nunca lo hace) — es el
+comportamiento pedido por el flujo tipo Platzi/GitHub/Google, no un olvido.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -176,6 +198,8 @@ tiene esa columna.
    escritura de `categorias` y `perfiles` para admin.
 8. `006_rls_instructores.sql` — lectura pública y escritura solo admin de
    `instructores`.
+9. `007_check_email_provider.sql` — función para el flujo de correo
+   inteligente de login/registro.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
