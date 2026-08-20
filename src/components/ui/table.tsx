@@ -4,6 +4,10 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/* Reglas `table` / `th` / `td` del mockup del panel admin
+   (design-spec/project/Uva - Panel Admin.dc.html): el borde vive en la celda,
+   no en la fila, y la ultima fila no lo lleva. El mockup no pinta hover de
+   fila, asi que aqui tampoco. */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
@@ -12,7 +16,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom border-collapse text-[13px]", className)}
         {...props}
       />
     </div>
@@ -23,7 +27,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(className)}
       {...props}
     />
   )
@@ -33,7 +37,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn("[&_tr:last-child>td]:border-b-0", className)}
       {...props}
     />
   )
@@ -56,10 +60,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
-      className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
-        className
-      )}
+      className={cn(className)}
       {...props}
     />
   )
@@ -70,7 +71,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "border-b border-uva-divider px-3.5 py-2.5 text-left align-middle font-mono text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-uva-muted-2 uppercase [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -83,7 +84,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "border-b border-uva-divider px-3.5 py-[13px] align-middle whitespace-nowrap text-uva-text [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

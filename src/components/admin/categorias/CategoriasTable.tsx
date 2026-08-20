@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
@@ -62,15 +63,14 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
-        <Button type="button" onClick={abrirCrear}>
-          <Plus className="size-4" />
-          Nueva categoría
+        <Button type="button" variant="primary" onClick={abrirCrear}>
+          + Nueva categoría
         </Button>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
+      <AdminCard flush>
         <Table>
           <TableHeader>
             <TableRow>
@@ -78,26 +78,28 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
               <TableHead>Descripción</TableHead>
               <TableHead>Cursos</TableHead>
               <TableHead>Creado por</TableHead>
-              <TableHead>Activa</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {categorias.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-uva-text-faint">
+                <TableCell colSpan={6} className="text-center text-uva-muted-2">
                   No hay categorías todavía.
                 </TableCell>
               </TableRow>
             )}
             {categorias.map((categoria) => (
               <TableRow key={categoria.id}>
-                <TableCell className="text-uva-text">{categoria.nombre}</TableCell>
-                <TableCell className="max-w-[320px] truncate text-uva-text-muted">
+                <TableCell className="font-semibold text-uva-text">{categoria.nombre}</TableCell>
+                {/* El mockup no recorta la descripción: la celda crece y el
+                    texto se envuelve en varias líneas si hace falta. */}
+                <TableCell className="text-uva-muted whitespace-normal">
                   {categoria.descripcion ?? "—"}
                 </TableCell>
                 <TableCell className="font-mono tabular-nums">{categoria.numeroCursos}</TableCell>
-                <TableCell className="text-uva-text-muted">{categoria.creadoPor}</TableCell>
+                <TableCell className="text-[12px] text-uva-muted-2">{categoria.creadoPor}</TableCell>
                 <TableCell>
                   <Switch
                     checked={categoria.activo}
@@ -106,12 +108,19 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                   />
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
+                  {/* Acciones de icono: el mockup las escribe con texto, pero
+                      aqui se conservan como iconos por decision de diseno. En
+                      reposo van en gris (--muted-2) y al hover se encienden en
+                      magenta, para que se lean como controles y no como
+                      adorno. `title` da la etiqueta que el icono no muestra. */}
+                  <div className="flex justify-end gap-1.5">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Editar categoría"
+                      title="Editar categoría"
+                      className="text-uva-muted-2 hover:text-uva-accent"
                       onClick={() => abrirEditar(categoria)}
                     >
                       <Pencil className="size-4" />
@@ -121,6 +130,8 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Eliminar categoría"
+                      title="Eliminar categoría"
+                      className="text-uva-muted-2 hover:text-uva-accent"
                       onClick={() => setBorrando(categoria)}
                     >
                       <Trash2 className="size-4" />
@@ -131,7 +142,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminCard>
 
       <CategoriaFormDialog open={formOpen} onOpenChange={setFormOpen} categoria={editando} />
 
@@ -140,8 +151,6 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar categoría"
         description={`¿Seguro que quieres eliminar "${borrando?.nombre}"? Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        destructive
         onConfirm={handleEliminar}
       />
     </div>

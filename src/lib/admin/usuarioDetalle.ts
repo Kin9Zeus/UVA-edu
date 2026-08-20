@@ -16,6 +16,7 @@ export type UsuarioDetalle = {
   correo: string;
   rol: "ESTUDIANTE" | "ADMINISTRADOR";
   estado: "ACTIVO" | "SUSPENDIDO";
+  fechaRegistro: string;
   suscripcionEstado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA" | null;
   planActual: string | null;
   cursos: CursoDelUsuario[];
@@ -32,7 +33,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("id, nombre, correo, rol, estado")
+    .select("id, nombre, correo, rol, estado, fecha_registro")
     .eq("id", usuarioId)
     .single();
 
@@ -97,6 +98,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     correo: perfil.correo,
     rol: perfil.rol,
     estado: perfil.estado,
+    fechaRegistro: perfil.fecha_registro,
     suscripcionEstado: suscripcion?.estado ?? null,
     planActual: plan?.nombre ?? null,
     cursos,

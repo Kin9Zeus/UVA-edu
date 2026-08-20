@@ -44,9 +44,11 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
+      /* El mockup no dibuja barra de acento en el item activo: solo cambia el
+         fondo a var(--surface) y el texto a var(--text). */
       className={cn(
-        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3.5 py-2.5 text-sm text-uva-text-muted transition-colors hover:bg-[#1C1C20] hover:text-uva-text",
-        active && "border-uva-accent bg-uva-surface text-uva-text",
+        "flex items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm font-medium text-uva-muted hover:bg-uva-hover",
+        active && "bg-uva-surface text-uva-text",
         collapsed && "justify-center px-0",
       )}
     >
@@ -66,17 +68,18 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150",
+        "sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150",
         collapsed ? "w-[76px]" : "w-[236px]",
       )}
     >
-      <div className="flex items-center justify-between px-4 py-5">
+      <div className="flex items-center gap-2 px-[18px] pt-[22px] pb-6">
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <span className="font-heading text-[18px] tracking-[.1em] text-uva-text">
+          <div className="flex items-center whitespace-nowrap">
+            <span className="font-heading text-[18px] font-bold tracking-[.08em] text-uva-text">
               U.V.A<span className="text-uva-accent">.</span>
             </span>
-            <span className="rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] tracking-[.08em] text-uva-accent-text">
+            {/* El mockup lo escribe como texto suelto, sin pildora de fondo */}
+            <span className="ml-2 font-mono text-[10px] font-semibold tracking-[.1em] text-uva-muted-2">
               ADMIN
             </span>
           </div>
@@ -85,29 +88,29 @@ export function Sidebar() {
           type="button"
           onClick={() => setCollapsed((current) => !current)}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="flex size-8 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-[#1C1C20] hover:text-uva-text-muted"
+          className="ml-auto flex shrink-0 items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover"
         >
           {collapsed ? (
-            <PanelLeft className="size-[18px]" strokeWidth={1.9} />
+            <PanelLeft className="size-[17px]" strokeWidth={1.9} />
           ) : (
-            <PanelLeftClose className="size-[18px]" strokeWidth={1.9} />
+            <PanelLeftClose className="size-[17px]" strokeWidth={1.9} />
           )}
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5" aria-label="Navegación del panel admin">
+      <nav className="flex flex-col gap-0.5 px-2.5" aria-label="Navegación del panel admin">
         {nav.map((item) => (
           <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
         ))}
       </nav>
 
-      <div className="border-t border-uva-divider px-2.5 py-3">
+      <div className="mt-auto border-t border-uva-divider px-2.5 py-3.5">
         <button
           type="button"
           onClick={() => logout()}
           aria-label="Cerrar sesión"
           className={cn(
-            "flex w-full items-center gap-3 rounded-uva-md px-3.5 py-2.5 text-sm text-uva-text-muted hover:bg-[#1C1C20] hover:text-uva-text",
+            "flex w-full items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm text-uva-muted hover:bg-uva-hover hover:text-uva-text",
             collapsed && "justify-center px-0",
           )}
         >

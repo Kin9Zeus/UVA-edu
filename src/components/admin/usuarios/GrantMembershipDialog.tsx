@@ -75,7 +75,7 @@ export function GrantMembershipDialog({
         {paso === "elegir" && (
           <div className="flex flex-col gap-2">
             {planes.length === 0 && (
-              <p className="text-sm text-uva-text-faint">No hay planes activos configurados.</p>
+              <p className="text-[13.5px] text-uva-muted-2">No hay planes activos configurados.</p>
             )}
             {planes.map((plan) => (
               <button
@@ -86,11 +86,11 @@ export function GrantMembershipDialog({
                   setPaso("confirmar");
                 }}
                 className={cn(
-                  "flex items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface-soft px-4 py-3 text-left text-sm hover:border-uva-accent",
+                  "flex w-full items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-[13.5px] font-semibold text-uva-text hover:bg-uva-hover",
                 )}
               >
-                <span className="text-uva-text">{plan.nombre}</span>
-                <span className="font-mono text-uva-text-muted tabular-nums">
+                <span>{plan.nombre}</span>
+                <span className="font-mono text-[12px] font-normal text-uva-muted-2 tabular-nums">
                   {formatMoneda(plan.precio_centavos, plan.moneda)}
                 </span>
               </button>
@@ -117,11 +117,11 @@ export function GrantMembershipDialog({
               Volver
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={cerrar} disabled={pending}>
+          <Button type="button" variant="ghost" onClick={cerrar} disabled={pending}>
             Cancelar
           </Button>
           {paso === "confirmar" && (
-            <Button type="button" onClick={confirmar} disabled={pending}>
+            <Button type="button" variant="primary" onClick={confirmar} disabled={pending}>
               {pending ? "Otorgando…" : "Confirmar"}
             </Button>
           )}

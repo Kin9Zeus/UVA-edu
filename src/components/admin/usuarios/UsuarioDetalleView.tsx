@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Gift, CreditCard } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { AdminCard } from "@/components/admin/AdminCard";
 import {
   Table,
   TableBody,
@@ -24,23 +23,14 @@ import { quitarCortesia } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
 
-const SUSCRIPCION_LABEL: Record<string, string> = {
-  ACTIVA: "Activa",
-  PAST_DUE: "Pago pendiente",
-  VENCIDA: "Vencida",
-  CANCELADA: "Cancelada",
-};
-
-const SUSCRIPCION_TONO: Record<string, "success" | "warning" | "error"> = {
-  ACTIVA: "success",
-  PAST_DUE: "warning",
-  VENCIDA: "error",
-  CANCELADA: "error",
-};
-
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   return partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "").join("") || "U";
+}
+
+/** Etiqueta gris de 11px que el mockup antepone a cada badge de la cabecera. */
+function EtiquetaBadge({ children }: { children: React.ReactNode }) {
+  return <span className="text-[11px] text-uva-muted-2">{children}</span>;
 }
 
 export function UsuarioDetalleView({
@@ -68,142 +58,170 @@ export function UsuarioDetalleView({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link href="/admin/usuarios" className="flex w-fit items-center gap-1.5 text-sm text-uva-text-faint hover:text-uva-text">
+    <div className="flex max-w-[900px] flex-col gap-5">
+      {/* El mockup no lleva este enlace; se conserva como salida al listado. */}
+      <Link
+        href="/admin/usuarios"
+        className="-mb-2 flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
+      >
         <ArrowLeft className="size-4" />
         Volver a usuarios
       </Link>
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-5">
-          <Avatar size="lg" className="size-16 bg-uva-divider">
-            <AvatarFallback className="bg-uva-divider text-lg text-uva-text">
-              {iniciales(usuario.nombre)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <h1 className="text-lg text-uva-text">{usuario.nombre}</h1>
-            <p className="text-sm text-uva-text-faint">
-              {usuario.correo} · {usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante"}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
-                Cuenta: {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
-              </StatusBadge>
-              <StatusBadge tone={usuario.suscripcionEstado ? SUSCRIPCION_TONO[usuario.suscripcionEstado] : "neutral"}>
-                Suscripción: {usuario.suscripcionEstado ? SUSCRIPCION_LABEL[usuario.suscripcionEstado] : "Ninguna"}
-              </StatusBadge>
-              <StatusBadge tone="accent">Plan: {usuario.planActual ?? "Ninguno"}</StatusBadge>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={() => setMembresiaOpen(true)}>
-              <CreditCard className="size-4" />
-              Otorgar membresía
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setCortesiaOpen(true)}>
-              <Gift className="size-4" />
-              Ofrecer curso de cortesía
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent>
-            <p className="text-xs text-uva-text-faint">Cursos inscritos</p>
-            <p className="font-mono text-2xl text-uva-text tabular-nums">{usuario.metricas.cursosInscritos}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <p className="text-xs text-uva-text-faint">Completados</p>
-            <p className="font-mono text-2xl text-uva-text tabular-nums">{usuario.metricas.cursosCompletados}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <p className="text-xs text-uva-text-faint">Progreso promedio</p>
-            <p className="font-mono text-2xl text-uva-text tabular-nums">{usuario.metricas.progresoPromedio}%</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <p className="text-xs text-uva-text-faint">Última actividad</p>
-            <p className="text-lg text-uva-text">
-              {usuario.metricas.ultimaActividad ? formatFecha(usuario.metricas.ultimaActividad) : "Sin actividad"}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Cabecera: el mockup la dibuja suelta sobre el fondo, sin tarjeta. */}
+      <div className="flex flex-wrap items-center gap-3.5">
+        <Avatar className="size-[52px] shrink-0 bg-uva-divider after:hidden">
+          <AvatarFallback className="bg-uva-divider font-heading text-base font-bold text-uva-muted">
+            {iniciales(usuario.nombre)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+            {usuario.nombre}
+          </h1>
+          <p className="text-[12.5px] text-uva-muted">
+            {usuario.correo} · {usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante"}
+          </p>
+        </div>
+        <div className="ml-2.5 flex items-center gap-[5px]">
+          <EtiquetaBadge>Cuenta:</EtiquetaBadge>
+          <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
+            {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
+          </StatusBadge>
+        </div>
+        <div className="flex items-center gap-[5px]">
+          <EtiquetaBadge>Plan:</EtiquetaBadge>
+          {/* Solo el nombre del plan, como el mockup: el estado de la
+              suscripción se lee en su columna del listado de usuarios.
+              Añadirlo aquí desborda la cabecera de una línea. */}
+          <StatusBadge tone="neutral">{usuario.planActual ?? "—"}</StatusBadge>
+        </div>
+        <div className="ml-auto text-[12px] text-uva-muted-2">
+          Registrado {formatFecha(usuario.fechaRegistro)}
+        </div>
       </div>
 
-      <Card>
-        <CardContent>
-          <h2 className="mb-3 text-sm font-medium text-uva-text">Cursos del usuario</h2>
-          <Table>
-            <TableHeader>
+      <div className="flex flex-wrap gap-2.5">
+        <Button type="button" variant="primary" onClick={() => setMembresiaOpen(true)}>
+          Otorgar membresía
+        </Button>
+        <Button type="button" onClick={() => setCortesiaOpen(true)}>
+          Ofrecer curso de cortesía
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <AdminCard className="gap-1">
+          <div className="text-[11.5px] text-uva-muted">Cursos inscritos</div>
+          <div className="font-mono text-[22px] font-bold tabular-nums">
+            {usuario.metricas.cursosInscritos}
+          </div>
+        </AdminCard>
+        <AdminCard className="gap-1">
+          <div className="text-[11.5px] text-uva-muted">Completados</div>
+          <div className="font-mono text-[22px] font-bold tabular-nums">
+            {usuario.metricas.cursosCompletados}
+          </div>
+        </AdminCard>
+        <AdminCard className="gap-1">
+          <div className="text-[11.5px] text-uva-muted">Progreso promedio</div>
+          <div className="font-mono text-[22px] font-bold tabular-nums">
+            {usuario.metricas.progresoPromedio}%
+          </div>
+        </AdminCard>
+        <AdminCard className="gap-1">
+          <div className="text-[11.5px] text-uva-muted">Última actividad</div>
+          <div className="mt-1 text-[13px]">
+            {usuario.metricas.ultimaActividad
+              ? formatFecha(usuario.metricas.ultimaActividad)
+              : "Sin actividad"}
+          </div>
+        </AdminCard>
+      </div>
+
+      <AdminCard flush className="gap-0">
+        <div className="px-[18px] pt-4">
+          <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+            Cursos del usuario
+          </h2>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Curso</TableHead>
+              <TableHead>Progreso</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Modo de obtención</TableHead>
+              <TableHead>Última actividad</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {usuario.cursos.length === 0 && (
               <TableRow>
-                <TableHead>Curso</TableHead>
-                <TableHead>Progreso</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Obtenido por</TableHead>
-                <TableHead>Última actividad</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableCell colSpan={6} className="text-center text-uva-muted-2">
+                  Este usuario no está inscrito en ningún curso.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {usuario.cursos.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-uva-text-faint">
-                    Este usuario no está inscrito en ningún curso.
-                  </TableCell>
-                </TableRow>
-              )}
-              {usuario.cursos.map((curso) => (
-                <TableRow key={curso.inscripcionId}>
-                  <TableCell>
-                    <Link href={`/admin/cursos/${curso.cursoId}`} className="text-uva-text hover:text-uva-accent-text">
-                      {curso.titulo}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="min-w-[140px]">
-                    <div className="flex items-center gap-2">
-                      <Progress value={curso.progreso} className="w-24" />
-                      <span className="font-mono text-xs tabular-nums">{curso.progreso}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge tone={curso.estado === "COMPLETADO" ? "success" : "accent"}>
-                      {curso.estado === "COMPLETADO" ? "Completado" : "En progreso"}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                      {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-uva-text-faint tabular-nums">
-                    {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {curso.tipoAcceso === "CORTESIA" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setQuitando({ inscripcionId: curso.inscripcionId, titulo: curso.titulo })}
-                      >
-                        Quitar cortesía
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            )}
+            {usuario.cursos.map((curso) => (
+              <TableRow key={curso.inscripcionId}>
+                <TableCell className="font-semibold">
+                  <Link
+                    href={`/admin/cursos/${curso.cursoId}`}
+                    className="text-uva-text hover:text-uva-accent-text"
+                  >
+                    {curso.titulo}
+                  </Link>
+                </TableCell>
+                <TableCell className="min-w-[140px]">
+                  {/* Barra plana de 6px, como en el mockup */}
+                  <div
+                    role="progressbar"
+                    aria-valuenow={curso.progreso}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Progreso de ${curso.titulo}`}
+                    className="h-1.5 w-full rounded-full bg-uva-divider"
+                  >
+                    <div
+                      className="h-full rounded-full bg-uva-accent"
+                      style={{ width: `${curso.progreso}%` }}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge tone={curso.estado === "COMPLETADO" ? "success" : "neutral"}>
+                    {curso.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                  </StatusBadge>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                    {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                  </StatusBadge>
+                </TableCell>
+                <TableCell className="text-[12px] text-uva-muted-2">
+                  {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {curso.tipoAcceso === "CORTESIA" && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setQuitando({ inscripcionId: curso.inscripcionId, titulo: curso.titulo })
+                      }
+                    >
+                      Quitar cortesía
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </AdminCard>
 
       <GrantMembershipDialog
         open={membresiaOpen}
@@ -223,8 +241,6 @@ export function UsuarioDetalleView({
         onOpenChange={(open) => !open && setQuitando(null)}
         title="Quitar cortesía"
         description={`¿Retirar el acceso de cortesía a "${quitando?.titulo}"? El usuario perderá el acceso a este curso.`}
-        confirmLabel="Quitar acceso"
-        destructive
         onConfirm={handleQuitarCortesia}
       />
     </div>

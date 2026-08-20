@@ -11,7 +11,6 @@ export default async function AdminCursosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl text-uva-text">Cursos</h1>
       <CursosTable cursos={cursos} categorias={categorias} />
     </div>
   );

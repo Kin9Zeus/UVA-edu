@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -26,17 +26,19 @@ import {
   DropdownMenuLinkItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
+import { useAdminSearch } from "@/components/admin/SearchContext";
 import { alternarPublicacionCurso, eliminarCurso } from "@/actions/admin/cursos";
 import { formatFecha } from "@/lib/admin/format";
 import type { CursoListado } from "@/lib/admin/cursos";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
-const ESTADO_ITEMS = { todos: "Todo estado", publicado: "Publicado", borrador: "Borrador" };
-const NIVEL_ITEMS = { todos: "Todo nivel", ...NIVEL_LABEL };
+const ESTADO_ITEMS = { todos: "Todos los estados", publicado: "Publicado", borrador: "Borrador" };
+const NIVEL_ITEMS = { todos: "Todos los niveles", ...NIVEL_LABEL };
 
 export function CursosTable({
   cursos: cursosIniciales,
@@ -51,21 +53,28 @@ export function CursosTable({
   const [filtroNivel, setFiltroNivel] = useState("todos");
   const [borrando, setBorrando] = useState<CursoListado | null>(null);
   const showToast = useAdminToast();
+  // El texto de búsqueda lo escribe el header (mockup: `showSearch`).
+  const { query: busqueda } = useAdminSearch();
 
   const categoriaItems = useMemo(
-    () => ({ todas: "Toda categoría", ...Object.fromEntries(categorias.map((c) => [c.id, c.nombre])) }),
+    () => ({ todas: "Todas las categorías", ...Object.fromEntries(categorias.map((c) => [c.id, c.nombre])) }),
     [categorias],
   );
 
   const filtrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
     return cursos.filter((curso) => {
+      const coincideTexto =
+        !texto ||
+        curso.titulo.toLowerCase().includes(texto) ||
+        curso.instructor.toLowerCase().includes(texto);
       const coincideCategoria = filtroCategoria === "todas" || curso.categoriaId === filtroCategoria;
       const coincideEstado =
         filtroEstado === "todos" || (filtroEstado === "publicado" ? curso.mostrado : !curso.mostrado);
       const coincideNivel = filtroNivel === "todos" || curso.nivel === filtroNivel;
-      return coincideCategoria && coincideEstado && coincideNivel;
+      return coincideTexto && coincideCategoria && coincideEstado && coincideNivel;
     });
-  }, [cursos, filtroCategoria, filtroEstado, filtroNivel]);
+  }, [cursos, busqueda, filtroCategoria, filtroEstado, filtroNivel]);
 
   async function handleTogglePublicacion(curso: CursoListado) {
     const nuevoEstado = !curso.mostrado;
@@ -90,9 +99,8 @@ export function CursosTable({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-3">
+    <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-wrap items-center gap-3">
           <Select
             items={categoriaItems}
             value={filtroCategoria}
@@ -100,7 +108,7 @@ export function CursosTable({
           >
             <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todas">Toda categoría</SelectItem>
+              <SelectItem value="todas">Todas las categorías</SelectItem>
               {categorias.map((categoria) => (
                 <SelectItem key={categoria.id} value={categoria.id}>
                   {categoria.nombre}
@@ -115,7 +123,7 @@ export function CursosTable({
           >
             <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todo estado</SelectItem>
+              <SelectItem value="todos">Todos los estados</SelectItem>
               <SelectItem value="publicado">Publicado</SelectItem>
               <SelectItem value="borrador">Borrador</SelectItem>
             </SelectContent>
@@ -127,20 +135,23 @@ export function CursosTable({
           >
             <SelectTrigger><SelectValue placeholder="Nivel" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todo nivel</SelectItem>
+              <SelectItem value="todos">Todos los niveles</SelectItem>
               <SelectItem value="BASICO">Básico</SelectItem>
               <SelectItem value="INTERMEDIO">Intermedio</SelectItem>
               <SelectItem value="AVANZADO">Avanzado</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <Button render={<Link href="/admin/cursos/nuevo" />} nativeButton={false}>
-          <Plus className="size-4" />
-          Crear curso
+        <Button
+          variant="primary"
+          className="ml-auto"
+          render={<Link href="/admin/cursos/nuevo" />}
+          nativeButton={false}
+        >
+          + Crear curso
         </Button>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
+      <AdminCard flush>
         <Table>
           <TableHeader>
             <TableRow>
@@ -150,40 +161,40 @@ export function CursosTable({
               <TableHead>Estudiantes</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Creado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-uva-text-faint">
+                <TableCell colSpan={7} className="text-center text-uva-muted-2">
                   No hay cursos que coincidan con los filtros.
                 </TableCell>
               </TableRow>
             )}
             {filtrados.map((curso) => (
               <TableRow key={curso.id}>
-                <TableCell>
+                <TableCell className="font-semibold">
                   <Link href={`/admin/cursos/${curso.id}`} className="text-uva-text hover:text-uva-accent-text">
                     {curso.titulo}
                   </Link>
                 </TableCell>
-                <TableCell className="text-uva-text-muted">{curso.categoria}</TableCell>
-                <TableCell className="text-uva-text-muted">{NIVEL_LABEL[curso.nivel]}</TableCell>
+                <TableCell className="text-uva-muted">{curso.categoria}</TableCell>
+                <TableCell className="text-uva-muted">{NIVEL_LABEL[curso.nivel]}</TableCell>
                 <TableCell className="font-mono tabular-nums">{curso.estudiantes}</TableCell>
                 <TableCell>
                   <StatusBadge tone={curso.mostrado ? "success" : "neutral"}>
                     {curso.mostrado ? "Publicado" : "Borrador"}
                   </StatusBadge>
                 </TableCell>
-                <TableCell className="font-mono text-xs text-uva-text-faint tabular-nums">
+                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(curso.fechaCreacion)}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       aria-label="Más acciones"
-                      className="flex size-8 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-[#27272A] hover:text-uva-text"
+                      className="flex items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover hover:text-uva-text"
                     >
                       <MoreHorizontal className="size-4" />
                     </DropdownMenuTrigger>
@@ -204,15 +215,13 @@ export function CursosTable({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminCard>
 
       <ConfirmDialog
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar curso"
         description={`¿Seguro que quieres eliminar "${borrando?.titulo}"? Se eliminarán también sus módulos y lecciones. Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        destructive
         onConfirm={handleEliminar}
       />
     </div>

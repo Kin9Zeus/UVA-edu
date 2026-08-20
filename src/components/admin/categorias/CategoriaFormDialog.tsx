@@ -73,7 +73,7 @@ export function CategoriaFormDialog({
             <DialogTitle>{categoria ? "Editar categoría" : "Nueva categoría"}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-3.5">
             {error && (
               <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
                 {error}
@@ -95,7 +95,7 @@ export function CategoriaFormDialog({
                 id="categoria-descripcion"
                 value={descripcion}
                 onChange={(event) => setDescripcion(event.target.value)}
-                rows={3}
+                className="min-h-[70px]"
                 placeholder="Descripción breve de la categoría"
               />
             </div>
@@ -105,7 +105,7 @@ export function CategoriaFormDialog({
             <Button type="button" variant="outline" onClick={resetAndClose} disabled={pending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" variant="primary" disabled={pending}>
               {pending ? "Guardando…" : "Guardar"}
             </Button>
           </DialogFooter>

@@ -10,13 +10,10 @@ export default async function AdminInstructoresPage() {
   const instructores = await getInstructores();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl text-uva-text">Instructores</h1>
-        <p className="text-sm text-uva-text-faint">
-          Información de catálogo: los instructores no tienen cuenta ni inician sesión.
-        </p>
-      </div>
+    <div className="flex flex-col gap-[18px]">
+      <p className="-mt-3.5 text-sm text-uva-muted">
+        Información de catálogo: los instructores no tienen cuenta ni inician sesión.
+      </p>
       <InstructoresTable instructores={instructores} />
     </div>
   );

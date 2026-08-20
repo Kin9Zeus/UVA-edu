@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { CheckCircle2, XCircle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ToastVariant = "success" | "error" | "info";
@@ -9,16 +8,13 @@ type ToastEntry = { id: number; message: string; variant: ToastVariant };
 
 const ToastContext = createContext<((message: string, variant?: ToastVariant) => void) | null>(null);
 
-const ICONS: Record<ToastVariant, React.ElementType> = {
-  success: CheckCircle2,
-  error: XCircle,
-  info: Info,
-};
-
-const STYLES: Record<ToastVariant, string> = {
-  success: "border-uva-valid/30 bg-uva-surface text-uva-valid",
-  error: "border-uva-error/30 bg-uva-surface text-uva-error-text",
-  info: "border-uva-divider bg-uva-surface text-uva-text",
+/* El mockup define un único toast, con la franja magenta a la izquierda y sin
+   icono. Los errores se distinguen tiñendo esa franja de rojo, que es la
+   señal más visible sin salirse del diseño. */
+const FRANJA: Record<ToastVariant, string> = {
+  success: "border-l-uva-accent",
+  info: "border-l-uva-accent",
+  error: "border-l-uva-error",
 };
 
 export function AdminToastProvider({ children }: { children: React.ReactNode }) {
@@ -36,23 +32,19 @@ export function AdminToastProvider({ children }: { children: React.ReactNode }) 
   return (
     <ToastContext.Provider value={showToast}>
       {children}
-      <div className="fixed right-5 bottom-5 z-[100] flex flex-col gap-2">
-        {toasts.map((toast) => {
-          const Icon = ICONS[toast.variant];
-          return (
-            <div
-              key={toast.id}
-              role="status"
-              className={cn(
-                "flex items-center gap-2.5 rounded-uva-md border px-4 py-3 text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2",
-                STYLES[toast.variant],
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {toast.message}
-            </div>
-          );
-        })}
+      <div className="fixed right-6 bottom-6 z-[100] flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            role="status"
+            className={cn(
+              "rounded-uva-md border border-uva-divider border-l-[3px] bg-uva-surface px-[18px] py-[13px] text-[13.5px] text-uva-text shadow-[0_12px_30px_rgba(0,0,0,.4)] animate-in fade-in slide-in-from-bottom-2",
+              FRANJA[toast.variant],
+            )}
+          >
+            {toast.message}
+          </div>
+        ))}
       </div>
     </ToastContext.Provider>
   );

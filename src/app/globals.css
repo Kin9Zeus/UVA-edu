@@ -51,12 +51,24 @@
   /* U.V.A — tokens de marca (ver CLAUDE.md 3.3 y src/app/globals.css :root para los valores fuente) */
   --color-uva-bg: var(--uva-bg);
   --color-uva-surface: var(--uva-surface);
-  --color-uva-surface-soft: var(--uva-surface-soft);
+  --color-uva-surface-2: var(--uva-surface-2);
   --color-uva-text: var(--uva-text);
   --color-uva-text-muted: var(--uva-text-muted);
   --color-uva-text-faint: var(--uva-text-faint);
   --color-uva-text-disabled: var(--uva-text-disabled);
   --color-uva-divider: var(--uva-divider);
+  --color-uva-muted: var(--uva-muted);
+  --color-uva-muted-2: var(--uva-muted-2);
+  --color-uva-dim: var(--uva-dim);
+  --color-uva-hover: var(--uva-hover);
+  --color-uva-badge-success-bg: var(--uva-badge-success-bg);
+  --color-uva-badge-success-fg: var(--uva-badge-success-fg);
+  --color-uva-badge-warn-bg: var(--uva-badge-warn-bg);
+  --color-uva-badge-warn-fg: var(--uva-badge-warn-fg);
+  --color-uva-badge-danger-bg: var(--uva-badge-danger-bg);
+  --color-uva-badge-danger-fg: var(--uva-badge-danger-fg);
+  --color-uva-badge-neutral-bg: var(--uva-badge-neutral-bg);
+  --color-uva-badge-neutral-fg: var(--uva-badge-neutral-fg);
   --color-uva-accent: var(--uva-accent);
   --color-uva-accent-hover: var(--uva-accent-hover);
   --color-uva-accent-active: var(--uva-accent-active);
@@ -123,12 +135,20 @@
   /* U.V.A — tokens de marca (sitio público, siempre modo oscuro; ver CLAUDE.md 3.3) */
   --uva-bg: #09090b;
   --uva-surface: #18181b;
-  --uva-surface-soft: #1f1f23;
+  /* `--surface-2` del mockup del panel admin: mas OSCURO que --surface,
+     no mas claro (antes se llamaba --uva-surface-soft y valia #1f1f23) */
+  --uva-surface-2: #141417;
   --uva-text: #fafafa;
   --uva-text-muted: rgba(250, 250, 250, 0.6);
   --uva-text-faint: rgba(250, 250, 250, 0.45);
   --uva-text-disabled: rgba(250, 250, 250, 0.32);
   --uva-divider: #27272a;
+  /* Grises del mockup del panel admin (--muted / --muted-2 / --dim) y su
+     superficie de hover; el sitio publico usa los rgba de --uva-text-* */
+  --uva-muted: #a1a1aa;
+  --uva-muted-2: #71717a;
+  --uva-dim: #52525b;
+  --uva-hover: #1c1c20;
   --uva-accent: #ff007a;
   --uva-accent-hover: #e00069;
   --uva-accent-active: #c2005b;
@@ -160,6 +180,20 @@
   --uva-error: #ef4444;
   --uva-error-soft: rgba(239, 68, 68, 0.16);
   --uva-error-text: #f87171;
+
+  /* Las cuatro clases `.badge-*` del mockup del panel admin, literales.
+     El fondo es `color-mix(in srgb, <color> 16%, transparent)` y el texto un
+     tinte claro del mismo tono; `neutral` usa el borde y el gris --muted.
+     OJO: --uva-success-soft / --uva-success-text de arriba NO son este verde,
+     son el amarillo del sitio publico (#F2C012). No mezclar. */
+  --uva-badge-success-bg: rgba(16, 185, 129, 0.16); /* --success #10B981 al 16% */
+  --uva-badge-success-fg: #6ee7b7;
+  --uva-badge-warn-bg: rgba(245, 158, 11, 0.16); /* --warn #F59E0B al 16% */
+  --uva-badge-warn-fg: #fcd34d;
+  --uva-badge-danger-bg: rgba(239, 68, 68, 0.16); /* --danger #EF4444 al 16% */
+  --uva-badge-danger-fg: #fca5a5;
+  --uva-badge-neutral-bg: #27272a;
+  --uva-badge-neutral-fg: #a1a1aa;
 }
 
 .dark {

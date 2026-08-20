@@ -16,12 +16,24 @@ export function PerfilAdminForm({ nombre, correo }: { nombre: string; correo: st
   const [state, formAction, pending] = useActionState<ActualizarPerfilState, FormData>(actualizarPerfil, null);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <Avatar size="lg" className="bg-uva-divider">
-          <AvatarFallback className="bg-uva-divider text-uva-text">{iniciales(nombre)}</AvatarFallback>
+    <form action={formAction} className="flex flex-col gap-3.5">
+      <div className="flex items-center gap-3.5">
+        <Avatar className="size-12 shrink-0 bg-uva-divider after:hidden">
+          <AvatarFallback className="bg-uva-divider font-heading text-sm font-bold text-uva-muted">
+            {iniciales(nombre)}
+          </AvatarFallback>
         </Avatar>
-        <p className="text-xs text-uva-text-faint">Las iniciales se generan a partir de tu nombre.</p>
+        {/* TODO(Fase 2): subida de avatar. El mockup dibuja el botón; hasta que
+            exista el almacenamiento, las iniciales se derivan del nombre. */}
+        <Button
+          type="button"
+          size="sm"
+          disabled
+          title="Disponible cuando se habilite la subida de imágenes"
+        >
+          Cambiar avatar
+        </Button>
+        <p className="text-xs text-uva-muted-2">Las iniciales se generan a partir de tu nombre.</p>
       </div>
 
       {state?.error && (
@@ -30,22 +42,24 @@ export function PerfilAdminForm({ nombre, correo }: { nombre: string; correo: st
         </div>
       )}
       {state?.success && (
-        <div role="status" className="rounded-uva-md bg-uva-valid-soft px-3.5 py-2.5 text-sm text-uva-valid">
+        <div role="status" className="rounded-uva-md bg-uva-badge-success-bg px-3.5 py-2.5 text-sm text-uva-badge-success-fg">
           Perfil actualizado.
         </div>
       )}
 
-      <div>
-        <Label htmlFor="admin-nombre">Nombre</Label>
-        <Input id="admin-nombre" name="nombre" key={nombre} defaultValue={nombre} required />
-      </div>
-      <div>
-        <Label htmlFor="admin-correo">Correo</Label>
-        <Input id="admin-correo" key={correo} defaultValue={correo} disabled />
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="admin-nombre">Nombre</Label>
+          <Input id="admin-nombre" name="nombre" key={nombre} defaultValue={nombre} required />
+        </div>
+        <div>
+          <Label htmlFor="admin-correo">Correo</Label>
+          <Input id="admin-correo" key={correo} defaultValue={correo} disabled />
+        </div>
       </div>
 
-      <Button type="submit" disabled={pending} className="w-auto">
-        {pending ? "Guardando…" : "Guardar"}
+      <Button type="submit" variant="primary" disabled={pending} className="w-auto self-start">
+        {pending ? "Guardando…" : "Guardar cambios"}
       </Button>
     </form>
   );

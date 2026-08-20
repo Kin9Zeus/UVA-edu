@@ -106,7 +106,7 @@ function Formulario({
         <DialogTitle>{instructor ? "Editar instructor" : "Nuevo instructor"}</DialogTitle>
       </DialogHeader>
 
-      <div className="flex flex-col gap-4 py-2">
+      <div className="flex flex-col gap-3.5">
         {error && (
           <div
             role="alert"
@@ -145,7 +145,7 @@ function Formulario({
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending}>
           {pending ? "Guardando…" : "Guardar"}
         </Button>
       </DialogFooter>

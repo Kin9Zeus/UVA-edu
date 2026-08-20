@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { EstudianteDeCurso } from "@/lib/admin/cursoDetalle";
 
@@ -84,7 +85,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
         </Select>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
+      <AdminCard flush>
         <Table>
           <TableHeader>
             <TableRow>
@@ -134,7 +135,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminCard>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -36,47 +35,65 @@ export function ConfiguracionTab({ curso }: { curso: CursoDetalle }) {
   }
 
   return (
-    <Card className="max-w-[560px]">
-      <CardContent className="flex flex-col gap-5">
-        {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
-            {error}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-uva-text">Curso visible</p>
-            <p className="text-xs text-uva-text-faint">Se muestra en el catálogo público.</p>
-          </div>
-          <Switch checked={mostrado} onCheckedChange={setMostrado} aria-label="Curso visible" />
+    // El mockup no envuelve esta pestaña en `.card`: es una columna suelta.
+    <div className="flex max-w-[480px] flex-col gap-4">
+      {error && (
+        <div
+          role="alert"
+          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+        >
+          {error}
         </div>
+      )}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-uva-text">Curso destacado</p>
-            <p className="text-xs text-uva-text-faint">Aparece resaltado en el catálogo.</p>
-          </div>
-          <Switch checked={destacado} onCheckedChange={setDestacado} aria-label="Curso destacado" />
-        </div>
-
+      <div className="flex items-center justify-between">
         <div>
-          <Label htmlFor="config-orden">Orden de visualización</Label>
-          <Input
-            id="config-orden"
-            type="number"
-            value={orden}
-            onChange={(event) => setOrden(Number(event.target.value))}
-            className="max-w-[140px]"
-          />
+          <p className="text-sm text-uva-text">Curso visible</p>
+          <p className="text-xs text-uva-text-faint">
+            Se muestra en el catálogo público.
+          </p>
         </div>
+        <Switch
+          checked={mostrado}
+          onCheckedChange={setMostrado}
+          aria-label="Curso visible"
+        />
+      </div>
 
+      <div className="flex items-center justify-between">
         <div>
-          <Button type="button" disabled={pending} onClick={handleGuardar} className="w-auto">
-            {pending ? "Guardando…" : "Guardar"}
-          </Button>
+          <p className="text-sm text-uva-text">Curso destacado</p>
+          <p className="text-xs text-uva-text-faint">
+            Aparece resaltado en el catálogo.
+          </p>
         </div>
-      </CardContent>
-    </Card>
+        <Switch
+          checked={destacado}
+          onCheckedChange={setDestacado}
+          aria-label="Curso destacado"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="config-orden">Orden de visualización</Label>
+        <Input
+          id="config-orden"
+          type="number"
+          value={orden}
+          onChange={(event) => setOrden(Number(event.target.value))}
+          className="max-w-[120px]"
+        />
+      </div>
+
+      <Button
+        type="button"
+        variant="primary"
+        disabled={pending}
+        onClick={handleGuardar}
+        className="w-auto self-start"
+      >
+        {pending ? "Guardando…" : "Guardar cambios"}
+      </Button>
+    </div>
   );
 }

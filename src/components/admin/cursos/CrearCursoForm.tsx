@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ImageIcon, Plus } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { tabsListVariants, tabTriggerVariants } from "@/components/ui/tabs";
 import { crearCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
@@ -85,8 +86,26 @@ export function CrearCursoForm({
   }
 
   return (
-    <Card className="max-w-[720px]">
-      <CardContent className="flex flex-col gap-5">
+    <div className="flex max-w-[720px] flex-col gap-[18px]">
+      {/* Las tres pestañas del mockup en esta pantalla son inertes: solo
+          existe "Información" hasta que el curso esté creado. */}
+      <div className={tabsListVariants()}>
+        <span className={tabTriggerVariants({ state: "active" })}>Información</span>
+        <span
+          className={tabTriggerVariants({ state: "disabled" })}
+          title="Disponible después de crear el curso"
+        >
+          Configuración
+        </span>
+        <span
+          className={tabTriggerVariants({ state: "disabled" })}
+          title="Disponible después de crear el curso"
+        >
+          Contenido
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-4">
         {error && (
           <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
             {error}
@@ -116,18 +135,10 @@ export function CrearCursoForm({
         </div>
 
         <div>
-          <Label>Imagen de portada</Label>
-          <div
-            className="flex h-36 items-center justify-center rounded-uva-md border border-dashed border-uva-divider text-uva-text-faint"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(45deg, var(--uva-surface-soft) 0 10px, var(--uva-surface) 10px 20px)",
-            }}
-          >
-            <div className="flex flex-col items-center gap-1.5 text-xs">
-              <ImageIcon className="size-5" strokeWidth={1.9} />
-              Arrastra una imagen o haz clic para subirla
-            </div>
+          <Label>Imagen / thumbnail</Label>
+          {/* TODO(Fase 2): subida real de la portada. */}
+          <div className="rounded-uva-md border-[1.5px] border-dashed border-uva-divider px-4 py-[30px] text-center text-[13px] text-uva-muted-2">
+            Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
           </div>
         </div>
 
@@ -202,21 +213,31 @@ export function CrearCursoForm({
           )}
         </div>
 
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" disabled={pending !== null} onClick={() => handleGuardar(false)}>
-            {pending === "borrador" ? "Guardando…" : "Guardar como borrador"}
-          </Button>
-          <Button type="button" disabled={pending !== null} onClick={() => handleGuardar(true)}>
-            {pending === "publicar" ? "Publicando…" : "Publicar curso"}
-          </Button>
-        </div>
-      </CardContent>
+      </div>
+
+      <div className="flex gap-2.5 border-t border-uva-divider pt-1.5">
+        <Button type="button" disabled={pending !== null} onClick={() => handleGuardar(false)}>
+          {pending === "borrador" ? "Guardando…" : "Guardar como borrador"}
+        </Button>
+        <Button type="button" variant="primary" disabled={pending !== null} onClick={() => handleGuardar(true)}>
+          {pending === "publicar" ? "Publicando…" : "Publicar curso"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="ml-auto text-uva-muted"
+          render={<Link href="/admin/cursos" />}
+          nativeButton={false}
+        >
+          Cancelar
+        </Button>
+      </div>
 
       <InstructorFormDialog
         open={instructorDialogOpen}
         onOpenChange={setInstructorDialogOpen}
         onCreado={handleInstructorCreado}
       />
-    </Card>
+    </div>
   );
 }

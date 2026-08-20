@@ -31,9 +31,6 @@ export default async function AdminCategoriasPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl text-uva-text">Categorías</h1>
-      </div>
       <CategoriasTable categorias={categorias} />
     </div>
   );

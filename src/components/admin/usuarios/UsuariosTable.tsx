@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -21,8 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { useAdminToast } from "@/components/admin/Toast";
+import { useAdminSearch } from "@/components/admin/SearchContext";
 import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioListado } from "@/lib/admin/usuarios";
@@ -47,7 +47,7 @@ const SUSCRIPCION_TONO: Record<NonNullable<UsuarioListado["suscripcionEstado"]>,
 };
 
 const ROL_ITEMS = { todos: "Todos los roles", ...ROL_LABEL };
-const ESTADO_CUENTA_ITEMS = { todos: "Toda cuenta", ACTIVO: "Activo", SUSPENDIDO: "Suspendido" };
+const ESTADO_CUENTA_ITEMS = { todos: "Todos los estados", ACTIVO: "Activo", SUSPENDIDO: "Suspendido" };
 const SUSCRIPCION_ITEMS = { todos: "Toda suscripción", ...SUSCRIPCION_LABEL };
 
 function iniciales(nombre: string) {
@@ -57,7 +57,8 @@ function iniciales(nombre: string) {
 
 export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: UsuarioListado[] }) {
   const [usuarios, setUsuarios] = useState(usuariosIniciales);
-  const [busqueda, setBusqueda] = useState("");
+  // El texto de búsqueda lo escribe el header (mockup: `showSearch`).
+  const { query: busqueda } = useAdminSearch();
   const [filtroRol, setFiltroRol] = useState<string>("todos");
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
   const [filtroSuscripcion, setFiltroSuscripcion] = useState<string>("todos");
@@ -91,17 +92,8 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative max-w-[280px] flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-uva-text-faint" />
-          <Input
-            placeholder="Buscar por nombre o correo"
-            value={busqueda}
-            onChange={(event) => setBusqueda(event.target.value)}
-            className="pl-9"
-          />
-        </div>
         <Select items={ROL_ITEMS} value={filtroRol} onValueChange={(value) => setFiltroRol(value ?? "todos")}>
           <SelectTrigger><SelectValue placeholder="Rol" /></SelectTrigger>
           <SelectContent>
@@ -117,7 +109,7 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
           >
           <SelectTrigger><SelectValue placeholder="Estado de cuenta" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Toda cuenta</SelectItem>
+            <SelectItem value="todos">Todos los estados</SelectItem>
             <SelectItem value="ACTIVO">Activo</SelectItem>
             <SelectItem value="SUSPENDIDO">Suspendido</SelectItem>
           </SelectContent>
@@ -138,43 +130,48 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
         </Select>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
+      <AdminCard flush>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Usuario</TableHead>
+              <TableHead />
+              <TableHead>Nombre</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Cursos</TableHead>
-              <TableHead>Cuenta</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Suscripción</TableHead>
               <TableHead>Registro</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-uva-text-faint">
+                <TableCell colSpan={9} className="text-center text-uva-muted-2">
                   No hay usuarios que coincidan con los filtros.
                 </TableCell>
               </TableRow>
             )}
             {filtrados.map((usuario) => (
               <TableRow key={usuario.id}>
-                <TableCell>
-                  <Link href={`/admin/usuarios/${usuario.id}`} className="flex items-center gap-2.5">
-                    <Avatar size="sm" className="bg-uva-divider">
-                      <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
-                        {iniciales(usuario.nombre)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-uva-text">{usuario.nombre}</p>
-                      <p className="text-xs text-uva-text-faint">{usuario.correo}</p>
-                    </div>
+                <TableCell className="w-px pr-0">
+                  <Avatar className="size-[30px] bg-uva-divider after:hidden">
+                    <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
+                      {iniciales(usuario.nombre)}
+                    </AvatarFallback>
+                  </Avatar>
+                </TableCell>
+                <TableCell className="font-semibold">
+                  <Link
+                    href={`/admin/usuarios/${usuario.id}`}
+                    className="text-uva-text hover:text-uva-accent-text"
+                  >
+                    {usuario.nombre}
                   </Link>
                 </TableCell>
-                <TableCell className="text-uva-text-muted">{ROL_LABEL[usuario.rol]}</TableCell>
+                <TableCell className="text-uva-muted">{usuario.correo}</TableCell>
+                <TableCell className="text-uva-muted">{ROL_LABEL[usuario.rol]}</TableCell>
                 <TableCell className="font-mono tabular-nums">{usuario.cursosInscritos}</TableCell>
                 <TableCell>
                   <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
@@ -190,11 +187,11 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
                     <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
                   )}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-uva-text-faint tabular-nums">
+                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(usuario.fechaRegistro)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button type="button" variant="outline" size="sm" onClick={() => handleToggleEstado(usuario)}>
+                  <Button type="button" size="sm" onClick={() => handleToggleEstado(usuario)}>
                     {usuario.estado === "ACTIVO" ? "Suspender" : "Activar"}
                   </Button>
                 </TableCell>
@@ -202,7 +199,7 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminCard>
     </div>
   );
 }

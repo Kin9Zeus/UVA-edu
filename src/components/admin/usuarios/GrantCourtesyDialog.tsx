@@ -55,7 +55,7 @@ export function GrantCourtesyDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : cerrar())}>
-      <DialogContent>
+      <DialogContent className="w-[420px]">
         <DialogHeader>
           <DialogTitle>Ofrecer curso de cortesía</DialogTitle>
           {!cursoElegido && <DialogDescription>Elige el curso que quieres otorgar sin costo.</DialogDescription>}
@@ -78,7 +78,7 @@ export function GrantCourtesyDialog({
                 type="button"
                 onClick={() => setCursoElegido(curso)}
                 className={cn(
-                  "rounded-uva-md border border-uva-divider bg-uva-surface-soft px-4 py-3 text-left text-sm text-uva-text hover:border-uva-accent",
+                  "w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-[13.5px] font-semibold text-uva-text hover:bg-uva-hover",
                 )}
               >
                 {curso.titulo}
@@ -100,11 +100,11 @@ export function GrantCourtesyDialog({
               Volver
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={cerrar} disabled={pending}>
+          <Button type="button" variant="ghost" onClick={cerrar} disabled={pending}>
             Cancelar
           </Button>
           {cursoElegido && (
-            <Button type="button" onClick={confirmar} disabled={pending}>
+            <Button type="button" variant="primary" onClick={confirmar} disabled={pending}>
               {pending ? "Otorgando…" : "Confirmar"}
             </Button>
           )}

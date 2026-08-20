@@ -16,9 +16,10 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  // El mockup rotula siempre "Confirmar": el título y el cuerpo ya dicen
+  // qué se va a hacer, así que la etiqueta no repite la acción.
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
-  destructive = false,
   onConfirm,
 }: {
   open: boolean;
@@ -27,7 +28,6 @@ export function ConfirmDialog({
   description: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
-  destructive?: boolean;
   onConfirm: () => Promise<void> | void;
 }) {
   const [pending, setPending] = useState(false);
@@ -44,7 +44,7 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[360px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -58,9 +58,11 @@ export function ConfirmDialog({
           >
             {cancelLabel}
           </Button>
+          {/* El mockup pinta SIEMPRE el boton de confirmacion en magenta
+              solido, incluso cuando la accion es destructiva. */}
           <Button
             type="button"
-            variant={destructive ? "destructive" : "default"}
+            variant="primary"
             onClick={handleConfirm}
             disabled={pending}
           >

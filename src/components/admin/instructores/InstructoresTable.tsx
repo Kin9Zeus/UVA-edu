@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -16,9 +15,11 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import {
   InstructorFormDialog,
@@ -51,15 +52,14 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
-        <Button type="button" onClick={abrirCrear}>
-          <Plus className="size-4" />
-          Nuevo instructor
+        <Button type="button" variant="primary" onClick={abrirCrear}>
+          + Nuevo instructor
         </Button>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
+      <AdminCard flush>
         <Table>
           <TableHeader>
             <TableRow>
@@ -74,16 +74,16 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
           <TableBody>
             {instructores.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-uva-text-faint">
+                <TableCell colSpan={6} className="text-center text-uva-muted-2">
                   Todavía no hay instructores. Crea el primero para poder asignarlo a un curso.
                 </TableCell>
               </TableRow>
             )}
             {instructores.map((instructor) => (
               <TableRow key={instructor.id}>
-                <TableCell>
-                  <Avatar size="sm" className="bg-uva-divider">
-                    <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
+                <TableCell className="w-px pr-0">
+                  <Avatar className="size-[30px] bg-uva-divider after:hidden">
+                    <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
                       {iniciales(instructor.nombre)}
                     </AvatarFallback>
                   </Avatar>
@@ -97,7 +97,7 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
                     {instructor.nombre}
                   </button>
                 </TableCell>
-                <TableCell className="text-uva-text-muted">
+                <TableCell className="text-uva-muted">
                   {instructor.especialidad ?? "—"}
                 </TableCell>
                 <TableCell className="font-mono tabular-nums">{instructor.numeroCursos}</TableCell>
@@ -105,12 +105,7 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
                   {instructor.numeroEstudiantes}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => abrirEditar(instructor)}
-                  >
+                  <Button type="button" size="sm" onClick={() => abrirEditar(instructor)}>
                     Editar
                   </Button>
                 </TableCell>
@@ -118,7 +113,7 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminCard>
 
       <InstructorFormDialog
         open={formOpen}
@@ -130,13 +125,13 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
         open={verCursosDe !== null}
         onOpenChange={(open) => !open && setVerCursosDe(null)}
       >
-        <DialogContent>
+        <DialogContent className="w-[440px]">
           <DialogHeader>
             <DialogTitle>Cursos de {verCursosDe?.nombre}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
+          <div className="flex max-h-[300px] flex-col gap-1.5 overflow-auto">
             {verCursosDe?.cursos.length === 0 && (
-              <p className="text-sm text-uva-text-faint">
+              <p className="text-[13.5px] text-uva-muted-2">
                 Este instructor todavía no tiene cursos asignados.
               </p>
             )}
@@ -144,7 +139,7 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
               <Link
                 key={curso.id}
                 href={`/admin/cursos/${curso.id}`}
-                className="flex items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface-soft px-3.5 py-2.5 text-sm text-uva-text hover:border-uva-accent"
+                className="flex items-center justify-between rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
               >
                 {curso.titulo}
                 <StatusBadge tone={curso.mostrado ? "success" : "neutral"}>
@@ -153,6 +148,11 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
               </Link>
             ))}
           </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setVerCursosDe(null)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

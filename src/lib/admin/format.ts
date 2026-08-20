@@ -35,3 +35,14 @@ export function formatMoneda(centavos: number, moneda: string) {
     maximumFractionDigits: 0,
   }).format(centavos / 100);
 }
+
+/**
+ * Duración de una lección en el formato del mockup del panel admin: `08:12`.
+ * El esquema la guarda en segundos (`lecciones.duracion`, nullable).
+ */
+export function formatDuracion(segundos: number | null) {
+  if (segundos === null || segundos <= 0) return "—";
+  const minutos = Math.floor(segundos / 60);
+  const resto = segundos % 60;
+  return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
+}
