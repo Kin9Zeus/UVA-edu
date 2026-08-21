@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,26 @@ import { login, type LoginState } from "@/actions/auth/login";
 export function LoginForm({
   email,
   redirectTo,
+  onPendienteVerificacion,
 }: {
   email: string;
   redirectTo: string;
+  onPendienteVerificacion?: () => void;
 }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     login,
     null,
   );
+
+  useEffect(() => {
+    if (state?.pendingVerification) {
+      onPendienteVerificacion?.();
+    }
+  }, [state, onPendienteVerificacion]);
+
+  if (state?.pendingVerification) {
+    return null;
+  }
 
   return (
     <form className="flex flex-col gap-3.5" action={formAction} noValidate>

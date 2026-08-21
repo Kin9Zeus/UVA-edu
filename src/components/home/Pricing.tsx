@@ -1,84 +1,29 @@
 import Link from "next/link";
 import { CheckIcon, CrossIcon } from "@/components/home/icons";
 import { createPublicClient } from "@/lib/supabase/public";
-
-const sharedBenefits = [
-  "Catálogo completo",
-  "Certificados digitales",
-  "Plantillas y planos descargables",
-  "Certificado físico de rutas",
-  "Eventos y webinars en vivo",
-];
-
-/**
- * Cuántos de los `sharedBenefits` cubre cada nivel de acceso. El esquema no
- * tiene tabla de beneficios por plan (ver `docs/technical-spec.md` §4, tabla
- * Planes): `nivel_acceso` es el único campo que distingue el alcance de un
- * plan, así que es el que manda aquí. Un nivel desconocido cae en el mínimo.
- */
-const BENEFICIOS_POR_NIVEL: Record<string, number> = {
-  TOTAL: sharedBenefits.length,
-  BASICO: 2,
-};
-const BENEFICIOS_POR_DEFECTO = 2;
-
-type PlanRow = {
-  id: string;
-  nombre: string;
-  descripcion: string | null;
-  precio_centavos: number;
-  moneda: string;
-  duracion_dias: number;
-  nivel_acceso: string | null;
-};
-
-function formatearPrecio(centavos: number, moneda: string) {
-  const formateado = new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: moneda,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(centavos / 100);
-  // Intl mete un espacio duro entre el símbolo y la cifra ("$ 89.900"); el
-  // diseño lo muestra pegado.
-  return formateado.replace(/\s/g, "");
-}
-
-function periodo(duracionDias: number) {
-  if (duracionDias >= 360) return "/año";
-  if (duracionDias >= 28 && duracionDias <= 31) return "/mes";
-  return `/${duracionDias} días`;
-}
-
-function meta(plan: PlanRow) {
-  if (plan.descripcion) return plan.descripcion;
-  return `Facturado cada ${plan.duracion_dias} días`;
-}
-
-/**
- * "Ahorras N meses" comparando contra el plan activo de menor duración, que
- * es el precio de referencia. Se redondea hacia abajo para no prometer un
- * ahorro mayor al real, y no se muestra badge si no hay ahorro entero.
- */
-function ahorroEnMeses(plan: PlanRow, referencia: PlanRow) {
-  if (plan.id === referencia.id) return null;
-  if (plan.moneda !== referencia.moneda) return null;
-
-  const equivalente =
-    referencia.precio_centavos * (plan.duracion_dias / referencia.duracion_dias);
-  const meses = Math.floor(
-    (equivalente - plan.precio_centavos) / referencia.precio_centavos,
-  );
-
-  return meses >= 1 ? `Ahorras ${meses} ${meses === 1 ? "mes" : "meses"}` : null;
-}
+import {
+  type PlanRow,
+  sharedBenefits,
+  BENEFICIOS_POR_NIVEL,
+  BENEFICIOS_POR_DEFECTO,
+  formatearPrecio,
+  periodo,
+  meta,
+  ahorroEnMeses,
+} from "@/lib/planes";
 
 const solidCta =
   "inline-flex h-10 w-full items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 const outlineCta =
   "inline-flex h-11 w-full items-center justify-center rounded-uva-md border border-uva-divider bg-transparent px-6 text-sm font-semibold text-uva-text no-underline hover:bg-[#1c1c20] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 
-export async function Pricing() {
+export async function Pricing({
+  titulo = "Planes para cada etapa del gremio",
+  subtitulo = "Elige el ritmo de tu equipo. Cambia o cancela cuando quieras.",
+}: {
+  titulo?: string;
+  subtitulo?: string;
+} = {}) {
   const supabase = createPublicClient();
 
   // Solo planes vendibles y en el orden que definió el admin. La policy
@@ -129,11 +74,9 @@ export async function Pricing() {
     >
       <div className="mb-11 text-center">
         <h2 className="mb-2 text-[clamp(28px,4vw,40px)] font-bold tracking-[-0.02em] text-uva-text">
-          Planes para cada etapa del gremio
+          {titulo}
         </h2>
-        <p className="m-0 text-base text-uva-text-muted">
-          Elige el ritmo de tu equipo. Cambia o cancela cuando quieras.
-        </p>
+        <p className="m-0 text-base text-uva-text-muted">{subtitulo}</p>
       </div>
 
       {planes.length === 0 ? (

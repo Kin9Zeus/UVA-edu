@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
+import { getSuscripcionActual } from "@/lib/suscripcion";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
+
+const DURACION_GRACIA_DIAS = 5;
 
 export default async function DashboardLayout({
   children,
@@ -16,20 +19,29 @@ export default async function DashboardLayout({
   }
 
   const supabase = await createClient();
-  const { count: certificadosCount } = await supabase
-    .from("certificados")
-    .select("id", { count: "exact", head: true })
-    .eq("id_usuario", user.id);
+  const [{ count: certificadosCount }, suscripcion] = await Promise.all([
+    supabase
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", user.id),
+    getSuscripcionActual(user.id),
+  ]);
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
+  let diasGracia: number | null = null;
+  if (suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion) {
+    const finGracia = new Date(suscripcion.fechaRenovacion).getTime() + DURACION_GRACIA_DIAS * 86_400_000;
+    diasGracia = Math.max(0, Math.ceil((finGracia - Date.now()) / 86_400_000));
+  }
+
   return (
-    <div className="flex min-h-screen">
-      <Sidebar certificadosCount={certificadosCount ?? 0} />
-      <div className="flex min-h-screen flex-1 flex-col">
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar certificadosCount={certificadosCount ?? 0} diasGracia={diasGracia} />
+      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         <Header nombre={nombre} esAdmin={esAdmin} />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

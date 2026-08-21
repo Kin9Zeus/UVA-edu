@@ -1,11 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// TODO: ajustar estos prefijos cuando existan páginas reales dentro de
-// src/app/(student)/ y src/app/(admin)/. Los route groups entre paréntesis
-// no aparecen en la URL, así que el muro de acceso debe matchear por el
-// path público (ej. "/dashboard", "/admin"), no por el nombre de carpeta.
-const STUDENT_PATH_PREFIXES = ["/dashboard", "/mis-cursos", "/curso"];
+// Los route groups entre paréntesis no aparecen en la URL, así que el muro
+// de acceso debe matchear por el path público (ej. "/dashboard", "/admin"),
+// no por el nombre de carpeta. "/cursos" y "/planes" son públicos a propósito
+// (Detalle de curso y Precios se ven sin sesión, igual que Home) y por eso
+// no están en esta lista.
+const STUDENT_PATH_PREFIXES = ["/dashboard"];
 const ADMIN_PATH_PREFIXES = ["/admin"];
 
 function matchesPrefix(pathname: string, prefixes: string[]) {
@@ -63,6 +64,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Flujo 02 (ampliación, functional-spec.md): mientras el correo no esté
+  // verificado no puede entrar al dashboard. En la práctica hoy esto casi
+  // nunca se alcanza aquí (con "Confirm email" activo en Supabase,
+  // signInWithPassword ya rechaza el login antes de crear sesión — ver
+  // src/actions/auth/login.ts), pero queda como defensa en profundidad.
+  if (requiresAuth && user && !user.email_confirmed_at) {
+    return NextResponse.redirect(new URL("/verificar-correo", request.url));
+  }
+
   if (requiresAdmin && user) {
     // TODO: optimizar esta consulta (ej. leer el rol desde un claim del
     // JWT en vez de golpear Perfiles en cada request al panel admin).
@@ -78,12 +88,13 @@ export async function updateSession(request: NextRequest) {
   }
 
   // TODO: Muro de Pago dinámico (Flujo 01 de functional-spec.md, sección 5
-  // de technical-spec.md) — en las rutas de reproducción de lecciones,
-  // además de la sesión, validar que exista un registro en Suscripciones
-  // con estado IN ('activa', 'past_due') o una Inscripción vigente para
+  // de technical-spec.md) — en las rutas de reproducción de lecciones y
+  // de checkout, además de la sesión y el chequeo de email_confirmed_at
+  // de arriba, validar que exista un registro en Suscripciones con
+  // estado IN ('activa', 'past_due') o una Inscripción vigente para
   // el usuario antes de dejar pasar la request; si no, redirigir a
-  // /checkout. Falta definir el path real del reproductor dentro de
-  // (student) para poder matchearlo acá.
+  // /checkout. Falta definir el path real del reproductor y de checkout
+  // dentro de (student)/(public) para poder matchearlos acá.
 
   return supabaseResponse;
 }

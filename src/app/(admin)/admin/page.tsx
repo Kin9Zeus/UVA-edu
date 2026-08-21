@@ -20,11 +20,6 @@ export const metadata: Metadata = {
 
 /* Puntos de "Actividad reciente": el mockup usa magenta, el amarillo de marca
    (#F2C012) y el verde menta del badge de exito (#6EE7B7). */
-const TONO_PUNTO = {
-  accent: "bg-uva-accent",
-  success: "bg-uva-badge-success-fg",
-  warning: "bg-uva-accent-2",
-};
 
 export default async function AdminDashboardPage() {
   const { metricas, actividad, cursosPopulares } = await getDashboardData();
@@ -90,9 +85,6 @@ export default async function AdminDashboardPage() {
             )}
             {actividad.map((item) => (
               <div key={item.id} className="flex items-start gap-3">
-                <span
-                  className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONO_PUNTO[item.tono]}`}
-                />
                 <div className="flex-1">
                   <p className="text-sm text-uva-text-muted">{item.texto}</p>
                   <p className="font-mono text-xs text-uva-text-faint">

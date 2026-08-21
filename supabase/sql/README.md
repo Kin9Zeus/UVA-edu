@@ -178,6 +178,40 @@ igual de inalcanzable para clientes no autorizados: se revoca `EXECUTE` de
 está registrado (a diferencia de `recuperar.ts`, que nunca lo hace) — es el
 comportamiento pedido por el flujo tipo Platzi/GitHub/Google, no un olvido.
 
+### `008_correo_verificado_rls.sql`
+Crea `private.correo_verificado()` (¿el usuario autenticado actual tiene
+`email_confirmed_at` no nulo en `auth.users`?), mismo patrón que
+`private.es_administrador()`. La agrega al `with check` de
+`inscripciones_insert_propio` y `progreso_propio` — ver
+`docs/functional-spec.md` Flujo 02 (ampliación): sin correo verificado no
+se puede autoinscribir a una membresía ni registrar avance de
+reproducción.
+
+### `009_reenvio_verificacion_rate_limit.sql`
+Crea la tabla `private.verificacion_reenvios` y
+`public.registrar_reenvio_verificacion(p_correo text)`, usada por
+`src/actions/auth/reenviar-verificacion.ts` (vía Service Role Key) para
+limitar el botón "Reenviar enlace de verificación" a 1 solicitud cada 60
+segundos por correo. Mismo criterio de exposición que `007` (función en
+`public`, `EXECUTE` solo para `service_role`).
+
+### `010_fk_perfiles_cascade_y_limpieza.sql`
+Agrega el FK `perfiles.id → auth.users.id` con `on delete cascade` (no
+existía: Prisma no puede definirlo porque `auth` es un schema fuera de su
+alcance) y crea `private.limpiar_usuarios_no_verificados()`, programada a
+diario vía `pg_cron` (`cron.schedule`), que borra de `auth.users` las
+cuentas sin confirmar con más de 7 días de antigüedad — la fila espejo en
+`perfiles` se limpia sola gracias al FK nuevo. Se eligió `pg_cron` en vez
+de un Route Handler o un cron de Railway porque el proyecto todavía no
+tiene un entorno Railway desplegado (ver comentario en el propio archivo
+sobre la migración futura a un Railway Cron Service).
+
+**Nota de configuración manual (fuera de SQL):** el tiempo de expiración
+del token del correo "Confirm signup" se ajusta en el Dashboard de
+Supabase (Authentication → Emails → Email OTP Expiration), no aquí — se
+dejó en 900 segundos (15 minutos), igual que el token de recuperación de
+contraseña (Flujo 03). Repetir en cada entorno (Staging y Production).
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -200,6 +234,12 @@ comportamiento pedido por el flujo tipo Platzi/GitHub/Google, no un olvido.
    `instructores`.
 9. `007_check_email_provider.sql` — función para el flujo de correo
    inteligente de login/registro.
+10. `008_correo_verificado_rls.sql` — refuerzo de RLS para exigir correo
+    verificado en inscripciones y progreso.
+11. `009_reenvio_verificacion_rate_limit.sql` — rate limit del reenvío de
+    verificación de correo.
+12. `010_fk_perfiles_cascade_y_limpieza.sql` — FK de `perfiles` hacia
+    `auth.users` y el cron de limpieza de cuentas sin verificar.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).

@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; email?: string }>;
 }) {
-  const { redirect } = await searchParams;
+  const { redirect, email } = await searchParams;
   const redirectTo = redirect?.startsWith("/") ? redirect : "/dashboard";
 
   return (
@@ -20,7 +20,7 @@ export default async function LoginPage({
 
       <section className="grid place-items-center bg-[rgba(250,250,250,0.04)] p-7 min-[900px]:flex-1 min-[900px]:overflow-y-auto min-[900px]:p-11 min-[900px]:[place-items:safe_center]">
         <div className="w-full max-w-[396px] py-4">
-          <AuthFlow redirectTo={redirectTo} />
+          <AuthFlow redirectTo={redirectTo} initialEmail={email} />
         </div>
       </section>
     </div>

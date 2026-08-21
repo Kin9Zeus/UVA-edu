@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
@@ -60,7 +61,7 @@ function NavLink({
         <span className="flex-1 truncate">{label}</span>
       )}
       {!collapsed && badge && (
-        <span className="font-mono text-[11px] text-uva-text-faint tabular-nums">
+        <span className="font-mono text-[11px] font-medium tracking-[.1em] text-uva-text-faint tabular-nums">
           {badge}
         </span>
       )}
@@ -68,7 +69,13 @@ function NavLink({
   );
 }
 
-export function Sidebar({ certificadosCount }: { certificadosCount: number }) {
+export function Sidebar({
+  certificadosCount,
+  diasGracia,
+}: {
+  certificadosCount: number;
+  diasGracia: number | null;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
@@ -84,7 +91,7 @@ export function Sidebar({ certificadosCount }: { certificadosCount: number }) {
     >
       <div className="flex items-center justify-between px-4 py-5">
         {!collapsed && (
-          <span className="font-heading text-[20px] tracking-[.1em] text-uva-text">
+          <span className="font-heading text-[20px] font-bold tracking-[.1em] text-uva-text">
             U.V.A<span className="text-uva-accent">.</span>
           </span>
         )}
@@ -113,7 +120,7 @@ export function Sidebar({ certificadosCount }: { certificadosCount: number }) {
         ))}
 
         {!collapsed && (
-          <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] tracking-[.22em] text-[#52525B] uppercase">
+          <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-[#52525B] uppercase">
             Tu progreso
           </p>
         )}
@@ -133,6 +140,29 @@ export function Sidebar({ certificadosCount }: { certificadosCount: number }) {
           />
         ))}
       </nav>
+
+      {diasGracia !== null && !collapsed && (
+        <div className="p-[19px]">
+          <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface-2 p-[18px]">
+            <span className="inline-flex w-fit items-center gap-2 rounded-uva-sm border border-uva-accent-2/40 bg-uva-accent-2-soft px-[11px] py-1.5 font-mono text-[10px] font-semibold tracking-[.16em] text-uva-accent-2-text uppercase">
+              <span className="size-1.5 bg-uva-accent-2" />
+              Período de gracia
+            </span>
+            <p className="text-[13px] text-uva-muted">
+              Quedan {diasGracia} {diasGracia === 1 ? "día" : "días"} de acceso.
+            </p>
+            <Button
+              render={<Link href="/dashboard/planes" />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="sm"
+              className="text-[13.5px]"
+            >
+              Ver planes
+            </Button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

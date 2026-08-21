@@ -28,8 +28,13 @@ export async function recuperar(
 
   const origin = await getOrigin();
   const supabase = await createClient();
+  // El webhook de correo (src/app/api/webhooks/supabase-auth/route.ts) ya
+  // envuelve este valor dentro de su propio /auth/confirm?...&next=<esto>;
+  // si aquí también se apunta a /auth/confirm se anida dos veces y el
+  // segundo salto llega sin code/token_hash. Por eso va directo al
+  // destino final, no a /auth/confirm.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/confirm?next=/actualizar-password`,
+    redirectTo: `${origin}/actualizar-password`,
   });
 
   if (error) {

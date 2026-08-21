@@ -33,7 +33,14 @@ export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: 
         />
       </div>
 
-      <div className="ml-auto flex items-center">
+      <Link
+        href="/dashboard/planes"
+        className="ml-auto shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover"
+      >
+        Planes
+      </Link>
+
+      <div className="flex items-center">
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"

@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { RegistroForm } from "@/components/auth/RegistroForm";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+import { ReenviarVerificacion } from "@/components/auth/ReenviarVerificacion";
 import { checkEmail } from "@/actions/auth/check-email";
 
-type Step = "email" | "login" | "signup" | "oauth" | "both" | "confirmar";
+type Step =
+  | "email"
+  | "login"
+  | "signup"
+  | "oauth"
+  | "both"
+  | "confirmar"
+  | "pendiente";
 
 const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   email: {
@@ -36,20 +44,29 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
     title: "¡Ya casi!",
     subtitle: "Creamos tu cuenta. Revisa tu correo y confírmala para poder iniciar sesión.",
   },
+  pendiente: {
+    title: "Verifica tu correo",
+    subtitle: "Tu cuenta está creada, pero falta confirmar tu correo para entrar.",
+  },
 };
 
-export function AuthFlow({ redirectTo }: { redirectTo: string }) {
+export function AuthFlow({
+  redirectTo,
+  initialEmail,
+}: {
+  redirectTo: string;
+  initialEmail?: string;
+}) {
   const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
 
-  async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function runCheckEmail(correo: string) {
     setCheckError(null);
     setChecking(true);
 
-    const result = await checkEmail(email);
+    const result = await checkEmail(correo);
 
     setChecking(false);
 
@@ -69,6 +86,22 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
     }
   }
 
+  function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    runCheckEmail(email);
+  }
+
+  // Viene de confirmar el correo (registro.ts / reenviar-verificacion.ts
+  // agregan ?email= al redirect): salta directo al paso de contraseña en
+  // vez de obligar a volver a escribir el correo. Se difiere a un
+  // microtask para que el primer setState de runCheckEmail no corra de
+  // forma síncrona dentro del efecto (evita el cascading-render que marca
+  // react-hooks/set-state-in-effect).
+  useEffect(() => {
+    if (!initialEmail) return;
+    queueMicrotask(() => runCheckEmail(initialEmail));
+  }, [initialEmail]);
+
   function handleCambiar() {
     setStep("email");
     setCheckError(null);
@@ -79,8 +112,13 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
     setStep("signup");
   }
 
-  function handleCuentaCreada() {
+  function handleCuentaCreada(correo: string) {
+    setEmail(correo);
     setStep("confirmar");
+  }
+
+  function handlePendienteVerificacion() {
+    setStep("pendiente");
   }
 
   const { title, subtitle } = STEP_COPY[step];
@@ -161,7 +199,7 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
         </>
       ) : (
         <>
-          {step !== "signup" && step !== "confirmar" && (
+          {step !== "signup" && step !== "confirmar" && step !== "pendiente" && (
             <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 px-3.5 py-2.5 text-sm text-uva-text">
               <span className="truncate">{email}</span>
               <button
@@ -175,7 +213,11 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
           )}
 
           {step === "login" && (
-            <LoginForm email={email} redirectTo={redirectTo} />
+            <LoginForm
+              email={email}
+              redirectTo={redirectTo}
+              onPendienteVerificacion={handlePendienteVerificacion}
+            />
           )}
 
           {step === "signup" && (
@@ -199,12 +241,28 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
           )}
 
           {step === "confirmar" && (
-            <div
-              role="status"
-              className="rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
-            >
-              Te enviamos un correo de confirmación a {email || "tu correo"}.
-            </div>
+            <>
+              <div
+                role="status"
+                className="rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
+              >
+                Te enviamos un correo de confirmación a {email || "tu correo"}.
+              </div>
+              <ReenviarVerificacion email={email} />
+            </>
+          )}
+
+          {step === "pendiente" && (
+            <>
+              <div
+                role="status"
+                className="rounded-uva-md bg-uva-danger-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-danger-text"
+              >
+                Aún no confirmas {email || "tu correo"}. Revisa tu bandeja o
+                pide un nuevo enlace.
+              </div>
+              <ReenviarVerificacion email={email} />
+            </>
           )}
 
           {step === "oauth" && (
@@ -216,7 +274,11 @@ export function AuthFlow({ redirectTo }: { redirectTo: string }) {
 
           {step === "both" && (
             <>
-              <LoginForm email={email} redirectTo={redirectTo} />
+              <LoginForm
+                email={email}
+                redirectTo={redirectTo}
+                onPendienteVerificacion={handlePendienteVerificacion}
+              />
 
               <div className="my-5 flex items-center gap-3">
                 <div className="h-px flex-1 bg-uva-divider" />

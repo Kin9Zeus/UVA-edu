@@ -13,8 +13,8 @@ export default function Home() {
       <main>
         <Hero />
         <ProductBand />
-        <Pricing />
         <FinalCta />
+        <Pricing />
       </main>
       <Footer />
       <WhatsAppButton />

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Proximamente } from "@/components/dashboard/Proximamente";
+import { getPerfilActual } from "@/lib/perfil";
+import { getSuscripcionActual } from "@/lib/suscripcion";
+import { SuscripcionContent } from "@/components/dashboard/SuscripcionContent";
 
 export const metadata: Metadata = { title: "U.V.A. — Suscripción" };
 
-export default function SuscripcionPage() {
-  return (
-    <Proximamente
-      titulo="Suscripción"
-      descripcion="La gestión de tu suscripción todavía no está disponible."
-    />
-  );
+export default async function SuscripcionPage() {
+  const { user } = await getPerfilActual();
+  const suscripcion = await getSuscripcionActual(user!.id);
+
+  return <SuscripcionContent suscripcion={suscripcion} />;
 }

@@ -17,7 +17,7 @@ export function RegistroForm({
 }: {
   email: string;
   redirectTo: string;
-  onCuentaCreada?: () => void;
+  onCuentaCreada?: (email: string) => void;
 }) {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -33,7 +33,7 @@ export function RegistroForm({
 
   useEffect(() => {
     if (registroState?.needsConfirmation) {
-      onCuentaCreada?.();
+      onCuentaCreada?.(registroState.email);
     }
   }, [registroState, onCuentaCreada]);
 

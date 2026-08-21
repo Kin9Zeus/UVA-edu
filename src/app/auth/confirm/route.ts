@@ -8,7 +8,24 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/";
+
+  // El webhook de correo (src/app/api/webhooks/supabase-auth/route.ts)
+  // arma el enlace como .../auth/confirm?token_hash=...&next=<redirect_to
+  // codificado>, y redirect_to es el emailRedirectTo/redirectTo tal cual
+  // se pasó a signUp()/resend()/resetPasswordForEmail() — que en este
+  // proyecto ya es una URL absoluta al destino final (ej.
+  // "http://.../login?signout=1"), no otro /auth/confirm. new URL(...)
+  // normaliza tanto ese caso como un `next` relativo simple, para poder
+  // leer sus propios query params antes de redirigir.
+  const nextUrl = new URL(searchParams.get("next") ?? "/", request.url);
+  // Ver src/actions/auth/registro.ts y reenviar-verificacion.ts: al
+  // confirmar el registro se cierra la sesión que deja el enlace antes de
+  // redirigir, para que el usuario vuelva a ingresar sus credenciales en
+  // /login en vez de quedar logueado de una vez (mismo criterio que
+  // actualizar-password.ts tras un reset de contraseña).
+  const signOutAlConfirmar = nextUrl.searchParams.get("signout") === "1";
+  nextUrl.searchParams.delete("signout");
+  const next = `${nextUrl.pathname}${nextUrl.search}`;
 
   const supabase = await createClient();
 
@@ -19,6 +36,9 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      if (signOutAlConfirmar) {
+        await supabase.auth.signOut();
+      }
       redirect(next);
     }
 
@@ -30,6 +50,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (!error) {
+      if (signOutAlConfirmar) {
+        await supabase.auth.signOut();
+      }
       redirect(next);
     }
 

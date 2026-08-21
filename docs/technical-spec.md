@@ -267,13 +267,15 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 > * **Tablas Cursos, Módulos, Lecciones:**  
   * SELECT habilitado para todos los usuarios, condicionado a mostrado \= true.  
   * INSERT, UPDATE, DELETE restringidos estrictamente a perfiles donde rol \= 'administrador'.  
-> * **Generación de Firmas (Mux):** Las URLs firmadas de Mux solo se generan en el backend si el sistema detecta que existe un registro válido en Suscripciones (estado \= 'activa' o 'past\_due') o en Inscripciones asociado al usuario solicitante.
+> * **Generación de Firmas (Mux):** Las URLs firmadas de Mux solo se generan en el backend si el sistema detecta que existe un registro válido en Suscripciones (estado \= 'activa' o 'past\_due') o en Inscripciones asociado al usuario solicitante.  
+> * **Verificación de correo:** private.correo\_verificado() (SECURITY DEFINER, mismo criterio que private.es\_administrador()) chequea auth.users.email\_confirmed\_at para auth.uid() y se agrega al with check de inscripciones\_insert\_propio y progreso\_propio — un usuario sin correo confirmado no puede autoinscribirse a una membresía ni escribir su progreso de reproducción, ver Flujo 02.
 
 ## **6\. Autenticación e Identidad**
 
 > * **Proveedor:** Supabase Auth (Email/Contraseña \+ Google OAuth).  
 > * **Sincronización:** Se creará un *Database Trigger* en Postgres que, al insertar un registro en auth.users, cree automáticamente la fila correspondiente en la tabla pública Perfiles asignando el rol estudiante por defecto.  
-> * **Sesión:** Manejo nativo mediante Supabase Auth Helpers para Next.js App Router (Persistencia en cookies HTTP-Only).
+> * **Sesión:** Manejo nativo mediante Supabase Auth Helpers para Next.js App Router (Persistencia en cookies HTTP-Only).  
+> * **Verificación de correo obligatoria:** el token del correo "Confirm signup" expira a los 15 minutos (config. en el Dashboard de Supabase, Authentication → Emails). El reenlace ("Reenviar enlace de verificación") está limitado a 1 solicitud cada 60 segundos por correo, vía la función public.registrar\_reenvio\_verificacion(). Un job de pg\_cron (private.limpiar\_usuarios\_no\_verificados(), diario) elimina de auth.users las cuentas sin confirmar con más de 7 días de antigüedad; la fila de Perfiles se limpia en cascada gracias al FK perfiles\_id\_fkey (auth.users(id) on delete cascade). Ver Flujo 02.
 
 ## **7\. Flujo de Pago e Idempotencia**
 
@@ -295,6 +297,7 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 > * **Stack:** Resend (Infraestructura de envío por API) \+ React Email (Para diseñar las plantillas).  
 > * **Flujos Configurados:**  
   * Bienvenida (Disparado tras la confirmación de la primera suscripción activa).  
+  * Confirmación de registro / verificación de correo (Integrado de forma nativa con Supabase Auth, token de 15 minutos, reenvío limitado a 1 cada 60 segundos).  
   * Recuperación de contraseña (Integrado de forma nativa con Supabase Auth).  
   * Aviso de fallo de pago y entrada al período de gracia.
 

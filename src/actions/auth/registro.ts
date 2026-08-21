@@ -1,18 +1,28 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
 import { checkEmail } from "@/actions/auth/check-email";
 
 export type RegistroState =
-  | { error: string; needsConfirmation?: never }
-  | { error?: never; needsConfirmation: true }
+  | { error: string; needsConfirmation?: never; email?: never }
+  | { error?: never; needsConfirmation: true; email: string }
   | null;
 
 function safeRedirectTarget(value: FormDataEntryValue | null): string {
   const target = String(value ?? "");
   return target.startsWith("/") ? target : "/dashboard";
+}
+
+async function getOrigin() {
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const proto =
+    headersList.get("x-forwarded-proto") ??
+    (host?.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
 export async function registro(
@@ -42,11 +52,23 @@ export async function registro(
     return { error: "Ya existe una cuenta con ese correo. Inicia sesión en su lugar." };
   }
 
+  const origin = await getOrigin();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { nombre } },
+    options: {
+      data: { nombre },
+      // El webhook de correo (src/app/api/webhooks/supabase-auth/route.ts)
+      // ya envuelve este valor dentro de su propio /auth/confirm?...&next=
+      // <esto>; apuntar aquí también a /auth/confirm anidaría el redirect
+      // dos veces. signout=1: /auth/confirm cierra la sesión que deja el
+      // enlace antes de redirigir, para que el usuario vuelva a ingresar
+      // sus credenciales en /login en vez de quedar logueado de una vez.
+      // email=: precarga el correo en /login para que AuthFlow salte
+      // directo al paso de contraseña, sin tener que volver a escribirlo.
+      emailRedirectTo: `${origin}/login?signout=1&email=${encodeURIComponent(email)}`,
+    },
   });
 
   if (error) {
@@ -62,7 +84,7 @@ export async function registro(
   // el correo antes de iniciar sesión (config. por defecto en proyectos
   // nuevos): el usuario ya quedó creado, pero debe revisar su bandeja.
   if (!data.session) {
-    return { needsConfirmation: true };
+    return { needsConfirmation: true, email };
   }
 
   redirect(redirectTo);

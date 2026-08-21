@@ -116,7 +116,12 @@
 > 1. El usuario envía sus credenciales (Email/Password) o selecciona "Continuar con Google".  
 > 2. Supabase Auth procesa la solicitud, genera las llaves JWT y crea el registro en el esquema auth.users.  
 > 3. Un Trigger en PostgreSQL detecta la creación e inserta un registro en la tabla Perfiles relacionando el id (UUID), correo, nombre y asignando rol \= 'estudiante'.  
-> 4. Las cookies de sesión HTTP-Only se configuran en el navegador del cliente para mantener la persistencia.
+> 4. Las cookies de sesión HTTP-Only se configuran en el navegador del cliente para mantener la persistencia.  
+> 5. **Verificación de correo (solo registro por Email/Password):** Supabase Auth envía el correo "Confirm signup" con un token de un solo uso y validez de 15 minutos (mismo criterio que Flujo 03). El Trigger del paso 3 no depende de esta verificación: la fila en Perfiles se crea de inmediato, sin fricción.  
+> 6. **Restricción mientras auth.users.email\_confirmed\_at es nulo:** el estudiante puede seguir navegando el catálogo público sin restricción, pero no puede iniciar checkout/suscripción, acceder al dashboard de estudiante ni reproducir video — bloqueado en el middleware y reforzado con políticas RLS.  
+> 7. **Token vencido:** si pasan los 15 minutos sin confirmar, el token queda inválido pero la cuenta no se borra ni se bloquea. En el siguiente intento de acceso a una zona restringida, o de login, se muestra un estado "Cuenta pendiente de verificación" con un botón "Reenviar enlace de verificación", limitado a un reenvío cada 60 segundos.  
+> 8. **Excepción OAuth:** las cuentas creadas vía "Continuar con Google" llegan con el correo pre-verificado por Google y quedan exentas de este flujo.  
+> 9. **Housekeeping:** un job programado elimina de auth.users las cuentas con email\_confirmed\_at nulo y más de 7 días desde fecha\_registro, liberando esos correos para un nuevo registro. La eliminación es en cascada hacia Perfiles.
 
 ### **Flujo 03: Recuperación de Contraseña**
 

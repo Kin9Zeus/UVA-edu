@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type LoginState = { error: string } | null;
+export type LoginState =
+  | { error: string; pendingVerification?: never }
+  | { error?: never; pendingVerification: true }
+  | null;
 
 function safeRedirectTarget(value: FormDataEntryValue | null): string {
   const target = String(value ?? "");
@@ -29,6 +32,16 @@ export async function login(
   });
 
   if (error) {
+    // Flujo 02 (ampliación): con "Confirm email" activo, Supabase rechaza
+    // el login antes de crear sesión para una cuenta sin confirmar — se
+    // distingue de "credenciales incorrectas" para poder ofrecer el
+    // reenvío en vez de un mensaje genérico.
+    if (
+      error.code === "email_not_confirmed" ||
+      error.message.toLowerCase().includes("email not confirmed")
+    ) {
+      return { pendingVerification: true };
+    }
     return { error: "Correo o contraseña incorrectos." };
   }
 

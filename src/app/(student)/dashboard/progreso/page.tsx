@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Proximamente } from "@/components/dashboard/Proximamente";
+import { getPerfilActual } from "@/lib/perfil";
+import { getProgresoData } from "@/lib/progreso";
+import { ProgresoContent } from "@/components/dashboard/ProgresoContent";
 
 export const metadata: Metadata = { title: "U.V.A. — Progreso" };
 
-export default function ProgresoPage() {
-  return (
-    <Proximamente
-      titulo="Progreso"
-      descripcion="El resumen detallado de tu progreso todavía no está disponible."
-    />
-  );
+export default async function ProgresoPage() {
+  const { user } = await getPerfilActual();
+  const data = await getProgresoData(user!.id);
+
+  return <ProgresoContent data={data} />;
 }
