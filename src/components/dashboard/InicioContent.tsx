@@ -99,7 +99,7 @@ export function InicioContent({
               return (
                 <Link
                   key={categoria.id}
-                  href="/dashboard/catalogo"
+                  href={`/dashboard/catalogo/${categoria.id}`}
                   className={`flex flex-col justify-between rounded-uva-md border border-uva-divider p-4 transition-colors ${
                     esFucsia ? "hover:border-uva-accent" : "hover:border-uva-accent-2"
                   }`}

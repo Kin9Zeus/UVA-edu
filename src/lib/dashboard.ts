@@ -77,13 +77,14 @@ export async function getInicioData(usuarioId: string) {
     conteoPorCategoria.set(curso.id_categoria, (conteoPorCategoria.get(curso.id_categoria) ?? 0) + 1);
   }
 
-  const categorias: CategoriaConConteo[] = (categoriasRows ?? [])
-    .map((categoria) => ({
-      id: categoria.id as string,
-      nombre: categoria.nombre as string,
-      cursos: conteoPorCategoria.get(categoria.id) ?? 0,
-    }))
-    .filter((categoria) => categoria.cursos > 0);
+  // Se listan todas las categorías activas, tengan o no cursos publicados
+  // todavía: es la vitrina del catálogo completo, no solo de lo que ya tiene
+  // contenido.
+  const categorias: CategoriaConConteo[] = (categoriasRows ?? []).map((categoria) => ({
+    id: categoria.id as string,
+    nombre: categoria.nombre as string,
+    cursos: conteoPorCategoria.get(categoria.id) ?? 0,
+  }));
 
   return { sigueAprendiendo, categorias };
 }

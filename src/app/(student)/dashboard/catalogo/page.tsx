@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { Proximamente } from "@/components/dashboard/Proximamente";
+import { getCatalogo } from "@/lib/categoria";
+import { CatalogoContent } from "@/components/dashboard/CatalogoContent";
 
 export const metadata: Metadata = { title: "U.V.A. — Catálogo" };
 
-export default function CatalogoPage() {
-  return (
-    <Proximamente
-      titulo="Catálogo"
-      descripcion="El catálogo de cursos y rutas todavía no está disponible."
-    />
-  );
+export default async function CatalogoPage() {
+  const categorias = await getCatalogo();
+
+  return <CatalogoContent categorias={categorias} />;
 }
