@@ -18,6 +18,13 @@ export default async function DashboardLayout({
     redirect("/login?redirect=/dashboard");
   }
 
+  // El middleware (src/lib/supabase/proxy.ts) ya cierra la sesión y saca a
+  // los usuarios suspendidos; esta verificación es defensa en profundidad
+  // por si el layout se renderiza sin haber pasado por el middleware.
+  if (perfil?.estado === "SUSPENDIDO") {
+    redirect("/login");
+  }
+
   const supabase = await createClient();
   const [{ count: certificadosCount }, suscripcion] = await Promise.all([
     supabase

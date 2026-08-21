@@ -73,16 +73,27 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/verificar-correo", request.url));
   }
 
-  if (requiresAdmin && user) {
+  if (requiresAuth && user) {
     // TODO: optimizar esta consulta (ej. leer el rol desde un claim del
-    // JWT en vez de golpear Perfiles en cada request al panel admin).
+    // JWT en vez de golpear Perfiles en cada request al dashboard/panel admin).
     const { data: perfil } = await supabase
       .from("perfiles")
-      .select("rol")
+      .select("rol, estado")
       .eq("id", user.id)
       .single();
 
-    if (perfil?.rol !== "ADMINISTRADOR") {
+    // Cuenta suspendida por un administrador: se cierra la sesión en cada
+    // request a una ruta protegida, no solo al iniciar sesión — así una
+    // suspensión hecha a mitad de sesión también saca al usuario.
+    if (perfil?.estado === "SUSPENDIDO") {
+      await supabase.auth.signOut();
+      const loginUrl = new URL("/login", request.url);
+      const response = NextResponse.redirect(loginUrl);
+      supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+      return response;
+    }
+
+    if (requiresAdmin && perfil?.rol !== "ADMINISTRADOR") {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }

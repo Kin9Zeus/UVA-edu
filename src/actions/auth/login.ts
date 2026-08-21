@@ -26,7 +26,7 @@ export async function login(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -43,6 +43,20 @@ export async function login(
       return { pendingVerification: true };
     }
     return { error: "Correo o contraseña incorrectos." };
+  }
+
+  // Supabase ya validó la contraseña y creó la sesión antes de que podamos
+  // consultar Perfiles, así que una cuenta suspendida se cierra de inmediato
+  // en vez de dejarla entrar: no basta con negar el acceso más adelante.
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("estado")
+    .eq("id", data.user.id)
+    .single();
+
+  if (perfil?.estado === "SUSPENDIDO") {
+    await supabase.auth.signOut();
+    return { error: "Tu cuenta ha sido suspendida. Contacta al soporte para más información." };
   }
 
   redirect(redirectTo);

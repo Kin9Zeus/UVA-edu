@@ -17,8 +17,13 @@ export default async function AdminLayout({
   }
 
   // El middleware (src/lib/supabase/proxy.ts) ya bloquea /admin para no
-  // administradores; esta verificación es defensa en profundidad por si el
-  // layout se renderiza sin haber pasado por el middleware (ej. tests).
+  // administradores y cierra la sesión de cuentas suspendidas; estas
+  // verificaciones son defensa en profundidad por si el layout se
+  // renderiza sin haber pasado por el middleware (ej. tests).
+  if (perfil?.estado === "SUSPENDIDO") {
+    redirect("/login");
+  }
+
   if (perfil?.rol !== "ADMINISTRADOR") {
     redirect("/");
   }
