@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
+  { href: "/catalogo", label: "Catálogo", icon: Compass },
   { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
 ];
 

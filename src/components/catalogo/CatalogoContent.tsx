@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CursoCard } from "@/components/dashboard/CursoCard";
+import { CursoCard } from "@/components/catalogo/CursoCard";
 import type { CategoriaDetalle } from "@/lib/categoria";
 
 export function CatalogoContent({ categorias }: { categorias: CategoriaDetalle[] }) {
@@ -71,7 +71,7 @@ export function CatalogoContent({ categorias }: { categorias: CategoriaDetalle[]
                   {categoria.cursos.length} {categoria.cursos.length === 1 ? "curso" : "cursos"}
                 </span>
                 <Link
-                  href={`/dashboard/catalogo/${categoria.id}`}
+                  href={`/catalogo/${categoria.id}`}
                   className="ml-auto text-[13px] text-uva-text hover:text-uva-accent-text"
                 >
                   Ver categoría

@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { CategoriaDetalle } from "@/lib/categoria";
-import { CursoCard } from "@/components/dashboard/CursoCard";
+import { CursoCard } from "@/components/catalogo/CursoCard";
 
 export function CategoriaContent({ categoria }: { categoria: CategoriaDetalle }) {
   return (
     <div className="mx-auto flex max-w-[1320px] flex-col gap-8 px-[clamp(20px,3vw,44px)] py-8">
       <div>
         <Link
-          href="/dashboard/catalogo"
+          href="/catalogo"
           className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
         >
           <ChevronLeft className="size-4" strokeWidth={1.9} />

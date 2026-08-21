@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { SiteHeader } from "@/components/SiteHeader";
+import { Footer } from "@/components/home/Footer";
+import { getPerfilActual } from "@/lib/perfil";
 import { getCategoriaConCursos } from "@/lib/categoria";
-import { CategoriaContent } from "@/components/dashboard/CategoriaContent";
+import { CategoriaContent } from "@/components/catalogo/CategoriaContent";
 
 export async function generateMetadata({
   params,
@@ -19,11 +22,20 @@ export default async function CategoriaPage({
   params: Promise<{ categoriaId: string }>;
 }) {
   const { categoriaId } = await params;
+  const perfilActual = await getPerfilActual();
   const categoria = await getCategoriaConCursos(categoriaId);
 
   if (!categoria) {
     notFound();
   }
 
-  return <CategoriaContent categoria={categoria} />;
+  return (
+    <>
+      <SiteHeader {...perfilActual} />
+      <main>
+        <CategoriaContent categoria={categoria} />
+      </main>
+      <Footer />
+    </>
+  );
 }

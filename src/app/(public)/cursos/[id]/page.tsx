@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Header } from "@/components/home/Header";
+import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getCursoPublico } from "@/lib/curso";
@@ -23,7 +23,8 @@ export default async function CursoDetallePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user } = await getPerfilActual();
+  const perfilActual = await getPerfilActual();
+  const { user } = perfilActual;
   const curso = await getCursoPublico(id, user?.id ?? null);
 
   if (!curso) {
@@ -32,7 +33,7 @@ export default async function CursoDetallePage({
 
   return (
     <>
-      <Header />
+      <SiteHeader {...perfilActual} />
       <main>
         <CursoDetalleContent curso={curso} />
       </main>

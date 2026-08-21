@@ -45,12 +45,12 @@ export function Header() {
         aria-label="Navegación principal"
       >
         <div className="hidden items-center gap-5 min-[861px]:flex">
-          <a
-            href="#cursos"
+          <Link
+            href="/catalogo"
             className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
           >
             Cursos
-          </a>
+          </Link>
           <a
             href="#planes"
             className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
