@@ -4,11 +4,8 @@ import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { ActualizarPasswordForm } from "@/components/auth/ActualizarPasswordForm";
 import { PerfilAdminForm } from "@/components/admin/configuracion/PerfilAdminForm";
 import { getPerfilActual } from "@/lib/perfil";
-import { logout } from "@/actions/auth/logout";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Configuración",
@@ -61,19 +58,6 @@ export default async function AdminConfiguracionPage() {
         <p className="text-xs text-uva-muted-2">
           Informativo por ahora: no existe una tabla de configuración global en el esquema.
         </p>
-      </AdminCard>
-
-      <AdminCard>
-        <TituloTarjeta>Seguridad</TituloTarjeta>
-        <ActualizarPasswordForm />
-
-        <div className="h-px bg-uva-divider" />
-
-        <form action={logout}>
-          <Button type="submit" variant="destructive" size="sm">
-            Cerrar sesión
-          </Button>
-        </form>
       </AdminCard>
     </div>
   );

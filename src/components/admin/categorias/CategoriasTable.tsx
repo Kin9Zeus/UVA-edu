@@ -145,7 +145,12 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         </Table>
       </AdminCard>
 
-      <CategoriaFormDialog open={formOpen} onOpenChange={setFormOpen} categoria={editando} />
+      <CategoriaFormDialog
+        key={editando?.id ?? "nueva"}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        categoria={editando}
+      />
 
       <ConfirmDialog
         open={borrando !== null}
