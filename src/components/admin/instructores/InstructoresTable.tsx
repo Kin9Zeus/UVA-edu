@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -105,9 +106,22 @@ export function InstructoresTable({ instructores }: { instructores: Instructor[]
                   {instructor.numeroEstudiantes}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button type="button" size="sm" onClick={() => abrirEditar(instructor)}>
-                    Editar
-                  </Button>
+                  {/* Mismo patron de accion de fila que Categorias. No hay
+                      icono de basura porque no existe `eliminarInstructor`:
+                      el instructor es catalogo referenciado por los cursos. */}
+                  <div className="flex justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Editar instructor"
+                      title="Editar instructor"
+                      className="text-uva-muted-2 hover:text-uva-accent"
+                      onClick={() => abrirEditar(instructor)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

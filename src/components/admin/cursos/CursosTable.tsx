@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MoreHorizontal } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import {
   Select,
   SelectContent,
@@ -19,15 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLinkItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { AdminCard } from "@/components/admin/AdminCard";
-import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { useAdminSearch } from "@/components/admin/SearchContext";
@@ -183,33 +176,42 @@ export function CursosTable({
                 <TableCell className="text-uva-muted">{NIVEL_LABEL[curso.nivel]}</TableCell>
                 <TableCell className="font-mono tabular-nums">{curso.estudiantes}</TableCell>
                 <TableCell>
-                  <StatusBadge tone={curso.mostrado ? "success" : "neutral"}>
-                    {curso.mostrado ? "Publicado" : "Borrador"}
-                  </StatusBadge>
+                  <SwitchEstado
+                    checked={curso.mostrado}
+                    onCheckedChange={() => handleTogglePublicacion(curso)}
+                    etiquetas={["Publicado", "Borrador"]}
+                    acciones={["Publicar curso", "Despublicar curso"]}
+                  />
                 </TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(curso.fechaCreacion)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label="Más acciones"
-                      className="flex items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover hover:text-uva-text"
+                  <div className="flex justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Editar curso"
+                      title="Editar curso"
+                      className="text-uva-muted-2 hover:text-uva-accent"
+                      render={<Link href={`/admin/cursos/${curso.id}`} />}
+                      nativeButton={false}
                     >
-                      <MoreHorizontal className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLinkItem render={<Link href={`/admin/cursos/${curso.id}`} />}>
-                        Ver / Editar
-                      </DropdownMenuLinkItem>
-                      <DropdownMenuItem onClick={() => handleTogglePublicacion(curso)}>
-                        {curso.mostrado ? "Despublicar" : "Publicar"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem variant="destructive" onClick={() => setBorrando(curso)}>
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Eliminar curso"
+                      title="Eliminar curso"
+                      className="text-uva-muted-2 hover:text-uva-accent"
+                      onClick={() => setBorrando(curso)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
-import { Switch } from "@/components/ui/switch";
+import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { CategoriaFormDialog } from "@/components/admin/categorias/CategoriaFormDialog";
@@ -101,10 +101,11 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                 <TableCell className="font-mono tabular-nums">{categoria.numeroCursos}</TableCell>
                 <TableCell className="text-[12px] text-uva-muted-2">{categoria.creadoPor}</TableCell>
                 <TableCell>
-                  <Switch
+                  <SwitchEstado
                     checked={categoria.activo}
                     onCheckedChange={(checked) => handleToggle(categoria, checked)}
-                    aria-label={categoria.activo ? "Desactivar categoría" : "Activar categoría"}
+                    etiquetas={["Activa", "Inactiva"]}
+                    acciones={["Activar categoría", "Desactivar categoría"]}
                   />
                 </TableCell>
                 <TableCell className="text-right">

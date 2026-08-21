@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
@@ -151,11 +151,13 @@ export function ModuloCard({
         <Button
           type="button"
           variant="ghost"
-          size="auto"
-          className="ml-auto px-2 py-1 text-[12.5px] font-semibold text-uva-error"
+          size="icon-sm"
+          aria-label={`Eliminar el modulo ${modulo.titulo}`}
+          title="Eliminar modulo"
+          className="ml-auto text-uva-muted-2 hover:text-uva-accent"
           onClick={() => setBorrandoModulo(true)}
         >
-          Eliminar
+          <Trash2 className="size-4" />
         </Button>
       </div>
 
@@ -192,12 +194,13 @@ export function ModuloCard({
             <Button
               type="button"
               variant="ghost"
-              size="auto"
+              size="icon-sm"
               aria-label={`Eliminar la lección ${leccion.titulo}`}
-              className="shrink-0 px-1.5 py-[3px] text-[12.5px] text-uva-error"
+              title="Eliminar lección"
+              className="shrink-0 text-uva-muted-2 hover:text-uva-accent"
               onClick={() => setBorrandoLeccion(leccion)}
             >
-              &#10005;
+              <Trash2 className="size-4" />
             </Button>
           </div>
         ))}

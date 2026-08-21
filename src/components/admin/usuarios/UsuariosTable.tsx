@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
@@ -142,13 +142,12 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
               <TableHead>Estado</TableHead>
               <TableHead>Suscripción</TableHead>
               <TableHead>Registro</TableHead>
-              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-uva-muted-2">
+                <TableCell colSpan={8} className="text-center text-uva-muted-2">
                   No hay usuarios que coincidan con los filtros.
                 </TableCell>
               </TableRow>
@@ -174,9 +173,15 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
                 <TableCell className="text-uva-muted">{ROL_LABEL[usuario.rol]}</TableCell>
                 <TableCell className="font-mono tabular-nums">{usuario.cursosInscritos}</TableCell>
                 <TableCell>
-                  <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
-                    {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
-                  </StatusBadge>
+                  {/* `estado` es binario (ACTIVO/SUSPENDIDO) y ya se alternaba
+                      con un clic: se muestra con el mismo switch que `activo`
+                      en Categorias. Encendido = cuenta activa. */}
+                  <SwitchEstado
+                    checked={usuario.estado === "ACTIVO"}
+                    onCheckedChange={() => handleToggleEstado(usuario)}
+                    etiquetas={["Activo", "Suspendido"]}
+                    acciones={["Activar usuario", "Suspender usuario"]}
+                  />
                 </TableCell>
                 <TableCell>
                   {usuario.suscripcionEstado ? (
@@ -189,11 +194,6 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
                 </TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(usuario.fechaRegistro)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button type="button" size="sm" onClick={() => handleToggleEstado(usuario)}>
-                    {usuario.estado === "ACTIVO" ? "Suspender" : "Activar"}
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
