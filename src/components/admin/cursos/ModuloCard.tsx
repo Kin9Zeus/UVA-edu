@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { formatDuracion } from "@/lib/admin/format";
 import {
+  actualizarModulo,
   eliminarModulo,
   crearLeccion,
   eliminarLeccion,
@@ -38,6 +39,7 @@ export function ModuloCard({
   leccionActivaId,
   onSeleccionarLeccion,
   onLeccionesChange,
+  onTituloChange,
   onDragStart,
   onDragOver,
   onDrop,
@@ -50,6 +52,7 @@ export function ModuloCard({
   leccionActivaId: string | null;
   onSeleccionarLeccion: (leccion: LeccionDetalle) => void;
   onLeccionesChange: (moduloId: string, lecciones: LeccionDetalle[]) => void;
+  onTituloChange: (moduloId: string, titulo: string) => void;
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent) => void;
   onDrop: () => void;
@@ -59,10 +62,40 @@ export function ModuloCard({
   const [borrandoModulo, setBorrandoModulo] = useState(false);
   const [borrandoLeccion, setBorrandoLeccion] = useState<LeccionDetalle | null>(null);
   const [draggedLeccionIndex, setDraggedLeccionIndex] = useState<number | null>(null);
+  const [editandoTitulo, setEditandoTitulo] = useState(false);
+  const [tituloEditado, setTituloEditado] = useState(modulo.titulo);
+  const [guardandoTitulo, setGuardandoTitulo] = useState(false);
   const showToast = useAdminToast();
   const router = useRouter();
 
   const lecciones = modulo.lecciones;
+
+  async function handleGuardarTitulo() {
+    // Deshabilitar el input mientras guarda le quita el foco (dispara
+    // `blur` → este mismo handler otra vez): sin esta guarda se dispararía
+    // la mutación dos veces.
+    if (guardandoTitulo) return;
+
+    const nombre = tituloEditado.trim();
+    if (!nombre || nombre === modulo.titulo) {
+      setTituloEditado(modulo.titulo);
+      setEditandoTitulo(false);
+      return;
+    }
+
+    setGuardandoTitulo(true);
+    const resultado = await actualizarModulo(modulo.id, cursoId, nombre);
+    setGuardandoTitulo(false);
+
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    setEditandoTitulo(false);
+    onTituloChange(modulo.id, nombre);
+    showToast("Módulo renombrado.");
+    router.refresh();
+  }
 
   async function handleEliminarModulo() {
     const resultado = await eliminarModulo(modulo.id, cursoId);
@@ -96,6 +129,7 @@ export function ModuloCard({
         duracion: null,
         resumen: null,
         estadoProcesamiento: "SUBIENDO",
+        recursos: [],
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);
       onSeleccionarLeccion(nueva);
@@ -146,19 +180,55 @@ export function ModuloCard({
       {/* Franja de cabecera del módulo: `background:var(--surface-2)` */}
       <div className="flex items-center gap-2.5 bg-uva-surface-2 px-4 py-[13px]">
         <GripVertical className="size-[15px] shrink-0 text-uva-muted-2" strokeWidth={2} />
-        <span className="text-[13.5px] font-bold text-uva-text">{modulo.titulo}</span>
+        {editandoTitulo ? (
+          <Input
+            autoFocus
+            value={tituloEditado}
+            disabled={guardandoTitulo}
+            onChange={(event) => setTituloEditado(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleGuardarTitulo();
+              if (event.key === "Escape") {
+                setTituloEditado(modulo.titulo);
+                setEditandoTitulo(false);
+              }
+            }}
+            onBlur={handleGuardarTitulo}
+            className="h-7 max-w-[240px] text-[13.5px] font-bold"
+          />
+        ) : (
+          <span className="text-[13.5px] font-bold text-uva-text">{modulo.titulo}</span>
+        )}
         <span className="font-mono text-[11.5px] text-uva-muted-2">{posicion}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Eliminar el modulo ${modulo.titulo}`}
-          title="Eliminar modulo"
-          className="ml-auto text-uva-muted-2 hover:text-uva-accent"
-          onClick={() => setBorrandoModulo(true)}
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <div className="ml-auto flex items-center gap-1">
+          {!editandoTitulo && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Renombrar el modulo ${modulo.titulo}`}
+              title="Renombrar módulo"
+              className="text-uva-muted-2 hover:text-uva-accent"
+              onClick={() => {
+                setTituloEditado(modulo.titulo);
+                setEditandoTitulo(true);
+              }}
+            >
+              <Pencil className="size-4" />
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Eliminar el modulo ${modulo.titulo}`}
+            title="Eliminar modulo"
+            className="text-uva-muted-2 hover:text-uva-accent"
+            onClick={() => setBorrandoModulo(true)}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div>

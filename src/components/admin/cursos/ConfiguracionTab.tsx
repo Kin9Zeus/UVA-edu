@@ -1,39 +1,31 @@
 "use client";
 
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { actualizarConfiguracionCurso } from "@/actions/admin/cursos";
-import { useAdminToast } from "@/components/admin/Toast";
-import type { CursoDetalle } from "@/lib/admin/cursoDetalle";
 
-export function ConfiguracionTab({ curso }: { curso: CursoDetalle }) {
-  const [mostrado, setMostrado] = useState(curso.mostrado);
-  const [destacado, setDestacado] = useState(curso.destacado);
-  const [orden, setOrden] = useState(curso.ordenVisualizacion);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const showToast = useAdminToast();
-
-  async function handleGuardar() {
-    setPending(true);
-    setError(null);
-    const resultado = await actualizarConfiguracionCurso(curso.id, {
-      mostrado,
-      destacado,
-      ordenVisualizacion: orden,
-    });
-    setPending(false);
-
-    if (resultado.error) {
-      setError(resultado.error);
-      return;
-    }
-    showToast("Configuración guardada.");
-  }
-
+/**
+ * Controlado desde CursoDetalleView: el guardado es compartido con InfoTab
+ * a través de un solo botón en la cabecera (ver comentario ahí), así que
+ * este tab no guarda su propio estado ni dispara la mutación.
+ */
+export function ConfiguracionTab({
+  mostrado,
+  onMostradoChange,
+  destacado,
+  onDestacadoChange,
+  orden,
+  onOrdenChange,
+  error,
+}: {
+  mostrado: boolean;
+  onMostradoChange: (value: boolean) => void;
+  destacado: boolean;
+  onDestacadoChange: (value: boolean) => void;
+  orden: number;
+  onOrdenChange: (value: number) => void;
+  error: string | null;
+}) {
   return (
     // El mockup no envuelve esta pestaña en `.card`: es una columna suelta.
     <div className="flex max-w-[480px] flex-col gap-4">
@@ -55,7 +47,7 @@ export function ConfiguracionTab({ curso }: { curso: CursoDetalle }) {
         </div>
         <Switch
           checked={mostrado}
-          onCheckedChange={setMostrado}
+          onCheckedChange={onMostradoChange}
           aria-label="Curso visible"
         />
       </div>
@@ -69,7 +61,7 @@ export function ConfiguracionTab({ curso }: { curso: CursoDetalle }) {
         </div>
         <Switch
           checked={destacado}
-          onCheckedChange={setDestacado}
+          onCheckedChange={onDestacadoChange}
           aria-label="Curso destacado"
         />
       </div>
@@ -80,20 +72,10 @@ export function ConfiguracionTab({ curso }: { curso: CursoDetalle }) {
           id="config-orden"
           type="number"
           value={orden}
-          onChange={(event) => setOrden(Number(event.target.value))}
+          onChange={(event) => onOrdenChange(Number(event.target.value))}
           className="max-w-[120px]"
         />
       </div>
-
-      <Button
-        type="button"
-        variant="primary"
-        disabled={pending}
-        onClick={handleGuardar}
-        className="w-auto self-start"
-      >
-        {pending ? "Guardando…" : "Guardar cambios"}
-      </Button>
     </div>
   );
 }

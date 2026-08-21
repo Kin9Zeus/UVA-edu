@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha } from "@/lib/admin/format";
+import { esPortadaReal } from "@/lib/media";
 import type { CursoPublico } from "@/lib/curso";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -98,7 +99,16 @@ export function CursoDetalleContent({ curso }: { curso: CursoPublico }) {
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="h-[196px] overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
+        {esPortadaReal(curso.imagenPortada) ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
+          <img
+            src={curso.imagenPortada}
+            alt=""
+            className="h-[196px] w-full rounded-uva-md object-cover"
+          />
+        ) : (
+          <div className="h-[196px] overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
+        )}
 
         {curso.tieneAcceso ? (
           <Button variant="uva-primary" size="uva" className="min-h-12" disabled>

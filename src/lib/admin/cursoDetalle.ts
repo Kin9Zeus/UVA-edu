@@ -1,5 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 
+export type RecursoDetalle = {
+  id: string;
+  nombre: string;
+  tipoArchivo: string;
+  tamanoBytes: number | null;
+};
+
 export type LeccionDetalle = {
   id: string;
   titulo: string;
@@ -7,6 +14,7 @@ export type LeccionDetalle = {
   duracion: number | null;
   resumen: string | null;
   estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO";
+  recursos: RecursoDetalle[];
 };
 
 export type ModuloDetalle = {
@@ -29,6 +37,7 @@ export type CursoDetalle = {
   id: string;
   titulo: string;
   descripcion: string;
+  imagenPortada: string;
   categoriaId: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   instructorId: string;
@@ -46,7 +55,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, id_categoria, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
+      "id, titulo, descripcion, imagen_portada, id_categoria, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
     )
     .eq("id", cursoId)
     .single();
@@ -55,7 +64,9 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
 
   const { data: modulos } = await supabase
     .from("modulos")
-    .select("id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, estado_procesamiento)")
+    .select(
+      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, estado_procesamiento, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
+    )
     .eq("id_curso", cursoId)
     .order("orden");
 
@@ -72,6 +83,12 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         duracion: leccion.duracion,
         resumen: leccion.resumen,
         estadoProcesamiento: leccion.estado_procesamiento,
+        recursos: (leccion.recursos_descargables ?? []).map((recurso) => ({
+          id: recurso.id,
+          nombre: recurso.nombre,
+          tipoArchivo: recurso.tipo_archivo,
+          tamanoBytes: recurso.tamano_bytes,
+        })),
       })),
   }));
 
@@ -120,6 +137,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     id: curso.id,
     titulo: curso.titulo,
     descripcion: curso.descripcion,
+    imagenPortada: curso.imagen_portada,
     categoriaId: curso.id_categoria,
     nivel: curso.nivel,
     instructorId: curso.id_instructor,

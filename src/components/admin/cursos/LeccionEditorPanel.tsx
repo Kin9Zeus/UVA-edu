@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { actualizarLeccion } from "@/actions/admin/cursos";
+  actualizarLeccion,
+  eliminarRecursoLeccion,
+  subirRecursoLeccion,
+} from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
-import type { LeccionDetalle } from "@/lib/admin/cursoDetalle";
+import { formatTamanoArchivo } from "@/lib/admin/format";
+import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
-const TIPO_CONTENIDO_ITEMS = { video: "Video", lectura: "Lectura", quiz: "Quiz" };
+// Mismo valor que TAMANO_MAXIMO_RECURSO en actions/admin/cursos.ts. No se
+// puede importar desde ahí: ese módulo tiene "use server" a nivel de
+// archivo, así que solo puede exportar funciones async.
+const TAMANO_MAXIMO_RECURSO = 50 * 1024 * 1024;
 
 /**
  * Editor de lección del mockup del panel admin: NO es un modal, es la columna
@@ -33,18 +34,22 @@ export function LeccionEditorPanel({
   cursoId,
   onCerrar,
   onGuardado,
+  onRecursosChange,
 }: {
   leccion: LeccionDetalle;
   cursoId: string;
   onCerrar: () => void;
   onGuardado: (cambios: Pick<LeccionDetalle, "titulo" | "duracion" | "resumen">) => void;
+  onRecursosChange: (recursos: RecursoDetalle[]) => void;
 }) {
   const [titulo, setTitulo] = useState(leccion.titulo);
-  const [tipoContenido, setTipoContenido] = useState("video");
   const [duracion, setDuracion] = useState(leccion.duracion?.toString() ?? "");
   const [resumen, setResumen] = useState(leccion.resumen ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [recursos, setRecursos] = useState(leccion.recursos);
+  const [subiendoRecurso, setSubiendoRecurso] = useState(false);
+  const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
 
   async function handleGuardar() {
@@ -64,6 +69,56 @@ export function LeccionEditorPanel({
     }
     showToast("Lección guardada.");
     onGuardado(cambios);
+  }
+
+  async function handleSubirRecurso(event: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = event.target.files?.[0];
+    event.target.value = "";
+    if (!archivo) return;
+
+    // Mismo límite que TAMANO_MAXIMO_RECURSO en actions/admin/cursos.ts:
+    // se valida antes de subir para no gastar el viaje al servidor (y no
+    // chocar con bodySizeLimit de Server Actions, next.config.ts) con un
+    // archivo que ya sabemos que el backend va a rechazar.
+    if (archivo.size > TAMANO_MAXIMO_RECURSO) {
+      showToast("El archivo no puede superar los 50 MB.", "error");
+      return;
+    }
+
+    setSubiendoRecurso(true);
+    try {
+      const formData = new FormData();
+      formData.set("archivo", archivo);
+      const resultado = await subirRecursoLeccion(leccion.id, cursoId, formData);
+
+      if (resultado.error || !resultado.recurso) {
+        showToast(resultado.error ?? "No pudimos subir el archivo.", "error");
+        return;
+      }
+      const actualizados = [...recursos, resultado.recurso];
+      setRecursos(actualizados);
+      onRecursosChange(actualizados);
+      showToast("Material adicional agregado.");
+    } catch {
+      showToast("No pudimos subir el archivo.", "error");
+    } finally {
+      setSubiendoRecurso(false);
+    }
+  }
+
+  async function handleEliminarRecurso(recurso: RecursoDetalle) {
+    const actualizados = recursos.filter((item) => item.id !== recurso.id);
+    setRecursos(actualizados);
+    onRecursosChange(actualizados);
+
+    const resultado = await eliminarRecursoLeccion(recurso.id, cursoId);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      setRecursos(recursos);
+      onRecursosChange(recursos);
+      return;
+    }
+    showToast("Material eliminado.");
   }
 
   return (
@@ -97,18 +152,16 @@ export function LeccionEditorPanel({
 
       <div>
         <Label htmlFor="leccion-tipo">Tipo de contenido</Label>
-        <Select
-          items={TIPO_CONTENIDO_ITEMS}
-          value={tipoContenido}
-          onValueChange={(value) => setTipoContenido(value ?? "video")}
+        {/* Por ahora toda lección es un video: el esquema no distingue tipos
+            de contenido todavía (mismo criterio que el comentario en
+            ModuloCard.tsx), así que se muestra fijo en vez de un selector con
+            opciones que no hacen nada. */}
+        <div
+          id="leccion-tipo"
+          className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text"
         >
-          <SelectTrigger id="leccion-tipo" className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="video">Video</SelectItem>
-            <SelectItem value="lectura">Lectura</SelectItem>
-            <SelectItem value="quiz">Quiz</SelectItem>
-          </SelectContent>
-        </Select>
+          Video
+        </div>
       </div>
 
       <div>
@@ -134,8 +187,60 @@ export function LeccionEditorPanel({
       </div>
 
       <div>
-        <Label htmlFor="leccion-material">Material adicional</Label>
-        <Input id="leccion-material" type="file" disabled />
+        <div className="flex items-center">
+          <Label className="mb-0">Material adicional</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Agregar material adicional"
+            title="Agregar material adicional"
+            className="ml-auto text-uva-muted-2 hover:text-uva-accent"
+            disabled={subiendoRecurso}
+            onClick={() => inputArchivoRef.current?.click()}
+          >
+            <Plus className="size-3.5" />
+          </Button>
+          <input
+            ref={inputArchivoRef}
+            type="file"
+            className="hidden"
+            onChange={handleSubirRecurso}
+          />
+        </div>
+
+        {recursos.length === 0 && !subiendoRecurso && (
+          <p className="mt-1.5 text-xs text-uva-muted-2">Sin materiales adicionales todavía.</p>
+        )}
+
+        {recursos.length > 0 && (
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {recursos.map((recurso) => (
+              <li
+                key={recurso.id}
+                className="flex items-center gap-2 rounded-uva-md border border-uva-divider px-2.5 py-1.5"
+              >
+                <span className="flex-1 truncate text-xs text-uva-text">{recurso.nombre}</span>
+                <span className="shrink-0 font-mono text-[10.5px] text-uva-muted-2">
+                  {formatTamanoArchivo(recurso.tamanoBytes)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Eliminar ${recurso.nombre}`}
+                  title="Eliminar material"
+                  className="shrink-0 text-uva-muted-2 hover:text-uva-accent"
+                  onClick={() => handleEliminarRecurso(recurso)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {subiendoRecurso && <p className="mt-1.5 text-xs text-uva-muted-2">Subiendo…</p>}
       </div>
 
       <div>

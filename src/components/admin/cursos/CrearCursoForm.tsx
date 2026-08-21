@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -16,11 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { tabsListVariants, tabTriggerVariants } from "@/components/ui/tabs";
-import { crearCurso, type NivelCurso } from "@/actions/admin/cursos";
+import { crearCurso, subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
 
 const NIVEL_ITEMS = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" };
+
+// Mismo valor que TAMANO_MAXIMO_PORTADA en actions/admin/cursos.ts. No se
+// puede importar desde ahí: ese módulo tiene "use server" a nivel de
+// archivo, así que solo puede exportar funciones async.
+const TAMANO_MAXIMO_PORTADA = 5 * 1024 * 1024;
 
 export function CrearCursoForm({
   categorias,
@@ -31,6 +36,8 @@ export function CrearCursoForm({
 }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [portadaArchivo, setPortadaArchivo] = useState<File | null>(null);
+  const [errorPortada, setErrorPortada] = useState<string | null>(null);
   const [categoriaId, setCategoriaId] = useState("");
   const [nivel, setNivel] = useState<NivelCurso>("BASICO");
   const [instructores, setInstructores] = useState(instructoresIniciales);
@@ -38,8 +45,39 @@ export function CrearCursoForm({
   const [instructorDialogOpen, setInstructorDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"borrador" | "publicar" | null>(null);
+  const inputPortadaRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const showToast = useAdminToast();
+
+  // El curso todavía no existe mientras se llena este formulario (no hay
+  // cursoId para subirla ya), así que la imagen se guarda en memoria y solo
+  // se sube a Storage después de que crearCurso() confirme el id.
+  const previewPortada = useMemo(
+    () => (portadaArchivo ? URL.createObjectURL(portadaArchivo) : null),
+    [portadaArchivo],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewPortada) URL.revokeObjectURL(previewPortada);
+    };
+  }, [previewPortada]);
+
+  function handleSeleccionarPortada(event: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = event.target.files?.[0];
+    event.target.value = "";
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith("image/")) {
+      setErrorPortada("El archivo debe ser una imagen.");
+      return;
+    }
+    if (archivo.size > TAMANO_MAXIMO_PORTADA) {
+      setErrorPortada("La imagen no puede superar los 5 MB.");
+      return;
+    }
+    setErrorPortada(null);
+    setPortadaArchivo(archivo);
+  }
 
   const categoriaItems = useMemo(
     () => Object.fromEntries(categorias.map((c) => [c.id, c.nombre])),
@@ -74,13 +112,24 @@ export function CrearCursoForm({
       publicar,
     });
 
-    setPending(null);
-
-    if (resultado.error) {
-      setError(resultado.error);
+    if (resultado.error || !resultado.id) {
+      setPending(null);
+      setError(resultado.error ?? "No pudimos crear el curso.");
       return;
     }
 
+    // El curso ya quedó creado en este punto: si la portada falla, no tiene
+    // sentido bloquear ni deshacer la creación — se avisa y se sigue.
+    if (portadaArchivo) {
+      const formData = new FormData();
+      formData.set("archivo", portadaArchivo);
+      const resultadoPortada = await subirPortadaCurso(resultado.id, formData);
+      if (resultadoPortada.error) {
+        showToast(`Curso creado, pero la portada no se pudo subir: ${resultadoPortada.error}`, "error");
+      }
+    }
+
+    setPending(null);
     showToast(publicar ? "Curso publicado." : "Curso guardado como borrador.");
     router.push(`/admin/cursos/${resultado.id}`);
   }
@@ -136,10 +185,38 @@ export function CrearCursoForm({
 
         <div>
           <Label>Imagen / thumbnail</Label>
-          {/* TODO(Fase 2): subida real de la portada. */}
-          <div className="rounded-uva-md border-[1.5px] border-dashed border-uva-divider px-4 py-[30px] text-center text-[13px] text-uva-muted-2">
-            Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
-          </div>
+          {errorPortada && (
+            <div
+              role="alert"
+              className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+            >
+              {errorPortada}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => inputPortadaRef.current?.click()}
+            className="block w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint"
+          >
+            {previewPortada ? (
+              // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
+              <img src={previewPortada} alt="" className="h-[140px] w-full object-cover" />
+            ) : (
+              <div className="px-4 py-[30px]">
+                Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
+              </div>
+            )}
+          </button>
+          {previewPortada && (
+            <p className="mt-1.5 text-xs text-uva-text-faint">Click en la imagen para reemplazarla.</p>
+          )}
+          <input
+            ref={inputPortadaRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleSeleccionarPortada}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

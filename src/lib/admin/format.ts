@@ -46,3 +46,11 @@ export function formatDuracion(segundos: number | null) {
   const resto = segundos % 60;
   return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
 }
+
+/** Tamaño de un recurso descargable, p.ej. `1.4 MB`. */
+export function formatTamanoArchivo(bytes: number | null) {
+  if (bytes === null) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

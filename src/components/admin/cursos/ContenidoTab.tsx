@@ -9,7 +9,7 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { ModuloCard } from "@/components/admin/cursos/ModuloCard";
 import { LeccionEditorPanel } from "@/components/admin/cursos/LeccionEditorPanel";
 import { crearModulo, reordenarModulos } from "@/actions/admin/cursos";
-import type { ModuloDetalle, LeccionDetalle } from "@/lib/admin/cursoDetalle";
+import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
 /**
  * Pestaña Contenido del mockup del panel admin: dos columnas
@@ -43,12 +43,29 @@ export function ContenidoTab({
     );
   }
 
+  function handleTituloModuloChange(moduloId: string, titulo: string) {
+    setModulos((current) =>
+      current.map((modulo) => (modulo.id === moduloId ? { ...modulo, titulo } : modulo)),
+    );
+  }
+
   function handleLeccionGuardada(cambios: Pick<LeccionDetalle, "titulo" | "duracion" | "resumen">) {
     setModulos((current) =>
       current.map((modulo) => ({
         ...modulo,
         lecciones: modulo.lecciones.map((leccion) =>
           leccion.id === leccionActivaId ? { ...leccion, ...cambios } : leccion,
+        ),
+      })),
+    );
+  }
+
+  function handleRecursosChange(recursos: RecursoDetalle[]) {
+    setModulos((current) =>
+      current.map((modulo) => ({
+        ...modulo,
+        lecciones: modulo.lecciones.map((leccion) =>
+          leccion.id === leccionActivaId ? { ...leccion, recursos } : leccion,
         ),
       })),
     );
@@ -134,6 +151,7 @@ export function ContenidoTab({
             leccionActivaId={leccionActivaId}
             onSeleccionarLeccion={(leccion) => setLeccionActivaId(leccion.id)}
             onLeccionesChange={handleLeccionesChange}
+            onTituloChange={handleTituloModuloChange}
             onDragStart={() => setDraggedIndex(index)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => handleDrop(index)}
@@ -150,6 +168,7 @@ export function ContenidoTab({
             cursoId={cursoId}
             onCerrar={() => setLeccionActivaId(null)}
             onGuardado={handleLeccionGuardada}
+            onRecursosChange={handleRecursosChange}
           />
         ) : (
           <p className="px-1 py-5 text-center text-[13px] text-uva-muted-2">

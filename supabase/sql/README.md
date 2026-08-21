@@ -212,6 +212,24 @@ Supabase (Authentication → Emails → Email OTP Expiration), no aquí — se
 dejó en 900 segundos (15 minutos), igual que el token de recuperación de
 contraseña (Flujo 03). Repetir en cada entorno (Staging y Production).
 
+### `011_bucket_materiales_lecciones.sql`
+Crea el bucket privado `materiales-lecciones` en Supabase Storage y sus 3
+policies de `storage.objects` (`insert`/`select`/`delete`, todas
+`private.es_administrador()`), usado por "Material adicional" del editor de
+lección (panel admin). La fila de metadatos ya tenía RLS desde `003`; esto
+resuelve el archivo físico. Admin-only a propósito: todavía no existe la
+pantalla de lección del lado estudiante — cuando exista, se agrega ahí una
+policy de `select` con el mismo criterio de `recursos_select_con_acceso`
+(inscripción vigente o suscripción activa/past_due), sin tocar esta.
+
+### `012_bucket_portadas_cursos.sql`
+Crea el bucket **público** `portadas-cursos` en Supabase Storage y sus 4
+policies de `storage.objects` (`insert`/`update`/`delete` admin-only,
+`select` público), usado por la portada/thumbnail de un curso (InfoTab.tsx
+y CrearCursoForm.tsx del panel admin). A diferencia de `011`
+(`materiales-lecciones`, privado), este es público a propósito: la portada
+se muestra en el catálogo sin login, mismo criterio que `cursos.titulo`.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -240,6 +258,10 @@ contraseña (Flujo 03). Repetir en cada entorno (Staging y Production).
     verificación de correo.
 12. `010_fk_perfiles_cascade_y_limpieza.sql` — FK de `perfiles` hacia
     `auth.users` y el cron de limpieza de cuentas sin verificar.
+13. `011_bucket_materiales_lecciones.sql` — bucket de Storage y policies
+    admin-only para el material adicional de las lecciones.
+14. `012_bucket_portadas_cursos.sql` — bucket público de Storage para la
+    portada/thumbnail de cada curso.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
