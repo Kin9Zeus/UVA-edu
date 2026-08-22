@@ -34,7 +34,22 @@ export async function POST(request: NextRequest) {
   }
 
   const { user, email_data } = data;
-  const actionLink = `${email_data.site_url}/auth/confirm?token_hash=${email_data.token_hash}&type=${email_data.email_action_type}&next=${encodeURIComponent(email_data.redirect_to || "/")}`;
+  // redirect_to (el redirectTo pasado a resetPasswordForEmail/signUp/etc.)
+  // ya puede apuntar a /auth/confirm (ver src/actions/auth/recuperar.ts,
+  // que lo usa como respaldo por si este hook no llegara a dispararse). Si
+  // se envuelve tal cual dentro de otro /auth/confirm?...&next=<esto>, el
+  // primer salto consume el token_hash y el segundo llega sin él. Por eso
+  // aquí se detecta ese caso y se añaden token_hash/type directo a esa URL
+  // en vez de anidarla.
+  const redirectTo = new URL(email_data.redirect_to || "/", email_data.site_url);
+  let actionLink: string;
+  if (redirectTo.pathname === "/auth/confirm") {
+    redirectTo.searchParams.set("token_hash", email_data.token_hash);
+    redirectTo.searchParams.set("type", email_data.email_action_type);
+    actionLink = redirectTo.toString();
+  } else {
+    actionLink = `${email_data.site_url}/auth/confirm?token_hash=${email_data.token_hash}&type=${email_data.email_action_type}&next=${encodeURIComponent(redirectTo.pathname + redirectTo.search)}`;
+  }
 
   if (email_data.email_action_type === "recovery") {
     await resend.emails.send({

@@ -32,12 +32,6 @@ export function ProductBand() {
           <h2 className="m-0 text-[clamp(28px,4vw,40px)] font-bold tracking-[-0.02em] text-uva-text">
             Todo lo que necesita tu equipo, en un solo lugar
           </h2>
-          <a
-            href="#demo"
-            className="inline-flex h-11 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent px-6 text-sm font-semibold text-uva-text no-underline hover:bg-[#1c1c20] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-          >
-            Agenda una demo
-          </a>
         </div>
 
         <div className="grid grid-cols-1 items-center gap-[clamp(32px,6vw,64px)] min-[900px]:grid-cols-2">

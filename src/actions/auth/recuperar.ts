@@ -28,13 +28,14 @@ export async function recuperar(
 
   const origin = await getOrigin();
   const supabase = await createClient();
-  // El webhook de correo (src/app/api/webhooks/supabase-auth/route.ts) ya
-  // envuelve este valor dentro de su propio /auth/confirm?...&next=<esto>;
-  // si aquí también se apunta a /auth/confirm se anida dos veces y el
-  // segundo salto llega sin code/token_hash. Por eso va directo al
-  // destino final, no a /auth/confirm.
+  // Va a /auth/confirm (no directo a /actualizar-password): mientras el
+  // "Send Email" hook (src/app/api/webhooks/supabase-auth/route.ts) no esté
+  // configurado/alcanzable, Supabase manda su propio correo con enlace a
+  // este mismo redirectTo + "?code=" (PKCE), y es /auth/confirm quien sabe
+  // canjear ese code. Si el hook llega a estar activo, ver la nota en
+  // ese webhook sobre evitar el doble anidado con este mismo next.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/actualizar-password`,
+    redirectTo: `${origin}/auth/confirm?next=/actualizar-password`,
   });
 
   if (error) {
