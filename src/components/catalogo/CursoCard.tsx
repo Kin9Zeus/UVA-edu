@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CursoDeCategoria } from "@/lib/categoria";
+import { esPortadaReal } from "@/lib/media";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
@@ -21,7 +22,18 @@ export function CursoCard({
       href={`/cursos/${curso.id}`}
       className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface hover:border-uva-text-faint"
     >
-      <div className="relative h-[132px]" style={PORTADA_TRAMA}>
+      <div className="relative h-[132px]" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
+        {esPortadaReal(curso.imagenPortada) && (
+          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
+          <img
+            src={curso.imagenPortada}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+          />
+        )}
+        {esPortadaReal(curso.imagenPortada) && (
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+        )}
         <div className="absolute inset-x-3.5 bottom-3 flex items-center gap-2">
           <span className="font-mono text-[9.5px] font-semibold tracking-[.14em] text-uva-muted-2 uppercase">
             {categoriaNombre}

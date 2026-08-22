@@ -13,7 +13,7 @@ export const getPerfilActual = cache(async () => {
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("nombre, correo, rol, estado")
+    .select("nombre, correo, celular, rol, estado")
     .eq("id", user.id)
     .single();
 

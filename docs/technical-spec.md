@@ -59,6 +59,7 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **id** | UUID (Primary Key) | Referencia directa a auth.users.id |
 | **nombre** | String | Nombre del usuario |
 | **correo** | String (Unique) | Correo electrónico |
+| **celular** | String? | Teléfono/celular, informativo (opcional) |
 | **rol** | Enum | ESTUDIANTE, ADMINISTRADOR |
 | **estado** | Enum | ACTIVO, SUSPENDIDO |
 | **fecha\_registro** | DateTime | Default now() |

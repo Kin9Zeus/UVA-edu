@@ -80,6 +80,7 @@ model Perfiles {
   id             String       @id @db.Uuid
   nombre         String
   correo         String       @unique
+  celular        String?
   rol            RolPerfil    @default(ESTUDIANTE)
   estado         EstadoPerfil @default(ACTIVO)
   fecha_registro DateTime     @default(now())

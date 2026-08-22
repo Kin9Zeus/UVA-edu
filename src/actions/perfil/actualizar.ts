@@ -10,9 +10,14 @@ export async function actualizarPerfil(
   formData: FormData,
 ): Promise<ActualizarPerfilState> {
   const nombre = String(formData.get("nombre") ?? "").trim();
+  const celular = String(formData.get("celular") ?? "").trim();
 
   if (!nombre) {
     return { error: "El nombre no puede estar vacío." };
+  }
+
+  if (celular && !/^\+?[0-9\s-]{7,20}$/.test(celular)) {
+    return { error: "El celular no es válido. Usa solo dígitos, espacios, guiones y el indicativo (ej. +57)." };
   }
 
   const supabase = await createClient();
@@ -26,7 +31,7 @@ export async function actualizarPerfil(
 
   const { error } = await supabase
     .from("perfiles")
-    .update({ nombre })
+    .update({ nombre, celular: celular || null })
     .eq("id", user.id);
 
   if (error) {

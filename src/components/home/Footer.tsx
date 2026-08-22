@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   YoutubeIcon,
   InstagramIcon,
@@ -94,9 +95,9 @@ export async function Footer() {
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
-                    <a href="#" className={linkClass}>
+                    <Link href={`/catalogo/${escuela.id}`} className={linkClass}>
                       {escuela.nombre}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

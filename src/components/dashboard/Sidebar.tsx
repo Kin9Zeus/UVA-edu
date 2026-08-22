@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/catalogo", label: "Catálogo", icon: Compass },
+  { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
   { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
 ];
 
@@ -91,9 +91,12 @@ export function Sidebar({
     >
       <div className="flex items-center justify-between px-4 py-5">
         {!collapsed && (
-          <span className="font-heading text-[20px] font-bold tracking-[.1em] text-uva-text">
+          <Link
+            href="/dashboard"
+            className="font-heading text-[20px] font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline"
+          >
             U.V.A<span className="text-uva-accent">.</span>
-          </span>
+          </Link>
         )}
         <button
           type="button"

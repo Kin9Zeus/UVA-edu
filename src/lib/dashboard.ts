@@ -4,6 +4,7 @@ export type ClaseEnProgreso = {
   leccionId: string;
   cursoId: string;
   cursoTitulo: string;
+  imagenPortada: string;
   moduloTitulo: string;
   categoriaNombre: string;
   segundoActual: number;
@@ -28,7 +29,7 @@ export async function getInicioData(usuarioId: string) {
   const { data: progresoRows } = await supabase
     .from("progreso")
     .select(
-      "id_leccion, segundo_actual, fecha_actualizacion, leccion:lecciones(id, duracion, modulo:modulos(titulo, curso:cursos(id, titulo, categoria:categorias(nombre))))",
+      "id_leccion, segundo_actual, fecha_actualizacion, leccion:lecciones(id, duracion, modulo:modulos(titulo, curso:cursos(id, titulo, imagen_portada, categoria:categorias(nombre))))",
     )
     .eq("id_usuario", usuarioId)
     .eq("completado", false)
@@ -53,6 +54,7 @@ export async function getInicioData(usuarioId: string) {
         leccionId: fila.id_leccion as string,
         cursoId: curso.id as string,
         cursoTitulo: curso.titulo as string,
+        imagenPortada: curso.imagen_portada as string,
         moduloTitulo: modulo.titulo as string,
         categoriaNombre: categoria?.nombre ?? "General",
         segundoActual: fila.segundo_actual as number,

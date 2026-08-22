@@ -19,6 +19,7 @@ export type CursoPublico = {
   titulo: string;
   descripcion: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  categoriaId: string;
   categoriaNombre: string;
   instructorNombre: string;
   instructorEspecialidad: string | null;
@@ -40,7 +41,7 @@ export async function getCursoPublico(
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion, mostrado, categoria:categorias(nombre), instructor:instructores(nombre, especialidad)",
+      "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion, mostrado, id_categoria, categoria:categorias(nombre), instructor:instructores(nombre, especialidad)",
     )
     .eq("id", cursoId)
     .eq("mostrado", true)
@@ -117,6 +118,7 @@ export async function getCursoPublico(
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     nivel: curso.nivel,
+    categoriaId: curso.id_categoria,
     categoriaNombre: categoria?.nombre ?? "General",
     instructorNombre: instructor?.nombre ?? "Sin instructor",
     instructorEspecialidad: instructor?.especialidad ?? null,

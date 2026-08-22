@@ -21,7 +21,7 @@ export function ComunidadPausada({ motivo }: { motivo: keyof typeof MOTIVO_COPY 
           del gremio.
         </p>
         <Button
-          render={<Link href="/planes" />}
+          render={<Link href="/dashboard/planes" />}
           nativeButton={false}
           variant="uva-primary"
           size="uva"

@@ -25,9 +25,12 @@ export function Header() {
           : "border-transparent bg-[rgba(9,9,11,0.4)]"
       }`}
     >
-      <span className="shrink-0 font-heading text-2xl font-bold text-uva-text">
+      <Link
+        href="/"
+        className="shrink-0 font-heading text-2xl font-bold text-uva-text no-underline hover:no-underline"
+      >
         U.V.A<span className="text-uva-accent">.</span>
-      </span>
+      </Link>
 
       <div className="relative hidden max-w-[400px] flex-1 min-[861px]:block">
         <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-uva-text-faint">
@@ -51,12 +54,12 @@ export function Header() {
           >
             Cursos
           </Link>
-          <a
-            href="#planes"
+          <Link
+            href="/#planes"
             className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
           >
             Precios
-          </a>
+          </Link>
         </div>
         <Link
           href="/login"

@@ -115,10 +115,20 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                         key={benefit}
                         className={
                           included
-                            ? "text-uva-text"
-                            : "text-uva-text-disabled opacity-45"
+                            ? "flex items-center gap-2 text-uva-text"
+                            : "flex items-center gap-2 text-uva-text-disabled opacity-45"
                         }
                       >
+                        <span
+                          className={
+                            included
+                              ? "shrink-0 text-uva-accent-2-text"
+                              : "shrink-0 text-uva-text-disabled"
+                          }
+                          aria-hidden
+                        >
+                          –
+                        </span>
                         {benefit}
                       </div>
                     );

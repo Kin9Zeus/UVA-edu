@@ -6,6 +6,7 @@ export type CursoDeCategoria = {
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   instructorNombre: string;
   totalClases: number;
+  imagenPortada: string;
 };
 
 export type CategoriaDetalle = {
@@ -34,7 +35,7 @@ export async function getCategoriaConCursos(categoriaId: string): Promise<Catego
   const { data: cursosRows } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, nivel, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
+      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
     )
     .eq("id_categoria", categoriaId)
     .eq("mostrado", true)
@@ -54,6 +55,7 @@ function mapCursoDeCategoria(curso: {
   id: string;
   titulo: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  imagen_portada: string;
   instructor: { nombre: string } | { nombre: string }[] | null;
   modulos: { lecciones: { id: string }[] | null }[] | null;
 }): CursoDeCategoria {
@@ -69,6 +71,7 @@ function mapCursoDeCategoria(curso: {
     nivel: curso.nivel,
     instructorNombre: instructor?.nombre ?? "Sin instructor",
     totalClases,
+    imagenPortada: curso.imagen_portada,
   };
 }
 
@@ -89,7 +92,7 @@ export async function getCatalogo(): Promise<CategoriaDetalle[]> {
   const { data: cursosRows } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, nivel, id_categoria, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
+      "id, titulo, nivel, imagen_portada, id_categoria, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
     )
     .eq("mostrado", true)
     .order("orden_visualizacion");

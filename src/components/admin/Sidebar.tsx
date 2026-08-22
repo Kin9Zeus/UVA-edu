@@ -74,7 +74,7 @@ export function Sidebar() {
     >
       <div className="flex items-center gap-2 px-[18px] pt-[22px] pb-6">
         {!collapsed && (
-          <div className="flex items-center whitespace-nowrap">
+          <Link href="/admin" className="flex items-center whitespace-nowrap no-underline hover:no-underline">
             <span className="font-heading text-[18px] font-bold tracking-[.08em] text-uva-text">
               U.V.A<span className="text-uva-accent">.</span>
             </span>
@@ -82,7 +82,7 @@ export function Sidebar() {
             <span className="ml-2 font-mono text-[10px] font-semibold tracking-[.1em] text-uva-muted-2">
               ADMIN
             </span>
-          </div>
+          </Link>
         )}
         <button
           type="button"

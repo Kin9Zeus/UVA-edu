@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock, PlayCircle } from "lucide-react";
+import { ChevronLeft, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
@@ -22,11 +22,24 @@ function formatHoras(segundos: number) {
   return `${horas} h ${minutos} m`;
 }
 
-export function CursoDetalleContent({ curso }: { curso: CursoPublico }) {
+export function CursoDetalleContent({
+  curso,
+  basePath = "/catalogo",
+}: {
+  curso: CursoPublico;
+  basePath?: string;
+}) {
   return (
     <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-8 px-[clamp(20px,4vw,56px)] py-[clamp(32px,5vw,56px)] lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex flex-col gap-8">
         <div>
+          <Link
+            href={`${basePath}/${curso.categoriaId}`}
+            className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
+          >
+            <ChevronLeft className="size-4" strokeWidth={1.9} />
+            {curso.categoriaNombre}
+          </Link>
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 text-xs text-uva-accent-text">
               {curso.categoriaNombre}
@@ -116,7 +129,7 @@ export function CursoDetalleContent({ curso }: { curso: CursoPublico }) {
           </Button>
         ) : (
           <Button
-            render={<Link href="/planes" />}
+            render={<Link href="/#planes" />}
             nativeButton={false}
             variant="uva-primary"
             size="uva"

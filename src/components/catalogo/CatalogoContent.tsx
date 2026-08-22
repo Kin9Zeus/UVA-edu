@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,7 +13,15 @@ import {
 import { CursoCard } from "@/components/catalogo/CursoCard";
 import type { CategoriaDetalle } from "@/lib/categoria";
 
-export function CatalogoContent({ categorias }: { categorias: CategoriaDetalle[] }) {
+export function CatalogoContent({
+  categorias,
+  basePath = "/catalogo",
+  volverHref = "/",
+}: {
+  categorias: CategoriaDetalle[];
+  basePath?: string;
+  volverHref?: string;
+}) {
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
   const categoriaItems = useMemo(
@@ -34,6 +43,13 @@ export function CatalogoContent({ categorias }: { categorias: CategoriaDetalle[]
   return (
     <div className="mx-auto flex max-w-[1320px] flex-col gap-10 px-[clamp(20px,3vw,44px)] py-8">
       <div>
+        <Link
+          href={volverHref}
+          className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
+        >
+          <ChevronLeft className="size-4" strokeWidth={1.9} />
+          Inicio
+        </Link>
         <h1 className="text-[clamp(28px,3.4vw,38px)] leading-tight text-uva-text">Catálogo</h1>
         <p className="mt-1.5 max-w-[560px] text-sm text-uva-text-muted">
           Todo el catálogo del gremio: categoría y curso.
@@ -71,7 +87,7 @@ export function CatalogoContent({ categorias }: { categorias: CategoriaDetalle[]
                   {categoria.cursos.length} {categoria.cursos.length === 1 ? "curso" : "cursos"}
                 </span>
                 <Link
-                  href={`/catalogo/${categoria.id}`}
+                  href={`${basePath}/${categoria.id}`}
                   className="ml-auto text-[13px] text-uva-text hover:text-uva-accent-text"
                 >
                   Ver categoría

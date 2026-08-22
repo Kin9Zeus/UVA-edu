@@ -31,11 +31,13 @@ export default async function CursoDetallePage({
     notFound();
   }
 
+  const basePath = user ? "/dashboard/catalogo" : "/catalogo";
+
   return (
     <>
       <SiteHeader {...perfilActual} />
       <main>
-        <CursoDetalleContent curso={curso} />
+        <CursoDetalleContent curso={curso} basePath={basePath} />
       </main>
       <Footer />
     </>

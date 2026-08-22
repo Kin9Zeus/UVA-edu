@@ -17,6 +17,7 @@ export function SiteHeader({
     <DashboardHeader
       nombre={perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante"}
       esAdmin={perfil?.rol === "ADMINISTRADOR"}
+      mostrarLogo
     />
   );
 }

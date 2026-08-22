@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CheckIcon, CrossIcon } from "@/components/home/icons";
 import { createPublicClient } from "@/lib/supabase/public";
 import {
   type PlanRow,
@@ -143,11 +142,16 @@ export async function Pricing({
                           included ? "text-uva-text" : "text-uva-text-disabled"
                         }`}
                       >
-                        {included ? (
-                          <CheckIcon className="shrink-0 text-uva-accent-2-text" />
-                        ) : (
-                          <CrossIcon className="shrink-0 text-uva-text-disabled" />
-                        )}
+                        <span
+                          className={
+                            included
+                              ? "shrink-0 text-uva-accent-2-text"
+                              : "shrink-0 text-uva-text-disabled"
+                          }
+                          aria-hidden
+                        >
+                          –
+                        </span>
                         {benefit}
                       </li>
                     );

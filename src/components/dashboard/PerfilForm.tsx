@@ -28,11 +28,13 @@ type Certificado = {
 export function PerfilForm({
   nombre,
   correo,
+  celular,
   planNombre,
   certificados,
 }: {
   nombre: string;
   correo: string;
+  celular: string | null;
   planNombre: string | null;
   certificados: Certificado[];
 }) {
@@ -107,6 +109,17 @@ export function PerfilForm({
                   key={correo}
                   defaultValue={correo}
                   disabled
+                />
+              </div>
+              <div>
+                <Label htmlFor="perfil-celular">Celular</Label>
+                <Input
+                  id="perfil-celular"
+                  name="celular"
+                  type="tel"
+                  key={celular}
+                  defaultValue={celular ?? ""}
+                  placeholder="+57 300 123 4567"
                 />
               </div>
               <div>

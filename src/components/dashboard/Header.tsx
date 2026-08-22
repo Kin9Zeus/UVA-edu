@@ -19,11 +19,31 @@ function iniciales(nombre: string) {
   return letras.join("") || "U";
 }
 
-export function Header({ nombre, esAdmin = false }: { nombre: string; esAdmin?: boolean }) {
+export function Header({
+  nombre,
+  esAdmin = false,
+  mostrarLogo = false,
+}: {
+  nombre: string;
+  esAdmin?: boolean;
+  /** Solo se muestra fuera del layout del dashboard (ej. SiteHeader en /catalogo,
+   * /cursos), donde no hay Sidebar con su propio logo. Dentro del dashboard el
+   * layout ya lo pinta a la izquierda; mostrarlo aquí también duplicaría el logo. */
+  mostrarLogo?: boolean;
+}) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-uva-divider bg-uva-bg/72 px-6 py-3 backdrop-blur">
+      {mostrarLogo && (
+        <Link
+          href="/dashboard"
+          className="shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline"
+        >
+          U.V.A<span className="text-uva-accent">.</span>
+        </Link>
+      )}
+
       <div className="relative max-w-[420px] flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-uva-text-faint" />
         <input

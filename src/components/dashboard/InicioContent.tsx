@@ -3,6 +3,7 @@ import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-rea
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { formatDuracion } from "@/lib/admin/format";
+import { esPortadaReal } from "@/lib/media";
 import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
 
 const PORTADA_TRAMA = {
@@ -47,7 +48,18 @@ export function InicioContent({
                 href={`/cursos/${clase.cursoId}`}
                 className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
               >
-                <div className="relative h-[100px] rounded-uva-sm" style={PORTADA_TRAMA}>
+                <div
+                  className="relative h-[100px] overflow-hidden rounded-uva-sm"
+                  style={esPortadaReal(clase.imagenPortada) ? undefined : PORTADA_TRAMA}
+                >
+                  {esPortadaReal(clase.imagenPortada) && (
+                    // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
+                    <img
+                      src={clase.imagenPortada}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  )}
                   <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
                     En curso
                   </span>
@@ -99,7 +111,7 @@ export function InicioContent({
               return (
                 <Link
                   key={categoria.id}
-                  href={`/catalogo/${categoria.id}`}
+                  href={`/dashboard/catalogo/${categoria.id}`}
                   className={`flex flex-col justify-between rounded-uva-md border border-uva-divider p-4 transition-colors ${
                     esFucsia ? "hover:border-uva-accent" : "hover:border-uva-accent-2"
                   }`}

@@ -241,6 +241,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
   body {
     background: linear-gradient(168deg, #101013 0%, var(--uva-bg) 52%, var(--uva-bg) 100%);
     background-attachment: fixed;

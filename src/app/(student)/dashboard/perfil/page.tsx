@@ -45,6 +45,7 @@ export default async function PerfilPage() {
       <PerfilForm
         nombre={perfil?.nombre ?? "Estudiante"}
         correo={perfil?.correo ?? user!.email ?? ""}
+        celular={perfil?.celular ?? null}
         planNombre={planNombre}
         certificados={certificados}
       />
