@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
@@ -11,23 +12,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AdminCard } from "@/components/admin/AdminCard";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { CategoriaFormDialog } from "@/components/admin/categorias/CategoriaFormDialog";
 import { toggleActivaCategoria, eliminarCategoria } from "@/actions/admin/categorias";
-
-export type Categoria = {
-  id: string;
-  nombre: string;
-  descripcion: string | null;
-  activo: boolean;
-  creadoPor: string;
-  numeroCursos: number;
-};
+import type { Categoria } from "@/lib/admin/categorias";
 
 export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
+  const [verCursosDe, setVerCursosDe] = useState<Categoria | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<Categoria | null>(null);
   const [borrando, setBorrando] = useState<Categoria | null>(null);
@@ -92,7 +94,15 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             )}
             {categorias.map((categoria) => (
               <TableRow key={categoria.id}>
-                <TableCell className="font-semibold text-uva-text">{categoria.nombre}</TableCell>
+                <TableCell>
+                  <button
+                    type="button"
+                    onClick={() => setVerCursosDe(categoria)}
+                    className="text-left font-semibold text-uva-text hover:text-uva-accent-text"
+                  >
+                    {categoria.nombre}
+                  </button>
+                </TableCell>
                 {/* El mockup no recorta la descripción: la celda crece y el
                     texto se envuelve en varias líneas si hace falta. */}
                 <TableCell className="text-uva-muted whitespace-normal">
@@ -159,6 +169,41 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         description={`¿Seguro que quieres eliminar "${borrando?.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleEliminar}
       />
+
+      <Dialog
+        open={verCursosDe !== null}
+        onOpenChange={(open) => !open && setVerCursosDe(null)}
+      >
+        <DialogContent className="w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Cursos de {verCursosDe?.nombre}</DialogTitle>
+          </DialogHeader>
+          <div className="flex max-h-[300px] flex-col gap-1.5 overflow-auto">
+            {verCursosDe?.cursos.length === 0 && (
+              <p className="text-[13.5px] text-uva-muted-2">
+                Esta categoría todavía no tiene cursos asignados.
+              </p>
+            )}
+            {verCursosDe?.cursos.map((curso) => (
+              <Link
+                key={curso.id}
+                href={`/admin/cursos/${curso.id}`}
+                className="flex items-center justify-between rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
+              >
+                {curso.titulo}
+                <StatusBadge tone={curso.mostrado ? "success" : "neutral"}>
+                  {curso.mostrado ? "Publicado" : "Borrador"}
+                </StatusBadge>
+              </Link>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setVerCursosDe(null)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
