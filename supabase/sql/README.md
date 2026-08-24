@@ -296,6 +296,21 @@ uso todavía no tiene una regla de negocio definida (single-use vs
 multi-use) — el esquema soporta ambas vía `limite_usos` nullable, sin
 necesidad de otra migración cuando se decida.
 
+### `018_revierte_with_check_duplicado_perfiles.sql`
+Reconciliación entre dos arreglos independientes del mismo hallazgo de
+`013`: otro desarrollador encontró por su cuenta la misma escalada de
+privilegios y la cerró con un `with check` declarativo en
+`perfiles_update_propio` (commit `3173b95`, archivo
+`013_fix_perfiles_update_propio.sql`), corrido contra esta misma base
+antes de que ese archivo se descartara en el merge hacia esta rama. Se
+decidió conservar solo el trigger de `013` (más general — protege la
+fila sin importar qué política la deja pasar, no solo esta) y este
+script revierte `perfiles_update_propio` a su forma original de `001`
+(sin `with check` propio), para que la base compartida vuelva a
+coincidir con lo que producen estos archivos corridos en orden desde
+cero. Verificado por `scripts/rls-test.ts` tras el revert: la
+protección sigue activa (ahora solo vía el trigger).
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -340,7 +355,14 @@ necesidad de otra migración cuando se decida.
 19. `017_canjear_codigo_invitacion.sql` — función de canje de códigos de
     invitación.
 
-Repetir los pasos en cada entorno nuevo (Staging y Production son
+`018_revierte_with_check_duplicado_perfiles.sql` **no** es parte de esta
+secuencia para un ambiente nuevo: en un proyecto que solo corrió 001-017
+en orden, `perfiles_update_propio` nunca tuvo el `with check` duplicado
+que ese script revierte. Solo hace falta correrlo una vez en un proyecto
+que, como este, tuvo ambos arreglos aplicados por separado (ver su
+sección arriba).
+
+Repetir los pasos 1-19 en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
 
 ## Prueba de RLS con 3 sesiones
