@@ -94,7 +94,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (requiresAdmin && perfil?.rol !== "ADMINISTRADOR") {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/acceso-denegado", request.url));
     }
   }
 

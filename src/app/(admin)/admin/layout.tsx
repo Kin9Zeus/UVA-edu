@@ -25,7 +25,7 @@ export default async function AdminLayout({
   }
 
   if (perfil?.rol !== "ADMINISTRADOR") {
-    redirect("/");
+    redirect("/acceso-denegado");
   }
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";

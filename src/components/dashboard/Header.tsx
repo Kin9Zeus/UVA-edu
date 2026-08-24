@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
+import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -43,15 +43,6 @@ export function Header({
           U.V.A<span className="text-uva-accent">.</span>
         </Link>
       )}
-
-      <div className="relative max-w-[420px] flex-1">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-uva-text-faint" />
-        <input
-          type="search"
-          placeholder="¿Qué quieres aprender hoy?"
-          className="h-[38px] w-full rounded-uva-md border border-uva-divider bg-uva-surface pr-3.5 pl-9 text-sm text-uva-text outline-none placeholder:text-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
-        />
-      </div>
 
       <Link
         href="/dashboard/planes"

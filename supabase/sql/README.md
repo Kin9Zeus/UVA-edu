@@ -230,6 +230,21 @@ y CrearCursoForm.tsx del panel admin). A diferencia de `011`
 (`materiales-lecciones`, privado), este es público a propósito: la portada
 se muestra en el catálogo sin login, mismo criterio que `cursos.titulo`.
 
+### `013_fix_perfiles_update_propio.sql`
+**Fix de seguridad.** `perfiles_update_propio` (`001`) solo validaba en el
+`using` que el usuario fuera dueño de la fila (`auth.uid() = id`), sin
+`with check` que restringiera qué columnas podía cambiar. Eso permitía a
+cualquier estudiante autenticado auto-promoverse ejecutando desde el
+cliente `supabase.from('perfiles').update({ rol: 'ADMINISTRADOR' })` sobre
+su propio `id` — la policy lo dejaba pasar. Mismo problema con `estado`
+(una cuenta suspendida podía reactivarse a sí misma). `005` agregó
+`perfiles_admin_escritura` para que un admin edite el perfil de otro
+usuario, pero documentó explícitamente que no tocaba esta policy — seguía
+vulnerable. Este script recrea `perfiles_update_propio` con un `with
+check` que exige que `rol` y `estado` no cambien en un UPDATE del propio
+usuario; el resto de columnas (nombre, celular, etc.) sigue libre. No
+afecta a `perfiles_admin_escritura` (se combinan con OR).
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -262,6 +277,9 @@ se muestra en el catálogo sin login, mismo criterio que `cursos.titulo`.
     admin-only para el material adicional de las lecciones.
 14. `012_bucket_portadas_cursos.sql` — bucket público de Storage para la
     portada/thumbnail de cada curso.
+15. `013_fix_perfiles_update_propio.sql` — cierra la escalada de privilegios
+    en `perfiles_update_propio` (impide que un usuario cambie su propio
+    `rol`/`estado`).
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
