@@ -2,7 +2,7 @@
 -- Row Level Security (RLS): Instructores
 -- Ver docs/technical-spec.md §4 (tabla Instructores) y §5.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000–005, y después de
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000–005, y después de
 -- aplicar la migración de Prisma que crea la tabla `instructores`
 -- (prisma/migrations/*_instructores_como_entidad).
 --

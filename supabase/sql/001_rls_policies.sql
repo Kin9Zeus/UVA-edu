@@ -2,7 +2,7 @@
 -- Row Level Security (RLS)
 -- Ver docs/technical-spec.md §5 (Seguridad y RLS).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de correr las
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de correr las
 -- migraciones de Prisma y el trigger de 000_trigger_perfiles.sql.
 --
 -- Regla general: se activa RLS en TODAS las tablas. Las tablas sin
@@ -15,6 +15,13 @@
 -- development-plan.md, cuando se construya el panel admin y el
 -- muro de acceso — no se inventan reglas de negocio aquí todavía.
 -- ============================================================
+--
+-- Cada `create policy` va precedido de su `drop policy if exists`. Postgres
+-- no tiene `create or replace policy`, así que ese par es la única forma de
+-- que el script se pueda re-ejecutar: sin él, la segunda corrida falla con
+-- «policy ... already exists» y aborta el lote entero (lo detectó
+-- `npm run db:rls:check`). Es el mismo idiom que ya usaban 002 en adelante;
+-- este archivo se escribió antes de adoptarlo.
 
 -- Tabla interna de Prisma (historial de migraciones). No contiene datos de
 -- negocio, pero al vivir en `public` queda expuesta por la API automática
@@ -66,9 +73,11 @@ $$;
 -- Cada usuario ve y edita su propio perfil. Los administradores
 -- pueden ver todos (necesario para el panel admin de suscriptores).
 -- ------------------------------------------------------------
+drop policy if exists "perfiles_select_propio" on public.perfiles;
 create policy "perfiles_select_propio" on public.perfiles
   for select using (auth.uid() = id or private.es_administrador());
 
+drop policy if exists "perfiles_update_propio" on public.perfiles;
 create policy "perfiles_update_propio" on public.perfiles
   for update using (auth.uid() = id);
 
@@ -77,13 +86,16 @@ create policy "perfiles_update_propio" on public.perfiles
 -- SELECT abierto solo si el curso está publicado (mostrado = true).
 -- INSERT/UPDATE/DELETE restringidos a ADMINISTRADOR.
 -- ------------------------------------------------------------
+drop policy if exists "cursos_select_publicos" on public.cursos;
 create policy "cursos_select_publicos" on public.cursos
   for select using (mostrado = true or private.es_administrador());
 
+drop policy if exists "cursos_admin_escritura" on public.cursos;
 create policy "cursos_admin_escritura" on public.cursos
   for all using (private.es_administrador())
   with check (private.es_administrador());
 
+drop policy if exists "modulos_select_curso_publico" on public.modulos;
 create policy "modulos_select_curso_publico" on public.modulos
   for select using (
     exists (
@@ -93,10 +105,12 @@ create policy "modulos_select_curso_publico" on public.modulos
     )
   );
 
+drop policy if exists "modulos_admin_escritura" on public.modulos;
 create policy "modulos_admin_escritura" on public.modulos
   for all using (private.es_administrador())
   with check (private.es_administrador());
 
+drop policy if exists "lecciones_select_curso_publico" on public.lecciones;
 create policy "lecciones_select_curso_publico" on public.lecciones
   for select using (
     exists (
@@ -107,6 +121,7 @@ create policy "lecciones_select_curso_publico" on public.lecciones
     )
   );
 
+drop policy if exists "lecciones_admin_escritura" on public.lecciones;
 create policy "lecciones_admin_escritura" on public.lecciones
   for all using (private.es_administrador())
   with check (private.es_administrador());
@@ -115,9 +130,11 @@ create policy "lecciones_admin_escritura" on public.lecciones
 -- PROGRESO Y CERTIFICADOS
 -- SELECT/INSERT/UPDATE limitados a auth.uid() = id_usuario.
 -- ------------------------------------------------------------
+drop policy if exists "progreso_propio" on public.progreso;
 create policy "progreso_propio" on public.progreso
   for all using (auth.uid() = id_usuario)
   with check (auth.uid() = id_usuario);
 
+drop policy if exists "certificados_select_propio" on public.certificados;
 create policy "certificados_select_propio" on public.certificados
   for select using (auth.uid() = id_usuario or private.es_administrador());

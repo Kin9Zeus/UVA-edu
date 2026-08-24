@@ -2,7 +2,7 @@
 -- Canje de un código de invitación
 -- Ver 016_rls_codigos_invitacion.sql y auditoría de RLS.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 016.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 016.
 --
 -- Mismo criterio de exposición que check_email_provider (007) y
 -- registrar_reenvio_verificacion (009): vive en `public` porque el

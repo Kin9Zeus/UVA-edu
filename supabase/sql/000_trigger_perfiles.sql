@@ -6,7 +6,7 @@
 -- este trigger crea automáticamente su fila en `perfiles` con rol
 -- ESTUDIANTE por defecto.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de correr las
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de correr las
 -- migraciones de Prisma (la tabla `perfiles` debe existir primero).
 -- ============================================================
 

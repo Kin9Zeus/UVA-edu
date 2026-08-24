@@ -3,7 +3,7 @@
 -- Ver auditoría de RLS (checklist de seguridad, fase 6/7 del
 -- development-plan.md).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-012.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-012.
 --
 -- El problema: "perfiles_update_propio" (001_rls_policies.sql) solo
 -- valida DE QUIÉN es la fila (auth.uid() = id), no QUÉ columnas se

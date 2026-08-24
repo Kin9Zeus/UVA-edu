@@ -1,7 +1,7 @@
 -- ============================================================
 -- Lectura pública de categorías ("escuelas")
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000, 001, 002 y 003.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000, 001, 002 y 003.
 --
 -- Por qué existe este archivo:
 -- `001_rls_policies.sql` activa RLS sobre `public.categorias` pero nunca le

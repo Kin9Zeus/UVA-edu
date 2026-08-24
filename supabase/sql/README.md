@@ -1,9 +1,59 @@
-# SQL manual (fuera de Prisma)
+# SQL de Supabase (fuera de Prisma)
 
 Prisma solo gestiona `schema.prisma` y las tablas (ver `docs/technical-spec.md` §2.1).
-Todo lo que es específico de Supabase (triggers sobre `auth.users`, políticas RLS)
-vive aquí como SQL plano, para correrlo manualmente en el **SQL Editor** del
-dashboard de Supabase.
+Todo lo que es específico de Supabase (triggers sobre `auth.users`, políticas RLS,
+funciones `SECURITY DEFINER`, buckets de Storage) vive aquí como SQL plano.
+
+## Cómo se aplican
+
+**Ya no se pegan a mano en el SQL Editor.** Los 22 archivos se aplican con un
+comando, en orden y dentro de una sola transacción:
+
+```bash
+npm run db:rls          # aplica (COMMIT)
+npm run db:rls:check    # aplica y hace ROLLBACK — verifica sin escribir nada
+```
+
+La secuencia completa para dejar un entorno al día:
+
+```bash
+npx prisma migrate deploy   # 1. tablas
+npm run db:rls              # 2. políticas, triggers y funciones
+npm run test:rls            # 3. verificación (sale con código 1 si algo falla)
+```
+
+El applier es `scripts/apply-rls.ts`. Ordena por el prefijo numérico del nombre
+—no alfabéticamente— y aborta si algún archivo no sigue el formato
+`NNN_descripcion.sql`, porque el orden es lo que hace correcto el resultado.
+Como todo va en un único `BEGIN`/`COMMIT`, un fallo a mitad de camino revierte
+el lote entero: no existe el estado "la mitad aplicada".
+
+### Por qué no son migraciones de Prisma
+
+`prisma migrate dev` replica todas las migraciones en una *shadow database*
+vacía para detectar drift, y esa base no tiene el schema `auth` de Supabase.
+Estos scripts dependen de él en todas partes: `auth.uid()` en unas 35 políticas,
+el trigger sobre `auth.users` (`000`), la FK `perfiles.id → auth.users(id)`
+(`010`) y las lecturas de `auth.identities` (`007`). Moverlos a
+`prisma/migrations/` rompería `npm run prisma:migrate` para todo el equipo,
+salvo falsificando objetos internos de Supabase dentro de la shadow DB. Por eso
+son un pipeline propio — automatizado y verificable, que es lo que importaba.
+
+### Idempotencia
+
+Los scripts se re-ejecutan sin efecto (`drop policy if exists` antes de cada
+`create policy`, `create or replace function`, `add constraint` capturando
+`duplicate_object`, `cron.unschedule` antes de `cron.schedule`), así que correr
+`db:rls` sobre una base ya al día no cambia nada.
+
+Postgres no tiene `create or replace policy`, así que ese par `drop`/`create` es
+la única forma de lograrlo. **`001` no lo tenía** —se escribió antes de que se
+adoptara el idiom en `002`— y fallaba con «policy ... already exists» en la
+segunda corrida. Lo detectó `npm run db:rls:check` la primera vez que se usó,
+sin haber escrito nada. Si agregas un script nuevo, corre `db:rls:check` dos
+veces: la idempotencia es una afirmación que se verifica, no que se supone. El único `DELETE` del lote vive dentro del cuerpo
+de `private.limpiar_usuarios_no_verificados()` (`010`) y solo lo dispara el cron
+diario, nunca la aplicación del script.
 
 ## Qué se hizo (proyecto de desarrollo, agosto 2026)
 

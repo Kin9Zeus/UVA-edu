@@ -2,7 +2,7 @@
 -- Separa las políticas "FOR ALL" en SELECT/INSERT/UPDATE/DELETE
 -- Ver auditoría de RLS (checklist de seguridad).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-013.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-013.
 --
 -- Por qué: una política "for all" aplica la MISMA condición a las 4
 -- operaciones sin distinción, lo que dificulta razonar/auditar qué

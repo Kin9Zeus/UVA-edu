@@ -3,7 +3,7 @@
 -- (Flujo 02, ampliación). Ver docs/functional-spec.md Flujo 02 y
 -- docs/technical-spec.md §6.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-009.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-009.
 -- ============================================================
 
 -- Prisma no puede definir este FK porque `auth` es un schema fuera de su

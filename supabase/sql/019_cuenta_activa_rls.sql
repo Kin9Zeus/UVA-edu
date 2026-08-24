@@ -3,7 +3,7 @@
 -- Ver auditoría de RLS (checklist de seguridad) y
 -- 013_perfiles_bloquea_autopromocion.sql.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-017.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-017.
 --
 -- El problema tenía dos capas y esta cierra la segunda:
 --

@@ -3,7 +3,7 @@
 -- Ver auditoría de RLS (checklist de seguridad): "la verificación
 -- pública se hace por una función específica, no abriendo la tabla".
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-014.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-014.
 --
 -- `certificados_select_propio` (001) solo deja ver un certificado a su
 -- dueño o a un admin — correcto, porque la fila completa no debe ser

@@ -2,7 +2,7 @@
 -- Row Level Security (RLS): Categorías y gestión de Perfiles por Admin
 -- Ver docs/technical-spec.md §5 y prompt-panel-admin-claude-code.md.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000, 001, 002, 003 y
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000, 001, 002, 003 y
 -- 004_categorias_select_publico.sql, y después de aplicar la migración de
 -- Prisma que agrega categorias.activo / categorias.id_admin_creador (ver
 -- prisma/migrations).

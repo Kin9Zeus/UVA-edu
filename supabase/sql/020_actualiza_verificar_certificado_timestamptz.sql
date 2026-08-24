@@ -3,7 +3,7 @@
 -- Ver 015_verificar_certificado_publico.sql y Bloque 1 de la
 -- auditoría de esquema (prisma/migrations/20260824010000_estandariza_timestamps).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-019 y de
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-019 y de
 -- correr esa migración de Prisma. `certificados.fecha_emision` pasó
 -- de timestamp a timestamptz; el tipo de retorno de esta función debe
 -- coincidir exactamente o falla en tiempo de ejecución con "structure
