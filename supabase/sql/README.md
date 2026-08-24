@@ -104,6 +104,16 @@ ninguna política de `000`/`001`/`002` — solo añade nuevas:
   `suscripciones` en el `with check`. Sin `update`/`delete` para el
   estudiante. Admin gestiona todo, incluyendo las cortesías del
   Flujo 11.
+
+  **Nota (decisión confirmada en la auditoría de RLS):** el checklist
+  de seguridad general para este tipo de tabla dice "solo admin
+  escribe" — acá el estudiante sí puede insertar su propia fila, pero
+  únicamente la de auto-inscripción por membresía, con el `with check`
+  de arriba cerrando cualquier otro caso (no puede poner
+  `tipo_acceso = 'CORTESIA'`, no puede fijar `otorgado_por`, no puede
+  insertarse sin suscripción activa). Es una excepción de negocio
+  deliberada, no un descuido: sin ella, cada primera entrada a un curso
+  tendría que pasar por un admin. Verificado por `scripts/rls-test.ts`.
 - **`recursos_descargables`**: mismo criterio que el video de la
   lección — `SELECT` si hay inscripción vigente al curso o suscripción
   `ACTIVA`/`PAST_DUE` (join `lecciones` → `modulos` → `cursos`); admin
@@ -230,6 +240,62 @@ y CrearCursoForm.tsx del panel admin). A diferencia de `011`
 (`materiales-lecciones`, privado), este es público a propósito: la portada
 se muestra en el catálogo sin login, mismo criterio que `cursos.titulo`.
 
+### `013_perfiles_bloquea_autopromocion.sql`
+Cierra una escalada de privilegios encontrada en la auditoría de RLS:
+`perfiles_update_propio` (`001`) solo valida de quién es la fila
+(`auth.uid() = id`), no qué columnas cambian, así que un estudiante podía
+llamar la API REST directamente y hacer `PATCH /perfiles?id=eq.<su-uuid>`
+con `{"rol":"ADMINISTRADOR"}` o `{"estado":"ACTIVO"}` estando suspendido.
+GRANT/REVOKE de columna no sirve porque admin y estudiante comparten el
+mismo rol de Postgres (`authenticated`); la solución es un trigger
+`BEFORE UPDATE` (`private.perfiles_bloquea_autopromocion()`) que compara
+`OLD`/`NEW` fila por fila y bloquea el cambio de `rol`/`estado` salvo que
+quien ejecuta sea admin (`private.es_administrador()`) o `service_role`.
+Verificado por `scripts/rls-test.ts` (caso "NO puede auto-promoverse").
+
+### `014_separa_politicas_for_all.sql`
+Separa en `SELECT`/`INSERT`/`UPDATE`/`DELETE` las 13 políticas `for all`
+que había hasta ese momento (`cursos`, `modulos`, `lecciones`, `progreso`,
+`planes`, `suscripciones`, `pagos`, `cupones`, `inscripciones`,
+`recursos_descargables`, `bitacora_administrativa`, `categorias`,
+`instructores`). Puramente mecánico — misma condición, sin cambio de
+comportamiento — salvo dos ajustes detectados al separarlas: `cupones` no
+tenía ninguna policy de `SELECT` propia (dependía por completo del `for
+all` para que el admin pudiera leerla, así que se recrea explícita) y la
+`admin_select` añadida a `inscripciones` se retiró por redundante
+(`inscripciones_select_propio`, de `003`, ya cubre al admin con `or
+private.es_administrador()`).
+
+### `015_verificar_certificado_publico.sql`
+Crea `public.verificar_certificado(p_codigo text)`, para que la landing
+pública de verificación de certificados no tenga que abrir la tabla
+`certificados` (que solo su dueño o un admin pueden leer, por `001`). A
+diferencia de `check_email_provider`/`registrar_reenvio_verificacion`
+(restringidas a `service_role`), esta función SÍ se otorga a `anon`: es la
+manera correcta de exponer un dato puntual sin volver pública la tabla
+completa. Siempre devuelve una fila (`valido = false` si el código no
+existe), y solo los campos mínimos para confirmar validez.
+
+### `016_rls_codigos_invitacion.sql` y `017_canjear_codigo_invitacion.sql`
+Códigos de invitación canjeables por acceso completo a la plataforma
+(equivalente a un plan de cortesía), agregados en la auditoría de RLS —
+tabla nueva (`prisma/migrations/20260824000000_agrega_codigos_invitacion`),
+sin precedente en `docs/`. Mismo criterio que `cupones`: `016` deja la
+tabla sin ninguna policy de `SELECT` para `anon`/`authenticated` (solo
+admin, en 4 políticas separadas desde el inicio) porque un código expone
+plan/límite/vencimiento, datos que un cliente no debe poder enumerar.
+
+El canje lo resuelve `public.canjear_codigo_invitacion(p_codigo, p_usuario_id)`
+en `017` — mismo patrón de exposición que `007`/`009` (`EXECUTE` solo para
+`service_role`, llamada desde `src/actions/codigos-invitacion/canjear.ts`,
+que primero verifica la sesión real con el cliente de RLS y solo entonces
+pasa el `id` del usuario al backend). Todo en una sola transacción con
+`select ... for update` sobre la fila del código, para que dos canjes
+simultáneos del mismo código con `limite_usos` no lo superen. El límite de
+uso todavía no tiene una regla de negocio definida (single-use vs
+multi-use) — el esquema soporta ambas vía `limite_usos` nullable, sin
+necesidad de otra migración cuando se decida.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -262,6 +328,28 @@ se muestra en el catálogo sin login, mismo criterio que `cursos.titulo`.
     admin-only para el material adicional de las lecciones.
 14. `012_bucket_portadas_cursos.sql` — bucket público de Storage para la
     portada/thumbnail de cada curso.
+15. `013_perfiles_bloquea_autopromocion.sql` — trigger que impide que un
+    usuario cambie su propio `rol`/`estado` vía la API directa.
+16. `014_separa_politicas_for_all.sql` — separa las políticas `for all`
+    en operaciones individuales.
+17. `015_verificar_certificado_publico.sql` — función pública de
+    verificación de certificados.
+18. `016_rls_codigos_invitacion.sql` — RLS de `codigos_invitacion`
+    (requiere antes `prisma migrate deploy` con la migración
+    `20260824000000_agrega_codigos_invitacion`).
+19. `017_canjear_codigo_invitacion.sql` — función de canje de códigos de
+    invitación.
 
 Repetir los pasos en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
+
+## Prueba de RLS con 3 sesiones
+
+`scripts/rls-test.ts` (`npm run test:rls`) llama la API de Supabase
+directamente (nunca la UI) con tres sesiones — anónimo, estudiante sin
+acceso, estudiante con acceso — e intenta leer/escribir datos que no le
+corresponden a cada una; falla si alguno de esos intentos tiene éxito.
+Crea y borra sus propios datos desechables en cada corrida (dos usuarios
+de prueba, un plan, una categoría/instructor/curso sin publicar), así que
+no depende del estado de las cuentas sembradas por `prisma/seed.ts`. Se
+vuelve a correr en la Fase 7 del `development-plan.md`.

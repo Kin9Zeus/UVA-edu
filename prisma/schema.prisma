@@ -85,16 +85,17 @@ model Perfiles {
   estado         EstadoPerfil @default(ACTIVO)
   fecha_registro DateTime     @default(now())
 
-  cursos_creados          Cursos[]                 @relation("CursosCreadosPorAdmin")
-  categorias_creadas      Categorias[]             @relation("CategoriasCreadasPorAdmin")
-  instructores_creados    Instructores[]           @relation("InstructoresCreadosPorAdmin")
-  suscripciones           Suscripciones[]          @relation("SuscripcionesDelUsuario")
-  suscripciones_otorgadas Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
-  progreso                Progreso[]
-  certificados            Certificados[]
-  inscripciones           Inscripciones[]          @relation("InscripcionesDelUsuario")
-  inscripciones_otorgadas Inscripciones[]          @relation("InscripcionesOtorgadasPorAdmin")
-  acciones_bitacora       BitacoraAdministrativa[]
+  cursos_creados             Cursos[]                 @relation("CursosCreadosPorAdmin")
+  categorias_creadas         Categorias[]             @relation("CategoriasCreadasPorAdmin")
+  instructores_creados       Instructores[]           @relation("InstructoresCreadosPorAdmin")
+  codigos_invitacion_creados CodigosInvitacion[]      @relation("CodigosInvitacionCreadosPorAdmin")
+  suscripciones              Suscripciones[]          @relation("SuscripcionesDelUsuario")
+  suscripciones_otorgadas    Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
+  progreso                   Progreso[]
+  certificados               Certificados[]
+  inscripciones              Inscripciones[]          @relation("InscripcionesDelUsuario")
+  inscripciones_otorgadas    Inscripciones[]          @relation("InscripcionesOtorgadasPorAdmin")
+  acciones_bitacora          BitacoraAdministrativa[]
 
   @@map("perfiles")
 }
@@ -110,7 +111,8 @@ model Planes {
   activo          Boolean @default(true)
   orden           Int     @default(0)
 
-  suscripciones Suscripciones[]
+  suscripciones      Suscripciones[]
+  codigos_invitacion CodigosInvitacion[]
 
   @@map("planes")
 }
@@ -128,14 +130,16 @@ model Suscripciones {
   monto_centavos         Int
   moneda                 String
   id_cupon               String?           @db.Uuid
+  id_codigo_invitacion   String?           @db.Uuid
   acceso_manual          Boolean           @default(false)
   otorgado_por           String?           @db.Uuid
 
-  usuario      Perfiles  @relation("SuscripcionesDelUsuario", fields: [id_usuario], references: [id])
-  plan         Planes    @relation(fields: [id_plan], references: [id])
-  cupon        Cupones?  @relation(fields: [id_cupon], references: [id])
-  admin_otorgo Perfiles? @relation("SuscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
-  pagos        Pagos[]
+  usuario           Perfiles           @relation("SuscripcionesDelUsuario", fields: [id_usuario], references: [id])
+  plan              Planes             @relation(fields: [id_plan], references: [id])
+  cupon             Cupones?           @relation(fields: [id_cupon], references: [id])
+  codigo_invitacion CodigosInvitacion? @relation(fields: [id_codigo_invitacion], references: [id])
+  admin_otorgo      Perfiles?          @relation("SuscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
+  pagos             Pagos[]
 
   @@index([id_usuario])
   @@index([id_plan])
@@ -286,6 +290,32 @@ model Certificados {
   @@unique([id_usuario, id_curso])
   @@index([id_usuario])
   @@map("certificados")
+}
+
+/// Código canjeable por acceso completo a la plataforma (equivalente a un
+/// plan de cortesía), ver docs/functional-spec.md y auditoría de RLS. El
+/// canje lo resuelve un Server Action con Service Role Key (mismo patrón
+/// que Cupones en checkout): valida vigencia/límite de uso y crea la fila
+/// de Suscripciones — nunca un INSERT directo del cliente contra esta
+/// tabla ni contra Suscripciones.
+model CodigosInvitacion {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo            String   @unique
+  id_plan           String   @db.Uuid
+  id_admin_creador  String?  @db.Uuid
+  fecha_vencimiento DateTime
+  /// null = sin límite de usos. Todavía no se define la regla de negocio
+  /// (single-use vs multi-use); el esquema soporta ambas sin migración.
+  limite_usos       Int?
+  veces_usado       Int      @default(0)
+  activo            Boolean  @default(true)
+  fecha_creacion    DateTime @default(now())
+
+  plan          Planes          @relation(fields: [id_plan], references: [id])
+  admin_creador Perfiles?       @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  suscripciones Suscripciones[]
+
+  @@map("codigos_invitacion")
 }
 
 model Cupones {

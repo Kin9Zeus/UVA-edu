@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:seed:clean": "tsx prisma/seed.ts --clean"
+    "db:seed:clean": "tsx prisma/seed.ts --clean",
+    "test:rls": "tsx scripts/rls-test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
