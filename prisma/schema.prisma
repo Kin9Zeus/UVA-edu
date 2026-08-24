@@ -193,10 +193,11 @@ model Categorias {
 /// una categoría por curso (no hay selector múltiple en el formulario),
 /// pero el esquema ya soporta varias — ver auditoría de esquema (Bloque 3).
 model CursoCategorias {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_curso     String   @db.Uuid
-  id_categoria String   @db.Uuid
-  creado_en    DateTime @default(now()) @db.Timestamptz
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso       String   @db.Uuid
+  id_categoria   String   @db.Uuid
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
 
   curso     Cursos     @relation(fields: [id_curso], references: [id], onDelete: Cascade)
   categoria Categorias @relation(fields: [id_categoria], references: [id], onDelete: Restrict)

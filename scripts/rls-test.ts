@@ -181,6 +181,14 @@ async function main() {
       clienteAnonimo.from("cursos").select("id").eq("id", cursoNoPublicado.id),
     );
     await esperarBloqueado(
+      "anon no ve la categoría del curso NO publicado (curso_categorias)",
+      clienteAnonimo.from("curso_categorias").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+    await esperarBloqueado(
+      "anon no puede insertar en curso_categorias",
+      clienteAnonimo.from("curso_categorias").insert({ id_curso: cursoNoPublicado.id, id_categoria: categoria.id }).select(),
+    );
+    await esperarBloqueado(
       "anon no puede insertar en inscripciones",
       clienteAnonimo.from("inscripciones").insert({ id_usuario: userSinAcceso.user!.id, id_curso: cursoNoPublicado.id, tipo_acceso: "MEMBRESIA" }).select(),
     );
@@ -190,6 +198,10 @@ async function main() {
     );
 
     await esperarPermitido("anon SÍ puede leer el catálogo público (categorías activas)", clienteAnonimo.from("categorias").select("id").eq("activo", true));
+    await esperarPermitido(
+      "anon SÍ puede leer curso_categorias de cursos publicados",
+      clienteAnonimo.from("curso_categorias").select("id_curso, id_categoria").limit(1),
+    );
     const verificacion = await esperarPermitido(
       "anon SÍ puede llamar verificar_certificado (función pública)",
       clienteAnonimo.rpc("verificar_certificado", { p_codigo: "codigo-que-no-existe" }).select(),
@@ -235,6 +247,10 @@ async function main() {
       clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
     );
     await esperarBloqueado(
+      "estudiante sin acceso no ve la categoría del curso NO publicado (curso_categorias)",
+      clienteSinAcceso.from("curso_categorias").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+    await esperarBloqueado(
       "estudiante sin acceso no puede auto-otorgarse una CORTESIA",
       clienteSinAcceso.from("inscripciones").insert({ id_usuario: userSinAcceso.user!.id, id_curso: cursoNoPublicado.id, tipo_acceso: "CORTESIA" }).select(),
     );
@@ -268,6 +284,10 @@ async function main() {
     await esperarBloqueado(
       "estudiante con acceso no ve el curso NO publicado (su suscripción no lo hace admin)",
       clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
+    await esperarBloqueado(
+      "estudiante con acceso no ve la categoría del curso NO publicado (curso_categorias)",
+      clienteConAcceso.from("curso_categorias").select("id").eq("id_curso", cursoNoPublicado.id),
     );
     await esperarBloqueado(
       "estudiante con acceso no puede escribir directamente en suscripciones (solo backend/webhooks)",
