@@ -23,12 +23,14 @@ export function BuscadorInput({
   valorInicial = "",
   opciones,
   onBuscar,
+  mensajeVacio = "Sin resultados",
   className,
 }: {
   placeholder?: string;
   valorInicial?: string;
   opciones: CursoOpcion[];
   onBuscar: (valor: string) => void;
+  mensajeVacio?: string;
   className?: string;
 }) {
   const [texto, setTexto] = useState(valorInicial);
@@ -80,10 +82,10 @@ export function BuscadorInput({
       </div>
 
       <Autocomplete.Portal>
-        <Autocomplete.Positioner className="outline-none" sideOffset={6}>
+        <Autocomplete.Positioner className="isolate z-[60] outline-none" sideOffset={6}>
           <Autocomplete.Popup className="w-(--anchor-width) max-w-(--available-width) max-h-[min(320px,var(--available-height))] overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface py-1 shadow-lg data-empty:p-0">
             <Autocomplete.Empty className="px-3.5 py-3 text-sm text-uva-text-faint">
-              Sin resultados
+              {mensajeVacio}
             </Autocomplete.Empty>
             <Autocomplete.List>
               {(curso: CursoOpcion) => (

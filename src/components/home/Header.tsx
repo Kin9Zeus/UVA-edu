@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -29,6 +30,10 @@ export function Header() {
       >
         U.V.A<span className="text-uva-accent">.</span>
       </Link>
+
+      <div className="hidden max-w-[400px] flex-1 min-[861px]:block">
+        <BuscadorHeaderInput placeholder="¿Qué quieres aprender?" destino="/catalogo" />
+      </div>
 
       <nav
         className="flex shrink-0 items-center gap-7"

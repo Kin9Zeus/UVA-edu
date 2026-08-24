@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,10 @@ export function Header({
           U.V.A<span className="text-uva-accent">.</span>
         </Link>
       )}
+
+      <div className="max-w-[420px] flex-1">
+        <BuscadorHeaderInput placeholder="¿Qué quieres aprender hoy?" destino="/dashboard/catalogo" />
+      </div>
 
       <Link
         href="/dashboard/planes"

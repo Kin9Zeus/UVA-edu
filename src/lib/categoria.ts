@@ -75,6 +75,37 @@ function mapCursoDeCategoria(curso: {
   };
 }
 
+export type CursoOpcionBuscador = {
+  id: string;
+  titulo: string;
+  instructorNombre: string;
+};
+
+/**
+ * Listado liviano (sin imagen ni temario) de todos los cursos publicados,
+ * para alimentar el dropdown de sugerencias del buscador de los headers
+ * (que no reciben el catálogo completo como prop). Se pide una sola vez y
+ * se cachea en el cliente — ver src/actions/cursos/buscador.ts.
+ */
+export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("cursos")
+    .select("id, titulo, instructor:instructores(nombre)")
+    .eq("mostrado", true)
+    .order("titulo");
+
+  return (data ?? []).map((curso) => {
+    const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
+    return {
+      id: curso.id,
+      titulo: curso.titulo,
+      instructorNombre: instructor?.nombre ?? "Sin instructor",
+    };
+  });
+}
+
 /**
  * Catálogo completo del estudiante: todas las categorías activas que ya
  * tienen al menos un curso publicado, cada una con sus cursos. Sin
