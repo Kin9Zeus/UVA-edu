@@ -34,8 +34,8 @@ export async function getDashboardData() {
   const [{ data: perfilesRecientes }, { data: certificadosRecientes }] = await Promise.all([
     supabase
       .from("perfiles")
-      .select("id, nombre, fecha_registro")
-      .order("fecha_registro", { ascending: false })
+      .select("id, nombre, fecha_registro:creado_en")
+      .order("creado_en", { ascending: false })
       .limit(4),
     supabase
       .from("certificados")
@@ -67,8 +67,8 @@ export async function getDashboardData() {
 
   const { data: cursos } = await supabase
     .from("cursos")
-    .select("id, titulo, mostrado, categoria:categorias(nombre)")
-    .order("fecha_creacion", { ascending: false })
+    .select("id, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
+    .order("creado_en", { ascending: false })
     .limit(20);
 
   const { data: todasInscripciones } = await supabase.from("inscripciones").select("id_curso");
@@ -95,7 +95,8 @@ export async function getDashboardData() {
 
       const total = progreso?.length ?? 0;
       const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
-      const categoria = Array.isArray(curso.categoria) ? curso.categoria[0] : curso.categoria;
+      const categoriaFila = curso.curso_categorias?.[0]?.categoria;
+      const categoria = Array.isArray(categoriaFila) ? categoriaFila[0] : categoriaFila;
 
       return {
         id: curso.id,

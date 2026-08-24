@@ -33,7 +33,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("id, nombre, correo, rol, estado, fecha_registro")
+    .select("id, nombre, correo, rol, estado, fecha_registro:creado_en")
     .eq("id", usuarioId)
     .single();
 
@@ -60,7 +60,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
     const { data: progreso } = await supabase
       .from("progreso")
-      .select("completado, fecha_actualizacion, leccion:lecciones!inner(modulo:modulos!inner(id_curso))")
+      .select("completado, fecha_actualizacion:actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso))")
       .eq("id_usuario", usuarioId)
       .eq("leccion.modulo.id_curso", inscripcion.id_curso);
 

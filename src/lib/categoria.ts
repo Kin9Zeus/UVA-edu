@@ -35,9 +35,9 @@ export async function getCategoriaConCursos(categoriaId: string): Promise<Catego
   const { data: cursosRows } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
+      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id)), curso_categorias!inner(id_categoria)",
     )
-    .eq("id_categoria", categoriaId)
+    .eq("curso_categorias.id_categoria", categoriaId)
     .eq("mostrado", true)
     .order("orden_visualizacion");
 
@@ -92,16 +92,21 @@ export async function getCatalogo(): Promise<CategoriaDetalle[]> {
   const { data: cursosRows } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, nivel, imagen_portada, id_categoria, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id))",
+      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id)), curso_categorias(id_categoria)",
     )
     .eq("mostrado", true)
     .order("orden_visualizacion");
 
+  // Un curso puede pertenecer a varias categorías en el esquema, pero el CMS
+  // hoy solo asigna una: se agrupa por la primera (ver curso_categorias,
+  // auditoría de esquema Bloque 3).
   const cursosPorCategoria = new Map<string, CursoDeCategoria[]>();
   for (const curso of cursosRows ?? []) {
-    const lista = cursosPorCategoria.get(curso.id_categoria) ?? [];
+    const idCategoria = curso.curso_categorias?.[0]?.id_categoria;
+    if (!idCategoria) continue;
+    const lista = cursosPorCategoria.get(idCategoria) ?? [];
     lista.push(mapCursoDeCategoria(curso));
-    cursosPorCategoria.set(curso.id_categoria, lista);
+    cursosPorCategoria.set(idCategoria, lista);
   }
 
   return (categoriasRows ?? [])

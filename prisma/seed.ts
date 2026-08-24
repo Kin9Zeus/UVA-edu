@@ -751,13 +751,21 @@ async function sembrar(): Promise<void> {
   await prisma.cursos.createMany({
     data: CURSOS.map((c, i) => ({
       id: IDS_CURSOS[i],
-      id_categoria: IDS_CATEGORIAS[c.categoria],
       titulo: c.titulo,
       descripcion: c.descripcion,
       imagen_portada: `https://picsum.photos/seed/uva-curso-${i + 1}/1200/675`,
       id_instructor: IDS_INSTRUCTORES[c.instructor],
       mostrado: c.mostrado,
       id_admin_creador: idAdmin,
+    })),
+  });
+
+  // curso_categorias: el seed solo asigna una categoría por curso (mismo
+  // comportamiento que el CMS hoy), ver auditoría de esquema Bloque 3.
+  await prisma.cursoCategorias.createMany({
+    data: CURSOS.map((c, i) => ({
+      id_curso: IDS_CURSOS[i],
+      id_categoria: IDS_CATEGORIAS[c.categoria],
     })),
   });
 
@@ -880,7 +888,7 @@ async function sembrar(): Promise<void> {
       {
         id: uuid(B.pago, 1),
         id_suscripcion: uuid(B.suscripcion, 1),
-        fecha: enDias(-12),
+        creado_en: enDias(-12),
         estado: "EXITOSO",
         monto_centavos: 8_990_000,
         moneda: "COP",
@@ -890,7 +898,7 @@ async function sembrar(): Promise<void> {
       {
         id: uuid(B.pago, 2),
         id_suscripcion: uuid(B.suscripcion, 2),
-        fecha: enDias(-2),
+        creado_en: enDias(-2),
         estado: "FALLIDO",
         monto_centavos: 8_990_000,
         moneda: "COP",
@@ -899,7 +907,7 @@ async function sembrar(): Promise<void> {
       {
         id: uuid(B.pago, 3),
         id_suscripcion: uuid(B.suscripcion, 4),
-        fecha: enDias(-400),
+        creado_en: enDias(-400),
         estado: "EXITOSO",
         monto_centavos: 89_900_000,
         moneda: "COP",

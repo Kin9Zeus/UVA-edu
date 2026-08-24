@@ -139,18 +139,21 @@ async function main() {
   const { data: cursoNoPublicado, error: errCurso } = await admin
     .from("cursos")
     .insert({
-      id_categoria: categoria.id,
       titulo: `Curso RLS test (borrador) ${sufijo}`,
       descripcion: "x",
       imagen_portada: "x",
       id_instructor: instructor.id,
       mostrado: false,
       id_admin_creador: adminPerfil.id,
-      fecha_edicion: new Date().toISOString(),
     })
     .select("id")
     .single();
   if (errCurso || !cursoNoPublicado) throw new Error(`No pude crear el curso de prueba: ${errCurso?.message}`);
+
+  const { error: errCursoCategoria } = await admin
+    .from("curso_categorias")
+    .insert({ id_curso: cursoNoPublicado.id, id_categoria: categoria.id });
+  if (errCursoCategoria) throw new Error(`No pude vincular la categoría del curso de prueba: ${errCursoCategoria.message}`);
 
   const clienteAnonimo: SupabaseClient = createClient(URL, ANON_KEY);
 

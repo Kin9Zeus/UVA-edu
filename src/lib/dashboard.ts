@@ -29,11 +29,11 @@ export async function getInicioData(usuarioId: string) {
   const { data: progresoRows } = await supabase
     .from("progreso")
     .select(
-      "id_leccion, segundo_actual, fecha_actualizacion, leccion:lecciones(id, duracion, modulo:modulos(titulo, curso:cursos(id, titulo, imagen_portada, categoria:categorias(nombre))))",
+      "id_leccion, segundo_actual, fecha_actualizacion:actualizado_en, leccion:lecciones(id, duracion, modulo:modulos(titulo, curso:cursos(id, titulo, imagen_portada, curso_categorias(categoria:categorias(nombre)))))",
     )
     .eq("id_usuario", usuarioId)
     .eq("completado", false)
-    .order("fecha_actualizacion", { ascending: false })
+    .order("actualizado_en", { ascending: false })
     .limit(4);
 
   const sigueAprendiendo: ClaseEnProgreso[] = (progresoRows ?? [])
@@ -41,7 +41,11 @@ export async function getInicioData(usuarioId: string) {
       const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
       const modulo = leccion ? (Array.isArray(leccion.modulo) ? leccion.modulo[0] : leccion.modulo) : null;
       const curso = modulo ? (Array.isArray(modulo.curso) ? modulo.curso[0] : modulo.curso) : null;
-      const categoria = curso ? (Array.isArray(curso.categoria) ? curso.categoria[0] : curso.categoria) : null;
+      const categoria = curso?.curso_categorias?.[0]?.categoria
+        ? Array.isArray(curso.curso_categorias[0].categoria)
+          ? curso.curso_categorias[0].categoria[0]
+          : curso.curso_categorias[0].categoria
+        : null;
 
       if (!leccion || !modulo || !curso) return null;
 
@@ -71,12 +75,17 @@ export async function getInicioData(usuarioId: string) {
 
   const { data: cursosRows } = await supabase
     .from("cursos")
-    .select("id_categoria")
+    .select("curso_categorias(id_categoria)")
     .eq("mostrado", true);
 
+  // Un curso puede pertenecer a varias categorías en el esquema, pero el CMS
+  // hoy solo asigna una: se cuenta por la primera (ver curso_categorias,
+  // auditoría de esquema Bloque 3).
   const conteoPorCategoria = new Map<string, number>();
   for (const curso of cursosRows ?? []) {
-    conteoPorCategoria.set(curso.id_categoria, (conteoPorCategoria.get(curso.id_categoria) ?? 0) + 1);
+    const idCategoria = curso.curso_categorias?.[0]?.id_categoria;
+    if (!idCategoria) continue;
+    conteoPorCategoria.set(idCategoria, (conteoPorCategoria.get(idCategoria) ?? 0) + 1);
   }
 
   // Se listan todas las categorías activas, tengan o no cursos publicados

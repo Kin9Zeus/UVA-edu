@@ -7,6 +7,7 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
+import { ESPACIO_ORDEN, ordenEntre, siguienteOrden } from "@/lib/orden";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
@@ -66,7 +67,6 @@ export async function crearCurso(input: {
       titulo,
       descripcion: input.descripcion.trim(),
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
-      id_categoria: input.categoriaId,
       nivel: input.nivel,
       id_instructor: input.idInstructor,
       mostrado: input.publicar,
@@ -76,6 +76,15 @@ export async function crearCurso(input: {
     .single();
 
   if (error) return { error: "No pudimos crear el curso." };
+
+  const { error: errorCategoria } = await admin.supabase
+    .from("curso_categorias")
+    .insert({ id_curso: data.id, id_categoria: input.categoriaId });
+
+  if (errorCategoria) {
+    await admin.supabase.from("cursos").delete().eq("id", data.id);
+    return { error: "No pudimos asignar la categoría." };
+  }
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
@@ -104,12 +113,26 @@ export async function actualizarInfoCurso(
     .update({
       titulo,
       descripcion: input.descripcion.trim(),
-      id_categoria: input.categoriaId,
       nivel: input.nivel,
     })
     .eq("id", cursoId);
 
   if (error) return { error: "No pudimos guardar los cambios." };
+
+  // El CMS solo asigna una categoría por curso hoy (sin selector múltiple),
+  // así que "cambiar de categoría" es reemplazar la única fila de la puente
+  // — ver curso_categorias en la auditoría de esquema (Bloque 3).
+  const { error: errorCategoria } = await admin.supabase
+    .from("curso_categorias")
+    .upsert({ id_curso: cursoId, id_categoria: input.categoriaId }, { onConflict: "id_curso,id_categoria" });
+
+  if (errorCategoria) return { error: "No pudimos guardar la categoría." };
+
+  await admin.supabase
+    .from("curso_categorias")
+    .delete()
+    .eq("id_curso", cursoId)
+    .neq("id_categoria", input.categoriaId);
 
   revalidatePath(`/admin/cursos/${cursoId}`);
   revalidatePath("/admin/cursos");
@@ -248,15 +271,18 @@ export async function crearModulo(cursoId: string, titulo: string): Promise<Admi
   const tituloLimpio = titulo.trim();
   if (!tituloLimpio) return { error: "El nombre del módulo es obligatorio." };
 
-  const { count } = await admin.supabase
+  const { data: ultimo } = await admin.supabase
     .from("modulos")
-    .select("id", { count: "exact", head: true })
-    .eq("id_curso", cursoId);
+    .select("orden")
+    .eq("id_curso", cursoId)
+    .order("orden", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { error } = await admin.supabase.from("modulos").insert({
     id_curso: cursoId,
     titulo: tituloLimpio,
-    orden: count ?? 0,
+    orden: siguienteOrden(ultimo?.orden ?? null),
   });
 
   if (error) return { error: "No pudimos crear el módulo." };
@@ -294,19 +320,55 @@ export async function eliminarModulo(moduloId: string, cursoId: string): Promise
   return { success: true };
 }
 
-export async function reordenarModulos(
+/**
+ * Mueve un módulo a la posición entre `idAnterior` e `idSiguiente` (los
+ * vecinos ya reordenados en el frontend). Solo escribe la fila movida;
+ * si no queda espacio entre los vecinos, reespacía el curso completo
+ * de 10 en 10 como fallback. Ver src/lib/orden.ts.
+ */
+export async function moverModulo(
   cursoId: string,
-  items: { id: string; orden: number }[],
+  moduloId: string,
+  idAnterior: string | null,
+  idSiguiente: string | null,
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const resultados = await Promise.all(
-    items.map((item) => admin.supabase.from("modulos").update({ orden: item.orden }).eq("id", item.id)),
-  );
+  const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
+  const { data: vecinos } = idsVecinos.length
+    ? await admin.supabase.from("modulos").select("id, orden").in("id", idsVecinos)
+    : { data: [] };
 
-  if (resultados.some((resultado) => resultado.error)) {
-    return { error: "No pudimos guardar el nuevo orden de los módulos." };
+  const ordenDe = (id: string | null) => (id ? (vecinos ?? []).find((v) => v.id === id)?.orden ?? null : null);
+  const nuevoOrden = ordenEntre(ordenDe(idAnterior), ordenDe(idSiguiente));
+
+  if (nuevoOrden !== null) {
+    const { error } = await admin.supabase.from("modulos").update({ orden: nuevoOrden }).eq("id", moduloId);
+    if (error) return { error: "No pudimos guardar el nuevo orden de los módulos." };
+  } else {
+    const { data: resto } = await admin.supabase
+      .from("modulos")
+      .select("id")
+      .eq("id_curso", cursoId)
+      .neq("id", moduloId)
+      .order("orden");
+
+    const ordenados = resto ?? [];
+    const indiceDestino = idAnterior ? ordenados.findIndex((m) => m.id === idAnterior) + 1 : 0;
+    ordenados.splice(indiceDestino, 0, { id: moduloId });
+
+    const resultados = await Promise.all(
+      ordenados.map((modulo, index) =>
+        admin.supabase
+          .from("modulos")
+          .update({ orden: (index + 1) * ESPACIO_ORDEN })
+          .eq("id", modulo.id),
+      ),
+    );
+    if (resultados.some((resultado) => resultado.error)) {
+      return { error: "No pudimos guardar el nuevo orden de los módulos." };
+    }
   }
 
   revalidatePath(`/admin/cursos/${cursoId}`);
@@ -328,17 +390,20 @@ export async function crearLeccion(
   const tituloLimpio = titulo.trim();
   if (!tituloLimpio) return { error: "El nombre de la lección es obligatorio." };
 
-  const { count } = await admin.supabase
+  const { data: ultima } = await admin.supabase
     .from("lecciones")
-    .select("id", { count: "exact", head: true })
-    .eq("id_modulo", moduloId);
+    .select("orden")
+    .eq("id_modulo", moduloId)
+    .order("orden", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const { data, error } = await admin.supabase
     .from("lecciones")
     .insert({
       id_modulo: moduloId,
       titulo: tituloLimpio,
-      orden: count ?? 0,
+      orden: siguienteOrden(ultima?.orden ?? null),
     })
     .select("id")
     .single();
@@ -382,19 +447,56 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
   return { success: true };
 }
 
-export async function reordenarLecciones(
+/**
+ * Mueve una lección a la posición entre `idAnterior` e `idSiguiente`
+ * dentro del mismo módulo. Solo escribe la fila movida; si no queda
+ * espacio entre los vecinos, reespacía el módulo completo de 10 en 10
+ * como fallback. Ver src/lib/orden.ts.
+ */
+export async function moverLeccion(
   cursoId: string,
-  items: { id: string; orden: number }[],
+  moduloId: string,
+  leccionId: string,
+  idAnterior: string | null,
+  idSiguiente: string | null,
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const resultados = await Promise.all(
-    items.map((item) => admin.supabase.from("lecciones").update({ orden: item.orden }).eq("id", item.id)),
-  );
+  const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
+  const { data: vecinos } = idsVecinos.length
+    ? await admin.supabase.from("lecciones").select("id, orden").in("id", idsVecinos)
+    : { data: [] };
 
-  if (resultados.some((resultado) => resultado.error)) {
-    return { error: "No pudimos guardar el nuevo orden de las lecciones." };
+  const ordenDe = (id: string | null) => (id ? (vecinos ?? []).find((v) => v.id === id)?.orden ?? null : null);
+  const nuevoOrden = ordenEntre(ordenDe(idAnterior), ordenDe(idSiguiente));
+
+  if (nuevoOrden !== null) {
+    const { error } = await admin.supabase.from("lecciones").update({ orden: nuevoOrden }).eq("id", leccionId);
+    if (error) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
+  } else {
+    const { data: resto } = await admin.supabase
+      .from("lecciones")
+      .select("id")
+      .eq("id_modulo", moduloId)
+      .neq("id", leccionId)
+      .order("orden");
+
+    const ordenadas = resto ?? [];
+    const indiceDestino = idAnterior ? ordenadas.findIndex((l) => l.id === idAnterior) + 1 : 0;
+    ordenadas.splice(indiceDestino, 0, { id: leccionId });
+
+    const resultados = await Promise.all(
+      ordenadas.map((leccion, index) =>
+        admin.supabase
+          .from("lecciones")
+          .update({ orden: (index + 1) * ESPACIO_ORDEN })
+          .eq("id", leccion.id),
+      ),
+    );
+    if (resultados.some((resultado) => resultado.error)) {
+      return { error: "No pudimos guardar el nuevo orden de las lecciones." };
+    }
   }
 
   revalidatePath(`/admin/cursos/${cursoId}`);

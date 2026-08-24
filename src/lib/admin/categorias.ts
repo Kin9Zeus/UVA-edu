@@ -30,19 +30,21 @@ type FilaCurso = {
 export async function getCategorias(): Promise<Categoria[]> {
   const supabase = await createClient();
 
-  const [{ data: categorias }, { data: cursos }] = await Promise.all([
+  const [{ data: categorias }, { data: cursosPorCategoriaRows }] = await Promise.all([
     supabase
       .from("categorias")
       .select("id, nombre, descripcion, activo, admin_creador:perfiles(nombre)")
       .order("nombre", { ascending: true }),
-    supabase.from("cursos").select("id, titulo, mostrado, id_categoria"),
+    supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, titulo, mostrado)"),
   ]);
 
   const cursosPorCategoria = new Map<string, FilaCurso[]>();
-  for (const curso of (cursos ?? []) as FilaCurso[]) {
-    cursosPorCategoria.set(curso.id_categoria, [
-      ...(cursosPorCategoria.get(curso.id_categoria) ?? []),
-      curso,
+  for (const fila of cursosPorCategoriaRows ?? []) {
+    const curso = Array.isArray(fila.curso) ? fila.curso[0] : fila.curso;
+    if (!curso) continue;
+    cursosPorCategoria.set(fila.id_categoria, [
+      ...(cursosPorCategoria.get(fila.id_categoria) ?? []),
+      { ...curso, id_categoria: fila.id_categoria },
     ]);
   }
 

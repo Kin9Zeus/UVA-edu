@@ -24,7 +24,7 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
   const { data: suscripcion } = await supabase
     .from("suscripciones")
     .select(
-      "id, fecha_inicio, fecha_renovacion, estado, plan:planes(nombre, duracion_dias), pagos(id, fecha, monto_centavos, moneda, estado)",
+      "id, fecha_inicio, fecha_renovacion, estado, plan:planes(nombre, duracion_dias), pagos(id, fecha:creado_en, monto_centavos, moneda, estado)",
     )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })

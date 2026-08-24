@@ -21,7 +21,7 @@ export async function getProgresoData(usuarioId: string): Promise<ProgresoData> 
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
-    .select("curso:cursos(id, titulo, categoria:categorias(nombre), modulos(lecciones(id)))")
+    .select("curso:cursos(id, titulo, curso_categorias(categoria:categorias(nombre)), modulos(lecciones(id)))")
     .eq("id_usuario", usuarioId);
 
   const { data: progresoRows } = await supabase
@@ -43,7 +43,8 @@ export async function getProgresoData(usuarioId: string): Promise<ProgresoData> 
     .map((fila) => {
       const curso = Array.isArray(fila.curso) ? fila.curso[0] : fila.curso;
       if (!curso) return null;
-      const categoria = Array.isArray(curso.categoria) ? curso.categoria[0] : curso.categoria;
+      const categoriaFila = curso.curso_categorias?.[0]?.categoria;
+      const categoria = Array.isArray(categoriaFila) ? categoriaFila[0] : categoriaFila;
       const leccionIds = (curso.modulos ?? []).flatMap((modulo) =>
         (modulo.lecciones ?? []).map((leccion) => leccion.id as string),
       );

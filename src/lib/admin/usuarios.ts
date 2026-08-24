@@ -15,7 +15,7 @@ export async function getUsuarios(): Promise<UsuarioListado[]> {
   const supabase = await createClient();
 
   const [{ data: perfiles }, { data: suscripciones }, { data: inscripciones }] = await Promise.all([
-    supabase.from("perfiles").select("id, nombre, correo, rol, estado, fecha_registro").order("fecha_registro", { ascending: false }),
+    supabase.from("perfiles").select("id, nombre, correo, rol, estado, fecha_registro:creado_en").order("creado_en", { ascending: false }),
     supabase.from("suscripciones").select("id_usuario, estado, fecha_inicio").order("fecha_inicio", { ascending: false }),
     supabase.from("inscripciones").select("id_usuario"),
   ]);

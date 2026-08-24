@@ -41,13 +41,24 @@ export async function getCursoPublico(
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion, mostrado, id_categoria, categoria:categorias(nombre), instructor:instructores(nombre, especialidad)",
+      "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado, instructor:instructores(nombre, especialidad)",
     )
     .eq("id", cursoId)
     .eq("mostrado", true)
     .single();
 
   if (!curso) return null;
+
+  // El catálogo solo maneja una categoría por curso hoy; se toma la primera
+  // fila de la puente (ver curso_categorias, auditoría de esquema Bloque 3).
+  const { data: categoriaCurso } = await supabase
+    .from("curso_categorias")
+    .select("id_categoria, categoria:categorias(nombre)")
+    .eq("id_curso", cursoId)
+    .limit(1)
+    .maybeSingle();
+  const categoriaEmbebida = categoriaCurso?.categoria;
+  const nombreCategoria = (Array.isArray(categoriaEmbebida) ? categoriaEmbebida[0] : categoriaEmbebida)?.nombre;
 
   const { data: modulos } = await supabase
     .from("modulos")
@@ -110,7 +121,6 @@ export async function getCursoPublico(
     }
   }
 
-  const categoria = Array.isArray(curso.categoria) ? curso.categoria[0] : curso.categoria;
   const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
 
   return {
@@ -118,8 +128,8 @@ export async function getCursoPublico(
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     nivel: curso.nivel,
-    categoriaId: curso.id_categoria,
-    categoriaNombre: categoria?.nombre ?? "General",
+    categoriaId: categoriaCurso?.id_categoria ?? "",
+    categoriaNombre: nombreCategoria ?? "General",
     instructorNombre: instructor?.nombre ?? "Sin instructor",
     instructorEspecialidad: instructor?.especialidad ?? null,
     imagenPortada: curso.imagen_portada,

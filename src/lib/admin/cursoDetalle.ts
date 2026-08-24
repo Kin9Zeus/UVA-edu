@@ -55,12 +55,21 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, imagen_portada, id_categoria, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
+      "id, titulo, descripcion, imagen_portada, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
     )
     .eq("id", cursoId)
     .single();
 
   if (!curso) return null;
+
+  // El CMS solo maneja una categoría por curso hoy; se toma la primera fila
+  // de la puente (ver curso_categorias, auditoría de esquema Bloque 3).
+  const { data: categoriaCurso } = await supabase
+    .from("curso_categorias")
+    .select("id_categoria")
+    .eq("id_curso", cursoId)
+    .limit(1)
+    .maybeSingle();
 
   const { data: modulos } = await supabase
     .from("modulos")
@@ -138,7 +147,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     imagenPortada: curso.imagen_portada,
-    categoriaId: curso.id_categoria,
+    categoriaId: categoriaCurso?.id_categoria ?? "",
     nivel: curso.nivel,
     instructorId: curso.id_instructor,
     instructor: instructor?.nombre ?? "Sin instructor",

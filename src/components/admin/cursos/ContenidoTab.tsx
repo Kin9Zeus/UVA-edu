@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useAdminToast } from "@/components/admin/Toast";
 import { ModuloCard } from "@/components/admin/cursos/ModuloCard";
 import { LeccionEditorPanel } from "@/components/admin/cursos/LeccionEditorPanel";
-import { crearModulo, reordenarModulos } from "@/actions/admin/cursos";
+import { crearModulo, moverModulo } from "@/actions/admin/cursos";
 import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
 /**
@@ -98,10 +98,10 @@ export function ContenidoTab({
     setModulos(reordenados);
     setDraggedIndex(null);
 
-    reordenarModulos(
-      cursoId,
-      reordenados.map((modulo, index) => ({ id: modulo.id, orden: index })),
-    ).then((resultado) => {
+    const idAnterior = reordenados[targetIndex - 1]?.id ?? null;
+    const idSiguiente = reordenados[targetIndex + 1]?.id ?? null;
+
+    moverModulo(cursoId, movido.id, idAnterior, idSiguiente).then((resultado) => {
       if (resultado.error) showToast(resultado.error, "error");
     });
   }

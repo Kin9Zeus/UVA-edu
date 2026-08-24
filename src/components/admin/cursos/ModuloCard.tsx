@@ -15,7 +15,7 @@ import {
   eliminarModulo,
   crearLeccion,
   eliminarLeccion,
-  reordenarLecciones,
+  moverLeccion,
 } from "@/actions/admin/cursos";
 import { cn } from "@/lib/utils";
 import type { ModuloDetalle, LeccionDetalle } from "@/lib/admin/cursoDetalle";
@@ -160,10 +160,10 @@ export function ModuloCard({
     onLeccionesChange(modulo.id, reordenadas);
     setDraggedLeccionIndex(null);
 
-    reordenarLecciones(
-      cursoId,
-      reordenadas.map((leccion, index) => ({ id: leccion.id, orden: index })),
-    ).then((resultado) => {
+    const idAnterior = reordenadas[targetIndex - 1]?.id ?? null;
+    const idSiguiente = reordenadas[targetIndex + 1]?.id ?? null;
+
+    moverLeccion(cursoId, modulo.id, movida.id, idAnterior, idSiguiente).then((resultado) => {
       if (resultado.error) showToast(resultado.error, "error");
     });
   }

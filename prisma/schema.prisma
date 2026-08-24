@@ -83,7 +83,8 @@ model Perfiles {
   celular        String?
   rol            RolPerfil    @default(ESTUDIANTE)
   estado         EstadoPerfil @default(ACTIVO)
-  fecha_registro DateTime     @default(now())
+  creado_en      DateTime     @default(now()) @db.Timestamptz
+  actualizado_en DateTime     @updatedAt @db.Timestamptz
 
   cursos_creados             Cursos[]                 @relation("CursosCreadosPorAdmin")
   categorias_creadas         Categorias[]             @relation("CategoriasCreadasPorAdmin")
@@ -110,6 +111,8 @@ model Planes {
   nivel_acceso    String?
   activo          Boolean @default(true)
   orden           Int     @default(0)
+  creado_en       DateTime @default(now()) @db.Timestamptz
+  actualizado_en  DateTime @updatedAt @db.Timestamptz
 
   suscripciones      Suscripciones[]
   codigos_invitacion CodigosInvitacion[]
@@ -133,6 +136,8 @@ model Suscripciones {
   id_codigo_invitacion   String?           @db.Uuid
   acceso_manual          Boolean           @default(false)
   otorgado_por           String?           @db.Uuid
+  creado_en              DateTime          @default(now()) @db.Timestamptz
+  actualizado_en         DateTime          @updatedAt @db.Timestamptz
 
   usuario           Perfiles           @relation("SuscripcionesDelUsuario", fields: [id_usuario], references: [id])
   plan              Planes             @relation(fields: [id_plan], references: [id])
@@ -150,7 +155,8 @@ model Suscripciones {
 model Pagos {
   id                      String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_suscripcion          String     @db.Uuid
-  fecha                   DateTime   @default(now())
+  creado_en               DateTime   @default(now()) @db.Timestamptz
+  actualizado_en          DateTime   @updatedAt @db.Timestamptz
   estado                  EstadoPago
   monto_centavos          Int
   moneda                  String
@@ -174,11 +180,30 @@ model Categorias {
   descripcion      String?
   activo           Boolean @default(true)
   id_admin_creador String? @db.Uuid
+  creado_en        DateTime @default(now()) @db.Timestamptz
+  actualizado_en   DateTime @updatedAt @db.Timestamptz
 
-  cursos        Cursos[]
+  cursos        CursoCategorias[]
   admin_creador Perfiles? @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
 
   @@map("categorias")
+}
+
+/// Tabla puente curso↔categoría (muchos-a-muchos). Hoy el CMS solo asigna
+/// una categoría por curso (no hay selector múltiple en el formulario),
+/// pero el esquema ya soporta varias — ver auditoría de esquema (Bloque 3).
+model CursoCategorias {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso     String   @db.Uuid
+  id_categoria String   @db.Uuid
+  creado_en    DateTime @default(now()) @db.Timestamptz
+
+  curso     Cursos     @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  categoria Categorias @relation(fields: [id_categoria], references: [id], onDelete: Restrict)
+
+  @@unique([id_curso, id_categoria])
+  @@index([id_categoria])
+  @@map("curso_categorias")
 }
 
 /// Instructor del catálogo. NO es una cuenta: no existe en auth.users ni
@@ -191,7 +216,8 @@ model Instructores {
   nombre           String   @unique
   especialidad     String?
   id_admin_creador String?  @db.Uuid
-  fecha_creacion   DateTime @default(now())
+  creado_en        DateTime @default(now()) @db.Timestamptz
+  actualizado_en   DateTime @updatedAt @db.Timestamptz
 
   admin_creador Perfiles? @relation("InstructoresCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   cursos        Cursos[]
@@ -201,7 +227,6 @@ model Instructores {
 
 model Cursos {
   id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_categoria        String     @db.Uuid
   titulo              String
   descripcion         String
   imagen_portada      String
@@ -211,26 +236,27 @@ model Cursos {
   orden_visualizacion Int        @default(0)
   mostrado            Boolean    @default(false)
   id_admin_creador    String     @db.Uuid
-  fecha_creacion      DateTime   @default(now())
-  fecha_edicion       DateTime   @updatedAt
+  creado_en           DateTime   @default(now()) @db.Timestamptz
+  actualizado_en      DateTime   @updatedAt @db.Timestamptz
 
-  categoria     Categorias      @relation(fields: [id_categoria], references: [id])
   instructor    Instructores    @relation(fields: [id_instructor], references: [id])
   admin_creador Perfiles        @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   modulos       Modulos[]
   certificados  Certificados[]
   inscripciones Inscripciones[]
+  categorias    CursoCategorias[]
 
-  @@index([id_categoria])
   @@index([id_instructor])
   @@map("cursos")
 }
 
 model Modulos {
-  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_curso String @db.Uuid
-  titulo   String
-  orden    Int    @default(0)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso       String   @db.Uuid
+  titulo         String
+  orden          Int      @default(0)
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
 
   curso     Cursos      @relation(fields: [id_curso], references: [id], onDelete: Cascade)
   lecciones Lecciones[]
@@ -248,12 +274,14 @@ model Lecciones {
   duracion             Int?
   estado_procesamiento EstadoProcesamientoLeccion @default(SUBIENDO)
   resumen              String?
+  creado_en            DateTime                   @default(now()) @db.Timestamptz
+  actualizado_en       DateTime                   @updatedAt @db.Timestamptz
 
   modulo   Modulos                @relation(fields: [id_modulo], references: [id], onDelete: Cascade)
   progreso Progreso[]
   recursos RecursosDescargables[]
 
-  @@index([id_modulo])
+  @@index([id_modulo, orden])
   @@map("lecciones")
 }
 
@@ -267,7 +295,8 @@ model Progreso {
   id_leccion          String   @db.Uuid
   completado          Boolean  @default(false)
   segundo_actual      Int      @default(0)
-  fecha_actualizacion DateTime @updatedAt
+  creado_en           DateTime @default(now()) @db.Timestamptz
+  actualizado_en      DateTime @updatedAt @db.Timestamptz
 
   usuario Perfiles  @relation(fields: [id_usuario], references: [id])
   leccion Lecciones @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
@@ -280,7 +309,8 @@ model Certificados {
   id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_usuario          String   @db.Uuid
   id_curso            String   @db.Uuid
-  fecha_emision       DateTime @default(now())
+  fecha_emision       DateTime @default(now()) @db.Timestamptz
+  actualizado_en      DateTime @updatedAt @db.Timestamptz
   codigo_verificacion String   @unique
   archivo_pdf         String?
 
@@ -309,7 +339,8 @@ model CodigosInvitacion {
   limite_usos       Int?
   veces_usado       Int      @default(0)
   activo            Boolean  @default(true)
-  fecha_creacion    DateTime @default(now())
+  creado_en         DateTime @default(now()) @db.Timestamptz
+  actualizado_en    DateTime @updatedAt @db.Timestamptz
 
   plan          Planes          @relation(fields: [id_plan], references: [id])
   admin_creador Perfiles?       @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
@@ -326,6 +357,8 @@ model Cupones {
   fecha_vencimiento DateTime
   limite_usos       Int?
   veces_usado       Int           @default(0)
+  creado_en         DateTime      @default(now()) @db.Timestamptz
+  actualizado_en    DateTime      @updatedAt @db.Timestamptz
 
   suscripciones Suscripciones[]
 
@@ -333,11 +366,13 @@ model Cupones {
 }
 
 model Inscripciones {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_usuario   String     @db.Uuid
-  id_curso     String     @db.Uuid
-  otorgado_por String?    @db.Uuid
-  tipo_acceso  TipoAcceso
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario     String     @db.Uuid
+  id_curso       String     @db.Uuid
+  otorgado_por   String?    @db.Uuid
+  tipo_acceso    TipoAcceso
+  creado_en      DateTime   @default(now()) @db.Timestamptz
+  actualizado_en DateTime   @updatedAt @db.Timestamptz
 
   usuario      Perfiles  @relation("InscripcionesDelUsuario", fields: [id_usuario], references: [id])
   curso        Cursos    @relation(fields: [id_curso], references: [id])
@@ -353,7 +388,10 @@ model BitacoraAdministrativa {
   accion              String
   id_entidad_afectada String?  @db.Uuid
   entidad_afectada    String
-  fecha               DateTime @default(now())
+  /// Log de solo-lectura (append-only): a propósito no tiene
+  /// actualizado_en, ver docs/technical-spec.md — una fila de bitácora
+  /// nunca se edita después de creada.
+  creado_en           DateTime @default(now()) @db.Timestamptz
   detalles            String?
 
   admin Perfiles @relation(fields: [id_admin], references: [id])
@@ -369,7 +407,8 @@ model EventosWebhook {
   tipo_evento       String
   payload           Json
   procesado         Boolean  @default(false)
-  fecha_recibida    DateTime @default(now())
+  creado_en         DateTime @default(now()) @db.Timestamptz
+  actualizado_en    DateTime @updatedAt @db.Timestamptz
 
   @@map("eventos_webhook")
 }
@@ -381,7 +420,8 @@ model RecursosDescargables {
   tipo_archivo   String
   url_archivo    String
   tamano_bytes   Int?
-  fecha_creacion DateTime @default(now())
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
 
   leccion Lecciones @relation(fields: [id_leccion], references: [id])
 

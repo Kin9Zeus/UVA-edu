@@ -357,6 +357,14 @@ protección sigue activa (ahora solo vía el trigger).
 20. `019_cuenta_activa_rls.sql` — bloquea escritura nueva (autoinscripción,
     progreso) de una cuenta suspendida a nivel de RLS, complementando el
     `signOut` proactivo de `suspenderActivarUsuario()`.
+21. `020_actualiza_verificar_certificado_timestamptz.sql` — ajusta el tipo
+    de retorno de `verificar_certificado()` (requiere antes
+    `prisma migrate deploy` con la migración
+    `20260824010000_estandariza_timestamps`, que cambia
+    `certificados.fecha_emision` a `timestamptz`).
+22. `021_rls_curso_categorias.sql` — RLS de `curso_categorias`, la tabla
+    puente curso↔categoría (requiere antes `prisma migrate deploy` con la
+    migración `20260824030000_curso_categorias_muchos_a_muchos`).
 
 `018_revierte_with_check_duplicado_perfiles.sql` **no** es parte de esta
 secuencia para un ambiente nuevo: en un proyecto que solo corrió 001-017
