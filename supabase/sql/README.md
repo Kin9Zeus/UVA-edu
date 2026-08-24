@@ -41,10 +41,17 @@ son un pipeline propio — automatizado y verificable, que es lo que importaba.
 
 ### Idempotencia
 
-Los scripts están escritos para re-ejecutarse (`drop policy if exists`,
-`create or replace function`, `add constraint` capturando `duplicate_object`,
-`cron.unschedule` antes de `cron.schedule`), así que correr `db:rls` sobre una
-base ya al día no cambia nada. El único `DELETE` del lote vive dentro del cuerpo
+Los scripts se re-ejecutan sin efecto (`drop policy if exists` antes de cada
+`create policy`, `create or replace function`, `add constraint` capturando
+`duplicate_object`, `cron.unschedule` antes de `cron.schedule`), así que correr
+`db:rls` sobre una base ya al día no cambia nada.
+
+Postgres no tiene `create or replace policy`, así que ese par `drop`/`create` es
+la única forma de lograrlo. **`001` no lo tenía** —se escribió antes de que se
+adoptara el idiom en `002`— y fallaba con «policy ... already exists» en la
+segunda corrida. Lo detectó `npm run db:rls:check` la primera vez que se usó,
+sin haber escrito nada. Si agregas un script nuevo, corre `db:rls:check` dos
+veces: la idempotencia es una afirmación que se verifica, no que se supone. El único `DELETE` del lote vive dentro del cuerpo
 de `private.limpiar_usuarios_no_verificados()` (`010`) y solo lo dispara el cron
 diario, nunca la aplicación del script.
 

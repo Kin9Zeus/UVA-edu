@@ -38,10 +38,15 @@
  *
  * Idempotencia
  * ------------
- * Los scripts ya estaban escritos para re-ejecutarse (`drop policy if
- * exists`, `create or replace function`, `add constraint` con captura de
- * `duplicate_object`, `cron.unschedule` antes de `cron.schedule`), así que
- * volver a correrlos sobre una base al día no cambia nada. El único DELETE
+ * Los scripts se re-ejecutan sin efecto (`drop policy if exists` antes de
+ * cada `create policy`, `create or replace function`, `add constraint` con
+ * captura de `duplicate_object`, `cron.unschedule` antes de
+ * `cron.schedule`), así que volver a correrlos sobre una base al día no
+ * cambia nada. No siempre fue así: `001` creaba sus 10 políticas sin el
+ * `drop` previo y fallaba con «already exists» en la segunda corrida —
+ * lo detectó `--check` la primera vez que se usó, antes de escribir nada.
+ * Ese es el punto de `--check`: la idempotencia es una afirmación que hay
+ * que verificar, no suponer. El único DELETE
  * del lote vive dentro del cuerpo de `private.limpiar_usuarios_no_verificados()`
  * (010) y solo lo dispara el cron, no la aplicación del script.
  *
