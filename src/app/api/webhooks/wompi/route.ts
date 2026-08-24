@@ -1,21 +1,105 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
+import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+
+/**
+ * Estructura del evento de Wompi que este handler necesita. `signature`
+ * viaja DENTRO del cuerpo (no en una cabecera, a diferencia de Stripe y Mux):
+ * `properties` lista las rutas cuyos valores entran al checksum, en orden.
+ */
+type EventoWompi = {
+  event?: string;
+  data?: Record<string, unknown>;
+  timestamp?: number;
+  signature?: { properties?: string[]; checksum?: string };
+};
+
+/** Resuelve "transaction.id" contra `data`. Devuelve "" si el camino no existe. */
+function valorEnRuta(data: Record<string, unknown> | undefined, ruta: string): string {
+  let actual: unknown = data;
+  for (const segmento of ruta.split(".")) {
+    if (typeof actual !== "object" || actual === null) return "";
+    actual = (actual as Record<string, unknown>)[segmento];
+  }
+  return actual === undefined || actual === null ? "" : String(actual);
+}
+
+function comparaSeguro(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  // timingSafeEqual exige la misma longitud; comparar antes no filtra nada
+  // útil, porque la longitud del checksum es fija y pública.
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 export async function POST(request: NextRequest) {
-  const payload = await request.json();
+  // OJO: es el "Secreto de eventos" del dashboard de Wompi, NO WOMPI_PRV_KEY.
+  // La llave privada firma la integridad del checkout (el widget de pago); los
+  // eventos usan un secreto aparte. Son valores distintos y confundirlos hace
+  // que toda firma legítima se rechace.
+  const secret = process.env.WOMPI_EVENTS_SECRET;
+  if (!secret) {
+    console.error("[webhook:wompi] falta WOMPI_EVENTS_SECRET; no se procesa nada");
+    return NextResponse.json({ error: "webhook no configurado" }, { status: 500 });
+  }
 
-  // TODO: verificar la firma comparando el checksum en payload.signature
-  // contra el hash calculado con WOMPI_PRV_KEY, según el algoritmo de
-  // Wompi Events. Responder 400 si la verificación falla.
-  console.log("[webhook:wompi] evento recibido", { event: payload?.event });
+  const crudo = await request.text();
 
-  // TODO: antes de procesar cualquier lógica de negocio, registrar el id
-  // del evento como id_evento_externo en la tabla eventos_webhook
-  // (createAdminClient() de "@/lib/supabase/admin"). Si ya existe un
-  // registro con procesado = true, responder 200 OK sin reprocesar
-  // (idempotencia — functional-spec.md §5.2, technical-spec.md §7).
+  let evento: EventoWompi;
+  try {
+    evento = JSON.parse(crudo) as EventoWompi;
+  } catch {
+    return NextResponse.json({ error: "cuerpo inválido" }, { status: 400 });
+  }
 
-  // TODO: aplicar la lógica de negocio según payload.event (activar
-  // suscripción, registrar Pago, etc.) y marcar procesado = true.
+  const propiedades = evento.signature?.properties;
+  const checksumRecibido = evento.signature?.checksum;
+  if (!Array.isArray(propiedades) || !checksumRecibido || evento.timestamp === undefined) {
+    return NextResponse.json({ error: "falta la firma" }, { status: 400 });
+  }
 
+  // Wompi Eventos: SHA256( concat(valores de properties, en orden)
+  //                        + timestamp + secreto de eventos ).
+  // Es un hash plano, no un HMAC — el secreto va concatenado al final.
+  const concatenado =
+    propiedades.map((ruta) => valorEnRuta(evento.data, ruta)).join("") +
+    String(evento.timestamp) +
+    secret;
+  const checksumEsperado = createHash("sha256").update(concatenado, "utf8").digest("hex");
+
+  if (!comparaSeguro(checksumEsperado.toLowerCase(), checksumRecibido.toLowerCase())) {
+    console.error("[webhook:wompi] checksum inválido");
+    return NextResponse.json({ error: "firma inválida" }, { status: 400 });
+  }
+
+  // Wompi no manda un id de evento propio. El checksum sirve como clave de
+  // idempotencia: depende de los valores del evento MÁS su timestamp, así que
+  // un reenvío del mismo evento da el mismo checksum (se detecta como
+  // duplicado) y dos cambios de estado distintos de la misma transacción dan
+  // checksums distintos (se procesan ambos, como corresponde).
+  const registro = await registrarEvento({
+    proveedor: "wompi",
+    idEventoExterno: checksumRecibido,
+    tipoEvento: evento.event ?? "desconocido",
+    payload: evento,
+  });
+
+  if (registro.estado === "duplicado") {
+    return NextResponse.json({ received: true, duplicado: true });
+  }
+  if (registro.estado === "error") {
+    console.error("[webhook:wompi] no se pudo registrar el evento:", registro.mensaje);
+    return NextResponse.json({ error: "no se pudo registrar el evento" }, { status: 500 });
+  }
+
+  // TODO: lógica de negocio por evento.event — transaction.updated con
+  // status APPROVED activa la Suscripción y registra el Pago; DECLINED/VOIDED
+  // la dejan sin activar (functional-spec.md Flujo 06). Pendiente por lo mismo
+  // que Stripe: no existe todavía el checkout que crea la transacción, así que
+  // no hay contra qué conciliar. Va AQUÍ, con firma e idempotencia ya
+  // resueltas arriba.
+  console.log("[webhook:wompi] evento verificado", { evento: evento.event });
+
+  await marcarProcesado(checksumRecibido);
   return NextResponse.json({ received: true });
 }

@@ -14,7 +14,8 @@
     "db:seed:clean": "tsx prisma/seed.ts --clean",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
-    "test:rls": "tsx scripts/rls-test.ts"
+    "test:rls": "tsx scripts/rls-test.ts",
+    "test:webhooks": "tsx scripts/webhook-test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
