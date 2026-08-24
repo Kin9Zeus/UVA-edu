@@ -49,7 +49,7 @@ export function InicioContent({
                 className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
               >
                 <div
-                  className="relative h-[100px] overflow-hidden rounded-uva-sm"
+                  className="relative aspect-video overflow-hidden rounded-uva-sm"
                   style={esPortadaReal(clase.imagenPortada) ? undefined : PORTADA_TRAMA}
                 >
                   {esPortadaReal(clase.imagenPortada) && (

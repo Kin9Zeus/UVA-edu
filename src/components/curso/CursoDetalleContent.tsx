@@ -117,10 +117,10 @@ export function CursoDetalleContent({
           <img
             src={curso.imagenPortada}
             alt=""
-            className="h-[196px] w-full rounded-uva-md object-cover"
+            className="aspect-video w-full rounded-uva-md object-cover"
           />
         ) : (
-          <div className="h-[196px] overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
+          <div className="aspect-video overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
         )}
 
         {curso.tieneAcceso ? (

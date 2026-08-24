@@ -135,7 +135,7 @@ export function InfoTab({
       </div>
 
       <div>
-        <Label>Imagen / thumbnail</Label>
+        <Label>Portada</Label>
         {errorPortada && (
           <div
             role="alert"
@@ -148,13 +148,13 @@ export function InfoTab({
           type="button"
           onClick={() => inputPortadaRef.current?.click()}
           disabled={subiendoPortada}
-          className="block w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
+          className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
         >
           {esPortadaReal(imagenPortada) ? (
             // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-            <img src={imagenPortada} alt="" className="h-[140px] w-full object-cover" />
+            <img src={imagenPortada} alt="" className="size-full object-cover" />
           ) : (
-            <div className="px-4 py-[30px]">
+            <div className="flex size-full items-center justify-center px-4">
               {subiendoPortada ? (
                 "Subiendo…"
               ) : (
@@ -170,6 +170,9 @@ export function InfoTab({
             {subiendoPortada ? "Subiendo…" : "Click en la imagen para reemplazarla."}
           </p>
         )}
+        <p className="mt-1 text-xs text-uva-text-faint">
+          Recomendado: 1280×720px (relación 16:9), como se ve en la vista previa.
+        </p>
         <input
           ref={inputPortadaRef}
           type="file"

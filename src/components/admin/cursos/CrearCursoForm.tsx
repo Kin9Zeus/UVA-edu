@@ -184,7 +184,7 @@ export function CrearCursoForm({
         </div>
 
         <div>
-          <Label>Imagen / thumbnail</Label>
+          <Label>Portada</Label>
           {errorPortada && (
             <div
               role="alert"
@@ -196,13 +196,13 @@ export function CrearCursoForm({
           <button
             type="button"
             onClick={() => inputPortadaRef.current?.click()}
-            className="block w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint"
+            className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint"
           >
             {previewPortada ? (
               // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
-              <img src={previewPortada} alt="" className="h-[140px] w-full object-cover" />
+              <img src={previewPortada} alt="" className="size-full object-cover" />
             ) : (
-              <div className="px-4 py-[30px]">
+              <div className="flex size-full items-center justify-center px-4">
                 Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
               </div>
             )}
@@ -210,6 +210,9 @@ export function CrearCursoForm({
           {previewPortada && (
             <p className="mt-1.5 text-xs text-uva-text-faint">Click en la imagen para reemplazarla.</p>
           )}
+          <p className="mt-1 text-xs text-uva-text-faint">
+            Recomendado: 1280×720px (relación 16:9), como se ve en la vista previa.
+          </p>
           <input
             ref={inputPortadaRef}
             type="file"

@@ -92,12 +92,12 @@ export function CursoDetalleView({
           <img
             src={imagenPortada}
             alt=""
-            className="h-11 w-16 shrink-0 rounded-lg object-cover"
+            className="aspect-video h-11 shrink-0 rounded-lg object-cover"
           />
         ) : (
           <div
             aria-hidden
-            className="h-11 w-16 shrink-0 rounded-lg bg-uva-surface-2"
+            className="aspect-video h-11 shrink-0 rounded-lg bg-uva-surface-2"
             style={{
               backgroundImage:
                 "repeating-linear-gradient(135deg, rgba(250,250,250,.05) 0 2px, transparent 2px 9px)",

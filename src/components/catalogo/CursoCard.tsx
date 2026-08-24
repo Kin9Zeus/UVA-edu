@@ -22,7 +22,7 @@ export function CursoCard({
       href={`/cursos/${curso.id}`}
       className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface hover:border-uva-text-faint"
     >
-      <div className="relative h-[132px]" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
+      <div className="relative aspect-video" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
         {esPortadaReal(curso.imagenPortada) && (
           // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
           <img
