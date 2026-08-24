@@ -24,10 +24,10 @@ export function Hero() {
         </p>
 
         <Link
-          href="/login"
+          href="/catalogo"
           className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-text no-underline shadow-[0_10px_30px_rgba(255,0,122,0.28)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         >
-          Iniciar sesión
+          Ver catálogo
         </Link>
 
         <div className="mt-9 flex flex-wrap justify-center gap-[clamp(24px,4vw,48px)]">

@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
-import { SearchIcon } from "@/components/home/icons";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -31,17 +29,6 @@ export function Header() {
       >
         U.V.A<span className="text-uva-accent">.</span>
       </Link>
-
-      <div className="relative hidden max-w-[400px] flex-1 min-[861px]:block">
-        <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-uva-text-faint">
-          <SearchIcon />
-        </span>
-        <Input
-          type="search"
-          placeholder="¿Qué quieres aprender?"
-          className="h-[46px] pl-[42px] focus-visible:outline-offset-2"
-        />
-      </div>
 
       <nav
         className="flex shrink-0 items-center gap-7"

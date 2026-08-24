@@ -11,6 +11,7 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
   1. `docs/functional-spec.md` (Reglas de negocio, flujos E2E y matriz de permisos).
   2. `docs/technical-spec.md` (Stack, esquema Postgres, RLS y variables de entorno).
   3. `design-spec/` (carpeta, no archivo — handoff exportado directamente desde Claude Design). **Antes de construir cualquier UI, lee `design-spec/README.md` y luego `design-spec/project/Uva - Mockups.dc.html` completo**, siguiendo sus imports (`_ds/`, `image-slot.js`, `support.js`). Recrea cada una de las 12 pantallas pixel-perfecto en Next.js + TypeScript + Tailwind CSS — igualando el resultado visual, sin copiar la estructura interna del prototipo HTML. Ver también `design-spec/NOTA.md`.
+  3.1. `design-spec-errores/` (carpeta separada, handoff independiente también de Claude Design — solo las pantallas de error: 404, 403 rol incorrecto, 403 cuenta suspendida, 500). Lee `design-spec-errores/README.md` primero: ya documenta el patrón `.error-shell` / `.error-shell--standalone` para que funcione tanto dentro del layout con sidebar (dashboard/admin) como en rutas públicas, y la variante única del 403 parametrizada por `Motivo: 'ROL' | 'SUSPENDIDA'`.
   4. `docs/development-plan.md` (Fases del MVP, tareas y criterios de aceptación).
 
 ---

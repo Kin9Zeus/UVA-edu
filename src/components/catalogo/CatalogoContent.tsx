@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import {
   Select,
@@ -11,9 +12,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CursoCard } from "@/components/catalogo/CursoCard";
+import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
 import type { CategoriaDetalle } from "@/lib/categoria";
 
-export function CatalogoContent({
+export function CatalogoContent(props: {
+  categorias: CategoriaDetalle[];
+  basePath?: string;
+  volverHref?: string;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <CatalogoContentInner {...props} />
+    </Suspense>
+  );
+}
+
+function CatalogoContentInner({
   categorias,
   basePath = "/catalogo",
   volverHref = "/",
@@ -22,7 +36,9 @@ export function CatalogoContent({
   basePath?: string;
   volverHref?: string;
 }) {
+  const searchParams = useSearchParams();
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [busqueda, setBusqueda] = useState(searchParams.get("q") ?? "");
 
   const categoriaItems = useMemo(
     () => ({
@@ -32,13 +48,41 @@ export function CatalogoContent({
     [categorias],
   );
 
-  const categoriasFiltradas = useMemo(
+  // Opciones del dropdown del buscador: el listado completo de cursos, sin
+  // acotar por la categoría seleccionada (son ejes de filtro independientes).
+  const opcionesBusqueda = useMemo(
     () =>
+      categorias.flatMap((categoria) =>
+        categoria.cursos.map((curso) => ({
+          id: curso.id,
+          titulo: curso.titulo,
+          instructorNombre: curso.instructorNombre,
+        })),
+      ),
+    [categorias],
+  );
+
+  const terminoBusqueda = busqueda.trim().toLowerCase();
+
+  const categoriasFiltradas = useMemo(() => {
+    const porCategoria =
       filtroCategoria === "todas"
         ? categorias
-        : categorias.filter((categoria) => categoria.id === filtroCategoria),
-    [categorias, filtroCategoria],
-  );
+        : categorias.filter((categoria) => categoria.id === filtroCategoria);
+
+    if (!terminoBusqueda) return porCategoria;
+
+    return porCategoria
+      .map((categoria) => ({
+        ...categoria,
+        cursos: categoria.cursos.filter(
+          (curso) =>
+            curso.titulo.toLowerCase().includes(terminoBusqueda) ||
+            curso.instructorNombre.toLowerCase().includes(terminoBusqueda),
+        ),
+      }))
+      .filter((categoria) => categoria.cursos.length > 0);
+  }, [categorias, filtroCategoria, terminoBusqueda]);
 
   return (
     <div className="mx-auto flex max-w-[1320px] flex-col gap-10 px-[clamp(20px,3vw,44px)] py-8">
@@ -72,11 +116,21 @@ export function CatalogoContent({
               ))}
             </SelectContent>
           </Select>
+          <BuscadorInput
+            placeholder="Buscar por curso o instructor"
+            valorInicial={busqueda}
+            opciones={opcionesBusqueda}
+            onBuscar={setBusqueda}
+          />
         </div>
       </div>
 
       {categoriasFiltradas.length === 0 ? (
-        <p className="text-sm text-uva-text-muted">Todavía no hay cursos publicados. Vuelve pronto.</p>
+        <p className="text-sm text-uva-text-muted">
+          {terminoBusqueda
+            ? "No encontramos cursos que coincidan con tu búsqueda."
+            : "Todavía no hay cursos publicados. Vuelve pronto."}
+        </p>
       ) : (
         <div className="flex flex-col gap-11">
           {categoriasFiltradas.map((categoria) => (
