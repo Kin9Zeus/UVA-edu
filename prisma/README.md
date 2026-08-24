@@ -55,7 +55,7 @@ ALLOW_SEED=true npm run db:seed:clean
 
 ### Qué crea
 
-**5 usuarios** — creados con `supabase.auth.admin.createUser({ email_confirm: true })`
+**6 usuarios** — creados con `supabase.auth.admin.createUser({ email_confirm: true })`
 usando la `SUPABASE_SERVICE_ROLE_KEY`. Prisma no puede crear cuentas de Supabase
 Auth, así que el flujo es: Admin API → el trigger `on_auth_user_created` inserta
 la fila en `perfiles` como `ESTUDIANTE`/`ACTIVO` → el seed espera a que aparezca
@@ -66,9 +66,17 @@ y **luego** corrige rol y estado con Prisma (única forma de obtener un
 | :-- | :-- | :-- | :-- | :-- |
 | `admin@uva.test` | `UvaSeed2026!` | ADMINISTRADOR | ACTIVO | — |
 | `estudiante-activo@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ACTIVA (+ una CANCELADA de historial) |
-| `estudiante-sin-plan@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ninguna |
-| `estudiante-suspendido@uva.test` | `UvaSeed2026!` | ESTUDIANTE | SUSPENDIDO | VENCIDA |
+| `estudiante-sin-plan@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ninguna (acceso manual vía cortesía) |
+| `estudiante-suspendido@uva.test` | `UvaSeed2026!` | ESTUDIANTE | SUSPENDIDO | VENCIDA (sin acceso) |
 | `estudiante-pastdue@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | PAST_DUE |
+| `estudiante-por-codigo@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ACTIVA, vía código de invitación |
+
+Las 3 variantes de acceso de estudiante que pide el checklist de seed quedan
+cubiertas así: **sin acceso** → `estudiante-suspendido` (cuenta suspendida, sin
+suscripción vigente); **acceso manual** → `estudiante-sin-plan` (inscripción
+`CORTESIA` otorgada por el admin, sin pasar por Stripe/Wompi); **acceso por
+código** → `estudiante-por-codigo` (suscripción con las mismas columnas que
+dejaría un canje real de `public.canjear_codigo_invitacion()`).
 
 **Contenido y operación:**
 
@@ -82,10 +90,13 @@ y **luego** corrige rol y estado con Prisma (única forma de obtener un
   28 lecciones en `LISTO`; 1 en `PROCESANDO` y 1 en `SUBIENDO` — estas dos sin
   `id_video_mux`, que es como se ven realmente antes de que Mux notifique
   (Flujo 09 de `docs/functional-spec.md`).
-- 4 suscripciones cubriendo los 4 estados del Flujo 06.
+- 5 suscripciones: los 4 estados del Flujo 06 más una `ACTIVA` con
+  `proveedor = "invitacion"` para `estudiante-por-codigo`.
 - 3 pagos (2 `EXITOSO`, 1 `FALLIDO`).
 - 4 cupones: `PORCENTAJE` vigente, `MONTO_FIJO` vigente, uno vencido y uno con
   `veces_usado == limite_usos`.
+- 1 código de invitación con cupo disponible (`UVA-BIENVENIDA-2026`, 10/25
+  usos), ya canjeado una vez por `estudiante-por-codigo`.
 - 2 inscripciones: una `MEMBRESIA` con `otorgado_por = null` (como exige la
   policy `inscripciones_insert_propio`) y una `CORTESIA` otorgada por el admin
   (Flujo 11).

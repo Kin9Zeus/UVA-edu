@@ -311,6 +311,36 @@ coincidir con lo que producen estos archivos corridos en orden desde
 cero. Verificado por `scripts/rls-test.ts` tras el revert: la
 protección sigue activa (ahora solo vía el trigger).
 
+### `022_rate_limit_login_y_recuperacion.sql`
+Rate limiting real (server-side) para dos flujos que no lo tenían
+(`revisionLogin.md`, checklist de calidad senior del módulo de Auth):
+
+- **Login** (`src/actions/auth/login.ts`): `private.intentos_login` +
+  `public.verificar_intentos_login(p_correo)` /
+  `public.registrar_login_fallido(p_correo)` /
+  `public.limpiar_intentos_login(p_correo)`. Máximo 5 intentos fallidos
+  por correo en una ventana de 15 minutos; al quinto fallo, bloquea 15
+  minutos más. `login.ts` chequea el bloqueo *antes* de llamar a
+  `signInWithPassword` (para no gastar la cuota de Supabase Auth en un
+  correo ya bloqueado), registra el fallo si las credenciales son
+  incorrectas, y limpia el contador en un login exitoso. Un
+  `email_not_confirmed` no cuenta como intento fallido — no es una
+  contraseña incorrecta.
+- **Recuperación de contraseña** (`src/actions/auth/recuperar.ts`):
+  `private.recuperacion_reenvios` + `public.registrar_solicitud_recuperacion(p_correo)`,
+  mismo patrón exacto que `009` (1 solicitud por correo cada 60
+  segundos). Si el límite bloquea el envío, `recuperar.ts` **sigue
+  respondiendo el mismo mensaje de éxito neutro de siempre** — bloquear
+  el correo no debe traducirse en una respuesta distinta que delate el
+  estado de la cuenta.
+
+Mismo criterio de exposición que `007`/`009`: funciones en `public`
+porque el backend solo puede llamarlas vía `supabase.rpc(...)` con la
+Service Role Key, `EXECUTE` revocado a `PUBLIC`/`anon`/`authenticated` y
+otorgado solo a `service_role`. Igual que `009`, el límite se aplica por
+el string de correo tal cual se recibió, sin depender de que la cuenta
+exista, para no filtrar existencia de cuentas por timing.
+
 ## Orden de ejecución (proyecto nuevo, desde cero)
 
 1. `npx prisma migrate deploy` — crea y actualiza todas las tablas a partir
@@ -365,6 +395,8 @@ protección sigue activa (ahora solo vía el trigger).
 22. `021_rls_curso_categorias.sql` — RLS de `curso_categorias`, la tabla
     puente curso↔categoría (requiere antes `prisma migrate deploy` con la
     migración `20260824030000_curso_categorias_muchos_a_muchos`).
+23. `022_rate_limit_login_y_recuperacion.sql` — rate limit de intentos de
+    login y de solicitudes de recuperación de contraseña.
 
 `018_revierte_with_check_duplicado_perfiles.sql` **no** es parte de esta
 secuencia para un ambiente nuevo: en un proyecto que solo corrió 001-017
@@ -410,7 +442,7 @@ distintos (sesión nueva que el propio usuario intenta crear vs. sesiones
 previas que un admin corta desde el panel) y no comparten cliente ni
 estado.
 
-Repetir los pasos 1-20 en cada entorno nuevo (Staging y Production son
+Repetir los pasos 1-23 en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
 
 ## Prueba de RLS con 3 sesiones

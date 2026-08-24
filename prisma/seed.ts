@@ -36,15 +36,25 @@
  * la fila en `perfiles` como ESTUDIANTE/ACTIVO, y este script corrige después
  * rol y estado con Prisma donde hace falta:
  *
- *   | correo                          | rol           | estado     | suscripción      |
- *   |---------------------------------|---------------|------------|------------------|
- *   | admin@uva.test                  | ADMINISTRADOR | ACTIVO     | —                |
- *   | estudiante-activo@uva.test      | ESTUDIANTE    | ACTIVO     | ACTIVA (+ hist.) |
- *   | estudiante-sin-plan@uva.test    | ESTUDIANTE    | ACTIVO     | ninguna          |
- *   | estudiante-suspendido@uva.test  | ESTUDIANTE    | SUSPENDIDO | VENCIDA          |
- *   | estudiante-pastdue@uva.test     | ESTUDIANTE    | ACTIVO     | PAST_DUE         |
+ *   | correo                          | rol           | estado     | suscripción         |
+ *   |---------------------------------|---------------|------------|---------------------|
+ *   | admin@uva.test                  | ADMINISTRADOR | ACTIVO     | —                   |
+ *   | estudiante-activo@uva.test      | ESTUDIANTE    | ACTIVO     | ACTIVA (+ hist.)    |
+ *   | estudiante-sin-plan@uva.test    | ESTUDIANTE    | ACTIVO     | ninguna (acceso manual, cortesía) |
+ *   | estudiante-suspendido@uva.test  | ESTUDIANTE    | SUSPENDIDO | VENCIDA (sin acceso)|
+ *   | estudiante-pastdue@uva.test     | ESTUDIANTE    | ACTIVO     | PAST_DUE            |
+ *   | estudiante-por-codigo@uva.test  | ESTUDIANTE    | ACTIVO     | ACTIVA vía código   |
  *
  *   Contraseña de todos: ver la constante PASSWORD_PRUEBA más abajo.
+ *
+ *   Las 3 variantes de acceso de estudiante pedidas en el checklist de
+ *   seed quedan cubiertas así: sin acceso -> estudiante-suspendido (cuenta
+ *   suspendida, sin suscripción vigente); acceso manual ->
+ *   estudiante-sin-plan (inscripción CORTESIA otorgada por el admin, sin
+ *   pasar por Stripe/Wompi); acceso por código -> estudiante-por-codigo
+ *   (suscripción creada por public.canjear_codigo_invitacion(), mismas
+ *   columnas que dejaría un canje real: proveedor "invitacion",
+ *   monto_centavos 0, id_codigo_invitacion apuntando al código sembrado).
  *
  * Contenido y operación:
  *   - 4 categorías temáticas (arquitectura / construcción).
@@ -60,6 +70,8 @@
  *     con el límite de usos agotado.
  *   - 2 inscripciones: una MEMBRESIA y una CORTESIA otorgada por el admin
  *     (Flujo 11 de docs/functional-spec.md).
+ *   - 1 código de invitación con cupo disponible (UVA-BIENVENIDA-2026,
+ *     10 de 25 usos), ya canjeado una vez por estudiante-por-codigo.
  *   - 2 filas de progreso (una completada, una a mitad de video).
  *   - 1 certificado con código de verificación único.
  *   - 2 recursos descargables.
@@ -141,6 +153,12 @@ const USUARIOS = [
     rol: "ESTUDIANTE" as const,
     estado: "ACTIVO" as const,
   },
+  {
+    correo: `estudiante-por-codigo${DOMINIO_SEED}`,
+    nombre: "Simón Uribe",
+    rol: "ESTUDIANTE" as const,
+    estado: "ACTIVO" as const,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -171,6 +189,7 @@ const B = {
   progreso: "1d000000",
   certificado: "1e000000",
   recurso: "1f000000",
+  codigoInvitacion: "20000000",
 };
 
 // ---------------------------------------------------------------------------
@@ -491,6 +510,8 @@ const CODIGOS_CUPONES = [
   "LANZAMIENTO2025",
   "SOLO10CUPOS",
 ];
+const ID_CODIGO_INVITACION = uuid(B.codigoInvitacion, 1);
+const CODIGO_INVITACION = "UVA-BIENVENIDA-2026";
 
 /**
  * Borra todo lo que este seed puede haber creado, en orden inverso a las
@@ -538,6 +559,12 @@ async function limpiar(): Promise<void> {
     where: {
       OR: [{ id_usuario: { in: idsUsuarios } }, { otorgado_por: { in: idsUsuarios } }],
     },
+  });
+  // Después de suscripciones (FK id_codigo_invitacion) y antes de planes
+  // (FK id_plan), mismo criterio de orden que instructores/cupones: se
+  // borra por ID fijo o por código único, por si sobrevivió con otro id.
+  await prisma.codigosInvitacion.deleteMany({
+    where: { OR: [{ id: ID_CODIGO_INVITACION }, { codigo: CODIGO_INVITACION }] },
   });
   // No sembramos bitácora, pero si alguna acción real la escribió apuntando a
   // un admin de prueba, bloquearía el borrado del perfil.
@@ -687,6 +714,7 @@ async function sembrar(): Promise<void> {
   const idSinPlan = ids[`estudiante-sin-plan${DOMINIO_SEED}`];
   const idSuspendido = ids[`estudiante-suspendido${DOMINIO_SEED}`];
   const idPastDue = ids[`estudiante-pastdue${DOMINIO_SEED}`];
+  const idPorCodigo = ids[`estudiante-por-codigo${DOMINIO_SEED}`];
 
   // --- Categorías ---------------------------------------------------------
   await prisma.categorias.createMany({
@@ -735,6 +763,23 @@ async function sembrar(): Promise<void> {
     ],
   });
   console.log("💳 3 planes (2 activos, 1 descontinuado)");
+
+  // --- Código de invitación ------------------------------------------------
+  // Cupo disponible (veces_usado < limite_usos) para que se pueda probar un
+  // canje nuevo en desarrollo, además del que ya dejó estudiante-por-codigo.
+  await prisma.codigosInvitacion.create({
+    data: {
+      id: ID_CODIGO_INVITACION,
+      codigo: CODIGO_INVITACION,
+      id_plan: IDS_PLANES[0],
+      id_admin_creador: idAdmin,
+      fecha_vencimiento: enDias(90),
+      limite_usos: 25,
+      veces_usado: 10,
+      activo: true,
+    },
+  });
+  console.log(`🎫 1 código de invitación (${CODIGO_INVITACION}, 10/25 usos)`);
 
   // --- Instructores --------------------------------------------------------
   // Antes que los cursos: `cursos.id_instructor` es obligatorio.
@@ -878,9 +923,27 @@ async function sembrar(): Promise<void> {
         monto_centavos: 89_900_000,
         moneda: "COP",
       },
+      {
+        // Mismas columnas que dejaría un canje real de código de invitación
+        // (public.canjear_codigo_invitacion(), 017_canjear_codigo_invitacion.sql):
+        // proveedor "invitacion", monto_centavos 0, acceso_manual true y
+        // otorgado_por = el admin que creó el código.
+        id: uuid(B.suscripcion, 5),
+        id_usuario: idPorCodigo,
+        id_plan: IDS_PLANES[0],
+        fecha_inicio: enDias(-5),
+        fecha_renovacion: enDias(25),
+        estado: "ACTIVA",
+        proveedor: "invitacion",
+        monto_centavos: 0,
+        moneda: "COP",
+        id_codigo_invitacion: ID_CODIGO_INVITACION,
+        acceso_manual: true,
+        otorgado_por: idAdmin,
+      },
     ],
   });
-  console.log("🔁 4 suscripciones (ACTIVA, PAST_DUE, VENCIDA, CANCELADA)");
+  console.log("🔁 5 suscripciones (ACTIVA, PAST_DUE, VENCIDA, CANCELADA, ACTIVA vía código)");
 
   // --- Pagos --------------------------------------------------------------
   await prisma.pagos.createMany({
@@ -1084,6 +1147,9 @@ async function resumen(): Promise<void> {
       where: { suscripcion: { usuario: { correo: { endsWith: DOMINIO_SEED } } } },
     }),
     cupones: await prisma.cupones.count({ where: { codigo: { in: CODIGOS_CUPONES } } }),
+    codigos_invitacion: await prisma.codigosInvitacion.count({
+      where: { id: ID_CODIGO_INVITACION },
+    }),
     inscripciones: await prisma.inscripciones.count({
       where: { id_curso: { in: IDS_CURSOS } },
     }),
