@@ -2,7 +2,7 @@
 -- Verificación de correo obligatoria (Flujo 02, ampliación)
 -- Ver docs/functional-spec.md Flujo 02 y docs/technical-spec.md §5.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-007.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-007.
 --
 -- Mientras auth.users.email_confirmed_at sea nulo, el estudiante no
 -- puede autoinscribirse a una membresía ni registrar su progreso de

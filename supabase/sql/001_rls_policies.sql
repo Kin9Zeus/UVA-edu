@@ -2,7 +2,7 @@
 -- Row Level Security (RLS)
 -- Ver docs/technical-spec.md §5 (Seguridad y RLS).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de correr las
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de correr las
 -- migraciones de Prisma y el trigger de 000_trigger_perfiles.sql.
 --
 -- Regla general: se activa RLS en TODAS las tablas. Las tablas sin

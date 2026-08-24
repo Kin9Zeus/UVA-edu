@@ -2,7 +2,7 @@
 -- Reconciliación: dos arreglos independientes para la misma
 -- vulnerabilidad en `perfiles`
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-017.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-017.
 --
 -- Contexto: la auditoría de RLS encontró que "perfiles_update_propio"
 -- (001_rls_policies.sql) no restringía qué columnas podía cambiar el

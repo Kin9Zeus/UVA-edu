@@ -3,7 +3,7 @@
 -- Ver docs/technical-spec.md §5 (Seguridad y RLS) y
 -- docs/functional-spec.md §2.2 (Matriz de Accesos) y Flujo 11.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000, 001 y 002.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000, 001 y 002.
 -- No modifica ninguna política existente de 000/001/002 — solo agrega
 -- políticas nuevas sobre tablas que 001_rls_policies.sql dejó con RLS
 -- activo pero sin política propia (bloqueadas por completo salvo

@@ -2,7 +2,7 @@
 -- Row Level Security (RLS): Códigos de invitación
 -- Ver auditoría de RLS y prisma/migrations/20260824000000_agrega_codigos_invitacion.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-015 y de aplicar
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-015 y de aplicar
 -- la migración de Prisma que crea `codigos_invitacion`.
 --
 -- Mismo criterio que `cupones` (003_rls_membresia_y_gestion.sql):

@@ -12,6 +12,8 @@
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:seed:clean": "tsx prisma/seed.ts --clean",
+    "db:rls": "tsx scripts/apply-rls.ts",
+    "db:rls:check": "tsx scripts/apply-rls.ts --check",
     "test:rls": "tsx scripts/rls-test.ts"
   },
   "dependencies": {

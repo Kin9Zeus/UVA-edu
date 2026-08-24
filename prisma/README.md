@@ -9,7 +9,18 @@ va por `@supabase/supabase-js` para que actúe el RLS.
 - `seed.ts` — datos de prueba reproducibles (ver abajo).
 
 Las políticas RLS y el trigger `auth.users → perfiles` **no** viven aquí: son SQL
-plano en `supabase/sql/` (ver el README de esa carpeta).
+plano en `supabase/sql/`, y se aplican con `npm run db:rls` (ver el README de esa
+carpeta para el porqué de tenerlos en un pipeline aparte).
+
+> **Importante:** `prisma migrate deploy` deja las tablas, pero **no** las
+> políticas. Un entorno recién migrado tiene RLS activo y sin reglas hasta que
+> corras `db:rls`. La secuencia completa es:
+>
+> ```bash
+> npx prisma migrate deploy   # tablas
+> npm run db:rls              # políticas, triggers y funciones
+> npm run test:rls            # verificación
+> ```
 
 ---
 

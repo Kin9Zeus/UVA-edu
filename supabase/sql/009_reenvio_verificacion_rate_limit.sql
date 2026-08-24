@@ -2,7 +2,7 @@
 -- Rate limit del reenvío de verificación de correo (Flujo 02, ampliación)
 -- Ver docs/functional-spec.md Flujo 02 y docs/technical-spec.md §6.
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-008.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-008.
 --
 -- Usada por src/actions/auth/reenviar-verificacion.ts, vía
 -- createAdminClient() (Service Role Key). Limita a 1 reenvío del correo

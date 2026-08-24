@@ -3,7 +3,7 @@
 -- Ver Bloque 3 de la auditoría de esquema
 -- (prisma/migrations/20260824030000_curso_categorias_muchos_a_muchos).
 --
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de 000-020 y de correr
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-020 y de correr
 -- esa migración de Prisma.
 --
 -- Mismo criterio que "modulos_select_curso_publico" (001/002): la
