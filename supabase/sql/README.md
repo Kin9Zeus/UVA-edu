@@ -354,6 +354,9 @@ protección sigue activa (ahora solo vía el trigger).
     `20260824000000_agrega_codigos_invitacion`).
 19. `017_canjear_codigo_invitacion.sql` — función de canje de códigos de
     invitación.
+20. `019_cuenta_activa_rls.sql` — bloquea escritura nueva (autoinscripción,
+    progreso) de una cuenta suspendida a nivel de RLS, complementando el
+    `signOut` proactivo de `suspenderActivarUsuario()`.
 
 `018_revierte_with_check_duplicado_perfiles.sql` **no** es parte de esta
 secuencia para un ambiente nuevo: en un proyecto que solo corrió 001-017
@@ -362,7 +365,44 @@ que ese script revierte. Solo hace falta correrlo una vez en un proyecto
 que, como este, tuvo ambos arreglos aplicados por separado (ver su
 sección arriba).
 
-Repetir los pasos 1-19 en cada entorno nuevo (Staging y Production son
+### `019_cuenta_activa_rls.sql`
+Cierra el gap residual de invalidación de sesión al suspender una cuenta
+(auditoría de RLS). Tenía dos partes: `suspenderActivarUsuario()`
+(`src/actions/admin/usuarios.ts`) solo actualizaba `perfiles.estado` — la
+sesión ya abierta del usuario seguía siendo válida hasta la próxima
+request a una ruta protegida por `proxy.ts`. Esa parte se cerró en
+código: la Server Action ahora llama a
+`supabase.auth.admin.signOut(usuarioId, "global")` con el cliente de
+Service Role (`createAdminClient()`) justo después de marcar
+`SUSPENDIDO`, revocando toda sesión activa del usuario en el servidor de
+Auth. Si ese `signOut` falla, no aborta la acción (el estado ya quedó
+bien en la DB) — solo se loguea el error.
+
+Pero `admin.signOut("global")` invalida la sesión en Supabase Auth, no
+el JWT en sí — un access token ya emitido y todavía no expirado, usado
+directo contra la API REST (PostgREST) sin pasar por el middleware de
+Next.js, seguiría pasando cualquier policy que solo valide
+`auth.uid() = id_usuario`. Este script cierra esa segunda vía: agrega
+`private.cuenta_activa()` (mismo patrón que `private.correo_verificado()`,
+`008`) con `AND` a las 3 policies de escritura que ya exigían correo
+verificado — `inscripciones_insert_propio` (`008`), `progreso_insert_propio`
+y `progreso_update_propio` (`014`). Las dos capas se complementan: el
+`signOut` corta la sesión normal de inmediato (mejor UX, error claro en
+el próximo request); `cuenta_activa()` en RLS cierra el hueco del token
+todavía válido usado fuera del flujo normal de la app, sin depender de
+que el `signOut` se haya ejecutado con éxito.
+
+A propósito no toca ningún `SELECT`: un usuario suspendido sigue viendo
+su progreso histórico y certificados ya emitidos — algo que ya
+pagó/tiene legítimamente. Solo se bloquea que genere actividad nueva.
+
+No hay conflicto con `login.ts` (que ya hace su propio `auth.signOut()`
+local al detectar `SUSPENDIDO` en el intento de login): son casos
+distintos (sesión nueva que el propio usuario intenta crear vs. sesiones
+previas que un admin corta desde el panel) y no comparten cliente ni
+estado.
+
+Repetir los pasos 1-20 en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
 
 ## Prueba de RLS con 3 sesiones

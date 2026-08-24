@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
 export async function suspenderActivarUsuario(
@@ -18,6 +19,20 @@ export async function suspenderActivarUsuario(
     .eq("id", usuarioId);
 
   if (error) return { error: "No pudimos actualizar el estado del usuario." };
+
+  // Revocación proactiva: el chequeo de estado en proxy.ts solo actúa en la
+  // próxima request del usuario, así que sin esto una sesión ya abierta
+  // sigue siendo válida (JWT no expirado) hasta que expire por su cuenta.
+  // No aborta la acción si falla: el estado ya quedó bien en la DB, que es
+  // lo importante, y el trigger perfiles_bloquea_autopromocion +
+  // private.cuenta_activa() (018_cuenta_activa_rls.sql) siguen cerrando el
+  // acceso aunque el signOut global no se haya podido ejecutar.
+  if (nuevoEstado === "SUSPENDIDO") {
+    const { error: errorSignOut } = await createAdminClient().auth.admin.signOut(usuarioId, "global");
+    if (errorSignOut) {
+      console.error("No se pudo revocar la sesión del usuario suspendido:", errorSignOut);
+    }
+  }
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
