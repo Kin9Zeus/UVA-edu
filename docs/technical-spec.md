@@ -333,4 +333,11 @@ MUX\_WEBHOOK\_SECRET=
 MUX\_SIGNING\_KEY=
 
 \# Correo y Utilidades  
-RESEND\_API\_KEY=  
+RESEND\_API\_KEY=
+
+\# Observabilidad (Sentry — P1-3, AUDIT-2026-08-24.md)  
+NEXT\_PUBLIC\_SENTRY\_DSN= \# init del cliente (src/instrumentation-client.ts)  
+SENTRY\_DSN= \# init del servidor/edge (src/instrumentation.ts)  
+SENTRY\_ORG= \# opcional — solo para subir source maps en el build  
+SENTRY\_PROJECT= \# opcional — solo para subir source maps en el build  
+SENTRY\_AUTH\_TOKEN= \# opcional — solo para subir source maps en el build

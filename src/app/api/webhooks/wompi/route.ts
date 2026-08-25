@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+import { logError } from "@/lib/log";
 
 /**
  * Estructura del evento de Wompi que este handler necesita. `signature`
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   // que toda firma legítima se rechace.
   const secret = process.env.WOMPI_EVENTS_SECRET;
   if (!secret) {
-    console.error("[webhook:wompi] falta WOMPI_EVENTS_SECRET; no se procesa nada");
+    logError("webhook:wompi", "falta WOMPI_EVENTS_SECRET; no se procesa nada", null, { area: "webhook" });
     return NextResponse.json({ error: "webhook no configurado" }, { status: 500 });
   }
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
   const checksumEsperado = createHash("sha256").update(concatenado, "utf8").digest("hex");
 
   if (!comparaSeguro(checksumEsperado.toLowerCase(), checksumRecibido.toLowerCase())) {
-    console.error("[webhook:wompi] checksum inválido");
+    logError("webhook:wompi", "checksum inválido", null, { area: "webhook" });
     return NextResponse.json({ error: "firma inválida" }, { status: 400 });
   }
 
@@ -88,7 +89,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, duplicado: true });
   }
   if (registro.estado === "error") {
-    console.error("[webhook:wompi] no se pudo registrar el evento:", registro.mensaje);
+    logError("webhook:wompi", "no se pudo registrar el evento", null, {
+      area: "webhook",
+      mensaje: registro.mensaje,
+      checksum: checksumRecibido,
+    });
     return NextResponse.json({ error: "no se pudo registrar el evento" }, { status: 500 });
   }
 

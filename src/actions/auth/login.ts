@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 
 export type LoginState =
   | { error: string; pendingVerification?: never }
@@ -41,7 +42,7 @@ export async function login(
     .single();
 
   if (errorChequeo) {
-    console.error("[login] verificar_intentos_login rpc falló:", errorChequeo);
+    logError("login", "verificar_intentos_login rpc falló", errorChequeo);
   } else {
     const { permitido, segundos_espera } = chequeo as {
       permitido: boolean;
@@ -75,7 +76,7 @@ export async function login(
       p_correo: email,
     });
     if (errorRegistro) {
-      console.error("[login] registrar_login_fallido rpc falló:", errorRegistro);
+      logError("login", "registrar_login_fallido rpc falló", errorRegistro);
     }
 
     return { error: "Correo o contraseña incorrectos." };
@@ -99,7 +100,7 @@ export async function login(
     p_correo: email,
   });
   if (errorLimpieza) {
-    console.error("[login] limpiar_intentos_login rpc falló:", errorLimpieza);
+    logError("login", "limpiar_intentos_login rpc falló", errorLimpieza);
   }
 
   redirect(redirectTo);

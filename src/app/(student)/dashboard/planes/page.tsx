@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { PlanesContent } from "@/components/dashboard/PlanesContent";
+import { logError } from "@/lib/log";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Planes",
@@ -21,7 +22,7 @@ export default async function PlanesPage() {
     .order("orden", { ascending: true });
 
   if (error) {
-    console.error("[dashboard/planes] No se pudieron cargar los planes:", error.message);
+    logError("dashboard/planes", "No se pudieron cargar los planes", error);
   }
 
   return (

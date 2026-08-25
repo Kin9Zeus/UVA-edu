@@ -2,6 +2,7 @@ import { Webhook } from "standardwebhooks";
 import { NextResponse, type NextRequest } from "next/server";
 import { resend } from "@/lib/resend/client";
 import { RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-email";
+import { logError } from "@/lib/log";
 
 type SendEmailHookPayload = {
   user: { email: string };
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       headers,
     ) as SendEmailHookPayload;
   } catch (error) {
-    console.error("[webhook:supabase-auth] firma inválida:", error);
+    logError("webhook:supabase-auth", "firma inválida", error, { area: "webhook" });
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
@@ -51,21 +52,33 @@ export async function POST(request: NextRequest) {
     actionLink = `${email_data.site_url}/auth/confirm?token_hash=${email_data.token_hash}&type=${email_data.email_action_type}&next=${encodeURIComponent(redirectTo.pathname + redirectTo.search)}`;
   }
 
-  if (email_data.email_action_type === "recovery") {
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
-      to: user.email,
-      subject: "Recupera tu contraseña — U.V.A",
-      react: RecuperarPasswordEmail({ actionLink }),
+  // Sin try/catch, un fallo de Resend (API caída, from no verificado, etc.)
+  // reventaba el módulo sin dejar rastro — exactamente el escenario que
+  // P1-3 (AUDIT-2026-08-24.md) señala como el más caro: un correo que no
+  // llegó y nadie se entera hasta que el usuario escribe a soporte.
+  try {
+    if (email_data.email_action_type === "recovery") {
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL!,
+        to: user.email,
+        subject: "Recupera tu contraseña — U.V.A",
+        react: RecuperarPasswordEmail({ actionLink }),
+      });
+    } else {
+      // Signup, invite, magic link, cambio de correo: sin plantilla dedicada aún.
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL!,
+        to: user.email,
+        subject: "Confirma tu acción en U.V.A",
+        text: `Confirma tu acción en U.V.A visitando este enlace: ${actionLink}`,
+      });
+    }
+  } catch (error) {
+    logError("webhook:supabase-auth", "resend.emails.send falló", error, {
+      area: "email",
+      tipo: email_data.email_action_type,
     });
-  } else {
-    // Signup, invite, magic link, cambio de correo: sin plantilla dedicada aún.
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
-      to: user.email,
-      subject: "Confirma tu acción en U.V.A",
-      text: `Confirma tu acción en U.V.A visitando este enlace: ${actionLink}`,
-    });
+    return NextResponse.json({ error: "no se pudo enviar el correo" }, { status: 500 });
   }
 
   return NextResponse.json({});

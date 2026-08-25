@@ -23,6 +23,7 @@
     "@mux/mux-player-react": "^3.13.2",
     "@prisma/client": "^7.9.1",
     "@react-email/components": "^1.0.12",
+    "@sentry/nextjs": "^10.71.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.2",
     "class-variance-authority": "^0.7.1",
@@ -61,6 +62,7 @@
     "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
     "prisma@7.9.1": true,
-    "@prisma/engines@7.9.1": true
+    "@prisma/engines@7.9.1": true,
+    "@sentry/cli@2.58.6": true
   }
 }

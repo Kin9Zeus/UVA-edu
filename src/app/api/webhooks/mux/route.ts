@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import Mux from "@mux/mux-node";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+import { logError } from "@/lib/log";
 
 // A diferencia de Stripe, `new Mux({ tokenId: "", tokenSecret: "" })` no
 // lanza, así que se puede construir en el ámbito del módulo sin riesgo de
@@ -17,7 +18,7 @@ type EventoMux = { id: string; type: string; data?: { id?: string } };
 export async function POST(request: NextRequest) {
   const secret = process.env.MUX_WEBHOOK_SECRET;
   if (!secret) {
-    console.error("[webhook:mux] falta MUX_WEBHOOK_SECRET; no se procesa nada");
+    logError("webhook:mux", "falta MUX_WEBHOOK_SECRET; no se procesa nada", null, { area: "webhook" });
     return NextResponse.json({ error: "webhook no configurado" }, { status: 500 });
   }
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     // el replay de un evento legítimo capturado.
     evento = (await mux.webhooks.unwrap(payload, request.headers, secret)) as EventoMux;
   } catch (error) {
-    console.error("[webhook:mux] firma inválida:", (error as Error).message);
+    logError("webhook:mux", "firma inválida", error, { area: "webhook" });
     return NextResponse.json({ error: "firma inválida" }, { status: 400 });
   }
 
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, duplicado: true });
   }
   if (registro.estado === "error") {
-    console.error("[webhook:mux] no se pudo registrar el evento:", registro.mensaje);
+    logError("webhook:mux", "no se pudo registrar el evento", null, {
+      area: "webhook",
+      mensaje: registro.mensaje,
+      idEvento: evento.id,
+    });
     return NextResponse.json({ error: "no se pudo registrar el evento" }, { status: 500 });
   }
 

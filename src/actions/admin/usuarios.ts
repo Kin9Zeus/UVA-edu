@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminActionResult } from "@/actions/admin/categorias";
+import { logError } from "@/lib/log";
 
 export async function suspenderActivarUsuario(
   usuarioId: string,
@@ -30,7 +31,9 @@ export async function suspenderActivarUsuario(
   if (nuevoEstado === "SUSPENDIDO") {
     const { error: errorSignOut } = await createAdminClient().auth.admin.signOut(usuarioId, "global");
     if (errorSignOut) {
-      console.error("No se pudo revocar la sesión del usuario suspendido:", errorSignOut);
+      logError("admin/usuarios", "No se pudo revocar la sesión del usuario suspendido", errorSignOut, {
+        usuarioId,
+      });
     }
   }
 

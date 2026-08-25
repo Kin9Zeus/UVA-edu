@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
 import { checkEmail } from "@/actions/auth/check-email";
+import { logError } from "@/lib/log";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never; email?: never }
@@ -72,7 +73,7 @@ export async function registro(
   });
 
   if (error) {
-    console.error("[registro] supabase.auth.signUp error:", error);
+    logError("registro", "supabase.auth.signUp error", error);
     return {
       error: error.message.toLowerCase().includes("already registered")
         ? "Ya existe una cuenta con ese correo."

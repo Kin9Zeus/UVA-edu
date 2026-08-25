@@ -7,6 +7,7 @@ import {
   TiktokIcon,
 } from "@/components/home/icons";
 import { createPublicClient } from "@/lib/supabase/public";
+import { logError } from "@/lib/log";
 
 // La columna "Escuelas" sale de la tabla `categorias`; estas dos son
 // contenido editorial del sitio, sin fuente en base de datos.
@@ -66,10 +67,7 @@ export async function Footer() {
     .order("nombre", { ascending: true });
 
   if (error) {
-    console.error(
-      "[Home/Footer] No se pudieron cargar las categorías:",
-      error.message,
-    );
+    logError("Home/Footer", "No se pudieron cargar las categorías", error);
   }
 
   const escuelas = data ?? [];

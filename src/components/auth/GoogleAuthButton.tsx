@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/auth/icons";
 import { createClient } from "@/lib/supabase/client";
+import { logError } from "@/lib/log";
 
 export function GoogleAuthButton({
   label,
@@ -27,7 +28,7 @@ export function GoogleAuthButton({
     });
 
     if (error) {
-      console.error("[GoogleAuthButton] signInWithOAuth falló:", error.message);
+      logError("GoogleAuthButton", "signInWithOAuth falló", error);
       setPending(false);
     }
   }

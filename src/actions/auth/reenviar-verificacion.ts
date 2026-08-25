@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,7 +38,7 @@ export async function reenviarVerificacion(
   );
 
   if (rpcError) {
-    console.error("[reenviarVerificacion] registrar_reenvio_verificacion rpc falló:", rpcError);
+    logError("reenviarVerificacion", "registrar_reenvio_verificacion rpc falló", rpcError);
     return { error: "No pudimos procesar tu solicitud. Intenta de nuevo." };
   }
 
@@ -58,7 +59,7 @@ export async function reenviarVerificacion(
   });
 
   if (error) {
-    console.error("[reenviarVerificacion] resend error:", error);
+    logError("reenviarVerificacion", "resend error", error, { area: "email" });
   }
 
   // Siempre se responde con éxito, exista o no la cuenta / ya esté
