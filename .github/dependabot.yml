@@ -1,0 +1,23 @@
+# Configuración conservadora a propósito (ver AUDIT-2026-08-24.md, P2-4):
+# sin CI todavía (P1-2 sigue bloqueado por el scope `workflow` del token de
+# git), cada PR de Dependabot hay que revisarlo a mano. Agrupar minor/patch
+# en un solo PR semanal evita saturar al equipo; las actualizaciones major
+# se ignoran aquí porque suelen traer cambios de comportamiento (Next.js,
+# Prisma, React) que merecen su propia revisión dedicada, no un PR
+# automático de fondo.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      dependencias-menores:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
