@@ -330,7 +330,8 @@ WOMPI\_PRV\_KEY=
 MUX\_TOKEN\_ID=  
 MUX\_TOKEN\_SECRET=  
 MUX\_WEBHOOK\_SECRET=  
-MUX\_SIGNING\_KEY=
+MUX\_SIGNING\_KEY\_ID= \# Key ID del signing key de Mux, para firmar playback URLs  
+MUX\_SIGNING\_KEY\_PRIVATE= \# Private key (base64) del mismo signing key
 
 \# Correo y Utilidades  
 RESEND\_API\_KEY=
