@@ -9,7 +9,7 @@ export type CursoParaPublicar = {
   titulo: string;
   imagenPortada: string | null;
   modulos: {
-    lecciones: { estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO" }[];
+    lecciones: { estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO" | "ERROR" }[];
   }[];
 };
 
