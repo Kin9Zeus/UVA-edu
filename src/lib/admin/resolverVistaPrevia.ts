@@ -140,3 +140,94 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
     modulos,
   };
 }
+
+/** Una clase dentro de la lista "Clases y progreso" de la vista previa del reproductor. */
+export type LeccionEnListaVistaPrevia = {
+  id: string;
+  numero: number;
+  titulo: string;
+  duracion: number | null;
+  moduloId: string;
+  moduloTitulo: string;
+};
+
+/** Cómo se ve una clase del curso para quien abre el enlace, sin sesión ni progreso. */
+export type LeccionVistaPrevia = {
+  cursoId: string;
+  cursoTitulo: string;
+  publicado: boolean;
+  leccionId: string;
+  leccionTitulo: string;
+  numero: number;
+  totalClases: number;
+  resumen: string | null;
+  recursos: { id: string; nombre: string; tipoArchivo: string; tamanoBytes: number | null }[];
+  lecciones: LeccionEnListaVistaPrevia[];
+  anteriorId: string | null;
+  siguienteId: string | null;
+};
+
+/**
+ * Lee una clase de un enlace de vista previa.
+ *
+ * `idCurso` DEBE venir de resolverTokenVistaPrevia(), igual que en
+ * getCursoVistaPrevia() (regla 2 de la cabecera). `leccionId` sí es del
+ * visitante (viene de qué clase del temario clickeó), pero nunca toca la
+ * base sin antes verificar —vía el propio getCursoVistaPrevia(idCurso), que
+ * ya está acotado por el token— que esa clase pertenece a este curso: el
+ * `findIndex` de abajo es esa verificación. Si no aparece en `plano`, es que
+ * el visitante intentó colar el id de una clase de OTRO curso, y se corta
+ * ahí devolviendo null (404 en la página).
+ */
+export async function getLeccionVistaPrevia(
+  idCurso: string,
+  leccionId: string,
+): Promise<LeccionVistaPrevia | null> {
+  const curso = await getCursoVistaPrevia(idCurso);
+  if (!curso) return null;
+
+  const plano = curso.modulos.flatMap((modulo) =>
+    modulo.lecciones.map((leccion) => ({ ...leccion, moduloId: modulo.id, moduloTitulo: modulo.titulo })),
+  );
+  const indice = plano.findIndex((leccion) => leccion.id === leccionId);
+  if (indice === -1) return null;
+  const actual = plano[indice];
+
+  const supabase = createAdminClient();
+
+  const [{ data: detalle }, { data: recursos }] = await Promise.all([
+    supabase.from("lecciones").select("resumen").eq("id", leccionId).maybeSingle(),
+    supabase
+      .from("recursos_descargables")
+      .select("id, nombre, tipo_archivo, tamano_bytes")
+      .eq("id_leccion", leccionId)
+      .order("creado_en"),
+  ]);
+
+  return {
+    cursoId: curso.id,
+    cursoTitulo: curso.titulo,
+    publicado: curso.mostrado,
+    leccionId: actual.id,
+    leccionTitulo: actual.titulo,
+    numero: indice + 1,
+    totalClases: plano.length,
+    resumen: detalle?.resumen ?? null,
+    recursos: (recursos ?? []).map((recurso) => ({
+      id: recurso.id,
+      nombre: recurso.nombre,
+      tipoArchivo: recurso.tipo_archivo,
+      tamanoBytes: recurso.tamano_bytes,
+    })),
+    lecciones: plano.map((leccion, i) => ({
+      id: leccion.id,
+      numero: i + 1,
+      titulo: leccion.titulo,
+      duracion: leccion.duracion,
+      moduloId: leccion.moduloId,
+      moduloTitulo: leccion.moduloTitulo,
+    })),
+    anteriorId: indice > 0 ? plano[indice - 1].id : null,
+    siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
+  };
+}

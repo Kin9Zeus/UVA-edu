@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { PlayCircle } from "lucide-react";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { esPortadaReal } from "@/lib/media";
 import type { CursoVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
@@ -18,11 +20,17 @@ function formatearDuracion(segundos: number | null): string | null {
 
 /**
  * Ficha del curso tal como la vería un estudiante: portada, datos y
- * temario. No incluye reproductor ni materiales descargables — la vista
- * previa sirve para revisar cómo queda el curso montado antes de
- * publicarlo, y un enlace sin sesión no debe entregar el video.
+ * temario. Cada clase enlaza a su propia vista previa del reproductor
+ * (LeccionVistaPreviaContent) — sin video real ni descargas, sirve para
+ * revisar cómo queda montada la clase antes de publicar el curso.
  */
-export function ContenidoVistaPrevia({ curso }: { curso: CursoVistaPrevia }) {
+export function ContenidoVistaPrevia({
+  curso,
+  token,
+}: {
+  curso: CursoVistaPrevia;
+  token: string;
+}) {
   const totalClases = curso.modulos.reduce(
     (total, modulo) => total + modulo.lecciones.length,
     0,
@@ -94,16 +102,21 @@ export function ContenidoVistaPrevia({ curso }: { curso: CursoVistaPrevia }) {
                 {modulo.lecciones.map((leccion) => {
                   const duracion = formatearDuracion(leccion.duracion);
                   return (
-                    <li
-                      key={leccion.id}
-                      className="flex items-center justify-between gap-3 text-[13px] text-uva-muted"
-                    >
-                      <span>{leccion.titulo}</span>
-                      {duracion && (
-                        <span className="shrink-0 font-mono text-[11.5px] text-uva-text-faint">
-                          {duracion}
+                    <li key={leccion.id}>
+                      <Link
+                        href={`/vista-previa/${token}/${leccion.id}`}
+                        className="flex items-center justify-between gap-3 rounded-uva-sm px-1.5 py-1 text-[13px] text-uva-muted no-underline hover:bg-uva-hover hover:text-uva-text"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <PlayCircle className="size-3.5 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
+                          <span className="truncate">{leccion.titulo}</span>
                         </span>
-                      )}
+                        {duracion && (
+                          <span className="shrink-0 font-mono text-[11.5px] text-uva-text-faint">
+                            {duracion}
+                          </span>
+                        )}
+                      </Link>
                     </li>
                   );
                 })}

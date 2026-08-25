@@ -29,6 +29,9 @@ export function CursoDetalleContent({
   curso: CursoPublico;
   basePath?: string;
 }) {
+  const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
+    ?.id;
+
   return (
     <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-8 px-[clamp(20px,4vw,56px)] py-[clamp(32px,5vw,56px)] lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex flex-col gap-8">
@@ -87,23 +90,34 @@ export function CursoDetalleContent({
                   </span>
                 </div>
                 <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-white/5">
-                  {modulo.lecciones.map((leccion, index) => (
-                    <div
-                      key={leccion.id}
-                      className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text"
-                    >
-                      <span className="w-4 text-uva-text-faint">{index + 1}</span>
-                      {curso.tieneAcceso ? (
+                  {modulo.lecciones.map((leccion, index) =>
+                    curso.tieneAcceso ? (
+                      <Link
+                        key={leccion.id}
+                        href={`/cursos/${curso.id}/${leccion.id}`}
+                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
+                      >
+                        <span className="w-4 text-uva-text-faint">{index + 1}</span>
                         <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
-                      ) : (
+                        <span className="flex-1 truncate">{leccion.titulo}</span>
+                        <span className="font-mono text-xs text-uva-text-faint tabular-nums">
+                          {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
+                        </span>
+                      </Link>
+                    ) : (
+                      <div
+                        key={leccion.id}
+                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text"
+                      >
+                        <span className="w-4 text-uva-text-faint">{index + 1}</span>
                         <Lock className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
-                      )}
-                      <span className="flex-1 truncate">{leccion.titulo}</span>
-                      <span className="font-mono text-xs text-uva-text-faint tabular-nums">
-                        {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="flex-1 truncate">{leccion.titulo}</span>
+                        <span className="font-mono text-xs text-uva-text-faint tabular-nums">
+                          {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             ))}
@@ -124,9 +138,21 @@ export function CursoDetalleContent({
         )}
 
         {curso.tieneAcceso ? (
-          <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
-            El reproductor llega pronto
-          </Button>
+          primeraLeccionId ? (
+            <Button
+              render={<Link href={`/cursos/${curso.id}/${primeraLeccionId}`} />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-12"
+            >
+              Comenzar curso
+            </Button>
+          ) : (
+            <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
+              El curso todavía no tiene clases
+            </Button>
+          )
         ) : (
           <Button
             render={<Link href="/#planes" />}
