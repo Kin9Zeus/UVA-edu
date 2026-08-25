@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthVisual } from "@/components/auth/AuthVisual";
 import { ActualizarPasswordForm } from "@/components/auth/ActualizarPasswordForm";
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/log";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Nueva contraseña",
@@ -30,10 +31,7 @@ export default async function ActualizarPasswordPage({
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error(
-        "[actualizar-password] exchangeCodeForSession falló:",
-        error.message,
-      );
+      logError("actualizar-password", "exchangeCodeForSession falló", error);
       redirect("/login?error=enlace_invalido");
     }
 

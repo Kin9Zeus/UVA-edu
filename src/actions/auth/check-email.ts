@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,7 +39,7 @@ export async function checkEmail(email: string): Promise<CheckEmailResult> {
     .single();
 
   if (limiteError) {
-    console.error("[checkEmail] verificar_limite_check_email rpc falló:", limiteError);
+    logError("checkEmail", "verificar_limite_check_email rpc falló", limiteError, { area: "rate-limit" });
     return { error: "No pudimos verificar tu correo. Intenta de nuevo." };
   }
 
@@ -53,7 +54,7 @@ export async function checkEmail(email: string): Promise<CheckEmailResult> {
   });
 
   if (error || !data || data.length === 0) {
-    console.error("[checkEmail] check_email_provider rpc falló:", error);
+    logError("checkEmail", "check_email_provider rpc falló", error);
     return { error: "No pudimos verificar tu correo. Intenta de nuevo." };
   }
 

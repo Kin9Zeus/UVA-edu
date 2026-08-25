@@ -10,6 +10,7 @@ import {
   meta,
   ahorroEnMeses,
 } from "@/lib/planes";
+import { logError } from "@/lib/log";
 
 const solidCta =
   "inline-flex h-10 w-full items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
@@ -38,10 +39,7 @@ export async function Pricing({
     .order("orden", { ascending: true });
 
   if (error) {
-    console.error(
-      "[Home/Pricing] No se pudieron cargar los planes:",
-      error.message,
-    );
+    logError("Home/Pricing", "No se pudieron cargar los planes", error);
   }
 
   const planes: PlanRow[] = data ?? [];

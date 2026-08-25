@@ -14,8 +14,11 @@
     "db:seed:clean": "tsx prisma/seed.ts --clean",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
+    "test": "vitest run",
     "test:rls": "tsx scripts/rls-test.ts",
-    "test:webhooks": "tsx scripts/webhook-test.ts"
+    "test:webhooks": "tsx scripts/webhook-test.ts",
+    "test:canje": "tsx scripts/canje-codigo-test.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -23,6 +26,7 @@
     "@mux/mux-player-react": "^3.13.2",
     "@prisma/client": "^7.9.1",
     "@react-email/components": "^1.0.12",
+    "@sentry/nextjs": "^10.71.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.2",
     "class-variance-authority": "^0.7.1",
@@ -42,6 +46,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -55,12 +60,14 @@
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
-    "prisma@7.9.1": true,
-    "@prisma/engines@7.9.1": true
+    "@sentry/cli@2.58.6": true,
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true
   }
 }

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+import { logError } from "@/lib/log";
 
 // La verificación de firma usa ÚNICAMENTE STRIPE_WEBHOOK_SECRET; la API key
 // no interviene. No se importa "@/lib/stripe/client" a propósito: ese módulo
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     // 500, nunca 200: un 2xx le dice a Stripe "recibido, no reenvíes" y el
     // evento se pierde para siempre. Con 500 reintenta hasta 3 días, que es
     // tiempo de sobra para configurar la variable.
-    console.error("[webhook:stripe] falta STRIPE_WEBHOOK_SECRET; no se procesa nada");
+    logError("webhook:stripe", "falta STRIPE_WEBHOOK_SECRET; no se procesa nada", null, { area: "webhook" });
     return NextResponse.json({ error: "webhook no configurado" }, { status: 500 });
   }
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     // el runtime Edge.
     evento = await stripe.webhooks.constructEventAsync(payload, signature, secret);
   } catch (error) {
-    console.error("[webhook:stripe] firma inválida:", (error as Error).message);
+    logError("webhook:stripe", "firma inválida", error, { area: "webhook" });
     return NextResponse.json({ error: "firma inválida" }, { status: 400 });
   }
 
@@ -52,7 +53,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, duplicado: true });
   }
   if (registro.estado === "error") {
-    console.error("[webhook:stripe] no se pudo registrar el evento:", registro.mensaje);
+    logError("webhook:stripe", "no se pudo registrar el evento", null, {
+      area: "webhook",
+      mensaje: registro.mensaje,
+      idEvento: evento.id,
+    });
     return NextResponse.json({ error: "no se pudo registrar el evento" }, { status: 500 });
   }
 

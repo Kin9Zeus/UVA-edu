@@ -149,6 +149,8 @@ model Suscripciones {
   @@index([id_usuario])
   @@index([id_plan])
   @@index([proveedor, id_suscripcion_externa])
+  @@index([id_cupon])
+  @@index([id_codigo_invitacion])
   @@map("suscripciones")
 }
 
@@ -186,6 +188,7 @@ model Categorias {
   cursos        CursoCategorias[]
   admin_creador Perfiles? @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
 
+  @@index([id_admin_creador])
   @@map("categorias")
 }
 
@@ -248,6 +251,7 @@ model Cursos {
   categorias    CursoCategorias[]
 
   @@index([id_instructor])
+  @@index([id_admin_creador])
   @@map("cursos")
 }
 
@@ -303,6 +307,7 @@ model Progreso {
   leccion Lecciones @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
 
   @@unique([id_usuario, id_leccion])
+  @@index([id_leccion])
   @@map("progreso")
 }
 
@@ -319,7 +324,7 @@ model Certificados {
   curso   Cursos   @relation(fields: [id_curso], references: [id])
 
   @@unique([id_usuario, id_curso])
-  @@index([id_usuario])
+  @@index([id_curso])
   @@map("certificados")
 }
 
@@ -380,6 +385,7 @@ model Inscripciones {
   admin_otorgo Perfiles? @relation("InscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
 
   @@unique([id_usuario, id_curso])
+  @@index([id_curso])
   @@map("inscripciones")
 }
 

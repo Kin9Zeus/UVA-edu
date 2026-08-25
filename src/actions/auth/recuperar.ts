@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,7 +40,7 @@ export async function recuperar(
   );
 
   if (errorRateLimit) {
-    console.error("[recuperar] registrar_solicitud_recuperacion rpc falló:", errorRateLimit);
+    logError("recuperar", "registrar_solicitud_recuperacion rpc falló", errorRateLimit);
   }
 
   // Si el RPC del rate limit falla, se falla abierto (se intenta enviar
@@ -59,7 +60,7 @@ export async function recuperar(
     });
 
     if (error) {
-      console.error("[recuperar] resetPasswordForEmail error:", error);
+      logError("recuperar", "resetPasswordForEmail error", error, { area: "email" });
     }
   }
 

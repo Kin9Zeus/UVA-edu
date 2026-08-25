@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 
 /**
  * Registro de idempotencia para webhooks entrantes
@@ -93,6 +94,6 @@ export async function marcarProcesado(idEventoExterno: string): Promise<void> {
     // No se aborta: el negocio ya se ejecutó. Queda como no procesado, así que
     // un reintento de la pasarela volverá a entrar — por eso la lógica de
     // negocio de cada handler debe ser idempotente por su cuenta también.
-    console.error("[webhooks] no se pudo marcar procesado", { idEventoExterno, error: error.message });
+    logError("webhooks", "no se pudo marcar procesado", error, { idEventoExterno, area: "webhook" });
   }
 }

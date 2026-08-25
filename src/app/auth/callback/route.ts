@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/log";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const providerError = searchParams.get("error_description");
 
   if (providerError) {
-    console.error("[auth/callback] proveedor devolvió error:", providerError);
+    logError("auth/callback", "proveedor devolvió error", null, { providerError });
   } else if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -18,14 +19,9 @@ export async function GET(request: NextRequest) {
       redirect(next);
     }
 
-    console.error(
-      "[auth/callback] exchangeCodeForSession falló:",
-      error.message,
-    );
+    logError("auth/callback", "exchangeCodeForSession falló", error);
   } else {
-    console.error("[auth/callback] falta el parámetro code en la URL:", {
-      url: request.url,
-    });
+    logError("auth/callback", "falta el parámetro code en la URL", null, { url: request.url });
   }
 
   redirect("/login?error=enlace_invalido");
