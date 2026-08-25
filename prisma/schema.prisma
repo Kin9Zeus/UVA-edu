@@ -43,6 +43,7 @@ enum EstadoProcesamientoLeccion {
   SUBIENDO
   PROCESANDO
   LISTO
+  ERROR
 }
 
 enum TipoDescuento {
@@ -305,9 +306,24 @@ model Lecciones {
   id_modulo            String                     @db.Uuid
   titulo               String
   orden                Int                        @default(0)
+  /// Playback ID de Mux (docs/technical-spec.md §4) — se escribe recién en
+  /// video.asset.ready. No se toca al reemplazar el video hasta que el
+  /// nuevo asset esté listo (Flujo 10): el estudiante sigue viendo el
+  /// anterior mientras el nuevo procesa.
   id_video_mux         String?
+  /// ID del Direct Upload de Mux, guardado al pedirlo (antes de que exista
+  /// el asset). Es la única forma de correlacionar el webhook de Mux
+  /// (video.asset.ready/errored, video.upload.cancelled) con esta fila.
+  id_mux_upload_id     String?                    @unique
+  /// ID del asset de Mux una vez creado. Para operaciones futuras sobre el
+  /// asset (no se usa para generar la URL firmada, que solo necesita el
+  /// playback ID).
+  id_mux_asset_id      String?
   duracion             Int?
   estado_procesamiento EstadoProcesamientoLeccion @default(SUBIENDO)
+  /// Mensaje de Mux cuando estado_procesamiento = ERROR (video.asset.errored
+  /// o video.upload.cancelled). Null en cualquier otro estado.
+  error_procesamiento  String?
   resumen              String?
   creado_en            DateTime                   @default(now()) @db.Timestamptz
   actualizado_en       DateTime                   @updatedAt @db.Timestamptz

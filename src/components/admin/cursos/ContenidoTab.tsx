@@ -49,7 +49,7 @@ export function ContenidoTab({
     );
   }
 
-  function handleLeccionGuardada(cambios: Pick<LeccionDetalle, "titulo" | "duracion" | "resumen">) {
+  function handleLeccionGuardada(cambios: Partial<LeccionDetalle>) {
     setModulos((current) =>
       current.map((modulo) => ({
         ...modulo,

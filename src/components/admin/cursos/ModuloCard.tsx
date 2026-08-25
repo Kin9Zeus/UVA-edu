@@ -20,8 +20,18 @@ import {
 import { cn } from "@/lib/utils";
 import type { ModuloDetalle, LeccionDetalle } from "@/lib/admin/cursoDetalle";
 
-const ESTADO_LABEL = { SUBIENDO: "Subiendo", PROCESANDO: "Procesando", LISTO: "Listo" } as const;
-const ESTADO_TONO = { SUBIENDO: "neutral", PROCESANDO: "warning", LISTO: "success" } as const;
+const ESTADO_LABEL = {
+  SUBIENDO: "Subiendo",
+  PROCESANDO: "Procesando",
+  LISTO: "Listo",
+  ERROR: "Error",
+} as const;
+const ESTADO_TONO = {
+  SUBIENDO: "neutral",
+  PROCESANDO: "warning",
+  LISTO: "success",
+  ERROR: "error",
+} as const;
 
 /**
  * Tarjeta de módulo del mockup del panel admin: `padding:0` con una franja de
@@ -129,6 +139,9 @@ export function ModuloCard({
         duracion: null,
         resumen: null,
         estadoProcesamiento: "SUBIENDO",
+        errorProcesamiento: null,
+        idMuxUploadId: null,
+        idVideoMux: null,
         recursos: [],
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);

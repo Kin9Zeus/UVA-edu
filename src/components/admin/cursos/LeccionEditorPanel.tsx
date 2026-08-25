@@ -13,7 +13,13 @@ import {
 } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import { formatTamanoArchivo } from "@/lib/admin/format";
+import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
+
+type CambiosLeccion = Pick<
+  LeccionDetalle,
+  "titulo" | "duracion" | "resumen" | "estadoProcesamiento" | "errorProcesamiento" | "idVideoMux"
+>;
 
 // Mismo valor que TAMANO_MAXIMO_RECURSO en actions/admin/cursos.ts. No se
 // puede importar desde ahí: ese módulo tiene "use server" a nivel de
@@ -39,7 +45,7 @@ export function LeccionEditorPanel({
   leccion: LeccionDetalle;
   cursoId: string;
   onCerrar: () => void;
-  onGuardado: (cambios: Pick<LeccionDetalle, "titulo" | "duracion" | "resumen">) => void;
+  onGuardado: (cambios: Partial<CambiosLeccion>) => void;
   onRecursosChange: (recursos: RecursoDetalle[]) => void;
 }) {
   const [titulo, setTitulo] = useState(leccion.titulo);
@@ -49,6 +55,11 @@ export function LeccionEditorPanel({
   const [pending, setPending] = useState(false);
   const [recursos, setRecursos] = useState(leccion.recursos);
   const [subiendoRecurso, setSubiendoRecurso] = useState(false);
+  const [video, setVideo] = useState({
+    estadoProcesamiento: leccion.estadoProcesamiento,
+    errorProcesamiento: leccion.errorProcesamiento,
+    idVideoMux: leccion.idVideoMux,
+  });
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
 
@@ -166,13 +177,21 @@ export function LeccionEditorPanel({
 
       <div>
         <Label htmlFor="leccion-video">Video</Label>
-        {/* TODO(Fase 2): Direct Upload a Mux. El mockup dibuja aquí una zona
-            punteada de arrastre; hasta que exista la carga real es solo visual. */}
-        <div
-          id="leccion-video"
-          className="rounded-uva-md border-[1.5px] border-dashed border-uva-divider px-3 py-5 text-center text-xs text-uva-muted-2"
-        >
-          Arrastra tu video aquí o selecciona un archivo
+        <div id="leccion-video">
+          <VideoUploader
+            leccionId={leccion.id}
+            cursoId={cursoId}
+            titulo={titulo}
+            estadoProcesamiento={video.estadoProcesamiento}
+            errorProcesamiento={video.errorProcesamiento}
+            idMuxUploadId={leccion.idMuxUploadId}
+            idVideoMux={video.idVideoMux}
+            onEstadoChange={(cambios) => {
+              setVideo(cambios);
+              if (cambios.duracion != null) setDuracion(cambios.duracion.toString());
+              onGuardado(cambios);
+            }}
+          />
         </div>
       </div>
 

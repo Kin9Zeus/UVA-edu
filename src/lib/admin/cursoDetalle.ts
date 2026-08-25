@@ -13,7 +13,10 @@ export type LeccionDetalle = {
   orden: number;
   duracion: number | null;
   resumen: string | null;
-  estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO";
+  estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO" | "ERROR";
+  errorProcesamiento: string | null;
+  idMuxUploadId: string | null;
+  idVideoMux: string | null;
   recursos: RecursoDetalle[];
 };
 
@@ -96,7 +99,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: modulos } = await supabase
     .from("modulos")
     .select(
-      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, estado_procesamiento, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
+      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, estado_procesamiento, error_procesamiento, id_mux_upload_id, id_video_mux, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
     )
     .eq("id_curso", cursoId)
     .order("orden");
@@ -114,6 +117,9 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         duracion: leccion.duracion,
         resumen: leccion.resumen,
         estadoProcesamiento: leccion.estado_procesamiento,
+        errorProcesamiento: leccion.error_procesamiento,
+        idMuxUploadId: leccion.id_mux_upload_id,
+        idVideoMux: leccion.id_video_mux,
         recursos: (leccion.recursos_descargables ?? []).map((recurso) => ({
           id: recurso.id,
           nombre: recurso.nombre,
