@@ -196,6 +196,22 @@ async function main() {
       "anon no puede llamar canjear_codigo_invitacion (RPC solo service_role)",
       clienteAnonimo.rpc("canjear_codigo_invitacion", { p_codigo: "x", p_usuario_id: userSinAcceso.user!.id }),
     );
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_check_email (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("verificar_limite_check_email", { p_ip: "127.0.0.1" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_intento_check_email (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("registrar_intento_check_email", { p_ip: "127.0.0.1" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_canjear_codigo (RPC solo service_role, P2-2)",
+      clienteAnonimo.rpc("verificar_limite_canjear_codigo", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_canje_fallido (RPC solo service_role, P2-2)",
+      clienteAnonimo.rpc("registrar_canje_fallido", { p_usuario_id: userSinAcceso.user!.id }),
+    );
 
     await esperarPermitido("anon SÍ puede leer el catálogo público (categorías activas)", clienteAnonimo.from("categorias").select("id").eq("activo", true));
     await esperarPermitido(

@@ -24,7 +24,8 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    SUPABASE_SERVICE_ROLE_KEY=
    MUX_TOKEN_ID=
    MUX_TOKEN_SECRET=
-   MUX_SIGNING_KEY=
+   MUX_SIGNING_KEY_ID=
+   MUX_SIGNING_KEY_PRIVATE=
    MUX_WEBHOOK_SECRET=
    STRIPE_SECRET_KEY=
    STRIPE_WEBHOOK_SECRET=

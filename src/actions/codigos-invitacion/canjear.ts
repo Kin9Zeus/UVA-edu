@@ -43,19 +43,39 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
   }
 
   const admin = createAdminClient();
+
+  // Límite por usuario (no por código): el atacante es una sesión ya
+  // autenticada probando códigos, y su id sale de auth.getUser() en el
+  // servidor, no de un valor que él controle. Ver AUDIT-2026-08-24.md,
+  // hallazgo P2-2.
+  const { data: limite, error: limiteError } = await admin
+    .rpc("verificar_limite_canjear_codigo", { p_usuario_id: user.id })
+    .single();
+
+  if (limiteError) {
+    return { error: "No pudimos procesar el código. Intenta de nuevo." };
+  }
+
+  if (!(limite as { permitido: boolean }).permitido) {
+    return { error: "Demasiados intentos. Espera un momento antes de volver a intentar." };
+  }
+
   const { data, error } = await admin
     .rpc("canjear_codigo_invitacion", { p_codigo: codigoLimpio, p_usuario_id: user.id })
     .single();
 
   if (error) {
+    await admin.rpc("registrar_canje_fallido", { p_usuario_id: user.id });
     return { error: "No pudimos procesar el código. Intenta de nuevo." };
   }
 
   const resultado = data as { ok: boolean; motivo: string | null };
   if (!resultado.ok) {
+    await admin.rpc("registrar_canje_fallido", { p_usuario_id: user.id });
     return { error: MOTIVO_ERROR[resultado.motivo ?? ""] ?? "No pudimos canjear el código." };
   }
 
+  await admin.rpc("limpiar_intentos_canjear_codigo", { p_usuario_id: user.id });
   revalidatePath("/dashboard", "layout");
   return { success: true };
 }
