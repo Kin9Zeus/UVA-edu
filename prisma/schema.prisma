@@ -259,7 +259,7 @@ model Modulos {
   creado_en      DateTime @default(now()) @db.Timestamptz
   actualizado_en DateTime @updatedAt @db.Timestamptz
 
-  curso     Cursos      @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  curso     Cursos      @relation(fields: [id_curso], references: [id], onDelete: Restrict)
   lecciones Lecciones[]
 
   @@index([id_curso])

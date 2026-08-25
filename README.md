@@ -46,11 +46,20 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    npx prisma generate
    ```
 
-4. **RLS, triggers y funciones (SQL manual)** — Prisma solo modela el
-   esquema; las políticas de Row Level Security, triggers y funciones
-   `private.*`/`public.*` viven en `supabase/sql/` y se corren a mano, en
-   orden, en el SQL Editor de Supabase. Ver el orden exacto (pasos 1-20 hoy)
-   y la explicación de cada script en **`supabase/sql/README.md`**.
+4. **RLS, triggers y funciones** — Prisma solo modela el esquema; las
+   políticas de Row Level Security, triggers y funciones `private.*`/
+   `public.*` viven en `supabase/sql/` y se aplican con:
+
+   ```bash
+   npm run db:rls:check   # verifica que los scripts aplican limpio, sin escribir
+   npm run db:rls         # los aplica de verdad, en orden y en una sola transacción
+   ```
+
+   `scripts/apply-rls.ts` los ordena por su prefijo numérico y los corre
+   dentro de un único `BEGIN`/`COMMIT`: si uno falla, revierte el lote
+   completo — nunca queda la base con solo una parte aplicada. Ya no se
+   pegan a mano en el SQL Editor de Supabase. Ver la explicación de cada
+   script en **`supabase/sql/README.md`**.
 
 5. **Seed de datos de prueba**
 

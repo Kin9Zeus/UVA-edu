@@ -246,6 +246,20 @@ export async function eliminarCurso(cursoId: string): Promise<AdminActionResult>
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
+  // modulos.id_curso es ON DELETE RESTRICT a propósito (ver auditoría de
+  // esquema, Bloque 1): un curso con contenido nunca debe desaparecer por
+  // accidente en un solo DELETE. Se comprueba antes para devolver un
+  // mensaje claro en vez de dejar que Postgres rechace la operación con
+  // una violación de llave foránea genérica.
+  const { count, error: errorConteo } = await admin.supabase
+    .from("modulos")
+    .select("id", { count: "exact", head: true })
+    .eq("id_curso", cursoId);
+  if (errorConteo) return { error: "No pudimos verificar el contenido del curso." };
+  if ((count ?? 0) > 0) {
+    return { error: "Este curso tiene módulos. Elimínalos primero para poder borrar el curso." };
+  }
+
   const { error } = await admin.supabase.from("cursos").delete().eq("id", cursoId);
   if (error) return { error: "No pudimos eliminar el curso." };
 
