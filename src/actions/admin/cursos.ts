@@ -2,37 +2,27 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
+import { procesarPortada } from "@/lib/admin/portada";
+import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
 import { ESPACIO_ORDEN, ordenEntre, siguienteOrden } from "@/lib/orden";
+// Nombre de carpeta legible para Storage (solo eso: no es un identificador
+// único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
+// id del curso al lado). Es la misma normalización que genera el slug de
+// las categorías — ver lib/slug.ts.
+import { slugificar as slugificarTexto } from "@/lib/slug";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
 // Igual al máximo que acepta Supabase Storage por archivo (plan actual).
 const TAMANO_MAXIMO_RECURSO = 50 * 1024 * 1024;
-const TAMANO_MAXIMO_PORTADA = 5 * 1024 * 1024;
 
-/**
- * Nombre de carpeta legible para Storage (solo eso: no es un identificador
- * único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
- * id del curso al lado).
- */
-function slugificar(texto: string) {
-  return (
-    texto
-      .normalize("NFD")
-      // Rango Unicode U+0300–U+036F (diacríticos combinantes que deja
-      // "NFD" al separar tildes/eñes de su letra base).
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "curso"
-  );
-}
+const slugificar = (texto: string) => slugificarTexto(texto, "curso");
 
 /** Ruta dentro del bucket a partir de una public URL de Storage, o null si
  * `url` no viene de `BUCKET_PORTADAS` (el placeholder, u otro valor). */
@@ -45,20 +35,32 @@ function extraerRutaPortada(url: string | null) {
 
 export type NivelCurso = "BASICO" | "INTERMEDIO" | "AVANZADO";
 
+/**
+ * Crea el curso SIEMPRE como borrador.
+ *
+ * Antes aceptaba `publicar: boolean` y el formulario tenía un botón
+ * "Publicar curso", que dejaba en el catálogo público un curso sin portada,
+ * sin módulos y sin lecciones. Con las reglas de motivosParaNoPublicar() un
+ * curso recién creado nunca las cumple, así que ese botón solo podía fallar:
+ * se publica desde el detalle, cuando ya hay contenido (ver Revcurso,
+ * "publicar un curso a medias es peor que no publicarlo").
+ */
 export async function crearCurso(input: {
   titulo: string;
   descripcion: string;
-  categoriaId: string;
+  categoriaIds: string[];
   nivel: NivelCurso;
   idInstructor: string;
-  publicar: boolean;
 }): Promise<AdminActionResult & { id?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   const titulo = input.titulo.trim();
+  // Se deduplica por si el cliente manda el mismo id repetido: el UNIQUE
+  // (id_curso, id_categoria) de la puente rechazaría el insert entero.
+  const categoriaIds = [...new Set(input.categoriaIds)];
   if (!titulo) return { error: "El nombre del curso es obligatorio." };
-  if (!input.categoriaId) return { error: "Selecciona una categoría." };
+  if (categoriaIds.length === 0) return { error: "Selecciona al menos una categoría." };
   if (!input.idInstructor) return { error: "Selecciona un instructor." };
 
   const { data, error } = await admin.supabase
@@ -69,7 +71,7 @@ export async function crearCurso(input: {
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
       nivel: input.nivel,
       id_instructor: input.idInstructor,
-      mostrado: input.publicar,
+      mostrado: false,
       id_admin_creador: admin.adminId,
     })
     .select("id")
@@ -79,16 +81,16 @@ export async function crearCurso(input: {
 
   const { error: errorCategoria } = await admin.supabase
     .from("curso_categorias")
-    .insert({ id_curso: data.id, id_categoria: input.categoriaId });
+    .insert(categoriaIds.map((id_categoria) => ({ id_curso: data.id, id_categoria })));
 
   if (errorCategoria) {
     await admin.supabase.from("cursos").delete().eq("id", data.id);
-    return { error: "No pudimos asignar la categoría." };
+    return { error: "No pudimos asignar las categorías." };
   }
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
-    accion: input.publicar ? "Creó y publicó un curso" : "Creó un curso en borrador",
+    accion: "Creó un curso en borrador",
     entidadAfectada: "cursos",
     idEntidadAfectada: data.id,
     detalles: titulo,
@@ -100,13 +102,15 @@ export async function crearCurso(input: {
 
 export async function actualizarInfoCurso(
   cursoId: string,
-  input: { titulo: string; descripcion: string; categoriaId: string; nivel: NivelCurso },
+  input: { titulo: string; descripcion: string; categoriaIds: string[]; nivel: NivelCurso },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   const titulo = input.titulo.trim();
+  const categoriaIds = [...new Set(input.categoriaIds)];
   if (!titulo) return { error: "El nombre del curso es obligatorio." };
+  if (categoriaIds.length === 0) return { error: "Selecciona al menos una categoría." };
 
   const { error } = await admin.supabase
     .from("cursos")
@@ -119,24 +123,83 @@ export async function actualizarInfoCurso(
 
   if (error) return { error: "No pudimos guardar los cambios." };
 
-  // El CMS solo asigna una categoría por curso hoy (sin selector múltiple),
-  // así que "cambiar de categoría" es reemplazar la única fila de la puente
-  // — ver curso_categorias en la auditoría de esquema (Bloque 3).
-  const { error: errorCategoria } = await admin.supabase
+  // Sincroniza la puente con la selección: se agregan las que faltan y se
+  // quitan las que sobran. El diff se calcula acá y el borrado va por el id
+  // de la fila puente para no interpolar ids que vienen del cliente dentro
+  // de un filtro `not.in` de PostgREST.
+  const { data: actuales, error: errorLectura } = await admin.supabase
     .from("curso_categorias")
-    .upsert({ id_curso: cursoId, id_categoria: input.categoriaId }, { onConflict: "id_curso,id_categoria" });
+    .select("id, id_categoria")
+    .eq("id_curso", cursoId);
 
-  if (errorCategoria) return { error: "No pudimos guardar la categoría." };
+  if (errorLectura) return { error: "No pudimos guardar las categorías." };
 
-  await admin.supabase
-    .from("curso_categorias")
-    .delete()
-    .eq("id_curso", cursoId)
-    .neq("id_categoria", input.categoriaId);
+  const yaAsignadas = new Set((actuales ?? []).map((fila) => fila.id_categoria as string));
+  const porAgregar = categoriaIds.filter((id) => !yaAsignadas.has(id));
+  const porQuitar = (actuales ?? [])
+    .filter((fila) => !categoriaIds.includes(fila.id_categoria as string))
+    .map((fila) => fila.id as string);
+
+  // Primero se agrega y después se quita: si el borrado corriera antes y el
+  // insert fallara, el curso quedaría sin ninguna categoría y desaparecería
+  // del catálogo.
+  if (porAgregar.length > 0) {
+    const { error: errorInsert } = await admin.supabase
+      .from("curso_categorias")
+      .insert(porAgregar.map((id_categoria) => ({ id_curso: cursoId, id_categoria })));
+    if (errorInsert) return { error: "No pudimos guardar las categorías." };
+  }
+
+  if (porQuitar.length > 0) {
+    const { error: errorDelete } = await admin.supabase
+      .from("curso_categorias")
+      .delete()
+      .in("id", porQuitar);
+    if (errorDelete) return { error: "No pudimos guardar las categorías." };
+  }
 
   revalidatePath(`/admin/cursos/${cursoId}`);
   revalidatePath("/admin/cursos");
+  revalidatePath("/catalogo");
+  revalidatePath("/dashboard/catalogo");
   return { success: true };
+}
+
+/**
+ * Comprueba en el servidor que un curso esté listo para publicarse.
+ *
+ * Es el único sitio donde se lee el estado real (portada, módulos y estado
+ * de procesamiento de cada lección) para pasárselo a la regla pura de
+ * lib/admin/publicacion.ts. La UI también la aplica para deshabilitar el
+ * interruptor, pero esa comprobación es cortesía: la que manda es esta,
+ * porque publicar es una mutación y el cliente puede llamarla directamente.
+ *
+ * Devuelve `null` si se puede publicar, o el mensaje de error si no.
+ */
+async function bloqueoDePublicacion(
+  supabase: SupabaseClient,
+  cursoId: string,
+): Promise<string | null> {
+  const { data: curso } = await supabase
+    .from("cursos")
+    .select("titulo, imagen_portada, modulos(lecciones(estado_procesamiento))")
+    .eq("id", cursoId)
+    .single();
+
+  if (!curso) return "El curso ya no existe.";
+
+  const motivos = motivosParaNoPublicar({
+    titulo: curso.titulo,
+    imagenPortada: curso.imagen_portada,
+    modulos: (curso.modulos ?? []).map((modulo) => ({
+      lecciones: (modulo.lecciones ?? []).map((leccion) => ({
+        estadoProcesamiento: leccion.estado_procesamiento,
+      })),
+    })),
+  });
+
+  if (motivos.length === 0) return null;
+  return `No se puede publicar todavía: ${motivos.join(" ")}`;
 }
 
 export async function actualizarConfiguracionCurso(
@@ -145,6 +208,14 @@ export async function actualizarConfiguracionCurso(
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+
+  // Solo se valida al ENCENDER la visibilidad. Despublicar siempre debe
+  // poderse, incluso un curso incompleto: es la vía de escape si algo salió
+  // mal en producción.
+  if (input.mostrado) {
+    const bloqueo = await bloqueoDePublicacion(admin.supabase, cursoId);
+    if (bloqueo) return { error: bloqueo };
+  }
 
   const { error } = await admin.supabase
     .from("cursos")
@@ -165,6 +236,13 @@ export async function actualizarConfiguracionCurso(
 export async function alternarPublicacionCurso(cursoId: string, mostrado: boolean): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+
+  // Igual que en actualizarConfiguracionCurso: se valida al publicar, nunca
+  // al despublicar.
+  if (mostrado) {
+    const bloqueo = await bloqueoDePublicacion(admin.supabase, cursoId);
+    if (bloqueo) return { error: bloqueo };
+  }
 
   const { error } = await admin.supabase.from("cursos").update({ mostrado }).eq("id", cursoId);
   if (error) return { error: "No pudimos actualizar el curso." };
@@ -189,15 +267,13 @@ export async function subirPortadaCurso(
   if ("error" in admin) return { error: admin.error };
 
   const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { error: "Selecciona una imagen." };
-  }
-  if (!archivo.type.startsWith("image/")) {
-    return { error: "El archivo debe ser una imagen." };
-  }
-  if (archivo.size > TAMANO_MAXIMO_PORTADA) {
-    return { error: "La imagen no puede superar los 5 MB." };
-  }
+  if (!(archivo instanceof File)) return { error: "Selecciona una imagen." };
+
+  // Valida el formato real (magic bytes, no el `type` que manda el cliente)
+  // y devuelve un WebP 1280×720 — ver lib/admin/portada.ts.
+  const procesada = await procesarPortada(archivo);
+  if ("error" in procesada) return { error: procesada.error };
+  const { cuerpo, contentType, extension } = procesada.portada;
 
   const { data: curso } = await admin.supabase
     .from("cursos")
@@ -205,13 +281,15 @@ export async function subirPortadaCurso(
     .eq("id", cursoId)
     .single();
 
+  // El nombre es aleatorio, nunca el que traía el archivo del usuario: evita
+  // colisiones entre subidas y que un nombre malicioso ("../..") escape de
+  // la carpeta del curso.
   const carpetaCurso = `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
-  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "jpg";
-  const rutaArchivo = `${carpetaCurso}/${randomUUID()}${extension ? `.${extension}` : ""}`;
+  const rutaArchivo = `${carpetaCurso}/${randomUUID()}.${extension}`;
 
   const { error: errorSubida } = await admin.supabase.storage
     .from(BUCKET_PORTADAS)
-    .upload(rutaArchivo, archivo, { contentType: archivo.type });
+    .upload(rutaArchivo, cuerpo, { contentType });
 
   if (errorSubida) return { error: "No pudimos subir la imagen." };
 

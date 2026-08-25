@@ -124,7 +124,14 @@ async function main() {
 
   const { data: categoria, error: errCategoria } = await admin
     .from("categorias")
-    .insert({ nombre: `Categoria RLS test ${sufijo}`, activo: true })
+    // `slug` es NOT NULL y único desde la migración
+    // 20260825010000_agrega_slug_a_categorias; el sufijo desechable ya
+    // garantiza que no choque con otra corrida.
+    .insert({
+      nombre: `Categoria RLS test ${sufijo}`,
+      slug: `categoria-rls-test-${sufijo}`.toLowerCase(),
+      activo: true,
+    })
     .select("id")
     .single();
   if (errCategoria || !categoria) throw new Error(`No pude crear la categoría de prueba: ${errCategoria?.message}`);
@@ -176,6 +183,13 @@ async function main() {
     await esperarBloqueado("anon no puede leer codigos_invitacion", clienteAnonimo.from("codigos_invitacion").select("*"));
     await esperarBloqueado("anon no puede leer bitacora_administrativa", clienteAnonimo.from("bitacora_administrativa").select("*"));
     await esperarBloqueado("anon no puede leer eventos_webhook", clienteAnonimo.from("eventos_webhook").select("*"));
+    // Listar esta tabla sería listar todos los enlaces de vista previa
+    // activos de la plataforma. Quien abre un enlace nunca la consulta: la
+    // validación pasa por el servidor de Next.js (ver 025_rls_tokens_vista_previa).
+    await esperarBloqueado(
+      "anon no puede leer tokens_vista_previa",
+      clienteAnonimo.from("tokens_vista_previa").select("*"),
+    );
     await esperarBloqueado(
       "anon no ve el curso NO publicado",
       clienteAnonimo.from("cursos").select("id").eq("id", cursoNoPublicado.id),
@@ -258,6 +272,10 @@ async function main() {
     await esperarBloqueado("estudiante sin acceso no puede leer cupones", clienteSinAcceso.from("cupones").select("*"));
     await esperarBloqueado("estudiante sin acceso no puede leer codigos_invitacion", clienteSinAcceso.from("codigos_invitacion").select("*"));
     await esperarBloqueado("estudiante sin acceso no puede leer bitacora_administrativa", clienteSinAcceso.from("bitacora_administrativa").select("*"));
+    await esperarBloqueado(
+      "estudiante sin acceso no puede leer tokens_vista_previa",
+      clienteSinAcceso.from("tokens_vista_previa").select("*"),
+    );
     await esperarBloqueado(
       "estudiante sin acceso no ve el curso NO publicado",
       clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),

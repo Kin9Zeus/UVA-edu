@@ -11,26 +11,35 @@ export type CursoDeCategoria = {
 
 export type CategoriaDetalle = {
   id: string;
+  slug: string;
   nombre: string;
   descripcion: string | null;
   cursos: CursoDeCategoria[];
 };
 
+const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Categoría activa junto con sus cursos publicados, para la pantalla
  * "Ver categoría" del catálogo del estudiante.
+ *
+ * `identificador` es el slug (lo que la app pone en la URL desde que existe
+ * `categorias.slug`) o el UUID: los enlaces viejos, compartidos antes del
+ * cambio de rutas, siguen resolviendo en vez de dar 404.
  */
-export async function getCategoriaConCursos(categoriaId: string): Promise<CategoriaDetalle | null> {
+export async function getCategoriaConCursos(identificador: string): Promise<CategoriaDetalle | null> {
   const supabase = await createClient();
 
   const { data: categoria } = await supabase
     .from("categorias")
-    .select("id, nombre, descripcion")
-    .eq("id", categoriaId)
+    .select("id, slug, nombre, descripcion")
+    .eq(PATRON_UUID.test(identificador) ? "id" : "slug", identificador)
     .eq("activo", true)
-    .single();
+    .maybeSingle();
 
   if (!categoria) return null;
+
+  const categoriaId = categoria.id;
 
   const { data: cursosRows } = await supabase
     .from("cursos")
@@ -45,6 +54,7 @@ export async function getCategoriaConCursos(categoriaId: string): Promise<Catego
 
   return {
     id: categoria.id,
+    slug: categoria.slug,
     nombre: categoria.nombre,
     descripcion: categoria.descripcion,
     cursos,
@@ -117,7 +127,7 @@ export async function getCatalogo(): Promise<CategoriaDetalle[]> {
 
   const { data: categoriasRows } = await supabase
     .from("categorias")
-    .select("id, nombre, descripcion")
+    .select("id, slug, nombre, descripcion")
     .eq("activo", true);
 
   const { data: cursosRows } = await supabase
@@ -128,21 +138,23 @@ export async function getCatalogo(): Promise<CategoriaDetalle[]> {
     .eq("mostrado", true)
     .order("orden_visualizacion");
 
-  // Un curso puede pertenecer a varias categorías en el esquema, pero el CMS
-  // hoy solo asigna una: se agrupa por la primera (ver curso_categorias,
-  // auditoría de esquema Bloque 3).
+  // Un curso aparece bajo cada una de sus categorías, no solo bajo la
+  // primera: `curso_categorias` es muchos-a-muchos y el CMS ya permite
+  // asignar varias.
   const cursosPorCategoria = new Map<string, CursoDeCategoria[]>();
   for (const curso of cursosRows ?? []) {
-    const idCategoria = curso.curso_categorias?.[0]?.id_categoria;
-    if (!idCategoria) continue;
-    const lista = cursosPorCategoria.get(idCategoria) ?? [];
-    lista.push(mapCursoDeCategoria(curso));
-    cursosPorCategoria.set(idCategoria, lista);
+    const mapeado = mapCursoDeCategoria(curso);
+    for (const { id_categoria: idCategoria } of curso.curso_categorias ?? []) {
+      const lista = cursosPorCategoria.get(idCategoria) ?? [];
+      lista.push(mapeado);
+      cursosPorCategoria.set(idCategoria, lista);
+    }
   }
 
   return (categoriasRows ?? [])
     .map((categoria) => ({
       id: categoria.id,
+      slug: categoria.slug,
       nombre: categoria.nombre,
       descripcion: categoria.descripcion,
       cursos: cursosPorCategoria.get(categoria.id) ?? [],

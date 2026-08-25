@@ -13,6 +13,7 @@ import { ConfiguracionTab } from "@/components/admin/cursos/ConfiguracionTab";
 import { useAdminToast } from "@/components/admin/Toast";
 import { actualizarInfoCurso, actualizarConfiguracionCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { esPortadaReal } from "@/lib/media";
+import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { CursoDetalle } from "@/lib/admin/cursoDetalle";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -34,7 +35,7 @@ export function CursoDetalleView({
   const [titulo, setTitulo] = useState(curso.titulo);
   const [imagenPortada, setImagenPortada] = useState(curso.imagenPortada);
   const [descripcion, setDescripcion] = useState(curso.descripcion);
-  const [categoriaId, setCategoriaId] = useState(curso.categoriaId);
+  const [categoriaIds, setCategoriaIds] = useState(curso.categoriaIds);
   const [nivel, setNivel] = useState<NivelCurso>(curso.nivel);
   const [mostrado, setMostrado] = useState(curso.mostrado);
   const [destacado, setDestacado] = useState(curso.destacado);
@@ -44,7 +45,27 @@ export function CursoDetalleView({
   const [pending, setPending] = useState(false);
   const showToast = useAdminToast();
 
-  const categoria = categorias.find((item) => item.id === categoriaId)?.nombre ?? "Sin categoría";
+  // Se recalcula con el título y la portada en vivo (los edita esta misma
+  // pantalla) y con los módulos tal como vinieron del servidor: ContenidoTab
+  // revalida la ruta al añadir contenido, así que llegan actualizados.
+  // Es la misma regla que aplica el servidor en bloqueoDePublicacion().
+  const motivosSinPublicar = motivosParaNoPublicar({
+    titulo,
+    imagenPortada,
+    modulos: curso.modulos.map((modulo) => ({
+      lecciones: modulo.lecciones.map((leccion) => ({
+        estadoProcesamiento: leccion.estadoProcesamiento,
+      })),
+    })),
+  });
+
+  // La cabecera lista todas las categorías del curso separadas por coma
+  // ("BIM, Gestión y Normativa · Básico").
+  const categoria =
+    categorias
+      .filter((item) => categoriaIds.includes(item.id))
+      .map((item) => item.nombre)
+      .join(", ") || "Sin categoría";
 
   async function handleGuardar() {
     setPending(true);
@@ -52,7 +73,7 @@ export function CursoDetalleView({
     setErrorConfig(null);
 
     const [resultadoInfo, resultadoConfig] = await Promise.all([
-      actualizarInfoCurso(curso.id, { titulo, descripcion, categoriaId, nivel }),
+      actualizarInfoCurso(curso.id, { titulo, descripcion, categoriaIds, nivel }),
       actualizarConfiguracionCurso(curso.id, { mostrado, destacado, ordenVisualizacion: orden }),
     ]);
     setPending(false);
@@ -140,8 +161,8 @@ export function CursoDetalleView({
             onImagenPortadaChange={setImagenPortada}
             descripcion={descripcion}
             onDescripcionChange={setDescripcion}
-            categoriaId={categoriaId}
-            onCategoriaIdChange={setCategoriaId}
+            categoriaIds={categoriaIds}
+            onCategoriaIdsChange={setCategoriaIds}
             nivel={nivel}
             onNivelChange={setNivel}
             categorias={categorias}
@@ -162,10 +183,13 @@ export function CursoDetalleView({
           <ConfiguracionTab
             mostrado={mostrado}
             onMostradoChange={setMostrado}
+            motivosSinPublicar={motivosSinPublicar}
             destacado={destacado}
             onDestacadoChange={setDestacado}
             orden={orden}
             onOrdenChange={setOrden}
+            cursoId={curso.id}
+            enlacesVistaPrevia={curso.enlacesVistaPrevia}
             error={errorConfig}
           />
         </TabsContent>

@@ -4,6 +4,7 @@ export type CursoDeCategoria = { id: string; titulo: string; mostrado: boolean }
 
 export type Categoria = {
   id: string;
+  slug: string;
   nombre: string;
   descripcion: string | null;
   activo: boolean;
@@ -14,6 +15,7 @@ export type Categoria = {
 
 type FilaCategoria = {
   id: string;
+  slug: string;
   nombre: string;
   descripcion: string | null;
   activo: boolean;
@@ -33,7 +35,7 @@ export async function getCategorias(): Promise<Categoria[]> {
   const [{ data: categorias }, { data: cursosPorCategoriaRows }] = await Promise.all([
     supabase
       .from("categorias")
-      .select("id, nombre, descripcion, activo, admin_creador:perfiles(nombre)")
+      .select("id, slug, nombre, descripcion, activo, admin_creador:perfiles(nombre)")
       .order("nombre", { ascending: true }),
     supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, titulo, mostrado)"),
   ]);
@@ -56,6 +58,7 @@ export async function getCategorias(): Promise<Categoria[]> {
 
     return {
       id: categoria.id,
+      slug: categoria.slug,
       nombre: categoria.nombre,
       descripcion: categoria.descripcion,
       activo: categoria.activo,

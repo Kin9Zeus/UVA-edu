@@ -9,21 +9,23 @@ import { CategoriaContent } from "@/components/catalogo/CategoriaContent";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ categoriaId: string }>;
+  params: Promise<{ categoriaSlug: string }>;
 }): Promise<Metadata> {
-  const { categoriaId } = await params;
-  const categoria = await getCategoriaConCursos(categoriaId);
+  const { categoriaSlug } = await params;
+  const categoria = await getCategoriaConCursos(categoriaSlug);
   return { title: categoria ? `U.V.A. — ${categoria.nombre}` : "U.V.A. — Categoría" };
 }
 
 export default async function CategoriaPage({
   params,
 }: {
-  params: Promise<{ categoriaId: string }>;
+  params: Promise<{ categoriaSlug: string }>;
 }) {
-  const { categoriaId } = await params;
+  const { categoriaSlug } = await params;
   const perfilActual = await getPerfilActual();
-  const categoria = await getCategoriaConCursos(categoriaId);
+  // getCategoriaConCursos acepta slug o UUID, así que los enlaces anteriores
+  // al cambio de rutas siguen resolviendo.
+  const categoria = await getCategoriaConCursos(categoriaSlug);
 
   if (!categoria) {
     notFound();

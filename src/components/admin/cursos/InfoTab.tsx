@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,20 +12,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
 import { subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
-import { esPortadaReal } from "@/lib/media";
+import {
+  ACCEPT_PORTADA,
+  ERROR_FORMATO_PORTADA,
+  ERROR_TAMANO_PORTADA,
+  FORMATOS_PORTADA,
+  TAMANO_MAXIMO_PORTADA,
+  esPortadaReal,
+} from "@/lib/media";
 
 const NIVEL_ITEMS = {
   BASICO: "Básico",
   INTERMEDIO: "Intermedio",
   AVANZADO: "Avanzado",
 };
-
-// Mismo valor que TAMANO_MAXIMO_PORTADA en actions/admin/cursos.ts. No se
-// puede importar desde ahí: ese módulo tiene "use server" a nivel de
-// archivo, así que solo puede exportar funciones async.
-const TAMANO_MAXIMO_PORTADA = 5 * 1024 * 1024;
 
 /**
  * Controlado desde CursoDetalleView: el guardado es compartido con
@@ -39,8 +43,8 @@ export function InfoTab({
   onImagenPortadaChange,
   descripcion,
   onDescripcionChange,
-  categoriaId,
-  onCategoriaIdChange,
+  categoriaIds,
+  onCategoriaIdsChange,
   nivel,
   onNivelChange,
   categorias,
@@ -53,41 +57,72 @@ export function InfoTab({
   onImagenPortadaChange: (url: string) => void;
   descripcion: string;
   onDescripcionChange: (value: string) => void;
-  categoriaId: string;
-  onCategoriaIdChange: (value: string) => void;
+  categoriaIds: string[];
+  onCategoriaIdsChange: (ids: string[]) => void;
   nivel: NivelCurso;
   onNivelChange: (value: NivelCurso) => void;
   categorias: { id: string; nombre: string }[];
   error: string | null;
 }) {
-  const categoriaItems = useMemo(
-    () => Object.fromEntries(categorias.map((c) => [c.id, c.nombre])),
-    [categorias],
-  );
   const [subiendoPortada, setSubiendoPortada] = useState(false);
   const [errorPortada, setErrorPortada] = useState<string | null>(null);
+  // Elegir un archivo no lo sube: queda acá en memoria y se previsualiza
+  // hasta que el administrador confirme. Reemplazar la portada de un curso
+  // publicado es visible de inmediato en el catálogo, así que no debería
+  // pasar por un clic accidental en el selector de archivos.
+  const [portadaPendiente, setPortadaPendiente] = useState<File | null>(null);
   const inputPortadaRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
 
-  async function handleSubirPortada(event: React.ChangeEvent<HTMLInputElement>) {
+  const previewPendiente = useMemo(
+    () => (portadaPendiente ? URL.createObjectURL(portadaPendiente) : null),
+    [portadaPendiente],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewPendiente) URL.revokeObjectURL(previewPendiente);
+    };
+  }, [previewPendiente]);
+
+  function handleSeleccionarPortada(event: React.ChangeEvent<HTMLInputElement>) {
     const archivo = event.target.files?.[0];
     event.target.value = "";
     if (!archivo) return;
 
-    if (!archivo.type.startsWith("image/")) {
-      setErrorPortada("El archivo debe ser una imagen.");
+    // Un pre-chequeo para no gastar una subida en un archivo que el
+    // servidor va a rechazar igual; la validación que manda es la de
+    // procesarPortada(), que mira los magic bytes y no este `type`.
+    if (!ACCEPT_PORTADA.split(",").includes(archivo.type)) {
+      setErrorPortada(ERROR_FORMATO_PORTADA);
       return;
     }
     if (archivo.size > TAMANO_MAXIMO_PORTADA) {
-      setErrorPortada("La imagen no puede superar los 5 MB.");
+      setErrorPortada(ERROR_TAMANO_PORTADA);
       return;
     }
+
+    setErrorPortada(null);
+    setPortadaPendiente(archivo);
+  }
+
+  // Lo que se pinta en el recuadro: la imagen pendiente de confirmar si la
+  // hay, si no la portada ya guardada, y si tampoco, nada (zona de arrastre).
+  const fuenteVistaPrevia =
+    previewPendiente ?? (esPortadaReal(imagenPortada) ? imagenPortada : null);
+
+  function descartarPortadaPendiente() {
+    setPortadaPendiente(null);
+    setErrorPortada(null);
+  }
+
+  async function handleConfirmarPortada() {
+    if (!portadaPendiente) return;
 
     setErrorPortada(null);
     setSubiendoPortada(true);
     try {
       const formData = new FormData();
-      formData.set("archivo", archivo);
+      formData.set("archivo", portadaPendiente);
       const resultado = await subirPortadaCurso(cursoId, formData);
 
       if (resultado.error || !resultado.url) {
@@ -95,6 +130,7 @@ export function InfoTab({
         return;
       }
       onImagenPortadaChange(resultado.url);
+      setPortadaPendiente(null);
       showToast("Portada actualizada.");
     } catch {
       setErrorPortada("No pudimos subir la imagen.");
@@ -144,63 +180,80 @@ export function InfoTab({
             {errorPortada}
           </div>
         )}
+        {/* El recuadro muestra la imagen pendiente si hay una; si no, la
+            portada guardada. Es aspect-video + object-cover, el mismo
+            encuadre 16:9 centrado que el servidor aplica al guardar, así
+            que la vista previa no miente sobre el recorte. */}
         <button
           type="button"
           onClick={() => inputPortadaRef.current?.click()}
           disabled={subiendoPortada}
           className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
         >
-          {esPortadaReal(imagenPortada) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-            <img src={imagenPortada} alt="" className="size-full object-cover" />
+          {fuenteVistaPrevia ? (
+            // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL) o imagen de Supabase Storage
+            <img src={fuenteVistaPrevia} alt="" className="size-full object-cover" />
           ) : (
             <div className="flex size-full items-center justify-center px-4">
-              {subiendoPortada ? (
-                "Subiendo…"
-              ) : (
-                <>
-                  Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
-                </>
-              )}
+              Arrastra una imagen aquí o{" "}
+              <span className="text-uva-accent">selecciona un archivo</span>
             </div>
           )}
         </button>
-        {esPortadaReal(imagenPortada) && (
-          <p className="mt-1.5 text-xs text-uva-text-faint">
-            {subiendoPortada ? "Subiendo…" : "Click en la imagen para reemplazarla."}
-          </p>
+
+        {portadaPendiente ? (
+          <div className="mt-2 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmarPortada}
+              disabled={subiendoPortada}
+            >
+              {subiendoPortada ? "Subiendo…" : "Usar esta portada"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={descartarPortadaPendiente}
+              disabled={subiendoPortada}
+            >
+              Descartar
+            </Button>
+          </div>
+        ) : (
+          esPortadaReal(imagenPortada) && (
+            <p className="mt-1.5 text-xs text-uva-text-faint">
+              Click en la imagen para reemplazarla.
+            </p>
+          )
         )}
+
         <p className="mt-1 text-xs text-uva-text-faint">
-          Recomendado: 1280×720px (relación 16:9), como se ve en la vista previa.
+          {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
+          recortada a 1280×720px (16:9), igual que la vista previa.
         </p>
         <input
           ref={inputPortadaRef}
           type="file"
-          accept="image/*"
+          accept={ACCEPT_PORTADA}
           className="hidden"
-          onChange={handleSubirPortada}
+          onChange={handleSeleccionarPortada}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* items-start: la lista de categorías es más alta que el Select de
+          nivel, y sin esto el grid estiraría el Select para igualarla. */}
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="info-categoria">Categoría</Label>
-          <Select
-            items={categoriaItems}
-            value={categoriaId}
-            onValueChange={(value) => onCategoriaIdChange(value ?? "")}
-          >
-            <SelectTrigger id="info-categoria" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categorias.map((categoria) => (
-                <SelectItem key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label id="info-categorias-label">Categorías</Label>
+          <SelectorCategorias
+            id="info-categorias"
+            categorias={categorias}
+            seleccionadas={categoriaIds}
+            onChange={onCategoriaIdsChange}
+          />
         </div>
         <div>
           <Label htmlFor="info-nivel">Nivel</Label>

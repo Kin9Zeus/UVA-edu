@@ -34,7 +34,7 @@ export function CursoDetalleContent({
       <div className="flex flex-col gap-8">
         <div>
           <Link
-            href={`${basePath}/${curso.categoriaId}`}
+            href={`${basePath}/${curso.categoriaSlug}`}
             className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
           >
             <ChevronLeft className="size-4" strokeWidth={1.9} />

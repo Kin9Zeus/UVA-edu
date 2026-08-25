@@ -33,12 +33,25 @@ export type EstudianteDeCurso = {
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
 };
 
+/**
+ * Enlace de vista previa tal como lo ve el panel. Nunca incluye el token:
+ * la base solo guarda su hash, así que un enlace ya generado no se puede
+ * volver a mostrar — solo revocar y generar otro.
+ */
+export type EnlaceVistaPrevia = {
+  id: string;
+  expiraEn: string;
+  vecesUsado: number;
+  creadoEn: string;
+};
+
 export type CursoDetalle = {
   id: string;
   titulo: string;
   descripcion: string;
   imagenPortada: string;
-  categoriaId: string;
+  /** Todas las categorías del curso (curso_categorias es muchos-a-muchos). */
+  categoriaIds: string[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   instructorId: string;
   instructor: string;
@@ -47,6 +60,8 @@ export type CursoDetalle = {
   ordenVisualizacion: number;
   modulos: ModuloDetalle[];
   estudiantes: EstudianteDeCurso[];
+  /** Solo los que siguen vigentes (ni revocados ni caducados). */
+  enlacesVistaPrevia: EnlaceVistaPrevia[];
 };
 
 export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | null> {
@@ -62,14 +77,21 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
 
   if (!curso) return null;
 
-  // El CMS solo maneja una categoría por curso hoy; se toma la primera fila
-  // de la puente (ver curso_categorias, auditoría de esquema Bloque 3).
-  const { data: categoriaCurso } = await supabase
+  const { data: categoriasCurso } = await supabase
     .from("curso_categorias")
     .select("id_categoria")
+    .eq("id_curso", cursoId);
+
+  // Solo los vigentes: los revocados y los caducados se filtran en la
+  // consulta para que el panel no liste enlaces que ya no abren nada. Las
+  // filas siguen en la base como rastro (ver 025_rls_tokens_vista_previa).
+  const { data: enlaces } = await supabase
+    .from("tokens_vista_previa")
+    .select("id, expira_en, veces_usado, creado_en")
     .eq("id_curso", cursoId)
-    .limit(1)
-    .maybeSingle();
+    .is("revocado_en", null)
+    .gt("expira_en", new Date().toISOString())
+    .order("creado_en", { ascending: false });
 
   const { data: modulos } = await supabase
     .from("modulos")
@@ -147,7 +169,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     imagenPortada: curso.imagen_portada,
-    categoriaId: categoriaCurso?.id_categoria ?? "",
+    categoriaIds: (categoriasCurso ?? []).map((fila) => fila.id_categoria as string),
     nivel: curso.nivel,
     instructorId: curso.id_instructor,
     instructor: instructor?.nombre ?? "Sin instructor",
@@ -156,5 +178,11 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     ordenVisualizacion: curso.orden_visualizacion,
     modulos: modulosDetalle,
     estudiantes,
+    enlacesVistaPrevia: (enlaces ?? []).map((enlace) => ({
+      id: enlace.id as string,
+      expiraEn: enlace.expira_en as string,
+      vecesUsado: enlace.veces_usado as number,
+      creadoEn: enlace.creado_en as string,
+    })),
   };
 }

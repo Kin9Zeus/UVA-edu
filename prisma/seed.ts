@@ -101,6 +101,7 @@ config({ path: ".env.local" });
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createClient } from "@supabase/supabase-js";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { slugificar } from "../src/lib/slug";
 
 // ---------------------------------------------------------------------------
 // Constantes de identidad de los usuarios de prueba
@@ -717,8 +718,15 @@ async function sembrar(): Promise<void> {
   const idPorCodigo = ids[`estudiante-por-codigo${DOMINIO_SEED}`];
 
   // --- Categorías ---------------------------------------------------------
+  // El slug sale de slugificar(), la misma función que usa el CMS: si el
+  // seed lo escribiera a mano, las categorías sembradas y las creadas desde
+  // el panel podrían normalizar distinto el mismo nombre.
   await prisma.categorias.createMany({
-    data: CATEGORIAS.map((c, i) => ({ id: IDS_CATEGORIAS[i], ...c })),
+    data: CATEGORIAS.map((c, i) => ({
+      id: IDS_CATEGORIAS[i],
+      slug: slugificar(c.nombre),
+      ...c,
+    })),
   });
   console.log(`📚 ${CATEGORIAS.length} categorías`);
 

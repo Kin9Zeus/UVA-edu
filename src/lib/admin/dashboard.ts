@@ -95,13 +95,21 @@ export async function getDashboardData() {
 
       const total = progreso?.length ?? 0;
       const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
-      const categoriaFila = curso.curso_categorias?.[0]?.categoria;
-      const categoria = Array.isArray(categoriaFila) ? categoriaFila[0] : categoriaFila;
+      // Todas las categorías del curso, no solo la primera. Acá se unen en
+      // una cadena porque esta tabla del panel es un resumen de una línea
+      // por curso; el listado de /admin/cursos sí las pinta como chips.
+      const nombresCategorias = (curso.curso_categorias ?? [])
+        .map((fila) => {
+          const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+          return categoria?.nombre;
+        })
+        .filter((nombre): nombre is string => !!nombre)
+        .sort((a, b) => a.localeCompare(b));
 
       return {
         id: curso.id,
         titulo: curso.titulo,
-        categoria: categoria?.nombre ?? "Sin categoría",
+        categoria: nombresCategorias.join(", ") || "Sin categoría",
         estudiantes: curso.estudiantes,
         porcentajeFinalizacion: total > 0 ? Math.round((completados / total) * 100) : 0,
         mostrado: curso.mostrado,

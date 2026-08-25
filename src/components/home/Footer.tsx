@@ -63,7 +63,7 @@ export async function Footer() {
   // `categorias` no tiene columna `orden` en el esquema.
   const { data, error } = await supabase
     .from("categorias")
-    .select("id, nombre")
+    .select("id, slug, nombre")
     .order("nombre", { ascending: true });
 
   if (error) {
@@ -93,7 +93,7 @@ export async function Footer() {
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
-                    <Link href={`/catalogo/${escuela.id}`} className={linkClass}>
+                    <Link href={`/catalogo/${escuela.slug}`} className={linkClass}>
                       {escuela.nombre}
                     </Link>
                   </li>

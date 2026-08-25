@@ -90,6 +90,7 @@ model Perfiles {
   categorias_creadas         Categorias[]             @relation("CategoriasCreadasPorAdmin")
   instructores_creados       Instructores[]           @relation("InstructoresCreadosPorAdmin")
   codigos_invitacion_creados CodigosInvitacion[]      @relation("CodigosInvitacionCreadosPorAdmin")
+  tokens_vista_previa_creados TokensVistaPrevia[]     @relation("TokensVistaPreviaCreadosPorAdmin")
   suscripciones              Suscripciones[]          @relation("SuscripcionesDelUsuario")
   suscripciones_otorgadas    Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
   progreso                   Progreso[]
@@ -179,6 +180,10 @@ model Pagos {
 model Categorias {
   id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre           String
+  /// Identificador legible para las URLs del catálogo. Lo genera la app
+  /// desde `nombre` con slugificar() (src/lib/slug.ts); es único porque dos
+  /// categorías no pueden compartir URL.
+  slug             String  @unique
   descripcion      String?
   activo           Boolean @default(true)
   id_admin_creador String? @db.Uuid
@@ -190,6 +195,30 @@ model Categorias {
 
   @@index([id_admin_creador])
   @@map("categorias")
+}
+
+/// Enlace temporal para previsualizar un curso en borrador sin tener cuenta
+/// (Revcurso, requisito 3). Guarda el SHA-256 del token, nunca el token en
+/// claro: un volcado de la base no debe entregar enlaces funcionales a
+/// contenido sin publicar.
+model TokensVistaPrevia {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token_hash       String    @unique
+  id_curso         String    @db.Uuid
+  id_admin_creador String?   @db.Uuid
+  /// NOT NULL a propósito: no existe el enlace de vista previa permanente.
+  expira_en        DateTime  @db.Timestamptz
+  /// Corte manual antes de la caducidad, si el enlace se compartió por error.
+  revocado_en      DateTime? @db.Timestamptz
+  veces_usado      Int       @default(0)
+  creado_en        DateTime  @default(now()) @db.Timestamptz
+  actualizado_en   DateTime  @updatedAt @db.Timestamptz
+
+  curso         Cursos    @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  admin_creador Perfiles? @relation("TokensVistaPreviaCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+
+  @@index([id_curso])
+  @@map("tokens_vista_previa")
 }
 
 /// Tabla puente curso↔categoría (muchos-a-muchos). Hoy el CMS solo asigna
@@ -249,6 +278,7 @@ model Cursos {
   certificados  Certificados[]
   inscripciones Inscripciones[]
   categorias    CursoCategorias[]
+  tokens_vista_previa TokensVistaPrevia[]
 
   @@index([id_instructor])
   @@index([id_admin_creador])

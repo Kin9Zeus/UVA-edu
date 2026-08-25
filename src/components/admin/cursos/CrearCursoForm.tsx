@@ -16,16 +16,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { tabsListVariants, tabTriggerVariants } from "@/components/ui/tabs";
+import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
 import { crearCurso, subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
+import {
+  ACCEPT_PORTADA,
+  ERROR_FORMATO_PORTADA,
+  ERROR_TAMANO_PORTADA,
+  FORMATOS_PORTADA,
+  TAMANO_MAXIMO_PORTADA,
+} from "@/lib/media";
 
 const NIVEL_ITEMS = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" };
-
-// Mismo valor que TAMANO_MAXIMO_PORTADA en actions/admin/cursos.ts. No se
-// puede importar desde ahí: ese módulo tiene "use server" a nivel de
-// archivo, así que solo puede exportar funciones async.
-const TAMANO_MAXIMO_PORTADA = 5 * 1024 * 1024;
 
 export function CrearCursoForm({
   categorias,
@@ -38,7 +41,7 @@ export function CrearCursoForm({
   const [descripcion, setDescripcion] = useState("");
   const [portadaArchivo, setPortadaArchivo] = useState<File | null>(null);
   const [errorPortada, setErrorPortada] = useState<string | null>(null);
-  const [categoriaId, setCategoriaId] = useState("");
+  const [categoriaIds, setCategoriaIds] = useState<string[]>([]);
   const [nivel, setNivel] = useState<NivelCurso>("BASICO");
   const [instructores, setInstructores] = useState(instructoresIniciales);
   const [idInstructor, setIdInstructor] = useState("");
@@ -67,22 +70,19 @@ export function CrearCursoForm({
     event.target.value = "";
     if (!archivo) return;
 
-    if (!archivo.type.startsWith("image/")) {
-      setErrorPortada("El archivo debe ser una imagen.");
+    // Pre-chequeo para dar el error de inmediato; la validación que manda
+    // es la de procesarPortada() en el servidor, que mira los magic bytes.
+    if (!ACCEPT_PORTADA.split(",").includes(archivo.type)) {
+      setErrorPortada(ERROR_FORMATO_PORTADA);
       return;
     }
     if (archivo.size > TAMANO_MAXIMO_PORTADA) {
-      setErrorPortada("La imagen no puede superar los 5 MB.");
+      setErrorPortada(ERROR_TAMANO_PORTADA);
       return;
     }
     setErrorPortada(null);
     setPortadaArchivo(archivo);
   }
-
-  const categoriaItems = useMemo(
-    () => Object.fromEntries(categorias.map((c) => [c.id, c.nombre])),
-    [categorias],
-  );
 
   const instructorItems = useMemo(
     () => Object.fromEntries(instructores.map((i) => [i.id, i.nombre])),
@@ -99,17 +99,16 @@ export function CrearCursoForm({
     setIdInstructor(id);
   }
 
-  async function handleGuardar(publicar: boolean) {
-    setPending(publicar ? "publicar" : "borrador");
+  async function handleGuardar() {
+    setPending("borrador");
     setError(null);
 
     const resultado = await crearCurso({
       titulo,
       descripcion,
-      categoriaId,
+      categoriaIds,
       nivel,
       idInstructor,
-      publicar,
     });
 
     if (resultado.error || !resultado.id) {
@@ -130,7 +129,7 @@ export function CrearCursoForm({
     }
 
     setPending(null);
-    showToast(publicar ? "Curso publicado." : "Curso guardado como borrador.");
+    showToast("Curso creado como borrador. Añade el contenido para publicarlo.");
     router.push(`/admin/cursos/${resultado.id}`);
   }
 
@@ -211,34 +210,29 @@ export function CrearCursoForm({
             <p className="mt-1.5 text-xs text-uva-text-faint">Click en la imagen para reemplazarla.</p>
           )}
           <p className="mt-1 text-xs text-uva-text-faint">
-            Recomendado: 1280×720px (relación 16:9), como se ve en la vista previa.
+            {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
+            recortada a 1280×720px (16:9), igual que la vista previa.
           </p>
           <input
             ref={inputPortadaRef}
             type="file"
-            accept="image/*"
+            accept={ACCEPT_PORTADA}
             className="hidden"
             onChange={handleSeleccionarPortada}
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* items-start: la lista de categorías es más alta que el Select de
+            nivel, y sin esto el grid estiraría el Select para igualarla. */}
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="curso-categoria">Categoría</Label>
-            <Select
-              items={categoriaItems}
-              value={categoriaId}
-              onValueChange={(value) => setCategoriaId(value ?? "")}
-            >
-              <SelectTrigger id="curso-categoria" className="w-full"><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger>
-              <SelectContent>
-                {categorias.map((categoria) => (
-                  <SelectItem key={categoria.id} value={categoria.id}>
-                    {categoria.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label id="curso-categorias-label">Categorías</Label>
+            <SelectorCategorias
+              id="curso-categorias"
+              categorias={categorias}
+              seleccionadas={categoriaIds}
+              onChange={setCategoriaIds}
+            />
           </div>
           <div>
             <Label htmlFor="curso-nivel">Nivel</Label>
@@ -295,12 +289,14 @@ export function CrearCursoForm({
 
       </div>
 
+      {/* El mockup traía aquí un segundo botón "Publicar curso". Se quitó:
+          un curso recién creado no tiene portada, ni módulos, ni lecciones,
+          así que nunca pasaría las validaciones de publicación — el botón
+          solo podía dar error. Se publica desde el detalle, con el contenido
+          ya cargado. */}
       <div className="flex gap-2.5 border-t border-uva-divider pt-1.5">
-        <Button type="button" disabled={pending !== null} onClick={() => handleGuardar(false)}>
-          {pending === "borrador" ? "Guardando…" : "Guardar como borrador"}
-        </Button>
-        <Button type="button" variant="primary" disabled={pending !== null} onClick={() => handleGuardar(true)}>
-          {pending === "publicar" ? "Publicando…" : "Publicar curso"}
+        <Button type="button" variant="primary" disabled={pending !== null} onClick={handleGuardar}>
+          {pending === "borrador" ? "Creando…" : "Crear curso"}
         </Button>
         <Button
           type="button"

@@ -20,6 +20,7 @@ export type CursoPublico = {
   descripcion: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   categoriaId: string;
+  categoriaSlug: string;
   categoriaNombre: string;
   instructorNombre: string;
   instructorEspecialidad: string | null;
@@ -53,12 +54,12 @@ export async function getCursoPublico(
   // fila de la puente (ver curso_categorias, auditoría de esquema Bloque 3).
   const { data: categoriaCurso } = await supabase
     .from("curso_categorias")
-    .select("id_categoria, categoria:categorias(nombre)")
+    .select("id_categoria, categoria:categorias(slug, nombre)")
     .eq("id_curso", cursoId)
     .limit(1)
     .maybeSingle();
   const categoriaEmbebida = categoriaCurso?.categoria;
-  const nombreCategoria = (Array.isArray(categoriaEmbebida) ? categoriaEmbebida[0] : categoriaEmbebida)?.nombre;
+  const categoria = Array.isArray(categoriaEmbebida) ? categoriaEmbebida[0] : categoriaEmbebida;
 
   const { data: modulos } = await supabase
     .from("modulos")
@@ -129,7 +130,8 @@ export async function getCursoPublico(
     descripcion: curso.descripcion,
     nivel: curso.nivel,
     categoriaId: categoriaCurso?.id_categoria ?? "",
-    categoriaNombre: nombreCategoria ?? "General",
+    categoriaSlug: categoria?.slug ?? "",
+    categoriaNombre: categoria?.nombre ?? "General",
     instructorNombre: instructor?.nombre ?? "Sin instructor",
     instructorEspecialidad: instructor?.especialidad ?? null,
     imagenPortada: curso.imagen_portada,

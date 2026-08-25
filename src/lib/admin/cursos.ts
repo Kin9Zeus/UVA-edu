@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 export type CursoListado = {
   id: string;
   titulo: string;
-  categoria: string;
-  categoriaId: string;
+  /** Todas las categorías del curso: `curso_categorias` es muchos-a-muchos. */
+  categorias: { id: string; nombre: string }[];
   instructor: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   estudiantes: number;
@@ -29,24 +29,27 @@ export async function getCursosListado(): Promise<CursoListado[]> {
     conteo.set(inscripcion.id_curso, (conteo.get(inscripcion.id_curso) ?? 0) + 1);
   }
 
-  // El CMS solo maneja una categoría por curso hoy: se toma la primera fila
-  // de la puente por curso (ver curso_categorias, auditoría de esquema
-  // Bloque 3).
-  const categoriaPorCurso = new Map<string, { id: string; nombre: string }>();
+  // Se agrupan TODAS las categorías de cada curso, no solo la primera: el
+  // listado las muestra completas y el filtro por categoría tiene que
+  // encontrar un curso también cuando esa categoría es la segunda o la
+  // tercera que tiene asignada.
+  const categoriasPorCurso = new Map<string, { id: string; nombre: string }[]>();
   for (const fila of categoriasDeCursos ?? []) {
-    if (categoriaPorCurso.has(fila.id_curso)) continue;
     const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
-    categoriaPorCurso.set(fila.id_curso, { id: fila.id_categoria, nombre: categoria?.nombre ?? "Sin categoría" });
+    const lista = categoriasPorCurso.get(fila.id_curso) ?? [];
+    lista.push({ id: fila.id_categoria, nombre: categoria?.nombre ?? "Sin categoría" });
+    categoriasPorCurso.set(fila.id_curso, lista);
+  }
+  for (const lista of categoriasPorCurso.values()) {
+    lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }
 
   return (cursos ?? []).map((curso) => {
     const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-    const categoria = categoriaPorCurso.get(curso.id);
     return {
       id: curso.id,
       titulo: curso.titulo,
-      categoria: categoria?.nombre ?? "Sin categoría",
-      categoriaId: categoria?.id ?? "",
+      categorias: categoriasPorCurso.get(curso.id) ?? [],
       instructor: instructor?.nombre ?? "Sin instructor",
       nivel: curso.nivel,
       estudiantes: conteo.get(curso.id) ?? 0,

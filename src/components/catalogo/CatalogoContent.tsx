@@ -141,7 +141,7 @@ function CatalogoContentInner({
                   {categoria.cursos.length} {categoria.cursos.length === 1 ? "curso" : "cursos"}
                 </span>
                 <Link
-                  href={`${basePath}/${categoria.id}`}
+                  href={`${basePath}/${categoria.slug}`}
                   className="ml-auto text-[13px] text-uva-text hover:text-uva-accent-text"
                 >
                   Ver categoría

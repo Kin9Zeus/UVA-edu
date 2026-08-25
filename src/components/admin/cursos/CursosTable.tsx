@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdminCard } from "@/components/admin/AdminCard";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { useAdminSearch } from "@/components/admin/SearchContext";
@@ -61,7 +62,11 @@ export function CursosTable({
         !texto ||
         curso.titulo.toLowerCase().includes(texto) ||
         curso.instructor.toLowerCase().includes(texto);
-      const coincideCategoria = filtroCategoria === "todas" || curso.categoriaId === filtroCategoria;
+      // `some`: un curso aparece bajo el filtro de cualquiera de sus
+      // categorías, no solo de la primera.
+      const coincideCategoria =
+        filtroCategoria === "todas" ||
+        curso.categorias.some((categoria) => categoria.id === filtroCategoria);
       const coincideEstado =
         filtroEstado === "todos" || (filtroEstado === "publicado" ? curso.mostrado : !curso.mostrado);
       const coincideNivel = filtroNivel === "todos" || curso.nivel === filtroNivel;
@@ -149,7 +154,7 @@ export function CursosTable({
           <TableHeader>
             <TableRow>
               <TableHead>Curso</TableHead>
-              <TableHead>Categoría</TableHead>
+              <TableHead>Categorías</TableHead>
               <TableHead>Nivel</TableHead>
               <TableHead>Estudiantes</TableHead>
               <TableHead>Estado</TableHead>
@@ -172,7 +177,22 @@ export function CursosTable({
                     {curso.titulo}
                   </Link>
                 </TableCell>
-                <TableCell className="text-uva-muted">{curso.categoria}</TableCell>
+                {/* Todas las categorías del curso, cada una como un chip. La
+                    celda envuelve en varias líneas si son varias, en vez de
+                    recortarlas. */}
+                <TableCell className="whitespace-normal">
+                  {curso.categorias.length === 0 ? (
+                    <span className="text-uva-muted-2">Sin categoría</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {curso.categorias.map((categoria) => (
+                        <StatusBadge key={categoria.id} tone="neutral">
+                          {categoria.nombre}
+                        </StatusBadge>
+                      ))}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="text-uva-muted">{NIVEL_LABEL[curso.nivel]}</TableCell>
                 <TableCell className="font-mono tabular-nums">{curso.estudiantes}</TableCell>
                 <TableCell>

@@ -1,0 +1,142 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { evaluarToken, hashToken, type EstadoTokenVistaPrevia } from "@/lib/vistaPrevia";
+
+/**
+ * ⚠️  ÚNICO punto de la aplicación que lee un curso NO publicado sin sesión.
+ *
+ * Por qué usa el cliente de service role
+ * --------------------------------------
+ * CLAUDE.md prohíbe saltarse RLS, y con razón. Aquí hay una excepción
+ * deliberada y acotada, no un descuido:
+ *
+ *   - Quien abre el enlace es `anon`. RLS le niega `cursos` con
+ *     `mostrado = false` (001_rls_policies.sql), que es exactamente lo que
+ *     hay que enseñarle. No hay forma de resolverlo desde la policy: el
+ *     token viaja en la URL de Next.js, no en el JWT que ve Postgres.
+ *   - La alternativa era una función SECURITY DEFINER que devolviera el
+ *     curso entero armado en SQL. Duplicaría en plpgsql toda la forma que
+ *     ya construye getCursoPublico (módulos, lecciones, recursos,
+ *     instructor) y las dos copias se desincronizarían a la primera.
+ *
+ * Revcurso pide "sin desactivar RLS globalmente", y no se desactiva: sigue
+ * activa para todas las demás rutas. Es este módulo el que actúa de puerta
+ * estrecha.
+ *
+ * Reglas para quien modifique este archivo
+ * ----------------------------------------
+ *   1. El cliente de service role NO sale de aquí. No lo exportes.
+ *   2. Toda consulta va acotada por `.eq("id", <id que salió de la fila del
+ *      token>)`. Nunca por un id que venga del visitante.
+ *   3. Lo único que entra desde fuera es el token, y se hashea antes de
+ *      tocar la base.
+ */
+
+export type ResultadoVistaPrevia =
+  | { valido: true; idCurso: string; expiraEn: Date }
+  | { valido: false; motivo: "INEXISTENTE" | "REVOCADO" | "EXPIRADO" };
+
+/**
+ * Valida un token de vista previa y devuelve el curso al que da acceso.
+ *
+ * No distingue hacia fuera entre "no existe", "revocado" y "expirado" más
+ * allá del mensaje que se le muestra al visitante: los tres son un no.
+ */
+export async function resolverTokenVistaPrevia(token: string): Promise<ResultadoVistaPrevia> {
+  // Un token vacío o absurdamente largo no llega a consultar la base.
+  if (!token || token.length > 200) {
+    return { valido: false, motivo: "INEXISTENTE" };
+  }
+
+  const supabase = createAdminClient();
+
+  const { data } = await supabase
+    .from("tokens_vista_previa")
+    .select("id, id_curso, expira_en, revocado_en, veces_usado")
+    .eq("token_hash", hashToken(token))
+    .maybeSingle();
+
+  const estado: EstadoTokenVistaPrevia = evaluarToken(
+    data
+      ? {
+          idCurso: data.id_curso as string,
+          expiraEn: new Date(data.expira_en as string),
+          revocadoEn: data.revocado_en ? new Date(data.revocado_en as string) : null,
+        }
+      : null,
+    new Date(),
+  );
+
+  if (!estado.valido) return estado;
+
+  // Contador de uso, para que el panel muestre si el enlace se abrió. Es
+  // informativo: si falla, la vista previa sigue funcionando.
+  await supabase
+    .from("tokens_vista_previa")
+    .update({ veces_usado: ((data?.veces_usado as number) ?? 0) + 1 })
+    .eq("id", data!.id);
+
+  return estado;
+}
+
+/** Curso en borrador tal como lo verá quien abra el enlace. */
+export type CursoVistaPrevia = {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  imagenPortada: string;
+  nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  instructorNombre: string;
+  mostrado: boolean;
+  modulos: {
+    id: string;
+    titulo: string;
+    lecciones: { id: string; titulo: string; duracion: number | null }[];
+  }[];
+};
+
+/**
+ * Lee el curso de un enlace de vista previa.
+ *
+ * `idCurso` DEBE venir de resolverTokenVistaPrevia(), nunca de la URL: es la
+ * regla 2 de la cabecera de este archivo.
+ */
+export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPrevia | null> {
+  const supabase = createAdminClient();
+
+  const { data: curso } = await supabase
+    .from("cursos")
+    .select(
+      "id, titulo, descripcion, imagen_portada, nivel, mostrado, instructor:instructores(nombre), modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))",
+    )
+    .eq("id", idCurso)
+    .maybeSingle();
+
+  if (!curso) return null;
+
+  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
+
+  const modulos = (curso.modulos ?? [])
+    .sort((a, b) => a.orden - b.orden)
+    .map((modulo) => ({
+      id: modulo.id,
+      titulo: modulo.titulo,
+      lecciones: (modulo.lecciones ?? [])
+        .sort((a, b) => a.orden - b.orden)
+        .map((leccion) => ({
+          id: leccion.id,
+          titulo: leccion.titulo,
+          duracion: leccion.duracion,
+        })),
+    }));
+
+  return {
+    id: curso.id,
+    titulo: curso.titulo,
+    descripcion: curso.descripcion,
+    imagenPortada: curso.imagen_portada,
+    nivel: curso.nivel,
+    instructorNombre: instructor?.nombre ?? "Sin instructor",
+    mostrado: curso.mostrado,
+    modulos,
+  };
+}

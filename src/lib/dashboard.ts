@@ -14,6 +14,7 @@ export type ClaseEnProgreso = {
 
 export type CategoriaConConteo = {
   id: string;
+  slug: string;
   nombre: string;
   cursos: number;
 };
@@ -70,7 +71,7 @@ export async function getInicioData(usuarioId: string) {
 
   const { data: categoriasRows } = await supabase
     .from("categorias")
-    .select("id, nombre")
+    .select("id, slug, nombre")
     .eq("activo", true);
 
   const { data: cursosRows } = await supabase
@@ -78,14 +79,14 @@ export async function getInicioData(usuarioId: string) {
     .select("curso_categorias(id_categoria)")
     .eq("mostrado", true);
 
-  // Un curso puede pertenecer a varias categorías en el esquema, pero el CMS
-  // hoy solo asigna una: se cuenta por la primera (ver curso_categorias,
-  // auditoría de esquema Bloque 3).
+  // Un curso con varias categorías suma en todas ellas: el conteo dice
+  // "cuántos cursos ves si entras acá", y entrando a cualquiera de sus
+  // categorías el curso aparece.
   const conteoPorCategoria = new Map<string, number>();
   for (const curso of cursosRows ?? []) {
-    const idCategoria = curso.curso_categorias?.[0]?.id_categoria;
-    if (!idCategoria) continue;
-    conteoPorCategoria.set(idCategoria, (conteoPorCategoria.get(idCategoria) ?? 0) + 1);
+    for (const { id_categoria: idCategoria } of curso.curso_categorias ?? []) {
+      conteoPorCategoria.set(idCategoria, (conteoPorCategoria.get(idCategoria) ?? 0) + 1);
+    }
   }
 
   // Se listan todas las categorías activas, tengan o no cursos publicados
@@ -93,6 +94,7 @@ export async function getInicioData(usuarioId: string) {
   // contenido.
   const categorias: CategoriaConConteo[] = (categoriasRows ?? []).map((categoria) => ({
     id: categoria.id as string,
+    slug: categoria.slug as string,
     nombre: categoria.nombre as string,
     cursos: conteoPorCategoria.get(categoria.id) ?? 0,
   }));
