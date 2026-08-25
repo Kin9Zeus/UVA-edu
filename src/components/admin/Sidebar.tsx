@@ -9,6 +9,7 @@ import {
   Users,
   FolderTree,
   GraduationCap,
+  Ticket,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -24,6 +25,7 @@ const nav = [
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
   { href: "/admin/instructores", label: "Instructores", icon: GraduationCap },
+  { href: "/admin/codigos", label: "Códigos", icon: Ticket },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings },
 ];
 

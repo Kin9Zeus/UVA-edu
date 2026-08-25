@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CanjearCodigoForm } from "@/components/dashboard/CanjearCodigoForm";
 import { formatFecha, formatMoneda } from "@/lib/admin/format";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 
@@ -43,21 +44,27 @@ function porcentajeTranscurrido(fechaInicio: string, fechaRenovacion: string | n
 export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionActual | null }) {
   if (!suscripcion) {
     return (
-      <div className="mx-auto flex max-w-[640px] flex-col items-center gap-4 px-[clamp(20px,3vw,44px)] py-16 text-center">
-        <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
-        <p className="text-sm text-uva-text-muted">
-          Todavía no tienes una suscripción activa. Elige un plan para acceder a todo el
-          catálogo.
-        </p>
-        <Button
-          render={<Link href="/dashboard/planes" />}
-          nativeButton={false}
-          variant="uva-primary"
-          size="uva"
-          className="w-auto px-6"
-        >
-          Ver planes
-        </Button>
+      <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-16">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
+          <p className="text-sm text-uva-text-muted">
+            Todavía no tienes una suscripción activa. Elige un plan para acceder a todo el
+            catálogo.
+          </p>
+          <Button
+            render={<Link href="/dashboard/planes" />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="w-auto px-6"
+          >
+            Ver planes
+          </Button>
+        </div>
+
+        {/* Quien llega con un código es justo quien no tiene suscripción,
+            así que aquí el formulario va destacado y no al final. */}
+        <CanjearCodigoForm tieneSuscripcion={false} />
       </div>
     );
   }
@@ -134,6 +141,15 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
           </Table>
         )}
       </div>
+
+      {/* El formulario NO se muestra a quien ya tiene una suscripción
+          vigente: `suscripcion_activa_unica_por_usuario` solo admite una en
+          ACTIVA o PAST_DUE, así que el canje se rechazaría
+          ('ya_tiene_suscripcion' en 027). Ofrecerlo sería invitar a un
+          error seguro. */}
+      {(suscripcion.estado === "VENCIDA" || suscripcion.estado === "CANCELADA") && (
+        <CanjearCodigoForm tieneSuscripcion />
+      )}
     </div>
   );
 }

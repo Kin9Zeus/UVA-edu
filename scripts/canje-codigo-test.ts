@@ -111,9 +111,19 @@ async function main() {
   const codigoInactivo = await crearCodigo("inactivo", { activo: false });
   const codigoVencido = await crearCodigo("vencido", { fecha_vencimiento: new Date(ahora - 86_400_000).toISOString() });
   const codigoAgotado = await crearCodigo("agotado", { limite_usos: 1, veces_usado: 1 });
+  // Segundo código perfectamente válido, para comprobar que un usuario que
+  // YA quedó con suscripción activa no puede canjear otro (ver
+  // 027_canje_valida_suscripcion_activa.sql).
+  const codigoSegundo = await crearCodigo("segundo", {});
 
   const idsUsuarios = [usuarioExito.id, usuarioAgotado.id];
-  const idsCodigos = [codigoValido.id, codigoInactivo.id, codigoVencido.id, codigoAgotado.id];
+  const idsCodigos = [
+    codigoValido.id,
+    codigoInactivo.id,
+    codigoVencido.id,
+    codigoAgotado.id,
+    codigoSegundo.id,
+  ];
 
   try {
     console.log("\n=== Casos de rechazo ===\n");
@@ -173,6 +183,29 @@ async function main() {
       "el mismo usuario reintenta el mismo código ya canjeado -> ya_canjeado (no codigo_agotado)",
       await canjear(admin, codigoValido.codigo, usuarioExito.id),
       "ya_canjeado",
+    );
+
+    console.log("\n=== Usuario que ya tiene suscripción activa ===\n");
+
+    // Regresión de 027: antes de ese script esto reventaba con SQLSTATE
+    // 23505 contra suscripcion_activa_unica_por_usuario, la función abortaba
+    // y el usuario veía "No pudimos procesar el código. Intenta de nuevo."
+    // en vez de un motivo que explicara que su código sí sirve.
+    esperarMotivo(
+      "un código DISTINTO y válido, con suscripción activa -> ya_tiene_suscripcion (no un error 23505)",
+      await canjear(admin, codigoSegundo.codigo, usuarioExito.id),
+      "ya_tiene_suscripcion",
+    );
+
+    const { data: segundoTrasIntento } = await admin
+      .from("codigos_invitacion")
+      .select("veces_usado")
+      .eq("id", codigoSegundo.id)
+      .single();
+    registrar(
+      "el canje rechazado NO consumió un uso del código",
+      segundoTrasIntento?.veces_usado === 0,
+      `veces_usado=${segundoTrasIntento?.veces_usado}`,
     );
   } finally {
     console.log("\nLimpiando datos de prueba...");

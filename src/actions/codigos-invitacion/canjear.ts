@@ -12,6 +12,11 @@ const MOTIVO_ERROR: Record<string, string> = {
   codigo_vencido: "Ese código venció.",
   codigo_agotado: "Ese código ya alcanzó su límite de usos.",
   ya_canjeado: "Ya canjeaste este código antes.",
+  // Ver 027_canje_valida_suscripcion_activa.sql: el código está bien, lo
+  // que sobra es la suscripción vigente. El mensaje lo dice así para que
+  // nadie crea que su código no sirve y lo descarte.
+  ya_tiene_suscripcion:
+    "Ya tienes una suscripción activa. Podrás canjear este código cuando termine, si sigue vigente.",
   plan_no_encontrado: "El plan de este código ya no existe.",
 };
 
