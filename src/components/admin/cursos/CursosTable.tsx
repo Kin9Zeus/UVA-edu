@@ -243,7 +243,14 @@ export function CursosTable({
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar curso"
-        description={`¿Seguro que quieres eliminar "${borrando?.titulo}"? Se eliminarán también sus módulos y lecciones. Esta acción no se puede deshacer.`}
+        description={
+          <>
+            ¿Seguro que quieres eliminar &quot;{borrando?.titulo}&quot;? Esta acción no se puede
+            deshacer. Si el curso tiene módulos o estudiantes inscritos, no se podrá eliminar —
+            despublícalo desde Configuración en su lugar.
+          </>
+        }
+        confirmText={borrando?.titulo}
         onConfirm={handleEliminar}
       />
     </div>

@@ -1,16 +1,18 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import { procesarPortada } from "@/lib/admin/portada";
 import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
-import { ESPACIO_ORDEN, ordenEntre, siguienteOrden } from "@/lib/orden";
+import { ordenEntre, siguienteOrden } from "@/lib/orden";
 // Nombre de carpeta legible para Storage (solo eso: no es un identificador
 // único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
 // id del curso al lado). Es la misma normalización que genera el slug de
@@ -35,6 +37,83 @@ function extraerRutaPortada(url: string | null) {
 
 export type NivelCurso = "BASICO" | "INTERMEDIO" | "AVANZADO";
 
+// ------------------------------------------------------------
+// Validación de esquema (nunca confiar en la validación del formulario:
+// cualquiera de estas Server Actions es un endpoint que se puede llamar
+// directo, sin pasar por la UI que arma sus props).
+// ------------------------------------------------------------
+const idSchema = z.string().uuid("Identificador inválido.");
+const nivelSchema = z.enum(["BASICO", "INTERMEDIO", "AVANZADO"], "Selecciona un nivel válido.");
+
+const crearCursoSchema = z.object({
+  titulo: z
+    .string()
+    .trim()
+    .min(1, "El nombre del curso es obligatorio.")
+    .max(200, "El nombre del curso es demasiado largo."),
+  descripcion: z.string().trim().max(5000, "La descripción es demasiado larga."),
+  categoriaIds: z.array(idSchema).min(1, "Selecciona al menos una categoría."),
+  nivel: nivelSchema,
+  idInstructor: z.string().uuid("Selecciona un instructor."),
+});
+
+const actualizarInfoCursoSchema = z.object({
+  titulo: z
+    .string()
+    .trim()
+    .min(1, "El nombre del curso es obligatorio.")
+    .max(200, "El nombre del curso es demasiado largo."),
+  descripcion: z.string().trim().max(5000, "La descripción es demasiado larga."),
+  categoriaIds: z.array(idSchema).min(1, "Selecciona al menos una categoría."),
+  nivel: nivelSchema,
+});
+
+const actualizarConfiguracionCursoSchema = z.object({
+  mostrado: z.boolean(),
+  destacado: z.boolean(),
+  ordenVisualizacion: z
+    .number()
+    .finite("El orden debe ser un número.")
+    .int("El orden debe ser un número entero.")
+    .min(0, "El orden no puede ser negativo.")
+    .max(100000, "El orden es demasiado alto."),
+});
+
+const tituloModuloSchema = z
+  .string()
+  .trim()
+  .min(1, "El nombre del módulo es obligatorio.")
+  .max(200, "El nombre del módulo es demasiado largo.");
+
+const tituloLeccionSchema = z
+  .string()
+  .trim()
+  .min(1, "El nombre de la lección es obligatorio.")
+  .max(200, "El nombre de la lección es demasiado largo.");
+
+const actualizarLeccionSchema = z.object({
+  titulo: tituloLeccionSchema,
+  duracion: z
+    .number()
+    .finite("La duración debe ser un número.")
+    .int("La duración debe ser un número entero de segundos.")
+    .min(0, "La duración no puede ser negativa.")
+    .max(86400, "La duración es demasiado alta.")
+    .nullable(),
+  resumen: z.string().trim().max(2000, "El resumen es demasiado largo."),
+});
+
+const moverSchema = z.object({
+  elementoId: idSchema,
+  idAnterior: idSchema.nullable(),
+  idSiguiente: idSchema.nullable(),
+});
+
+/** Primer mensaje de error de un `safeParse` fallido, listo para `{ error }`. */
+function primerError(resultado: { success: false; error: z.ZodError }): string {
+  return resultado.error.issues[0]?.message ?? "Datos inválidos.";
+}
+
 /**
  * Crea el curso SIEMPRE como borrador.
  *
@@ -55,22 +134,25 @@ export async function crearCurso(input: {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const titulo = input.titulo.trim();
-  // Se deduplica por si el cliente manda el mismo id repetido: el UNIQUE
-  // (id_curso, id_categoria) de la puente rechazaría el insert entero.
-  const categoriaIds = [...new Set(input.categoriaIds)];
-  if (!titulo) return { error: "El nombre del curso es obligatorio." };
-  if (categoriaIds.length === 0) return { error: "Selecciona al menos una categoría." };
-  if (!input.idInstructor) return { error: "Selecciona un instructor." };
+  // Se deduplica ANTES de validar por si el cliente manda el mismo id
+  // repetido: el UNIQUE (id_curso, id_categoria) de la puente rechazaría el
+  // insert entero, y min(1) no debe fallar solo porque el duplicado infló
+  // el conteo.
+  const parseo = crearCursoSchema.safeParse({
+    ...input,
+    categoriaIds: [...new Set(input.categoriaIds)],
+  });
+  if (!parseo.success) return { error: primerError(parseo) };
+  const { titulo, descripcion, categoriaIds, nivel, idInstructor } = parseo.data;
 
   const { data, error } = await admin.supabase
     .from("cursos")
     .insert({
       titulo,
-      descripcion: input.descripcion.trim(),
+      descripcion,
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
-      nivel: input.nivel,
-      id_instructor: input.idInstructor,
+      nivel,
+      id_instructor: idInstructor,
       mostrado: false,
       id_admin_creador: admin.adminId,
     })
@@ -107,18 +189,16 @@ export async function actualizarInfoCurso(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const titulo = input.titulo.trim();
-  const categoriaIds = [...new Set(input.categoriaIds)];
-  if (!titulo) return { error: "El nombre del curso es obligatorio." };
-  if (categoriaIds.length === 0) return { error: "Selecciona al menos una categoría." };
+  const parseo = actualizarInfoCursoSchema.safeParse({
+    ...input,
+    categoriaIds: [...new Set(input.categoriaIds)],
+  });
+  if (!parseo.success) return { error: primerError(parseo) };
+  const { titulo, descripcion, categoriaIds, nivel } = parseo.data;
 
   const { error } = await admin.supabase
     .from("cursos")
-    .update({
-      titulo,
-      descripcion: input.descripcion.trim(),
-      nivel: input.nivel,
-    })
+    .update({ titulo, descripcion, nivel })
     .eq("id", cursoId);
 
   if (error) return { error: "No pudimos guardar los cambios." };
@@ -209,10 +289,14 @@ export async function actualizarConfiguracionCurso(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
+  const parseo = actualizarConfiguracionCursoSchema.safeParse(input);
+  if (!parseo.success) return { error: primerError(parseo) };
+  const { mostrado, destacado, ordenVisualizacion } = parseo.data;
+
   // Solo se valida al ENCENDER la visibilidad. Despublicar siempre debe
   // poderse, incluso un curso incompleto: es la vía de escape si algo salió
   // mal en producción.
-  if (input.mostrado) {
+  if (mostrado) {
     const bloqueo = await bloqueoDePublicacion(admin.supabase, cursoId);
     if (bloqueo) return { error: bloqueo };
   }
@@ -220,9 +304,9 @@ export async function actualizarConfiguracionCurso(
   const { error } = await admin.supabase
     .from("cursos")
     .update({
-      mostrado: input.mostrado,
-      destacado: input.destacado,
-      orden_visualizacion: input.ordenVisualizacion,
+      mostrado,
+      destacado,
+      orden_visualizacion: ordenVisualizacion,
     })
     .eq("id", cursoId);
 
@@ -236,6 +320,8 @@ export async function actualizarConfiguracionCurso(
 export async function alternarPublicacionCurso(cursoId: string, mostrado: boolean): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
+  if (typeof mostrado !== "boolean") return { error: "Datos inválidos." };
 
   // Igual que en actualizarConfiguracionCurso: se valida al publicar, nunca
   // al despublicar.
@@ -265,6 +351,7 @@ export async function subirPortadaCurso(
 ): Promise<AdminActionResult & { url?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File)) return { error: "Selecciona una imagen." };
@@ -323,6 +410,25 @@ export async function subirPortadaCurso(
 export async function eliminarCurso(cursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
+
+  // Bloqueo explícito por inscripciones (Revcurso: "eliminar un curso con
+  // inscripciones debe estar bloqueado; ofrece despublicar en su lugar").
+  // No es solo defensa en profundidad del FK de abajo: es el mensaje que de
+  // verdad le dice al administrador qué hacer en su lugar.
+  const { count: inscritos, error: errorInscritos } = await admin.supabase
+    .from("inscripciones")
+    .select("id", { count: "exact", head: true })
+    .eq("id_curso", cursoId);
+  if (errorInscritos) return { error: "No pudimos verificar los estudiantes del curso." };
+  if ((inscritos ?? 0) > 0) {
+    return {
+      error:
+        inscritos === 1
+          ? "Este curso tiene 1 estudiante inscrito. No se puede eliminar — despublícalo en vez de borrarlo."
+          : `Este curso tiene ${inscritos} estudiantes inscritos. No se puede eliminar — despublícalo en vez de borrarlo.`,
+    };
+  }
 
   // modulos.id_curso es ON DELETE RESTRICT a propósito (ver auditoría de
   // esquema, Bloque 1): un curso con contenido nunca debe desaparecer por
@@ -359,9 +465,11 @@ export async function eliminarCurso(cursoId: string): Promise<AdminActionResult>
 export async function crearModulo(cursoId: string, titulo: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
 
-  const tituloLimpio = titulo.trim();
-  if (!tituloLimpio) return { error: "El nombre del módulo es obligatorio." };
+  const parseo = tituloModuloSchema.safeParse(titulo);
+  if (!parseo.success) return { error: primerError(parseo) };
+  const tituloLimpio = parseo.data;
 
   const { data: ultimo } = await admin.supabase
     .from("modulos")
@@ -390,11 +498,12 @@ export async function actualizarModulo(
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
 
-  const tituloLimpio = titulo.trim();
-  if (!tituloLimpio) return { error: "El nombre del módulo es obligatorio." };
+  const parseo = tituloModuloSchema.safeParse(titulo);
+  if (!parseo.success) return { error: primerError(parseo) };
 
-  const { error } = await admin.supabase.from("modulos").update({ titulo: tituloLimpio }).eq("id", moduloId);
+  const { error } = await admin.supabase.from("modulos").update({ titulo: parseo.data }).eq("id", moduloId);
   if (error) return { error: "No pudimos renombrar el módulo." };
 
   revalidatePath(`/admin/cursos/${cursoId}`);
@@ -404,6 +513,7 @@ export async function actualizarModulo(
 export async function eliminarModulo(moduloId: string, cursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
 
   const { error } = await admin.supabase.from("modulos").delete().eq("id", moduloId);
   if (error) return { error: "No pudimos eliminar el módulo." };
@@ -414,9 +524,12 @@ export async function eliminarModulo(moduloId: string, cursoId: string): Promise
 
 /**
  * Mueve un módulo a la posición entre `idAnterior` e `idSiguiente` (los
- * vecinos ya reordenados en el frontend). Solo escribe la fila movida;
- * si no queda espacio entre los vecinos, reespacía el curso completo
- * de 10 en 10 como fallback. Ver src/lib/orden.ts.
+ * vecinos ya reordenados en el frontend). Camino feliz: una sola escritura
+ * (el `orden` fraccionado entre los dos vecinos, ver ordenEntre() en
+ * lib/orden.ts). Si no queda espacio entre ellos, reespacía el curso
+ * completo de 10 en 10 — pero en una sola sentencia SQL transaccional
+ * (reespaciar_orden_modulos, supabase/sql/029_reordenar_modulos_lecciones.sql),
+ * no un UPDATE por fila desde aquí.
  */
 export async function moverModulo(
   cursoId: string,
@@ -426,6 +539,9 @@ export async function moverModulo(
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
+  const parseo = moverSchema.safeParse({ elementoId: moduloId, idAnterior, idSiguiente });
+  if (!parseo.success) return { error: primerError(parseo) };
 
   const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
   const { data: vecinos } = idsVecinos.length
@@ -450,17 +566,15 @@ export async function moverModulo(
     const indiceDestino = idAnterior ? ordenados.findIndex((m) => m.id === idAnterior) + 1 : 0;
     ordenados.splice(indiceDestino, 0, { id: moduloId });
 
-    const resultados = await Promise.all(
-      ordenados.map((modulo, index) =>
-        admin.supabase
-          .from("modulos")
-          .update({ orden: (index + 1) * ESPACIO_ORDEN })
-          .eq("id", modulo.id),
-      ),
-    );
-    if (resultados.some((resultado) => resultado.error)) {
-      return { error: "No pudimos guardar el nuevo orden de los módulos." };
-    }
+    // Server Actions no llegan a la base con la Service Role Key
+    // (requireAdmin da el cliente de sesión); la RPC sí la necesita porque
+    // está restringida a service_role — mismo criterio que
+    // canjear_codigo_invitacion (017_canjear_codigo_invitacion.sql).
+    const { error } = await createAdminClient().rpc("reespaciar_orden_modulos", {
+      p_curso_id: cursoId,
+      p_ids: ordenados.map((modulo) => modulo.id),
+    });
+    if (error) return { error: "No pudimos guardar el nuevo orden de los módulos." };
   }
 
   revalidatePath(`/admin/cursos/${cursoId}`);
@@ -478,9 +592,11 @@ export async function crearLeccion(
 ): Promise<AdminActionResult & { id?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
 
-  const tituloLimpio = titulo.trim();
-  if (!tituloLimpio) return { error: "El nombre de la lección es obligatorio." };
+  const parseoTitulo = tituloLeccionSchema.safeParse(titulo);
+  if (!parseoTitulo.success) return { error: primerError(parseoTitulo) };
+  const tituloLimpio = parseoTitulo.data;
 
   const { data: ultima } = await admin.supabase
     .from("lecciones")
@@ -513,13 +629,15 @@ export async function actualizarLeccion(
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
-  const titulo = input.titulo.trim();
-  if (!titulo) return { error: "El nombre de la lección es obligatorio." };
+  const parseo = actualizarLeccionSchema.safeParse(input);
+  if (!parseo.success) return { error: primerError(parseo) };
+  const { titulo, duracion, resumen } = parseo.data;
 
   const { error } = await admin.supabase
     .from("lecciones")
-    .update({ titulo, duracion: input.duracion, resumen: input.resumen.trim() || null })
+    .update({ titulo, duracion, resumen: resumen || null })
     .eq("id", leccionId);
 
   if (error) return { error: "No pudimos guardar la lección." };
@@ -531,6 +649,7 @@ export async function actualizarLeccion(
 export async function eliminarLeccion(leccionId: string, cursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
   const { error } = await admin.supabase.from("lecciones").delete().eq("id", leccionId);
   if (error) return { error: "No pudimos eliminar la lección." };
@@ -541,9 +660,10 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
 
 /**
  * Mueve una lección a la posición entre `idAnterior` e `idSiguiente`
- * dentro del mismo módulo. Solo escribe la fila movida; si no queda
- * espacio entre los vecinos, reespacía el módulo completo de 10 en 10
- * como fallback. Ver src/lib/orden.ts.
+ * dentro del mismo módulo. Camino feliz: una sola escritura (`orden`
+ * fraccionado). Si no queda espacio, reespacía el módulo completo en una
+ * sola sentencia SQL transaccional (reespaciar_orden_lecciones,
+ * supabase/sql/029_reordenar_modulos_lecciones.sql) — no un UPDATE por fila.
  */
 export async function moverLeccion(
   cursoId: string,
@@ -554,6 +674,9 @@ export async function moverLeccion(
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
+  const parseo = moverSchema.safeParse({ elementoId: leccionId, idAnterior, idSiguiente });
+  if (!parseo.success) return { error: primerError(parseo) };
 
   const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
   const { data: vecinos } = idsVecinos.length
@@ -578,17 +701,11 @@ export async function moverLeccion(
     const indiceDestino = idAnterior ? ordenadas.findIndex((l) => l.id === idAnterior) + 1 : 0;
     ordenadas.splice(indiceDestino, 0, { id: leccionId });
 
-    const resultados = await Promise.all(
-      ordenadas.map((leccion, index) =>
-        admin.supabase
-          .from("lecciones")
-          .update({ orden: (index + 1) * ESPACIO_ORDEN })
-          .eq("id", leccion.id),
-      ),
-    );
-    if (resultados.some((resultado) => resultado.error)) {
-      return { error: "No pudimos guardar el nuevo orden de las lecciones." };
-    }
+    const { error } = await createAdminClient().rpc("reespaciar_orden_lecciones", {
+      p_modulo_id: moduloId,
+      p_ids: ordenadas.map((leccion) => leccion.id),
+    });
+    if (error) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
   }
 
   revalidatePath(`/admin/cursos/${cursoId}`);
@@ -606,6 +723,7 @@ export async function subirRecursoLeccion(
 ): Promise<AdminActionResult & { recurso?: RecursoDetalle }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -662,6 +780,7 @@ export async function subirRecursoLeccion(
 export async function eliminarRecursoLeccion(recursoId: string, cursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(recursoId).success) return { error: "Material inválido." };
 
   const { data: recurso } = await admin.supabase
     .from("recursos_descargables")

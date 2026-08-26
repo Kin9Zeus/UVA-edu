@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
@@ -20,9 +20,15 @@ import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/
 export function ContenidoTab({
   cursoId,
   modulosIniciales,
+  onDirtyChange,
 }: {
   cursoId: string;
   modulosIniciales: ModuloDetalle[];
+  /** Avisa a CursoDetalleView cuando hay una lección con cambios sin
+   * guardar, para que también bloquee la navegación fuera de la pantalla
+   * (Volver a cursos, menú lateral) — no solo el cambio de lección dentro
+   * de esta pestaña. */
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const [modulos, setModulos] = useState(modulosIniciales);
   const [leccionActivaId, setLeccionActivaId] = useState<string | null>(null);
@@ -30,12 +36,54 @@ export function ContenidoTab({
   const [nombreModulo, setNombreModulo] = useState("");
   const [pending, setPending] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // Reportado por LeccionEditorPanel (onDirtyChange): si hay título/duración/
+  // resumen sin guardar, cambiar de lección o cerrar el editor los pierde en
+  // silencio. Con esto se confirma antes en vez de después.
+  const [edicionSinGuardar, setEdicionSinGuardar] = useState(false);
   const showToast = useAdminToast();
   const router = useRouter();
 
   const leccionActiva =
     modulos.flatMap((modulo) => modulo.lecciones).find((leccion) => leccion.id === leccionActivaId) ??
     null;
+
+  const handleDirtyChange = useCallback(
+    (dirty: boolean) => {
+      setEdicionSinGuardar(dirty);
+      onDirtyChange(dirty);
+    },
+    [onDirtyChange],
+  );
+
+  function confirmarSalirSinGuardar(): boolean {
+    if (!edicionSinGuardar) return true;
+    const continuar = window.confirm("Tienes cambios sin guardar en esta lección. ¿Salir sin guardarlos?");
+    // Si acepta descartar, se limpia ya: algunos llamadores (crear/renombrar/
+    // eliminar módulo o lección) terminan en router.refresh(), que remonta
+    // este panel sin volver a pasar por seleccionarLeccion()/cerrarEditor()
+    // — sin esto el aviso quedaría prendido de por vida aunque ya no haya
+    // nada sin guardar.
+    if (continuar) {
+      setEdicionSinGuardar(false);
+      onDirtyChange(false);
+    }
+    return continuar;
+  }
+
+  function seleccionarLeccion(leccion: LeccionDetalle) {
+    if (leccion.id === leccionActivaId) return;
+    if (!confirmarSalirSinGuardar()) return;
+    setEdicionSinGuardar(false);
+    onDirtyChange(false);
+    setLeccionActivaId(leccion.id);
+  }
+
+  function cerrarEditor() {
+    if (!confirmarSalirSinGuardar()) return;
+    setEdicionSinGuardar(false);
+    onDirtyChange(false);
+    setLeccionActivaId(null);
+  }
 
   function handleLeccionesChange(moduloId: string, lecciones: LeccionDetalle[]) {
     setModulos((current) =>
@@ -74,6 +122,11 @@ export function ContenidoTab({
   async function handleAgregarModulo() {
     const nombre = nombreModulo.trim();
     if (!nombre) return;
+    // Crear un módulo termina en router.refresh(), que remonta este panel
+    // (la key de <ContenidoTab> depende de los ids de módulos/lecciones) y
+    // con él el editor de lección — se perdería cualquier cambio sin
+    // guardar en la lección abierta, en silencio.
+    if (!confirmarSalirSinGuardar()) return;
 
     setPending(true);
     const resultado = await crearModulo(cursoId, nombre);
@@ -92,6 +145,7 @@ export function ContenidoTab({
   function handleDrop(targetIndex: number) {
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
+    const anteriores = modulos;
     const reordenados = [...modulos];
     const [movido] = reordenados.splice(draggedIndex, 1);
     reordenados.splice(targetIndex, 0, movido);
@@ -102,7 +156,12 @@ export function ContenidoTab({
     const idSiguiente = reordenados[targetIndex + 1]?.id ?? null;
 
     moverModulo(cursoId, movido.id, idAnterior, idSiguiente).then((resultado) => {
-      if (resultado.error) showToast(resultado.error, "error");
+      if (resultado.error) {
+        showToast(resultado.error, "error");
+        // Reversión visible: sin esto el orden en pantalla queda mintiendo
+        // sobre lo que de verdad quedó guardado.
+        setModulos(anteriores);
+      }
     });
   }
 
@@ -149,9 +208,10 @@ export function ContenidoTab({
             cursoId={cursoId}
             draggable
             leccionActivaId={leccionActivaId}
-            onSeleccionarLeccion={(leccion) => setLeccionActivaId(leccion.id)}
+            onSeleccionarLeccion={seleccionarLeccion}
             onLeccionesChange={handleLeccionesChange}
             onTituloChange={handleTituloModuloChange}
+            confirmarSalirSinGuardar={confirmarSalirSinGuardar}
             onDragStart={() => setDraggedIndex(index)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => handleDrop(index)}
@@ -166,9 +226,10 @@ export function ContenidoTab({
             key={leccionActiva.id}
             leccion={leccionActiva}
             cursoId={cursoId}
-            onCerrar={() => setLeccionActivaId(null)}
+            onCerrar={cerrarEditor}
             onGuardado={handleLeccionGuardada}
             onRecursosChange={handleRecursosChange}
+            onDirtyChange={handleDirtyChange}
           />
         ) : (
           <p className="px-1 py-5 text-center text-[13px] text-uva-muted-2">

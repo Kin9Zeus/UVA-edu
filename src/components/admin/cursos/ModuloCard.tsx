@@ -53,6 +53,7 @@ export function ModuloCard({
   onDragStart,
   onDragOver,
   onDrop,
+  confirmarSalirSinGuardar,
 }: {
   modulo: ModuloDetalle;
   /** Posición 1..N en la lista; el mockup la pinta junto al nombre del módulo. */
@@ -66,6 +67,11 @@ export function ModuloCard({
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent) => void;
   onDrop: () => void;
+  /** true si se puede seguir (no había cambios sin guardar, o el usuario
+   * confirmó descartarlos). Toda mutación de acá abajo termina en
+   * router.refresh(), que remonta el editor de lección — hay que preguntar
+   * antes, igual que al cambiar de lección o salir de la pantalla. */
+  confirmarSalirSinGuardar: () => boolean;
 }) {
   const [agregandoLeccion, setAgregandoLeccion] = useState(false);
   const [nombreLeccion, setNombreLeccion] = useState("");
@@ -92,6 +98,10 @@ export function ModuloCard({
       setEditandoTitulo(false);
       return;
     }
+    // Se pregunta ANTES de guardar (no se descarta el título escrito): si
+    // cancela, el input se queda como estaba para reintentar después de
+    // resolver la lección abierta.
+    if (!confirmarSalirSinGuardar()) return;
 
     setGuardandoTitulo(true);
     const resultado = await actualizarModulo(modulo.id, cursoId, nombre);
@@ -120,6 +130,7 @@ export function ModuloCard({
   async function handleAgregarLeccion() {
     const nombre = nombreLeccion.trim();
     if (!nombre) return;
+    if (!confirmarSalirSinGuardar()) return;
 
     const resultado = await crearLeccion(modulo.id, cursoId, nombre);
     if (resultado.error) {
@@ -143,6 +154,7 @@ export function ModuloCard({
         idMuxUploadId: null,
         idVideoMux: null,
         recursos: [],
+        estudiantesConProgreso: 0,
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);
       onSeleccionarLeccion(nueva);
@@ -167,6 +179,7 @@ export function ModuloCard({
   function handleDropLeccion(targetIndex: number) {
     if (draggedLeccionIndex === null || draggedLeccionIndex === targetIndex) return;
 
+    const anteriores = lecciones;
     const reordenadas = [...lecciones];
     const [movida] = reordenadas.splice(draggedLeccionIndex, 1);
     reordenadas.splice(targetIndex, 0, movida);
@@ -177,7 +190,12 @@ export function ModuloCard({
     const idSiguiente = reordenadas[targetIndex + 1]?.id ?? null;
 
     moverLeccion(cursoId, modulo.id, movida.id, idAnterior, idSiguiente).then((resultado) => {
-      if (resultado.error) showToast(resultado.error, "error");
+      if (resultado.error) {
+        showToast(resultado.error, "error");
+        // Reversión visible: el servidor no guardó el nuevo orden, así que
+        // la lista vuelve a como estaba antes del arrastre.
+        onLeccionesChange(modulo.id, anteriores);
+      }
     });
   }
 
@@ -237,7 +255,7 @@ export function ModuloCard({
             aria-label={`Eliminar el modulo ${modulo.titulo}`}
             title="Eliminar modulo"
             className="text-uva-muted-2 hover:text-uva-accent"
-            onClick={() => setBorrandoModulo(true)}
+            onClick={() => confirmarSalirSinGuardar() && setBorrandoModulo(true)}
           >
             <Trash2 className="size-4" />
           </Button>
@@ -281,7 +299,7 @@ export function ModuloCard({
               aria-label={`Eliminar la lección ${leccion.titulo}`}
               title="Eliminar lección"
               className="shrink-0 text-uva-muted-2 hover:text-uva-accent"
-              onClick={() => setBorrandoLeccion(leccion)}
+              onClick={() => confirmarSalirSinGuardar() && setBorrandoLeccion(leccion)}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -320,14 +338,47 @@ export function ModuloCard({
         open={borrandoModulo}
         onOpenChange={setBorrandoModulo}
         title="Eliminar módulo"
-        description={`¿Eliminar "${modulo.titulo}" y todas sus lecciones? Esta acción no se puede deshacer.`}
+        description={
+          <>
+            ¿Eliminar &quot;{modulo.titulo}&quot; y todas sus lecciones? Esta acción no se puede
+            deshacer.
+            {modulo.estudiantesConProgreso > 0 && (
+              <>
+                {" "}
+                <strong className="text-uva-error-text">
+                  {modulo.estudiantesConProgreso === 1
+                    ? "1 estudiante tiene"
+                    : `${modulo.estudiantesConProgreso} estudiantes tienen`}{" "}
+                  progreso guardado en estas lecciones — se perderá.
+                </strong>
+              </>
+            )}
+          </>
+        }
+        confirmText={modulo.titulo}
         onConfirm={handleEliminarModulo}
       />
       <ConfirmDialog
         open={borrandoLeccion !== null}
         onOpenChange={(open) => !open && setBorrandoLeccion(null)}
         title="Eliminar lección"
-        description={`¿Eliminar "${borrandoLeccion?.titulo}"? Esta acción no se puede deshacer.`}
+        description={
+          <>
+            ¿Eliminar &quot;{borrandoLeccion?.titulo}&quot;? Esta acción no se puede deshacer.
+            {!!borrandoLeccion && borrandoLeccion.estudiantesConProgreso > 0 && (
+              <>
+                {" "}
+                <strong className="text-uva-error-text">
+                  {borrandoLeccion.estudiantesConProgreso === 1
+                    ? "1 estudiante tiene"
+                    : `${borrandoLeccion.estudiantesConProgreso} estudiantes tienen`}{" "}
+                  progreso guardado en esta lección — se perderá.
+                </strong>
+              </>
+            )}
+          </>
+        }
+        confirmText={borrandoLeccion?.titulo}
         onConfirm={handleEliminarLeccion}
       />
     </AdminCard>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,16 +41,29 @@ export function LeccionEditorPanel({
   onCerrar,
   onGuardado,
   onRecursosChange,
+  onDirtyChange,
 }: {
   leccion: LeccionDetalle;
   cursoId: string;
   onCerrar: () => void;
   onGuardado: (cambios: Partial<CambiosLeccion>) => void;
   onRecursosChange: (recursos: RecursoDetalle[]) => void;
+  /** Avisa cada vez que título/duración/resumen dejan de coincidir con lo
+   * último guardado, para que ContenidoTab pueda confirmar antes de
+   * cambiar de lección o cerrar el editor. */
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const [titulo, setTitulo] = useState(leccion.titulo);
   const [duracion, setDuracion] = useState(leccion.duracion?.toString() ?? "");
   const [resumen, setResumen] = useState(leccion.resumen ?? "");
+  // Lo último que quedó guardado en el servidor. NO es `leccion` (esa prop
+  // es la foto del momento en que este panel se montó): después de guardar
+  // hay que comparar contra el guardado más reciente, no contra el original.
+  const [guardadoComo, setGuardadoComo] = useState({
+    titulo: leccion.titulo,
+    duracion: leccion.duracion?.toString() ?? "",
+    resumen: leccion.resumen ?? "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [recursos, setRecursos] = useState(leccion.recursos);
@@ -62,6 +75,27 @@ export function LeccionEditorPanel({
   });
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
+
+  const sinGuardar =
+    titulo !== guardadoComo.titulo || duracion !== guardadoComo.duracion || resumen !== guardadoComo.resumen;
+
+  useEffect(() => {
+    onDirtyChange(sinGuardar);
+  }, [sinGuardar, onDirtyChange]);
+
+  // Cierre de pestaña, recarga o navegación fuera de la app: el cambio de
+  // lección DENTRO del panel (botón "Cerrar" o seleccionar otra) lo cubre
+  // ContenidoTab con un confirm() propio, porque beforeunload no dispara en
+  // esos casos (son navegación de cliente de Next, no salida real).
+  useEffect(() => {
+    function avisar(event: BeforeUnloadEvent) {
+      if (!sinGuardar) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [sinGuardar]);
 
   async function handleGuardar() {
     setPending(true);
@@ -79,6 +113,7 @@ export function LeccionEditorPanel({
       return;
     }
     showToast("Lección guardada.");
+    setGuardadoComo({ titulo, duracion, resumen });
     onGuardado(cambios);
   }
 

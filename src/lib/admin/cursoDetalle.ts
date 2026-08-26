@@ -18,6 +18,11 @@ export type LeccionDetalle = {
   idMuxUploadId: string | null;
   idVideoMux: string | null;
   recursos: RecursoDetalle[];
+  /** Estudiantes distintos con una fila en `progreso` para esta lección (la
+   * vieron o la completaron). Se usa para advertir antes de borrar — el
+   * cascade de la base (progreso.id_leccion → ON DELETE CASCADE) la borra
+   * en silencio si no se avisa antes. */
+  estudiantesConProgreso: number;
 };
 
 export type ModuloDetalle = {
@@ -25,6 +30,9 @@ export type ModuloDetalle = {
   titulo: string;
   orden: number;
   lecciones: LeccionDetalle[];
+  /** Unión de estudiantesConProgreso de todas sus lecciones (sin duplicar
+   * quien tiene progreso en más de una). */
+  estudiantesConProgreso: number;
 };
 
 export type EstudianteDeCurso = {
@@ -104,7 +112,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     .eq("id_curso", cursoId)
     .order("orden");
 
-  const modulosDetalle: ModuloDetalle[] = (modulos ?? []).map((modulo) => ({
+  const modulosSinProgreso = (modulos ?? []).map((modulo) => ({
     id: modulo.id,
     titulo: modulo.titulo,
     orden: modulo.orden,
@@ -129,7 +137,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       })),
   }));
 
-  const leccionIds = modulosDetalle.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
+  const leccionIds = modulosSinProgreso.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
@@ -141,16 +149,33 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
 
   const { data: progreso } =
     leccionIds.length > 0
-      ? await supabase.from("progreso").select("id_usuario, completado").in("id_leccion", leccionIds)
+      ? await supabase.from("progreso").select("id_usuario, id_leccion, completado").in("id_leccion", leccionIds)
       : { data: [] };
 
   const progresoPorUsuario = new Map<string, { total: number; completados: number }>();
+  const usuariosPorLeccion = new Map<string, Set<string>>();
   for (const registro of progreso ?? []) {
     const actual = progresoPorUsuario.get(registro.id_usuario) ?? { total: 0, completados: 0 };
     actual.total += 1;
     if (registro.completado) actual.completados += 1;
     progresoPorUsuario.set(registro.id_usuario, actual);
+
+    const usuarios = usuariosPorLeccion.get(registro.id_leccion) ?? new Set<string>();
+    usuarios.add(registro.id_usuario);
+    usuariosPorLeccion.set(registro.id_leccion, usuarios);
   }
+
+  const modulosDetalle: ModuloDetalle[] = modulosSinProgreso.map((modulo) => {
+    const lecciones = modulo.lecciones.map((leccion) => ({
+      ...leccion,
+      estudiantesConProgreso: usuariosPorLeccion.get(leccion.id)?.size ?? 0,
+    }));
+    const usuariosModulo = new Set<string>();
+    for (const leccion of lecciones) {
+      for (const usuarioId of usuariosPorLeccion.get(leccion.id) ?? []) usuariosModulo.add(usuarioId);
+    }
+    return { ...modulo, lecciones, estudiantesConProgreso: usuariosModulo.size };
+  });
 
   const estudiantes: EstudianteDeCurso[] = (inscripciones ?? []).map((inscripcion) => {
     const usuario = Array.isArray(inscripcion.usuario) ? inscripcion.usuario[0] : inscripcion.usuario;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,7 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { actualizarInfoCurso, actualizarConfiguracionCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { esPortadaReal } from "@/lib/media";
 import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
+import { useAvisoNavegacionSinGuardar } from "@/lib/admin/useAvisoNavegacionSinGuardar";
 import type { CursoDetalle } from "@/lib/admin/cursoDetalle";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -43,7 +44,52 @@ export function CursoDetalleView({
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
   const [errorConfig, setErrorConfig] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Reportado por ContenidoTab: una lección con título/duración/resumen sin
+  // guardar también debe bloquear salir de esta pantalla, no solo cambiar
+  // de lección dentro de la pestaña.
+  const [contenidoSinGuardar, setContenidoSinGuardar] = useState(false);
   const showToast = useAdminToast();
+
+  // Lo último guardado en el servidor, para saber si "Guardar cambios" está
+  // pendiente. La portada no entra acá: se guarda sola al confirmarla en
+  // InfoTab, no espera al botón compartido.
+  const [guardadoComo, setGuardadoComo] = useState({
+    titulo: curso.titulo,
+    descripcion: curso.descripcion,
+    categoriaIds: curso.categoriaIds,
+    nivel: curso.nivel,
+    mostrado: curso.mostrado,
+    destacado: curso.destacado,
+    orden: curso.ordenVisualizacion,
+  });
+
+  const sinGuardar =
+    titulo !== guardadoComo.titulo ||
+    descripcion !== guardadoComo.descripcion ||
+    nivel !== guardadoComo.nivel ||
+    mostrado !== guardadoComo.mostrado ||
+    destacado !== guardadoComo.destacado ||
+    orden !== guardadoComo.orden ||
+    categoriaIds.length !== guardadoComo.categoriaIds.length ||
+    categoriaIds.some((id) => !guardadoComo.categoriaIds.includes(id));
+
+  const hayCambiosSinGuardar = sinGuardar || contenidoSinGuardar;
+
+  useEffect(() => {
+    function avisar(event: BeforeUnloadEvent) {
+      if (!hayCambiosSinGuardar) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [hayCambiosSinGuardar]);
+
+  // Cubre lo que beforeunload no cubre: navegación interna (Volver a
+  // cursos, menú lateral) vía <Link>, que no descarga la página.
+  useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
+
+  const handleContenidoDirtyChange = useCallback((dirty: boolean) => setContenidoSinGuardar(dirty), []);
 
   // Se recalcula con el título y la portada en vivo (los edita esta misma
   // pantalla) y con los módulos tal como vinieron del servidor: ContenidoTab
@@ -89,6 +135,7 @@ export function CursoDetalleView({
     }
     if (huboError) return;
 
+    setGuardadoComo({ titulo, descripcion, categoriaIds, nivel, mostrado, destacado, orden });
     showToast("Cambios guardados.");
   }
 
@@ -174,6 +221,7 @@ export function CursoDetalleView({
             key={curso.modulos.map((modulo) => `${modulo.id}:${modulo.lecciones.map((l) => l.id).join(",")}`).join("|")}
             cursoId={curso.id}
             modulosIniciales={curso.modulos}
+            onDirtyChange={handleContenidoDirtyChange}
           />
         </TabsContent>
         <TabsContent value="estudiantes" className="pt-[18px]">

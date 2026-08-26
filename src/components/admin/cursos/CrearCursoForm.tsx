@@ -20,6 +20,7 @@ import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias
 import { crearCurso, subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
+import { useAvisoNavegacionSinGuardar } from "@/lib/admin/useAvisoNavegacionSinGuardar";
 import {
   ACCEPT_PORTADA,
   ERROR_FORMATO_PORTADA,
@@ -48,9 +49,35 @@ export function CrearCursoForm({
   const [instructorDialogOpen, setInstructorDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"borrador" | "publicar" | null>(null);
+  // Se apaga en cuanto crearCurso() confirma el id: a partir de ahí ya no
+  // hay nada que perder acá, la pantalla va camino al detalle del curso.
+  const [creado, setCreado] = useState(false);
   const inputPortadaRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const showToast = useAdminToast();
+
+  // Sin esto, escribir el título, la descripción y elegir instructor y
+  // categorías para perderlo todo con un clic en "Cancelar" (o el menú
+  // lateral) es el escenario exacto que el equipo de UVA no puede tener.
+  const hayCambiosSinGuardar =
+    !creado &&
+    (titulo.trim() !== "" ||
+      descripcion.trim() !== "" ||
+      categoriaIds.length > 0 ||
+      portadaArchivo !== null ||
+      idInstructor !== "");
+
+  useEffect(() => {
+    function avisar(event: BeforeUnloadEvent) {
+      if (!hayCambiosSinGuardar) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [hayCambiosSinGuardar]);
+
+  useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
 
   // El curso todavía no existe mientras se llena este formulario (no hay
   // cursoId para subirla ya), así que la imagen se guarda en memoria y solo
@@ -116,6 +143,8 @@ export function CrearCursoForm({
       setError(resultado.error ?? "No pudimos crear el curso.");
       return;
     }
+
+    setCreado(true);
 
     // El curso ya quedó creado en este punto: si la portada falla, no tiene
     // sentido bloquear ni deshacer la creación — se avisa y se sigue.
