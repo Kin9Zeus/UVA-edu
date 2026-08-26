@@ -4,7 +4,6 @@ export type RecursoLeccion = {
   id: string;
   nombre: string;
   tipoArchivo: string;
-  urlArchivo: string;
   tamanoBytes: number | null;
 };
 
@@ -158,9 +157,13 @@ export async function getLeccionPlayer(
     moduloTitulo: leccion.moduloTitulo,
   }));
 
+  // Sin url_archivo: es la ruta cruda del bucket privado, no una URL
+  // usable, y no debe llegar al cliente. La descarga pasa por
+  // obtenerUrlRecurso() (src/actions/cursos/recurso.ts), que la vuelve a
+  // leer server-side justo antes de firmarla (P1-1, AUDIT-2026-08-26.md).
   const { data: recursos } = await supabase
     .from("recursos_descargables")
-    .select("id, nombre, tipo_archivo, url_archivo, tamano_bytes")
+    .select("id, nombre, tipo_archivo, tamano_bytes")
     .eq("id_leccion", leccionId)
     .order("creado_en");
 
@@ -182,7 +185,6 @@ export async function getLeccionPlayer(
       id: recurso.id,
       nombre: recurso.nombre,
       tipoArchivo: recurso.tipo_archivo,
-      urlArchivo: recurso.url_archivo,
       tamanoBytes: recurso.tamano_bytes,
     })),
     lecciones,

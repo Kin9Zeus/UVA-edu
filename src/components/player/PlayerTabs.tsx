@@ -1,7 +1,9 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { useState } from "react";
+import { Download, Loader2 } from "lucide-react";
 import { formatTamanoArchivo } from "@/lib/admin/format";
+import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import type { RecursoLeccion } from "@/lib/leccion";
 
 export type TabPlayer = "recursos" | "resumen" | "comentarios";
@@ -64,6 +66,25 @@ export function TabsHeader({
 }
 
 export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
+  // Id del recurso que está pidiendo su URL firmada ahora mismo (P1-1,
+  // AUDIT-2026-08-26.md): antes el href apuntaba directo a la ruta del
+  // bucket privado y siempre daba 404. Ahora cada clic pide un enlace de
+  // un solo uso recién firmado, después de que RLS confirme el acceso.
+  const [descargando, setDescargando] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
+
+  async function descargar(recurso: RecursoLeccion) {
+    setErrorId(null);
+    setDescargando(recurso.id);
+    const resultado = await obtenerUrlRecurso(recurso.id);
+    setDescargando(null);
+    if ("error" in resultado) {
+      setErrorId(recurso.id);
+      return;
+    }
+    window.open(resultado.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {recursos.length === 0 ? (
@@ -73,11 +94,12 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
       ) : (
         <div className="flex flex-col gap-2">
           {recursos.map((recurso) => (
-            <a
+            <button
               key={recurso.id}
-              href={recurso.urlArchivo}
-              download
-              className="flex items-center gap-[11px] rounded-uva-md bg-[#27272A] px-[13px] py-[11px] no-underline"
+              type="button"
+              onClick={() => descargar(recurso)}
+              disabled={descargando === recurso.id}
+              className="flex w-full cursor-pointer items-center gap-[11px] rounded-uva-md border-0 bg-[#27272A] px-[13px] py-[11px] text-left disabled:cursor-wait disabled:opacity-70"
             >
               <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
                 {recurso.tipoArchivo.toUpperCase()}
@@ -87,11 +109,17 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
                   {recurso.nombre}
                 </div>
                 <div className="text-[11px] text-uva-muted">
-                  {formatTamanoArchivo(recurso.tamanoBytes)}
+                  {errorId === recurso.id
+                    ? "No pudimos generar el enlace. Intenta de nuevo."
+                    : formatTamanoArchivo(recurso.tamanoBytes)}
                 </div>
               </div>
-              <Download className="size-4 shrink-0 text-uva-muted" strokeWidth={2.75} />
-            </a>
+              {descargando === recurso.id ? (
+                <Loader2 className="size-4 shrink-0 animate-spin text-uva-muted" strokeWidth={2.75} />
+              ) : (
+                <Download className="size-4 shrink-0 text-uva-muted" strokeWidth={2.75} />
+              )}
+            </button>
           ))}
         </div>
       )}
