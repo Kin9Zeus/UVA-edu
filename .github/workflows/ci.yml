@@ -46,6 +46,17 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Generar tipos de rutas de Next.js
+        # LayoutProps/PageProps/RouteContext (src/app/layout.tsx y otros) son
+        # helpers globales que Next.js genera en .next/types — gitignored,
+        # no existen en un checkout limpio salvo que algo los genere antes.
+        # `next build`/`next dev` los generan de paso, pero este job no
+        # corre ninguno de los dos; `next typegen` es el comando dedicado a
+        # esto sin pagar el costo de un build completo. Sin este paso,
+        # `tsc --noEmit` falla con "Cannot find name 'LayoutProps'" en
+        # cualquier checkout nuevo, sin relación con lo que se haya mergeado.
+        run: npx next typegen
+
       - name: Tipos (tsc)
         run: npx tsc --noEmit
 
