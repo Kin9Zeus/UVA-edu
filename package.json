@@ -18,6 +18,7 @@
     "test:rls": "tsx scripts/rls-test.ts",
     "test:webhooks": "tsx scripts/webhook-test.ts",
     "test:canje": "tsx scripts/canje-codigo-test.ts",
+    "mux:limpiar": "tsx scripts/mux-limpiar-assets.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

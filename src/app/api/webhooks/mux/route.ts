@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import Mux from "@mux/mux-node";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+import { eliminarAssetMux } from "@/lib/mux/limpieza";
 import { logError } from "@/lib/log";
 
 // A diferencia de Stripe, `new Mux({ tokenId: "", tokenSecret: "" })` no
@@ -131,27 +132,50 @@ export async function POST(request: NextRequest) {
       // así que el segundo de reanudación de cualquier estudiante ya no
       // corresponde a nada coherente (se conserva `completado`, ver
       // docs/functional-spec.md — "Reemplazo de video de una lección").
-      // El asset viejo se encola para borrarse de Mux más adelante: el
-      // borrado real contra la API de Mux (mux.video.assets.delete) todavía
-      // no está implementado, pendiente de tener acceso al dominio de Mux
-      // del equipo.
+      // El asset viejo se encola primero (auditoría + red de seguridad) y
+      // recién después se intenta borrar contra la API de Mux — al revés,
+      // un fallo entre "borrar" y "encolar" perdería el asset para siempre
+      // sin ninguna fila que lo recuerde (P1-5, AUDIT-2026-08-26.md). Si el
+      // borrado falla acá (red, rate limit), la fila se queda con
+      // `eliminado = false` y la reintenta `scripts/mux-limpiar-assets.ts`.
       if (leccionActual?.id_mux_asset_id && leccionActual.id_mux_asset_id !== data.id) {
         await admin
           .from("progreso")
           .update({ segundo_actual: 0 })
           .eq("id_leccion", leccionActual.id);
 
-        const { error: errorCola } = await admin.from("mux_assets_pendientes_eliminacion").insert({
-          id_leccion: leccionActual.id,
-          id_asset_mux: leccionActual.id_mux_asset_id,
-        });
-        if (errorCola) {
+        const assetIdViejo = leccionActual.id_mux_asset_id;
+        const { data: filaCola, error: errorCola } = await admin
+          .from("mux_assets_pendientes_eliminacion")
+          .insert({ id_leccion: leccionActual.id, id_asset_mux: assetIdViejo })
+          .select("id")
+          .single();
+
+        if (errorCola || !filaCola) {
           logError("webhook:mux", "no se pudo encolar el asset viejo para borrar", errorCola, {
             area: "webhook",
             idEvento: evento.id,
             leccionId: leccionActual.id,
-            assetIdViejo: leccionActual.id_mux_asset_id,
+            assetIdViejo,
           });
+        } else {
+          const resultado = await eliminarAssetMux(assetIdViejo);
+          if (resultado.ok) {
+            await admin
+              .from("mux_assets_pendientes_eliminacion")
+              .update({ eliminado: true, eliminado_en: new Date().toISOString() })
+              .eq("id", filaCola.id);
+          } else {
+            // No es fatal para el webhook: la lección ya quedó LISTO con el
+            // asset nuevo, y la fila sigue en cola para el siguiente
+            // `npm run mux:limpiar`.
+            logError("webhook:mux", "no se pudo borrar el asset viejo de Mux; queda en cola", resultado.error, {
+              area: "webhook",
+              idEvento: evento.id,
+              leccionId: leccionActual.id,
+              assetIdViejo,
+            });
+          }
         }
       }
       break;
