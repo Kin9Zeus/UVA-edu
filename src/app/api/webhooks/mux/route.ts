@@ -163,6 +163,28 @@ export async function POST(request: NextRequest) {
       break;
     }
 
+    // La subida en sí falla o expira (archivo corrupto detectado en la
+    // ingesta, timeout de la URL firmada) ANTES de que exista un asset —
+    // por eso no llega como video.asset.errored. Sin este caso la lección
+    // se quedaba en SUBIENDO/PROCESANDO para siempre, sin error visible.
+    case "video.upload.errored": {
+      const data = evento.data as DatosUpload;
+      const { error } = await admin
+        .from("lecciones")
+        .update({ estado_procesamiento: "ERROR", error_procesamiento: "La subida falló o expiró." })
+        .eq("id_mux_upload_id", data.id);
+
+      if (error) {
+        logError("webhook:mux", "no se pudo marcar la lección tras fallar la subida", error, {
+          area: "webhook",
+          idEvento: evento.id,
+          uploadId: data.id,
+        });
+        return NextResponse.json({ error: "no se pudo actualizar la lección" }, { status: 500 });
+      }
+      break;
+    }
+
     default:
       break;
   }
