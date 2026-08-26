@@ -15,14 +15,19 @@ export type ModuloPublico = {
   lecciones: LeccionPublica[];
 };
 
+export type CategoriaDelCurso = {
+  id: string;
+  slug: string;
+  nombre: string;
+};
+
 export type CursoPublico = {
   id: string;
   titulo: string;
   descripcion: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
-  categoriaId: string;
-  categoriaSlug: string;
-  categoriaNombre: string;
+  /** Todas las categorías del curso — `curso_categorias` es muchos-a-muchos. */
+  categorias: CategoriaDelCurso[];
   instructorNombre: string;
   instructorEspecialidad: string | null;
   imagenPortada: string;
@@ -50,27 +55,39 @@ export async function getCursoPublico(
 ): Promise<CursoPublico | null> {
   const supabase = await createClient();
 
+  // Sin `.eq("mostrado", true)` a propósito: la policy "cursos_select_publicos"
+  // (030_acceso_curso_despublicado.sql) ya deja pasar un curso despublicado
+  // si el usuario tiene cortesía, o membresía con progreso ya guardado en
+  // él — filtrar acá por `mostrado` otra vez le negaría a esa gente el
+  // curso que RLS sí les permite ver. Si el curso está oculto y este
+  // usuario no califica para ninguna excepción, RLS ya no devuelve la fila
+  // y `curso` sale null, igual que antes.
   const { data: curso } = await supabase
     .from("cursos")
     .select(
       "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado, instructor:instructores(nombre, especialidad)",
     )
     .eq("id", cursoId)
-    .eq("mostrado", true)
     .single();
 
   if (!curso) return null;
 
-  // El catálogo solo maneja una categoría por curso hoy; se toma la primera
-  // fila de la puente (ver curso_categorias, auditoría de esquema Bloque 3).
-  const { data: categoriaCurso } = await supabase
+  // Todas las categorías del curso, no solo la primera: `curso_categorias`
+  // es muchos-a-muchos y el CMS ya permite asignar varias (mismo criterio
+  // que getCatalogo() en lib/categoria.ts). Antes se cortaba con .limit(1) y
+  // el detalle del curso solo mostraba una, aunque el admin le hubiera
+  // asignado dos o tres.
+  const { data: categoriasCurso } = await supabase
     .from("curso_categorias")
-    .select("id_categoria, categoria:categorias(slug, nombre)")
-    .eq("id_curso", cursoId)
-    .limit(1)
-    .maybeSingle();
-  const categoriaEmbebida = categoriaCurso?.categoria;
-  const categoria = Array.isArray(categoriaEmbebida) ? categoriaEmbebida[0] : categoriaEmbebida;
+    .select("id_categoria, categoria:categorias(id, slug, nombre)")
+    .eq("id_curso", cursoId);
+
+  const categorias: CategoriaDelCurso[] = (categoriasCurso ?? [])
+    .map((fila) => {
+      const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+      return categoria ? { id: categoria.id, slug: categoria.slug, nombre: categoria.nombre } : null;
+    })
+    .filter((categoria): categoria is CategoriaDelCurso => categoria !== null);
 
   const { data: modulos } = await supabase
     .from("modulos")
@@ -178,9 +195,7 @@ export async function getCursoPublico(
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     nivel: curso.nivel,
-    categoriaId: categoriaCurso?.id_categoria ?? "",
-    categoriaSlug: categoria?.slug ?? "",
-    categoriaNombre: categoria?.nombre ?? "General",
+    categorias,
     instructorNombre: instructor?.nombre ?? "Sin instructor",
     instructorEspecialidad: instructor?.especialidad ?? null,
     imagenPortada: curso.imagen_portada,

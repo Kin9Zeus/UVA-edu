@@ -65,9 +65,9 @@ export function InicioContent({
                   <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
                     En curso
                   </span>
-                  <div className="absolute right-2 bottom-2 left-2">
-                    <Progress value={clase.progreso} />
-                  </div>
+                </div>
+                <div className="mt-2">
+                  <Progress value={clase.progreso} />
                 </div>
                 <span className="mt-2 font-mono text-[10px] tracking-[.08em] text-uva-text-faint uppercase">
                   {clase.categoriaNombre}

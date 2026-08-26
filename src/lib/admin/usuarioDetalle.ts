@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type CursoDelUsuario = {
-  inscripcionId: string;
+  /**
+   * `null` cuando el curso no tiene fila en `inscripciones` — un estudiante
+   * con membresía activa tiene acceso a todos los cursos sin que se le cree
+   * una por cada uno (ver tieneAccesoAlCurso, lib/leccion.ts), así que el
+   * único rastro de que empezó ESTE curso es su progreso.
+   */
+  inscripcionId: string | null;
   cursoId: string;
   titulo: string;
   progreso: number;
@@ -90,6 +96,71 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
       ultimaActividad,
+    });
+  }
+
+  // Cursos que el estudiante empezó por MEMBRESÍA sin una fila en
+  // `inscripciones` (el acceso por suscripción se valida en caliente contra
+  // `suscripciones`, no se materializa una inscripción por curso — ver
+  // tieneAccesoAlCurso en lib/leccion.ts). Sin este bloque, un curso que el
+  // usuario ya venía viendo en "Sigue aprendiendo" del dashboard no
+  // aparecía aquí: la ficha de admin solo mostraba las cortesías.
+  const cursoIdsConInscripcion = new Set(cursos.map((curso) => curso.cursoId));
+
+  const { data: progresoUsuario } = await supabase
+    .from("progreso")
+    .select(
+      "completado, actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso, curso:cursos(titulo)))",
+    )
+    .eq("id_usuario", usuarioId);
+
+  const progresoPorCursoSinInscripcion = new Map<
+    string,
+    { titulo: string; total: number; completados: number; ultimaActividad: string | null }
+  >();
+  for (const fila of progresoUsuario ?? []) {
+    const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
+    const modulo = leccion ? (Array.isArray(leccion.modulo) ? leccion.modulo[0] : leccion.modulo) : null;
+    const cursoId = modulo?.id_curso as string | undefined;
+    if (!cursoId || cursoIdsConInscripcion.has(cursoId)) continue;
+
+    const cursoEmbebido = modulo?.curso;
+    const cursoTitulo = (Array.isArray(cursoEmbebido) ? cursoEmbebido[0] : cursoEmbebido)?.titulo;
+
+    const actual = progresoPorCursoSinInscripcion.get(cursoId) ?? {
+      titulo: cursoTitulo ?? "Curso eliminado",
+      total: 0,
+      completados: 0,
+      ultimaActividad: null,
+    };
+    actual.total += 1;
+    if (fila.completado) actual.completados += 1;
+    if (fila.actualizado_en && (!actual.ultimaActividad || fila.actualizado_en > actual.ultimaActividad)) {
+      actual.ultimaActividad = fila.actualizado_en;
+    }
+    progresoPorCursoSinInscripcion.set(cursoId, actual);
+  }
+
+  for (const [cursoId, datos] of progresoPorCursoSinInscripcion) {
+    // El total real de lecciones del curso, no cuántas tocó (mismo criterio
+    // que arriba): puede haber avanzado en 3 de 10 y esas 3 son las únicas
+    // con fila en `progreso`.
+    const { count: totalLecciones } = await supabase
+      .from("lecciones")
+      .select("id, modulo:modulos!inner(id_curso)", { count: "exact", head: true })
+      .eq("modulo.id_curso", cursoId);
+
+    const total = totalLecciones ?? 0;
+    const porcentaje = total > 0 ? Math.round((datos.completados / total) * 100) : 0;
+
+    cursos.push({
+      inscripcionId: null,
+      cursoId,
+      titulo: datos.titulo,
+      progreso: porcentaje,
+      estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
+      tipoAcceso: "MEMBRESIA",
+      ultimaActividad: datos.ultimaActividad,
     });
   }
 

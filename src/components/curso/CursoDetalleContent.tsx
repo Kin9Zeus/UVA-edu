@@ -60,9 +60,14 @@ export function CursoDetalleContent({
             Catálogo
           </Link>
           <div className="mb-3 flex flex-wrap gap-2">
-            <span className="rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 text-xs text-uva-accent-text">
-              {curso.categoriaNombre}
-            </span>
+            {curso.categorias.map((categoria) => (
+              <span
+                key={categoria.id}
+                className="rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 text-xs text-uva-accent-text"
+              >
+                {categoria.nombre}
+              </span>
+            ))}
             <span className="rounded-uva-xs bg-[#27272A] px-2.5 py-1 text-xs text-uva-text-muted">
               {NIVEL_LABEL[curso.nivel]}
             </span>

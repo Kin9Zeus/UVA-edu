@@ -36,7 +36,14 @@ export type ModuloDetalle = {
 };
 
 export type EstudianteDeCurso = {
-  inscripcionId: string;
+  /**
+   * `null` cuando el acceso es por membresía sin fila en `inscripciones`
+   * (la suscripción da acceso a todo el catálogo publicado, no se
+   * materializa una inscripción por curso — ver tieneAccesoAlCurso,
+   * lib/leccion.ts). Solo una inscripción real (típicamente cortesía)
+   * tiene id para poder revocarla.
+   */
+  inscripcionId: string | null;
   usuarioId: string;
   nombre: string;
   progreso: number;
@@ -199,6 +206,40 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       tipoAcceso: inscripcion.tipo_acceso,
     };
   });
+
+  // Estudiantes que ya empezaron el curso por MEMBRESÍA sin fila en
+  // `inscripciones` (mismo caso que se corrigió en usuarioDetalle.ts, pero
+  // en la otra dirección: acá era la lista "curso → estudiantes" la que
+  // solo recorría `inscripciones` y se perdía a quien entró por
+  // suscripción). `progresoPorUsuario` ya trae a todo el mundo con
+  // progreso en este curso, cortesía o no — solo hace falta agregar a
+  // quien no haya salido ya arriba.
+  const usuarioIdsConInscripcion = new Set(estudiantes.map((estudiante) => estudiante.usuarioId));
+  const usuarioIdsSinInscripcion = [...progresoPorUsuario.keys()].filter(
+    (usuarioId) => !usuarioIdsConInscripcion.has(usuarioId),
+  );
+
+  if (usuarioIdsSinInscripcion.length > 0) {
+    const { data: perfilesSinInscripcion } = await supabase
+      .from("perfiles")
+      .select("id, nombre")
+      .in("id", usuarioIdsSinInscripcion);
+
+    for (const usuarioId of usuarioIdsSinInscripcion) {
+      const agregados = progresoPorUsuario.get(usuarioId)!;
+      const porcentaje =
+        leccionIds.length > 0 ? Math.round((agregados.completados / leccionIds.length) * 100) : 0;
+
+      estudiantes.push({
+        inscripcionId: null,
+        usuarioId,
+        nombre: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.nombre ?? "Usuario eliminado",
+        progreso: porcentaje,
+        estado: porcentaje >= 100 && leccionIds.length > 0 ? "COMPLETADO" : "EN_PROGRESO",
+        tipoAcceso: "MEMBRESIA",
+      });
+    }
+  }
 
   const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
 

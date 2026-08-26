@@ -79,11 +79,16 @@ export async function getLeccionPlayer(
 ): Promise<LeccionPlayer | null> {
   const supabase = await createClient();
 
+  // Sin `.eq("mostrado", true)` a propósito — mismo motivo que
+  // getCursoPublico (lib/curso.ts): la policy "cursos_select_publicos"
+  // (030_acceso_curso_despublicado.sql) ya deja ver un curso despublicado a
+  // quien tiene cortesía, o membresía con progreso ya guardado. Filtrar acá
+  // de nuevo por `mostrado` le cortaría el reproductor a esa misma gente
+  // que RLS sí autoriza.
   const { data: curso } = await supabase
     .from("cursos")
     .select("id, titulo, mostrado")
     .eq("id", cursoId)
-    .eq("mostrado", true)
     .single();
 
   if (!curso) return null;
