@@ -4,8 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { RotateCcw, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { VideoPlayer } from "@/components/features/VideoPlayer";
-import { iniciarSubidaVideoLeccion, obtenerEstadoProcesamientoLeccion } from "@/actions/admin/mux";
+import {
+  contarProgresoLeccion,
+  iniciarSubidaVideoLeccion,
+  obtenerEstadoProcesamientoLeccion,
+} from "@/actions/admin/mux";
 import type { EstadoProcesamiento } from "@/actions/admin/mux";
 
 const INTERVALO_POLLING_MS = 4000;
@@ -66,6 +71,9 @@ export function VideoUploader({
   }) => void;
 }) {
   const [local, setLocal] = useState<EstadoLocal>({ fase: "inactivo" });
+  const [confirmandoReemplazo, setConfirmandoReemplazo] = useState<{ totalEstudiantes: number } | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -144,8 +152,47 @@ export function VideoUploader({
     inputRef.current?.click();
   }
 
+  /**
+   * Solo para el botón "Reemplazar video" (hay un video LISTO de por
+   * medio): a diferencia de la primera subida o un reintento tras error,
+   * acá sí puede haber estudiantes con progreso registrado que el
+   * reemplazo va a afectar (se les reinicia el segundo de reanudación, ver
+   * video.asset.ready en src/app/api/webhooks/mux/route.ts). Si no hay
+   * ninguno, no tiene sentido interrumpir con un diálogo vacío.
+   */
+  async function handleClickReemplazar() {
+    const resultado = await contarProgresoLeccion(leccionId);
+    if (resultado.total) {
+      setConfirmandoReemplazo({ totalEstudiantes: resultado.total });
+      return;
+    }
+    handleElegirArchivo();
+  }
+
   const inputOculto = (
     <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleArchivoElegido} />
+  );
+
+  const dialogoConfirmarReemplazo = confirmandoReemplazo && (
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => !open && setConfirmandoReemplazo(null)}
+      title="Reemplazar video"
+      description={
+        <>
+          {confirmandoReemplazo.totalEstudiantes === 1
+            ? "1 estudiante tiene"
+            : `${confirmandoReemplazo.totalEstudiantes} estudiantes tienen`}{" "}
+          progreso registrado en esta lección. Al reemplazar el video se reinicia su punto de
+          reanudación; la marca de &quot;completada&quot; no se pierde.
+        </>
+      }
+      confirmLabel="Reemplazar video"
+      onConfirm={() => {
+        setConfirmandoReemplazo(null);
+        handleElegirArchivo();
+      }}
+    />
   );
 
   // Prioridad: lo que está pasando EN ESTA sesión del navegador (local) por
@@ -207,8 +254,9 @@ export function VideoUploader({
     return (
       <div className="flex flex-col gap-2">
         {inputOculto}
+        {dialogoConfirmarReemplazo}
         <VideoPlayer leccionId={leccionId} titulo={titulo} />
-        <Button type="button" variant="outline" size="sm" onClick={handleElegirArchivo}>
+        <Button type="button" variant="outline" size="sm" onClick={handleClickReemplazar}>
           Reemplazar video
         </Button>
       </div>

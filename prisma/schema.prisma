@@ -328,12 +328,37 @@ model Lecciones {
   creado_en            DateTime                   @default(now()) @db.Timestamptz
   actualizado_en       DateTime                   @updatedAt @db.Timestamptz
 
-  modulo   Modulos                @relation(fields: [id_modulo], references: [id], onDelete: Cascade)
-  progreso Progreso[]
-  recursos RecursosDescargables[]
+  modulo               Modulos                          @relation(fields: [id_modulo], references: [id], onDelete: Cascade)
+  progreso             Progreso[]
+  recursos             RecursosDescargables[]
+  assetsMuxPendientes  MuxAssetsPendientesEliminacion[]
 
   @@index([id_modulo, orden])
   @@map("lecciones")
+}
+
+/// Cola de assets de Mux pendientes de eliminar tras un reemplazo de video
+/// (ver comentario en id_video_mux arriba: el asset viejo nunca se borra
+/// antes de confirmar que el nuevo quedó listo). Se llena desde el webhook
+/// (video.asset.ready) porque es el único punto que ve el id del asset
+/// anterior antes de que el UPDATE de `lecciones` lo sobreescriba.
+///
+/// El borrado real contra la API de Mux (mux.video.assets.delete) todavía
+/// no está implementado — depende de tener acceso al dominio de Mux del
+/// equipo. `eliminado`/`eliminado_en` quedan listos para cuando exista ese
+/// job de limpieza.
+model MuxAssetsPendientesEliminacion {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_leccion   String?   @db.Uuid
+  id_asset_mux String
+  eliminado    Boolean   @default(false)
+  eliminado_en DateTime? @db.Timestamptz
+  creado_en    DateTime  @default(now()) @db.Timestamptz
+
+  leccion Lecciones? @relation(fields: [id_leccion], references: [id], onDelete: SetNull)
+
+  @@index([eliminado])
+  @@map("mux_assets_pendientes_eliminacion")
 }
 
 // ============================================================

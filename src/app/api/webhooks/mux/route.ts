@@ -95,6 +95,17 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Se lee ANTES del UPDATE de abajo: es la única oportunidad de ver el
+      // id_mux_asset_id anterior — ese mismo UPDATE lo va a sobreescribir con
+      // el del asset nuevo. Sin esto, un reemplazo de video pierde para
+      // siempre el id del asset viejo en Mux (huérfano, nadie lo vuelve a
+      // encontrar ni para borrarlo a mano desde el dashboard).
+      const { data: leccionActual } = await admin
+        .from("lecciones")
+        .select("id, id_mux_asset_id")
+        .eq("id_mux_upload_id", data.upload_id)
+        .maybeSingle();
+
       const { error } = await admin
         .from("lecciones")
         .update({
@@ -113,6 +124,35 @@ export async function POST(request: NextRequest) {
           uploadId: data.upload_id,
         });
         return NextResponse.json({ error: "no se pudo actualizar la lección" }, { status: 500 });
+      }
+
+      // Un id_mux_asset_id previo distinto del nuevo significa que esto es
+      // un REEMPLAZO, no la primera subida de la lección: el video cambió,
+      // así que el segundo de reanudación de cualquier estudiante ya no
+      // corresponde a nada coherente (se conserva `completado`, ver
+      // docs/functional-spec.md — "Reemplazo de video de una lección").
+      // El asset viejo se encola para borrarse de Mux más adelante: el
+      // borrado real contra la API de Mux (mux.video.assets.delete) todavía
+      // no está implementado, pendiente de tener acceso al dominio de Mux
+      // del equipo.
+      if (leccionActual?.id_mux_asset_id && leccionActual.id_mux_asset_id !== data.id) {
+        await admin
+          .from("progreso")
+          .update({ segundo_actual: 0 })
+          .eq("id_leccion", leccionActual.id);
+
+        const { error: errorCola } = await admin.from("mux_assets_pendientes_eliminacion").insert({
+          id_leccion: leccionActual.id,
+          id_asset_mux: leccionActual.id_mux_asset_id,
+        });
+        if (errorCola) {
+          logError("webhook:mux", "no se pudo encolar el asset viejo para borrar", errorCola, {
+            area: "webhook",
+            idEvento: evento.id,
+            leccionId: leccionActual.id,
+            assetIdViejo: leccionActual.id_mux_asset_id,
+          });
+        }
       }
       break;
     }

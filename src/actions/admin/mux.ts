@@ -37,10 +37,13 @@ export async function iniciarSubidaVideoLeccion(
 
   const { data: leccion } = await admin.supabase
     .from("lecciones")
-    .select("id")
+    .select("id, id_mux_asset_id")
     .eq("id", leccionId)
     .maybeSingle();
   if (!leccion) return { error: "La lección no existe." };
+  // Si ya había un asset de Mux, esto es un reemplazo (no la primera
+  // subida) — la bitácora y el mensaje de auditoría lo distinguen.
+  const esReemplazo = leccion.id_mux_asset_id !== null;
 
   const origin = await getOrigin();
 
@@ -83,9 +86,10 @@ export async function iniciarSubidaVideoLeccion(
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
-    accion: "Inició la subida de un video",
+    accion: esReemplazo ? "Inició el reemplazo del video de una lección" : "Inició la subida del video de una lección",
     entidadAfectada: "lecciones",
     idEntidadAfectada: leccionId,
+    detalles: esReemplazo ? `Asset de Mux anterior: ${leccion.id_mux_asset_id}` : undefined,
   });
 
   revalidatePath(`/admin/cursos/${cursoId}`);
@@ -127,4 +131,27 @@ export async function obtenerEstadoProcesamientoLeccion(
     duracion: leccion.duracion,
     idVideoMux: leccion.id_video_mux,
   };
+}
+
+export type ConteoProgresoResultado = { error?: string; total?: number };
+
+/**
+ * Cuántos estudiantes tienen progreso registrado en esta lección — se usa
+ * para advertir antes de reemplazar el video ("Reemplazo de video de una
+ * lección sin recrearla", requisito de UI). No distingue completada/en
+ * curso: cualquier fila en `progreso` implica un segundo de reanudación
+ * que el reemplazo va a reiniciar (ver video.asset.ready en
+ * src/app/api/webhooks/mux/route.ts).
+ */
+export async function contarProgresoLeccion(leccionId: string): Promise<ConteoProgresoResultado> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  const { count, error } = await admin.supabase
+    .from("progreso")
+    .select("id", { count: "exact", head: true })
+    .eq("id_leccion", leccionId);
+
+  if (error) return { error: "No pudimos comprobar el progreso de los estudiantes." };
+  return { total: count ?? 0 };
 }
