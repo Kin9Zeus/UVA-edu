@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
-import { formatTamanoArchivo } from "@/lib/admin/format";
+import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import type { RecursoLeccion } from "@/lib/leccion";
 
@@ -102,7 +102,7 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
               className="flex w-full cursor-pointer items-center gap-[11px] rounded-uva-md border-0 bg-[#27272A] px-[13px] py-[11px] text-left disabled:cursor-wait disabled:opacity-70"
             >
               <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
-                {recurso.tipoArchivo.toUpperCase()}
+                {extensionArchivo(recurso.nombre)}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-semibold text-uva-text">

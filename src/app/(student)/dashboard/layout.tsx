@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
+import { calcularDiasGracia } from "@/lib/gracia";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
-
-const DURACION_GRACIA_DIAS = 5;
 
 export default async function DashboardLayout({
   children,
@@ -37,11 +36,10 @@ export default async function DashboardLayout({
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
-  let diasGracia: number | null = null;
-  if (suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion) {
-    const finGracia = new Date(suscripcion.fechaRenovacion).getTime() + DURACION_GRACIA_DIAS * 86_400_000;
-    diasGracia = Math.max(0, Math.ceil((finGracia - Date.now()) / 86_400_000));
-  }
+  const diasGracia =
+    suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion
+      ? calcularDiasGracia(suscripcion.fechaRenovacion)
+      : null;
 
   return (
     <div className="flex h-screen overflow-hidden">

@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // P2-2 (AUDIT-2026-08-26.md): sin esto, ESLint analiza el handoff de
+    // diseño (código de terceros, exportado tal cual desde Claude Design)
+    // y el cliente de Prisma generado — ninguno de los dos es código que
+    // el equipo escriba o mantenga.
+    "design-spec/**",
+    "design-spec-errores/**",
+    "src/generated/**",
   ]),
 ]);
 

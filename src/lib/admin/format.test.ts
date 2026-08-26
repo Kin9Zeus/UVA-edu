@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extensionArchivo,
   formatDuracion,
   formatFecha,
   formatMoneda,
@@ -117,5 +118,27 @@ describe("formatTamanoArchivo", () => {
 
   it("el límite exacto de 1024 ya cuenta como KB, no B", () => {
     expect(formatTamanoArchivo(1024)).toBe("1.0 KB");
+  });
+});
+
+describe("extensionArchivo", () => {
+  it("extensión simple", () => {
+    expect(extensionArchivo("Guía de iluminación V-Ray.pdf")).toBe("PDF");
+  });
+
+  it("nombre con varios puntos: usa el último", () => {
+    expect(extensionArchivo("plantilla.final.rte")).toBe("RTE");
+  });
+
+  it("sin extensión: cae al genérico", () => {
+    expect(extensionArchivo("archivo-sin-extension")).toBe("ARCHIVO");
+  });
+
+  it("archivo oculto sin extensión real (punto inicial): cae al genérico", () => {
+    expect(extensionArchivo(".gitignore")).toBe("ARCHIVO");
+  });
+
+  it("termina en punto sin nada después: cae al genérico", () => {
+    expect(extensionArchivo("nombre.")).toBe("ARCHIVO");
   });
 });

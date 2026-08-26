@@ -64,3 +64,18 @@ export function formatTamanoArchivo(bytes: number | null) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * Etiqueta corta de un recurso descargable, p.ej. `PDF`, a partir de su
+ * nombre de archivo — nunca de `recursos_descargables.tipo_archivo`, que
+ * guarda el MIME type completo que declaró el navegador al subirlo
+ * (`subirRecursoLeccion`, `src/actions/admin/cursos.ts`). Mostrar ese MIME
+ * tal cual ("APPLICATION/PDF", "TEXT/PLAIN") se leía como una ruta por la
+ * barra — el usuario lo reportó viendo el reproductor. La extensión del
+ * nombre es lo que el mockup y el seed ya mostraban ("PDF", "RTE").
+ */
+export function extensionArchivo(nombre: string): string {
+  const punto = nombre.lastIndexOf(".");
+  if (punto <= 0 || punto === nombre.length - 1) return "ARCHIVO";
+  return nombre.slice(punto + 1).toUpperCase();
+}

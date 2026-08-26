@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Eye, FileText } from "lucide-react";
-import { formatDuracion } from "@/lib/admin/format";
+import { extensionArchivo, formatDuracion } from "@/lib/admin/format";
 import type { LeccionVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
 import { TabsHeader, ResumenTab, type TabPlayer } from "@/components/player/PlayerTabs";
 import { TemarioDrawer } from "@/components/player/TemarioDrawer";
@@ -102,7 +102,7 @@ export function LeccionVistaPreviaContent({
                         className="flex items-center gap-[11px] rounded-uva-md bg-[#27272A] px-[13px] py-[11px]"
                       >
                         <span className="inline-flex items-center rounded-uva-xs bg-uva-surface px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
-                          {recurso.tipoArchivo.toUpperCase()}
+                          {extensionArchivo(recurso.nombre)}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[13px] font-semibold text-uva-text">
