@@ -155,8 +155,15 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const estudiantes: EstudianteDeCurso[] = (inscripciones ?? []).map((inscripcion) => {
     const usuario = Array.isArray(inscripcion.usuario) ? inscripcion.usuario[0] : inscripcion.usuario;
     const agregados = progresoPorUsuario.get(inscripcion.id_usuario);
+    // El denominador es el total de lecciones DEL CURSO, no cuántas de ellas
+    // tienen fila en `progreso`. Antes se dividía por `agregados.total` (las
+    // clases que el estudiante había abierto), así que a alguien que
+    // terminó 5 de 10 clases y nunca tocó las otras 5 le salía 100%
+    // ("Completado") en vez de 50%.
     const porcentaje =
-      agregados && agregados.total > 0 ? Math.round((agregados.completados / agregados.total) * 100) : 0;
+      leccionIds.length > 0 && agregados
+        ? Math.round((agregados.completados / leccionIds.length) * 100)
+        : 0;
 
     return {
       inscripcionId: inscripcion.id,

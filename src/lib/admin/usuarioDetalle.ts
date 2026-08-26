@@ -58,13 +58,22 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   for (const inscripcion of inscripciones ?? []) {
     const curso = Array.isArray(inscripcion.curso) ? inscripcion.curso[0] : inscripcion.curso;
 
+    // El total es TODAS las lecciones del curso, no cuántas de ellas tienen
+    // fila en `progreso` (mismo bug que tenía lib/admin/cursoDetalle.ts):
+    // alguien que solo abrió/completó 3 de 4 clases y nunca tocó la cuarta
+    // salía en 100% ("Completado") en vez de 75%.
+    const { count: totalLecciones } = await supabase
+      .from("lecciones")
+      .select("id, modulo:modulos!inner(id_curso)", { count: "exact", head: true })
+      .eq("modulo.id_curso", inscripcion.id_curso);
+
     const { data: progreso } = await supabase
       .from("progreso")
       .select("completado, fecha_actualizacion:actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso))")
       .eq("id_usuario", usuarioId)
       .eq("leccion.modulo.id_curso", inscripcion.id_curso);
 
-    const total = progreso?.length ?? 0;
+    const total = totalLecciones ?? 0;
     const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
     const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
     const ultimaActividad = (progreso ?? []).reduce<string | null>((max, registro) => {

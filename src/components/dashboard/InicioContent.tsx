@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { formatDuracion } from "@/lib/admin/format";
+import { formatHoras } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
 
@@ -11,6 +11,8 @@ const PORTADA_TRAMA = {
   backgroundImage:
     "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
 };
+
+const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
 // Sin tabla de íconos por categoría en el esquema: se rota un set fijo,
 // puramente decorativo (no representa datos reales de la categoría).
@@ -72,8 +74,13 @@ export function InicioContent({
                 </span>
                 <h3 className="mt-0.5 truncate text-sm text-uva-text">{clase.cursoTitulo}</h3>
                 <p className="truncate text-xs text-uva-text-muted">{clase.moduloTitulo}</p>
+                <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] tracking-[.06em] text-uva-text-faint uppercase">
+                  <span>{NIVEL_LABEL[clase.nivel]}</span>
+                  <span aria-hidden>·</span>
+                  <span>{formatHoras(clase.duracionTotalCursoSegundos)}</span>
+                </div>
                 <p className="mt-1 font-mono text-[11px] text-uva-text-faint tabular-nums">
-                  {formatDuracion(clase.segundoActual)}/{formatDuracion(clase.duracion)}
+                  {clase.clasesCompletadas}/{clase.totalClases} clases
                 </p>
               </Link>
             ))}

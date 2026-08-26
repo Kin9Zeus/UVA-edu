@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ChevronLeft, Lock, PlayCircle } from "lucide-react";
+import { ChevronLeft, CircleCheck, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatFecha } from "@/lib/admin/format";
+import { formatFecha, formatHoras } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import type { CursoPublico } from "@/lib/curso";
 
@@ -13,35 +13,51 @@ const PORTADA_TRAMA = {
     "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
 };
 
-function formatHoras(segundos: number) {
-  if (segundos <= 0) return "—";
-  const horas = Math.floor(segundos / 3600);
-  const minutos = Math.round((segundos % 3600) / 60);
-  if (horas === 0) return `${minutos} min`;
-  if (minutos === 0) return `${horas} h`;
-  return `${horas} h ${minutos} m`;
-}
-
 export function CursoDetalleContent({
   curso,
   basePath = "/catalogo",
+  rutaPlanes = "/#planes",
 }: {
   curso: CursoPublico;
   basePath?: string;
+  /**
+   * A dónde manda "Suscríbete para verlo". Con sesión iniciada debe ser
+   * `/dashboard/planes` (se queda dentro del panel del estudiante); sin
+   * sesión, el default `/#planes` de la home pública.
+   *
+   * Antes siempre era `/#planes`, incluso logueado: el estudiante caía en
+   * el Header de marketing (src/components/home/Header.tsx), que no lee
+   * sesión y siempre muestra "Acceder" — daba la impresión de que se había
+   * cerrado sesión sin que eso pasara de verdad.
+   */
+  rutaPlanes?: string;
 }) {
   const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
     ?.id;
+  // Si ya hay progreso guardado en alguna clase del curso, el botón retoma
+  // ahí en vez de mandar de nuevo a la primera clase (ver Revcurso: "seguir
+  // viendo" solo debe aparecer si el estudiante ya empezó).
+  const siguiendoProgreso = curso.progresoIniciado && curso.leccionContinuarId !== null;
+  const leccionDestinoId = siguiendoProgreso ? curso.leccionContinuarId! : primeraLeccionId;
+  // Si ya completó todo el curso no hay "siguiente" a la que volver: se
+  // ofrece repasar desde la primera clase en vez de un botón sin destino.
+  const cursoCompletado = curso.progresoIniciado && curso.leccionContinuarId === null;
 
   return (
     <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-8 px-[clamp(20px,4vw,56px)] py-[clamp(32px,5vw,56px)] lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex flex-col gap-8">
         <div>
+          {/* Vuelve al catálogo general (con su buscador y filtro de
+              categoría), no a la subpágina de esta categoría: de ahí es de
+              donde normalmente se llega a un curso, y es donde se puede
+              seguir explorando por nombre, instructor o cualquier
+              categoría. Mismo patrón que CategoriaContent.tsx. */}
           <Link
-            href={`${basePath}/${curso.categoriaSlug}`}
+            href={basePath}
             className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
           >
             <ChevronLeft className="size-4" strokeWidth={1.9} />
-            {curso.categoriaNombre}
+            Catálogo
           </Link>
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 text-xs text-uva-accent-text">
@@ -98,7 +114,11 @@ export function CursoDetalleContent({
                         className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
-                        <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
+                        {leccion.completado ? (
+                          <CircleCheck className="size-4 shrink-0 text-uva-accent-2" strokeWidth={1.8} />
+                        ) : (
+                          <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
+                        )}
                         <span className="flex-1 truncate">{leccion.titulo}</span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
                           {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
@@ -138,15 +158,22 @@ export function CursoDetalleContent({
         )}
 
         {curso.tieneAcceso ? (
-          primeraLeccionId ? (
+          leccionDestinoId ? (
             <Button
-              render={<Link href={`/cursos/${curso.id}/${primeraLeccionId}`} />}
+              render={<Link href={`/cursos/${curso.id}/${leccionDestinoId}`} />}
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-12"
+              className="min-h-12 flex-col gap-0.5 py-2"
             >
-              Comenzar curso
+              <span>
+                {siguiendoProgreso ? "Seguir viendo" : cursoCompletado ? "Repasar curso" : "Comenzar curso"}
+              </span>
+              {siguiendoProgreso && curso.leccionContinuarTitulo && (
+                <span className="truncate text-[11.5px] font-normal opacity-80">
+                  Clase {curso.leccionContinuarNumero} · {curso.leccionContinuarTitulo}
+                </span>
+              )}
             </Button>
           ) : (
             <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
@@ -155,7 +182,7 @@ export function CursoDetalleContent({
           )
         ) : (
           <Button
-            render={<Link href="/#planes" />}
+            render={<Link href={rutaPlanes} />}
             nativeButton={false}
             variant="uva-primary"
             size="uva"

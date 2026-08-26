@@ -32,12 +32,16 @@ export default async function CursoDetallePage({
   }
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
+  // Con sesión, suscribirse debe quedarse dentro del dashboard (donde vive
+  // el checkout real) en vez de mandar al Header de marketing de la home,
+  // que no sabe que hay sesión iniciada y siempre muestra "Acceder".
+  const rutaPlanes = user ? "/dashboard/planes" : "/#planes";
 
   return (
     <>
       <SiteHeader {...perfilActual} />
       <main>
-        <CursoDetalleContent curso={curso} basePath={basePath} />
+        <CursoDetalleContent curso={curso} basePath={basePath} rutaPlanes={rutaPlanes} />
       </main>
       <Footer />
     </>

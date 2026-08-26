@@ -5,6 +5,7 @@ export type LeccionPublica = {
   titulo: string;
   orden: number;
   duracion: number | null;
+  completado: boolean;
 };
 
 export type ModuloPublico = {
@@ -31,6 +32,16 @@ export type CursoPublico = {
   totalRecursos: number;
   duracionTotalSegundos: number;
   tieneAcceso: boolean;
+  /** true si hay al menos una clase con progreso guardado (completada o no). */
+  progresoIniciado: boolean;
+  /**
+   * Primera clase del temario todavía sin completar, para "Seguir viendo".
+   * `null` si no hay progreso o si ya se completaron todas las clases.
+   */
+  leccionContinuarId: string | null;
+  leccionContinuarTitulo: string | null;
+  /** Posición 1..N de `leccionContinuarId` dentro del curso completo. */
+  leccionContinuarNumero: number | null;
 };
 
 export async function getCursoPublico(
@@ -67,7 +78,7 @@ export async function getCursoPublico(
     .eq("id_curso", cursoId)
     .order("orden");
 
-  const modulosPublicos: ModuloPublico[] = (modulos ?? []).map((modulo) => ({
+  const modulosBase = (modulos ?? []).map((modulo) => ({
     id: modulo.id,
     titulo: modulo.titulo,
     orden: modulo.orden,
@@ -82,9 +93,9 @@ export async function getCursoPublico(
       })),
   }));
 
-  const leccionIds = modulosPublicos.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
+  const leccionIds = modulosBase.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
   const totalClases = leccionIds.length;
-  const duracionTotalSegundos = modulosPublicos.reduce(
+  const duracionTotalSegundos = modulosBase.reduce(
     (total, modulo) =>
       total + modulo.lecciones.reduce((sub, leccion) => sub + (leccion.duracion ?? 0), 0),
     0,
@@ -122,6 +133,44 @@ export async function getCursoPublico(
     }
   }
 
+  // Progreso guardado en las clases del curso: qué está completada (para el
+  // check ✓ del temario) y cuál es la primera sin completar (para "Seguir
+  // viendo" — Revcurso). Se usa el orden del temario, no "la última clase
+  // que se abrió": esa pudo haberse completado ya, y retomar ahí mandaría
+  // de vuelta a una clase terminada en vez de a la siguiente pendiente.
+  let progresoIniciado = false;
+  const completadoIds = new Set<string>();
+  if (usuarioId && tieneAcceso && leccionIds.length > 0) {
+    const { data: progresoRows } = await supabase
+      .from("progreso")
+      .select("id_leccion, completado")
+      .eq("id_usuario", usuarioId)
+      .in("id_leccion", leccionIds);
+
+    progresoIniciado = (progresoRows ?? []).length > 0;
+    for (const fila of progresoRows ?? []) {
+      if (fila.completado) completadoIds.add(fila.id_leccion as string);
+    }
+  }
+
+  const modulosPublicos: ModuloPublico[] = modulosBase.map((modulo) => ({
+    ...modulo,
+    lecciones: modulo.lecciones.map((leccion) => ({
+      ...leccion,
+      completado: completadoIds.has(leccion.id),
+    })),
+  }));
+
+  const leccionesPlanas = modulosPublicos.flatMap((modulo) => modulo.lecciones);
+  const siguiente = progresoIniciado
+    ? leccionesPlanas.find((leccion) => !leccion.completado)
+    : undefined;
+  const leccionContinuarId = siguiente?.id ?? null;
+  const leccionContinuarTitulo = siguiente?.titulo ?? null;
+  const leccionContinuarNumero = siguiente
+    ? leccionesPlanas.findIndex((leccion) => leccion.id === siguiente.id) + 1
+    : null;
+
   const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
 
   return {
@@ -141,5 +190,9 @@ export async function getCursoPublico(
     totalRecursos: totalRecursos ?? 0,
     duracionTotalSegundos,
     tieneAcceso,
+    progresoIniciado,
+    leccionContinuarId,
+    leccionContinuarTitulo,
+    leccionContinuarNumero,
   };
 }

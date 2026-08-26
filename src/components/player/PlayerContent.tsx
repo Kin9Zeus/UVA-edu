@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { formatDuracion } from "@/lib/admin/format";
-import { marcarLeccion } from "@/actions/progreso/marcar";
+import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import { VideoFrame } from "./VideoFrame";
 import { TabsHeader, RecursosTab, ResumenTab, ComentariosTab, type TabPlayer } from "./PlayerTabs";
@@ -23,6 +23,13 @@ export function PlayerContent({ data }: { data: LeccionPlayer }) {
     new Map(data.lecciones.map((leccion) => [leccion.id, leccion.completado])),
   );
   const [pendiente, startTransition] = useTransition();
+
+  // Se dispara al abrir la clase, no al terminarla: es lo que le da sentido
+  // a "Seguir viendo" en la ficha del curso y a "Sigue aprendiendo" del
+  // dashboard, que antes solo veían clases ya marcadas como completadas.
+  useEffect(() => {
+    void iniciarProgresoLeccion(data.leccionId);
+  }, [data.leccionId]);
 
   const irALeccion = (leccionId: string) => router.push(`/cursos/${data.cursoId}/${leccionId}`);
 

@@ -47,6 +47,16 @@ export function formatDuracion(segundos: number | null) {
   return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
 }
 
+/** Duración total de un curso, p.ej. `3 h 20 m` o `45 min`. */
+export function formatHoras(segundos: number) {
+  if (segundos <= 0) return "—";
+  const horas = Math.floor(segundos / 3600);
+  const minutos = Math.round((segundos % 3600) / 60);
+  if (horas === 0) return `${minutos} min`;
+  if (minutos === 0) return `${horas} h`;
+  return `${horas} h ${minutos} m`;
+}
+
 /** Tamaño de un recurso descargable, p.ej. `1.4 MB`. */
 export function formatTamanoArchivo(bytes: number | null) {
   if (bytes === null) return "";

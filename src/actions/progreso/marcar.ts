@@ -41,3 +41,33 @@ export async function marcarLeccion(
   revalidatePath("/dashboard", "layout");
   return { ok: true, completado };
 }
+
+/**
+ * Registra que el estudiante empezó a ver una clase, sin marcarla completada.
+ *
+ * Antes solo se guardaba una fila en `progreso` cuando el estudiante hacía
+ * clic en "Marcar como completada": mientras tanto, el botón del curso
+ * siempre decía "Comenzar curso" y "Sigue aprendiendo" del dashboard nunca
+ * se llenaba, aunque llevara varias clases vistas (Revcurso).
+ *
+ * `ignoreDuplicates: true` hace que sea un INSERT ... ON CONFLICT DO NOTHING:
+ * si ya existe una fila para esta clase (completada o no), no se toca —
+ * nunca debe pisar `completado` ni `segundo_actual` ya guardados.
+ */
+export async function iniciarProgresoLeccion(leccionId: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  await supabase
+    .from("progreso")
+    .upsert(
+      { id_usuario: user.id, id_leccion: leccionId },
+      { onConflict: "id_usuario,id_leccion", ignoreDuplicates: true },
+    );
+
+  revalidatePath("/dashboard", "layout");
+}
