@@ -333,8 +333,60 @@ async function main() {
       "estudiante con acceso SÍ puede auto-inscribirse (MEMBRESIA, tiene suscripción activa)",
       clienteConAcceso.from("inscripciones").insert({ id_usuario: userConAcceso.user!.id, id_curso: cursoNoPublicado.id, tipo_acceso: "MEMBRESIA" }).select(),
     );
+
+    console.log("\n=== Sesión: ACCESO A CURSO DESPUBLICADO (Revcurso, 030_acceso_curso_despublicado.sql) ===\n");
+
+    // Cortesía: acceso incondicional, publicado o no — es un regalo directo
+    // a esa persona a ESE curso, nunca dependió del catálogo.
+    const { error: errCortesiaDespublicado } = await admin.from("inscripciones").insert({
+      id_usuario: userSinAcceso.user!.id,
+      id_curso: cursoNoPublicado.id,
+      tipo_acceso: "CORTESIA",
+      otorgado_por: adminPerfil.id,
+    });
+    if (errCortesiaDespublicado) throw new Error(`No pude otorgar la cortesía de prueba: ${errCortesiaDespublicado.message}`);
+
+    await esperarPermitido(
+      "cortesía SÍ ve un curso despublicado",
+      clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
+
+    // Membresía: userConAcceso ya tiene, desde la prueba de arriba, una
+    // fila de inscripción MEMBRESIA en este curso — y aun así debe seguir
+    // bloqueado mientras no tenga progreso guardado en él. Si esto
+    // pasara, sería la regresión exacta que motivó distinguir tipo_acceso
+    // dentro de tiene_acceso_vigente_curso().
+    const { data: moduloDespublicado, error: errModulo } = await admin
+      .from("modulos")
+      .insert({ id_curso: cursoNoPublicado.id, titulo: "Módulo RLS test", orden: 10 })
+      .select("id")
+      .single();
+    if (errModulo || !moduloDespublicado) throw new Error(`No pude crear el módulo de prueba: ${errModulo?.message}`);
+
+    const { data: leccionDespublicada, error: errLeccion } = await admin
+      .from("lecciones")
+      .insert({ id_modulo: moduloDespublicado.id, titulo: "Lección RLS test", orden: 10 })
+      .select("id")
+      .single();
+    if (errLeccion || !leccionDespublicada) throw new Error(`No pude crear la lección de prueba: ${errLeccion?.message}`);
+
+    await esperarBloqueado(
+      "membresía sin progreso sigue sin ver el curso despublicado (aunque ya tenga una inscripción MEMBRESIA)",
+      clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
+
+    const { error: errProgreso } = await admin
+      .from("progreso")
+      .insert({ id_usuario: userConAcceso.user!.id, id_leccion: leccionDespublicada.id, completado: false });
+    if (errProgreso) throw new Error(`No pude crear el progreso de prueba: ${errProgreso.message}`);
+
+    await esperarPermitido(
+      "membresía CON progreso ya guardado SÍ ve el curso despublicado ('ya lo estaba viendo')",
+      clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
+    await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("inscripciones").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);
     await admin.from("instructores").delete().eq("id", instructor.id);

@@ -104,7 +104,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
               </TableRow>
             )}
             {filtrados.map((estudiante) => (
-              <TableRow key={estudiante.inscripcionId}>
+              <TableRow key={estudiante.inscripcionId ?? estudiante.usuarioId}>
                 <TableCell>
                   <Link href={`/admin/usuarios/${estudiante.usuarioId}`} className="flex items-center gap-2.5">
                     <Avatar size="sm" className="bg-uva-divider">

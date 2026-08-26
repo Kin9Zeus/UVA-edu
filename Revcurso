@@ -1,6 +1,6 @@
 # Publicar/ocultar curso y modo vista previa del catálogo
 
-Estado: Terminado (verificado 2026-08-26)
+Estado: Terminado (verificado 2026-08-26 — con regla de acceso vigente para curso despublicado)
 Fase: Fase 2 — Panel administrativo y contenido (https://app.notion.com/p/Fase-2-Panel-administrativo-y-contenido-3b4ba9d6712e819599fef1393debe396?pvs=21)
 Prioridad: Media
 Responsable: JuanMiguel
@@ -20,6 +20,11 @@ Control de publicación del curso (borrador / publicado) y un modo de vista prev
       → `src/lib/vistaPrevia.ts` + `src/lib/admin/resolverVistaPrevia.ts`: tokens con hash, expiración y revocación (tabla `tokens_vista_previa`, migración `20260825020000_tokens_vista_previa`, purga en `026_purga_tokens_vista_previa.sql`). El cliente de service role está acotado a ese único módulo y solo consulta por el `idCurso` que sale de la fila del token, nunca de la URL. Rutas `src/app/vista-previa/[token]/...`.
 - [x] Despublicar un curso no borra el progreso de quienes ya lo estaban viendo — solo lo oculta del catálogo.
       → `alternarPublicacionCurso`/`actualizarConfiguracionCurso` solo actualizan la columna `mostrado`; no tocan `progreso` ni ninguna tabla relacionada.
+      → **Hallazgo corregido (030_acceso_curso_despublicado.sql):** `getCursoPublico` (`src/lib/curso.ts`) y `getLeccionPlayer` (`src/lib/leccion.ts`) filtraban `.eq("mostrado", true)` ANTES de comprobar acceso, así que un estudiante inscrito perdía el reproductor entero al despublicarse el curso — no solo la visibilidad en catálogo. Se agregó `private.tiene_acceso_vigente_curso(id_curso)` en RLS (funciones `private.tiene_progreso_en_curso` / `private.tiene_acceso_vigente_curso`) como excepción en las policies de SELECT de `cursos`, `modulos`, `lecciones`, `curso_categorias` y `recursos_descargables`, con esta regla:
+        - **Cortesía** (`inscripciones.tipo_acceso = 'CORTESIA'`): acceso incondicional, publicado o no — es un regalo directo a esa persona a ese curso.
+        - **Membresía** (inscripción MEMBRESIA o suscripción ACTIVA/PAST_DUE, que dan acceso a todo el catálogo publicado por igual): solo alcanza a un curso despublicado si ya tenía **progreso guardado en él** — "ya lo estaba viendo". Un suscriptor que nunca lo abrió pierde el curso igual que cualquiera, que es justamente "ocultarlo del catálogo" y no un privilegio gratis para todo suscriptor activo.
+      → `curso.ts`/`leccion.ts` ya no repiten el filtro `mostrado = true`: dejan que RLS decida si la fila existe, y solo recalculan `tieneAcceso` para la UI (Comenzar/Seguir viendo vs. Suscríbete).
+      → Cubierto en `scripts/rls-test.ts` (3 pruebas nuevas: cortesía ve el curso despublicado; membresía con inscripción MEMBRESIA pero sin progreso sigue bloqueada; membresía con progreso ya guardado lo ve). 51/51 pruebas de `npm run test:rls` en verde.
 - [x] Indicador claro y permanente en la interfaz cuando el admin está en modo vista previa, para que no confunda entornos.
       → `src/components/vistaPrevia/BannerVistaPrevia.tsx`: barra `fixed` (no `sticky`) con acento magenta, aviso de "no publicado" y fecha de expiración del enlace.
 
@@ -27,7 +32,7 @@ Control de publicación del curso (borrador / publicado) y un modo de vista prev
 
 Un curso en borrador no aparece en el catálogo público ni es accesible por URL directa, y el admin puede previsualizarlo antes de publicarlo.
 
-**Verificado:** cumplido. `notFound()` en `src/app/(public)/cursos/[id]/page.tsx` cuando `getCursoPublico` devuelve null (RLS bloquea el curso en borrador); vista previa vía enlace con token en `EnlacesVistaPrevia.tsx` / `vistaPrevia.ts` (server actions).
+**Verificado:** cumplido. `notFound()` en `src/app/(public)/cursos/[id]/page.tsx` cuando `getCursoPublico` devuelve null (RLS bloquea el curso en borrador, salvo la excepción de acceso vigente de arriba); vista previa vía enlace con token en `EnlacesVistaPrevia.tsx` / `vistaPrevia.ts` (server actions).
 
 ## Pendiente (no bloquea el "terminado", pero vale la pena mirar)
 

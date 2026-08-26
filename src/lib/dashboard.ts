@@ -71,10 +71,16 @@ export async function getInicioData(usuarioId: string) {
           : curso.curso_categorias[0].categoria
         : null;
 
-      // Un curso despublicado no debe seguir apareciendo en "Sigue
-      // aprendiendo": el progreso queda intacto en la base, pero se saca de
-      // esta vitriera igual que del catálogo.
-      if (!leccion || !modulo || !curso || !curso.mostrado) return null;
+      // Antes se excluía todo curso con `mostrado = false`, pero eso
+      // contradice la regla de acceso vigente (030_acceso_curso_despublicado.sql,
+      // Revcurso): un estudiante con membresía que YA tenía progreso en un
+      // curso que se despublica debe poder seguir viéndolo — no solo
+      // conservar el progreso en la base, sino seguir apareciendo acá para
+      // retomarlo. Como esta consulta usa el cliente de sesión (sujeto a
+      // RLS), si `curso` viene no-nulo es porque RLS ya confirmó acceso
+      // vigente (cortesía, o membresía con este mismo progreso); no hace
+      // falta repetir la comprobación de `mostrado` acá.
+      if (!leccion || !modulo || !curso) return null;
 
       return {
         leccionId: fila.id_leccion as string,

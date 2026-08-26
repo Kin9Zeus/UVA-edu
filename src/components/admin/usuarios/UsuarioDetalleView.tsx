@@ -165,7 +165,7 @@ export function UsuarioDetalleView({
               </TableRow>
             )}
             {usuario.cursos.map((curso) => (
-              <TableRow key={curso.inscripcionId}>
+              <TableRow key={curso.inscripcionId ?? curso.cursoId}>
                 <TableCell className="font-semibold">
                   <Link
                     href={`/admin/cursos/${curso.cursoId}`}
@@ -175,19 +175,24 @@ export function UsuarioDetalleView({
                   </Link>
                 </TableCell>
                 <TableCell className="min-w-[140px]">
-                  {/* Barra plana de 6px, como en el mockup */}
-                  <div
-                    role="progressbar"
-                    aria-valuenow={curso.progreso}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Progreso de ${curso.titulo}`}
-                    className="h-1.5 w-full rounded-full bg-uva-divider"
-                  >
+                  <div className="flex items-center gap-2">
+                    {/* Barra plana de 6px, como en el mockup */}
                     <div
-                      className="h-full rounded-full bg-uva-accent"
-                      style={{ width: `${curso.progreso}%` }}
-                    />
+                      role="progressbar"
+                      aria-valuenow={curso.progreso}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`Progreso de ${curso.titulo}`}
+                      className="h-1.5 w-full rounded-full bg-uva-divider"
+                    >
+                      <div
+                        className="h-full rounded-full bg-uva-accent"
+                        style={{ width: `${curso.progreso}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-xs text-uva-muted-2 tabular-nums">
+                      {curso.progreso}%
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -204,13 +209,13 @@ export function UsuarioDetalleView({
                   {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  {curso.tipoAcceso === "CORTESIA" && (
+                  {curso.tipoAcceso === "CORTESIA" && curso.inscripcionId && (
                     <Button
                       type="button"
                       variant="destructive"
                       size="sm"
                       onClick={() =>
-                        setQuitando({ inscripcionId: curso.inscripcionId, titulo: curso.titulo })
+                        setQuitando({ inscripcionId: curso.inscripcionId!, titulo: curso.titulo })
                       }
                     >
                       Quitar cortesía
