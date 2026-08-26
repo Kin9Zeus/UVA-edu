@@ -1,0 +1,47 @@
+-- ============================================================
+-- Cierra P0-1 (AUDIT-2026-08-26.md): un suscriptor podía auto-otorgarse
+-- acceso permanente a todo el catálogo y conservarlo tras cancelar
+--
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-031.
+--
+-- El problema
+-- -----------
+-- `inscripciones_insert_propio` (019_cuenta_activa_rls.sql) permite que
+-- CUALQUIER usuario con sesión inserte su propia fila MEMBRESIA en
+-- `inscripciones` para CUALQUIER id_curso, con la única condición de tener
+-- una Suscripción ACTIVA/PAST_DUE *en el instante del insert*. La condición
+-- se evalúa una sola vez, al escribir; nada la vuelve a evaluar después.
+--
+-- Tres funciones tratan cualquier fila de `inscripciones` como acceso
+-- vigente sin mirar si la suscripción que la originó sigue viva
+-- (src/lib/mux/acceso.ts, src/lib/leccion.ts,
+-- private.tiene_acceso_vigente_curso() más abajo en este mismo archivo de
+-- políticas), así que el resultado es: un suscriptor paga un mes, se
+-- inscribe con N peticiones REST a los N cursos del catálogo, cancela, y
+-- conserva el video firmado de Mux y los materiales para siempre.
+--
+-- Por qué se elimina en vez de corregirse
+-- ----------------------------------------
+-- Un `grep` de todo `src/` confirma que NINGÚN Server Action ni componente
+-- de la aplicación inserta una fila `tipo_acceso = 'MEMBRESIA'`. El único
+-- escritor real de `inscripciones` es `ofrecerCortesia()`
+-- (src/actions/admin/usuarios.ts), que siempre usa `tipo_acceso = 'CORTESIA'`
+-- y pasa por Server Action con requireAdmin(), no por INSERT directo del
+-- cliente. Esta policy no tiene un solo llamador legítimo hoy: es superficie
+-- de ataque pura, no una función en uso. Eliminarla no rompe nada — el
+-- propio scripts/rls-test.ts:334 la ejercitaba solo para afirmar (de forma
+-- incorrecta) que el comportamiento era el esperado; ese caso se invierte
+-- en el mismo commit que este script.
+--
+-- Si en el futuro se implementa alta automática al entrar por primera vez a
+-- un curso con suscripción activa (el flujo que esta policy intentaba
+-- servir), debe hacerse con una RPC SECURITY DEFINER restringida a
+-- service_role —igual que canjear_codigo_invitacion (017)—, nunca con un
+-- INSERT directo del cliente autorizado solo por RLS: la condición de
+-- "suscripción activa" tiene que evaluarse en cada lectura de acceso, no
+-- una vez al escribir la fila. Ver el comentario de
+-- src/lib/mux/acceso.ts sobre la columna `vence_en` que todavía falta en el
+-- esquema para una solución completa (Flujo 11, functional-spec.md).
+-- ============================================================
+
+drop policy if exists "inscripciones_insert_propio" on public.inscripciones;

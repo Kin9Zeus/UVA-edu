@@ -329,8 +329,17 @@ async function main() {
     );
 
     await esperarPermitido("estudiante con acceso SÍ puede leer su propia suscripción", clienteConAcceso.from("suscripciones").select("*").eq("id_usuario", userConAcceso.user!.id));
-    await esperarPermitido(
-      "estudiante con acceso SÍ puede auto-inscribirse (MEMBRESIA, tiene suscripción activa)",
+    // P0-1 (AUDIT-2026-08-26.md): esto ANTES esperaba "permitido", afirmando
+    // como correcto el bypass del muro de pago — un suscriptor podía
+    // auto-inscribirse a cualquier curso y conservar el acceso tras
+    // cancelar, porque la condición de "suscripción activa" solo se
+    // evaluaba una vez, al insertar. 032_revoca_autoinscripcion_membresia.sql
+    // elimina esa policy: ningún Server Action ni componente de la
+    // aplicación la usaba (el único escritor real de `inscripciones` es
+    // ofrecerCortesia(), siempre CORTESIA), así que no hay flujo legítimo
+    // que se rompa.
+    await esperarBloqueado(
+      "estudiante con acceso NO puede auto-inscribirse (MEMBRESIA) ni con suscripción activa — P0-1",
       clienteConAcceso.from("inscripciones").insert({ id_usuario: userConAcceso.user!.id, id_curso: cursoNoPublicado.id, tipo_acceso: "MEMBRESIA" }).select(),
     );
 
@@ -351,11 +360,21 @@ async function main() {
       clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
     );
 
-    // Membresía: userConAcceso ya tiene, desde la prueba de arriba, una
-    // fila de inscripción MEMBRESIA en este curso — y aun así debe seguir
-    // bloqueado mientras no tenga progreso guardado en él. Si esto
-    // pasara, sería la regresión exacta que motivó distinguir tipo_acceso
-    // dentro de tiene_acceso_vigente_curso().
+    // Membresía: la prueba de arriba ya confirmó que el cliente no puede
+    // crearla por su cuenta (P0-1); acá el admin la siembra directamente
+    // (Service Role Key, se salta RLS) solo para poder seguir probando la
+    // regla de "ya lo estaba viendo" de tiene_acceso_vigente_curso() sobre
+    // una fila MEMBRESIA, sin depender de que exista todavía un flujo de
+    // alta automática. userConAcceso debe seguir bloqueado mientras no
+    // tenga progreso guardado en este curso. Si esto pasara, sería la
+    // regresión exacta que motivó distinguir tipo_acceso dentro de
+    // tiene_acceso_vigente_curso().
+    const { error: errMembresiaDespublicado } = await admin.from("inscripciones").insert({
+      id_usuario: userConAcceso.user!.id,
+      id_curso: cursoNoPublicado.id,
+      tipo_acceso: "MEMBRESIA",
+    });
+    if (errMembresiaDespublicado) throw new Error(`No pude sembrar la membresía de prueba: ${errMembresiaDespublicado.message}`);
     const { data: moduloDespublicado, error: errModulo } = await admin
       .from("modulos")
       .insert({ id_curso: cursoNoPublicado.id, titulo: "Módulo RLS test", orden: 10 })
