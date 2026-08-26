@@ -1,0 +1,103 @@
+name: CI
+
+# P1-2 (AUDIT-2026-08-26.md): antes de esto, nada impedía mergear código que
+# ni siquiera compila. Dos jobs:
+#   - checks: tsc, lint, vitest — puro, sin secretos, corre en cualquier PR
+#     (incluidas las de forks, que no reciben secretos de todas formas).
+#   - rls: aplica las migraciones de Prisma y los 32 scripts de RLS contra
+#     el proyecto real de Supabase y corre test:rls. Necesita secretos, así
+#     que solo corre en push a master y en PRs del propio repo (GitHub no
+#     expone secretos a PRs de forks, así que esto es automático, no una
+#     condición que haya que mantener).
+#
+# Por qué el job de RLS NO usa una base efímera (el plan original de la
+# auditoría decía "prisma migrate deploy contra una base efímera"): los 32
+# scripts de supabase/sql/ dependen del schema `auth` de Supabase en toda su
+# extensión (auth.uid(), el trigger sobre auth.users, auth.identities) — el
+# mismo motivo, documentado en scripts/apply-rls.ts, por el que estos
+# scripts no pueden vivir en prisma/migrations/. Un contenedor de Postgres
+# en el runner no tiene ese schema. Sin un stack local de Supabase CLI
+# (`supabase start`) configurado en el repo, la única base que sí lo tiene
+# es el proyecto real — el mismo que ya usan db:rls/test:rls en local. Es
+# una desviación consciente del texto original, no un descuido.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Tipos, lint y pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Pruebas unitarias (vitest)
+        run: npm test
+
+      - name: Auditoría de dependencias (no bloqueante)
+        # P2-4: quedan 3 advisories `high` en la cadena de build de Prisma
+        # (deepmerge-ts vía @prisma/config) sin parche no-mayor disponible.
+        # No bloquea el merge hasta que Prisma publique uno; se deja visible
+        # en el log para no perderlo de vista.
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  rls:
+    name: Migraciones, RLS y autorización (base real)
+    needs: checks
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request' }}
+    environment: supabase-test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Migraciones de Prisma
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verificar que los scripts de RLS aplican limpio
+        run: npm run db:rls:check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Aplicar RLS, triggers y funciones
+        run: npm run db:rls
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Pruebas de autorización (RLS)
+        run: npm run test:rls
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
