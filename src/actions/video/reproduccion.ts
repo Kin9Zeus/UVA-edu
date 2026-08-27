@@ -5,11 +5,13 @@ import { mux } from "@/lib/mux/client";
 import { tieneAccesoVigente } from "@/lib/mux/acceso";
 import { logError } from "@/lib/log";
 
-// Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5):
-// el token nunca se persiste, el reproductor pide uno nuevo cada vez que
-// monta. Unas horas evita que una sesión de estudio larga se corte a media
-// clase sin abrir la puerta a un enlace reutilizable días después.
-const DURACION_TOKEN = "4h";
+// Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5,
+// tarea "Reproductor Mux con URL firmada"): un token capturado de la red
+// debe dejar de funcionar en minutos, no horas. El reproductor (VideoPlayer)
+// pide uno nuevo antes de que este expire, así que una sesión de estudio
+// larga no se corta — la vida corta no depende de que el estudiante no se
+// quede viendo una clase larga.
+const DURACION_TOKEN = "15m";
 
 export type TokenReproduccionResultado = { error: string } | { playbackId: string; token: string };
 
