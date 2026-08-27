@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import {
   Select,
@@ -13,148 +13,193 @@ import {
 } from "@/components/ui/select";
 import { CursoCard } from "@/components/catalogo/CursoCard";
 import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
-import type { CategoriaDetalle } from "@/lib/categoria";
+import type { CategoriaActiva, CategoriaInfo, CursoOpcionBuscador, ResultadoCatalogo } from "@/lib/categoria";
 
-export function CatalogoContent(props: {
-  categorias: CategoriaDetalle[];
-  basePath?: string;
-  volverHref?: string;
-}) {
-  return (
-    <Suspense fallback={null}>
-      <CatalogoContentInner {...props} />
-    </Suspense>
-  );
-}
+// Revf3 ("Catálogo con búsqueda por palabra clave y filtro por categoría"):
+// no disparar una consulta al servidor por cada tecla.
+const DEBOUNCE_MS = 300;
 
-function CatalogoContentInner({
+export function CatalogoContent({
   categorias,
+  resultado,
+  opcionesBusqueda,
+  categoriaFija,
   basePath = "/catalogo",
   volverHref = "/",
 }: {
-  categorias: CategoriaDetalle[];
+  /** Categorías activas para el selector — no se usa si categoriaFija está presente. */
+  categorias: CategoriaActiva[];
+  resultado: ResultadoCatalogo;
+  opcionesBusqueda: CursoOpcionBuscador[];
+  /** Vista de una sola categoría (/catalogo/[slug]): oculta el selector, el param `categoria` no se toca. */
+  categoriaFija?: CategoriaInfo;
   basePath?: string;
   volverHref?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [filtroCategoria, setFiltroCategoria] = useState("todas");
-  const [busqueda, setBusqueda] = useState(searchParams.get("q") ?? "");
+  const [, startTransition] = useTransition();
+
+  const [texto, setTexto] = useState(searchParams.get("q") ?? "");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // Búsqueda y filtro viven en la URL (?q=&categoria=&page=), no en estado
+  // local perdido al recargar: un link compartido o el botón "atrás"
+  // reproducen exactamente el mismo resultado.
+  function actualizarUrl(cambios: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor) params.set(clave, valor);
+      else params.delete(clave);
+    }
+    // Cambiar de búsqueda o de categoría vuelve a la página 1, salvo que el
+    // cambio en curso sea justo el de página.
+    if (!("page" in cambios)) params.delete("page");
+    startTransition(() => {
+      router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
+    });
+  }
+
+  function alEscribir(valor: string) {
+    setTexto(valor);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => actualizarUrl({ q: valor || undefined }), DEBOUNCE_MS);
+  }
+
+  // Seleccionar una sugerencia del dropdown filtra de inmediato, sin
+  // esperar el debounce — mismo comportamiento que tenía antes.
+  function alSeleccionarSugerencia(valor: string) {
+    setTexto(valor);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    actualizarUrl({ q: valor || undefined });
+  }
+
+  function limpiarFiltros() {
+    setTexto("");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    startTransition(() => router.push(categoriaFija ? pathname : basePath));
+  }
+
+  const categoriaSlugActual = categoriaFija?.slug ?? searchParams.get("categoria") ?? "todas";
 
   const categoriaItems = useMemo(
     () => ({
       todas: "Todas las categorías",
-      ...Object.fromEntries(categorias.map((categoria) => [categoria.id, categoria.nombre])),
+      ...Object.fromEntries(categorias.map((categoria) => [categoria.slug, categoria.nombre])),
     }),
     [categorias],
   );
 
-  // Opciones del dropdown del buscador: el listado completo de cursos, sin
-  // acotar por la categoría seleccionada (son ejes de filtro independientes).
-  const opcionesBusqueda = useMemo(
-    () =>
-      categorias.flatMap((categoria) =>
-        categoria.cursos.map((curso) => ({
-          id: curso.id,
-          titulo: curso.titulo,
-          instructorNombre: curso.instructorNombre,
-        })),
-      ),
-    [categorias],
-  );
-
-  const terminoBusqueda = busqueda.trim().toLowerCase();
-
-  const categoriasFiltradas = useMemo(() => {
-    const porCategoria =
-      filtroCategoria === "todas"
-        ? categorias
-        : categorias.filter((categoria) => categoria.id === filtroCategoria);
-
-    if (!terminoBusqueda) return porCategoria;
-
-    return porCategoria
-      .map((categoria) => ({
-        ...categoria,
-        cursos: categoria.cursos.filter(
-          (curso) =>
-            curso.titulo.toLowerCase().includes(terminoBusqueda) ||
-            curso.instructorNombre.toLowerCase().includes(terminoBusqueda),
-        ),
-      }))
-      .filter((categoria) => categoria.cursos.length > 0);
-  }, [categorias, filtroCategoria, terminoBusqueda]);
+  const hayFiltrosActivos = texto.trim() !== "" || categoriaSlugActual !== "todas";
 
   return (
-    <div className="mx-auto flex max-w-[1320px] flex-col gap-10 px-[clamp(20px,3vw,44px)] py-8">
+    <div className="mx-auto flex max-w-[1320px] flex-col gap-8 px-[clamp(20px,3vw,44px)] py-8">
       <div>
         <Link
-          href={volverHref}
+          href={categoriaFija ? basePath : volverHref}
           className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
         >
           <ChevronLeft className="size-4" strokeWidth={1.9} />
-          Inicio
+          {categoriaFija ? "Catálogo" : "Inicio"}
         </Link>
-        <h1 className="text-[clamp(28px,3.4vw,38px)] leading-tight text-uva-text">Catálogo</h1>
+        <h1 className="text-[clamp(28px,3.4vw,38px)] leading-tight text-uva-text">
+          {categoriaFija ? categoriaFija.nombre : "Catálogo"}
+        </h1>
         <p className="mt-1.5 max-w-[560px] text-sm text-uva-text-muted">
-          Todo el catálogo del gremio: categoría y curso.
+          {categoriaFija ? (categoriaFija.descripcion ?? "Cursos de esta categoría.") : "Todo el catálogo del gremio: categoría y curso."}
         </p>
+        <p className="mt-3 text-xs text-uva-text-faint">
+          {resultado.totalResultados} {resultado.totalResultados === 1 ? "curso" : "cursos"}
+        </p>
+
         <div className="mt-5 flex flex-wrap gap-2.5">
-          <Select
-            items={categoriaItems}
-            value={filtroCategoria}
-            onValueChange={(value) => setFiltroCategoria(value ?? "todas")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas las categorías</SelectItem>
-              {categorias.map((categoria) => (
-                <SelectItem key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!categoriaFija && (
+            <Select
+              items={categoriaItems}
+              value={categoriaSlugActual}
+              onValueChange={(value) => actualizarUrl({ categoria: value === "todas" ? undefined : (value ?? undefined) })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas las categorías</SelectItem>
+                {categorias.map((categoria) => (
+                  <SelectItem key={categoria.id} value={categoria.slug}>
+                    {categoria.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <BuscadorInput
             placeholder="Buscar por curso o instructor"
-            valorInicial={busqueda}
+            valorInicial={texto}
             opciones={opcionesBusqueda}
-            onBuscar={setBusqueda}
+            onBuscar={alSeleccionarSugerencia}
+            onTextoChange={alEscribir}
           />
         </div>
       </div>
 
-      {categoriasFiltradas.length === 0 ? (
-        <p className="text-sm text-uva-text-muted">
-          {terminoBusqueda
-            ? "No encontramos cursos que coincidan con tu búsqueda."
-            : "Todavía no hay cursos publicados. Vuelve pronto."}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-11">
-          {categoriasFiltradas.map((categoria) => (
-            <section key={categoria.id}>
-              <div className="flex items-center gap-3 border-b border-uva-divider pb-3">
-                <h3 className="mb-0 text-lg text-uva-text">{categoria.nombre}</h3>
-                <span className="rounded-uva-xs bg-uva-badge-neutral-bg px-2.5 py-1 text-xs text-uva-badge-neutral-fg">
-                  {categoria.cursos.length} {categoria.cursos.length === 1 ? "curso" : "cursos"}
-                </span>
-                <Link
-                  href={`${basePath}/${categoria.slug}`}
-                  className="ml-auto text-[13px] text-uva-text hover:text-uva-accent-text"
-                >
-                  Ver categoría
-                </Link>
-              </div>
-              <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-4">
-                {categoria.cursos.map((curso) => (
-                  <CursoCard key={curso.id} curso={curso} categoriaNombre={categoria.nombre} />
-                ))}
-              </div>
-            </section>
-          ))}
+      {resultado.cursos.length === 0 ? (
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-sm text-uva-text-muted">
+            {texto.trim()
+              ? `No encontramos cursos para «${texto.trim()}».`
+              : hayFiltrosActivos
+                ? "No encontramos cursos con este filtro."
+                : "Todavía no hay cursos publicados. Vuelve pronto."}
+          </p>
+          {hayFiltrosActivos && (
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              className="text-[13px] font-semibold text-uva-accent-text hover:underline"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-4">
+            {resultado.cursos.map((curso) => (
+              <CursoCard key={curso.id} curso={curso} />
+            ))}
+          </div>
+
+          {resultado.totalPaginas > 1 && (
+            <div className="flex items-center justify-center gap-4">
+              <button
+                type="button"
+                disabled={resultado.pagina <= 1}
+                onClick={() => actualizarUrl({ page: String(resultado.pagina - 1) })}
+                className="rounded-uva-md border border-uva-divider px-4 py-2 text-[13px] text-uva-text disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <span className="font-mono text-xs text-uva-text-faint">
+                Página {resultado.pagina} de {resultado.totalPaginas}
+              </span>
+              <button
+                type="button"
+                disabled={resultado.pagina >= resultado.totalPaginas}
+                onClick={() => actualizarUrl({ page: String(resultado.pagina + 1) })}
+                className="rounded-uva-md border border-uva-divider px-4 py-2 text-[13px] text-uva-text disabled:opacity-40"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

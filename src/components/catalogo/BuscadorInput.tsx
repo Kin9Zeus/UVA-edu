@@ -23,6 +23,7 @@ export function BuscadorInput({
   valorInicial = "",
   opciones,
   onBuscar,
+  onTextoChange,
   mensajeVacio = "Sin resultados",
   className,
 }: {
@@ -30,10 +31,19 @@ export function BuscadorInput({
   valorInicial?: string;
   opciones: CursoOpcion[];
   onBuscar: (valor: string) => void;
+  /** Cada tecla, sin esperar a que se elija una sugerencia — para quien
+   * quiera reaccionar al texto en vivo (con su propio debounce) sin
+   * cambiar el comportamiento del dropdown en sí. */
+  onTextoChange?: (valor: string) => void;
   mensajeVacio?: string;
   className?: string;
 }) {
   const [texto, setTexto] = useState(valorInicial);
+
+  function cambiarTexto(valor: string) {
+    setTexto(valor);
+    onTextoChange?.(valor);
+  }
 
   function seleccionar(curso: CursoOpcion) {
     setTexto(curso.titulo);
@@ -49,7 +59,7 @@ export function BuscadorInput({
     <Autocomplete.Root
       items={opciones}
       value={texto}
-      onValueChange={setTexto}
+      onValueChange={cambiarTexto}
       itemToStringValue={(curso) => curso.titulo}
       filter={(curso, query) => {
         const termino = query.trim().toLowerCase();

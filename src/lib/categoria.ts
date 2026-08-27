@@ -5,83 +5,104 @@ export type CursoDeCategoria = {
   titulo: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   instructorNombre: string;
+  categoriaNombre: string;
   totalClases: number;
   imagenPortada: string;
 };
 
-export type CategoriaDetalle = {
-  id: string;
-  slug: string;
-  nombre: string;
-  descripcion: string | null;
+export type CategoriaActiva = { id: string; slug: string; nombre: string };
+
+export type CategoriaInfo = { id: string; slug: string; nombre: string; descripcion: string | null };
+
+export type ResultadoCatalogo = {
   cursos: CursoDeCategoria[];
+  totalResultados: number;
+  pagina: number;
+  totalPaginas: number;
 };
 
 const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const CURSOS_POR_PAGINA = 12;
+
+/** Categorías activas para el selector de filtro del catálogo. */
+export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("categorias").select("id, slug, nombre").eq("activo", true).order("nombre");
+  return (data ?? []) as CategoriaActiva[];
+}
 
 /**
- * Categoría activa junto con sus cursos publicados, para la pantalla
- * "Ver categoría" del catálogo del estudiante.
- *
- * `identificador` es el slug (lo que la app pone en la URL desde que existe
- * `categorias.slug`) o el UUID: los enlaces viejos, compartidos antes del
- * cambio de rutas, siguen resolviendo en vez de dar 404.
+ * Resuelve una categoría por slug o UUID (los enlaces anteriores al cambio
+ * de rutas siguen resolviendo por UUID), sin traer sus cursos — eso lo
+ * resuelve buscarCatalogo() por separado, ya paginado y filtrado.
  */
-export async function getCategoriaConCursos(identificador: string): Promise<CategoriaDetalle | null> {
+export async function resolverCategoria(identificador: string): Promise<CategoriaInfo | null> {
   const supabase = await createClient();
-
-  const { data: categoria } = await supabase
+  const { data } = await supabase
     .from("categorias")
     .select("id, slug, nombre, descripcion")
     .eq(PATRON_UUID.test(identificador) ? "id" : "slug", identificador)
     .eq("activo", true)
     .maybeSingle();
-
-  if (!categoria) return null;
-
-  const categoriaId = categoria.id;
-
-  const { data: cursosRows } = await supabase
-    .from("cursos")
-    .select(
-      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id)), curso_categorias!inner(id_categoria)",
-    )
-    .eq("curso_categorias.id_categoria", categoriaId)
-    .eq("mostrado", true)
-    .order("orden_visualizacion");
-
-  const cursos: CursoDeCategoria[] = (cursosRows ?? []).map(mapCursoDeCategoria);
-
-  return {
-    id: categoria.id,
-    slug: categoria.slug,
-    nombre: categoria.nombre,
-    descripcion: categoria.descripcion,
-    cursos,
-  };
+  return data as CategoriaInfo | null;
 }
 
-function mapCursoDeCategoria(curso: {
-  id: string;
-  titulo: string;
-  nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
-  imagen_portada: string;
-  instructor: { nombre: string } | { nombre: string }[] | null;
-  modulos: { lecciones: { id: string }[] | null }[] | null;
-}): CursoDeCategoria {
-  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-  const totalClases = (curso.modulos ?? []).reduce(
-    (total, modulo) => total + (modulo.lecciones?.length ?? 0),
-    0,
-  );
+/**
+ * Revf3 ("Catálogo con búsqueda por palabra clave y filtro por categoría"):
+ * la búsqueda, el filtro y la paginación se resuelven en Postgres —
+ * `buscar_catalogo` (supabase/sql/034_busqueda_catalogo.sql) usa un índice
+ * de trigramas insensible a tildes, no un `.filter()` sobre todo el
+ * catálogo traído al cliente.
+ */
+export async function buscarCatalogo(opciones: {
+  query?: string;
+  categoriaId?: string;
+  pagina?: number;
+}): Promise<ResultadoCatalogo> {
+  const supabase = await createClient();
+  const pagina = Math.max(1, Math.floor(opciones.pagina ?? 1) || 1);
+  const offset = (pagina - 1) * CURSOS_POR_PAGINA;
+
+  const { data, error } = await supabase.rpc("buscar_catalogo", {
+    p_query: opciones.query?.trim() || null,
+    p_categoria_id: opciones.categoriaId || null,
+    p_limite: CURSOS_POR_PAGINA,
+    p_offset: offset,
+  });
+
+  if (error || !data) {
+    return { cursos: [], totalResultados: 0, pagina, totalPaginas: 1 };
+  }
+
+  type FilaBusqueda = {
+    curso_id: string;
+    titulo: string;
+    nivel: CursoDeCategoria["nivel"];
+    imagen_portada: string;
+    instructor_nombre: string | null;
+    categoria_nombre: string | null;
+    total_clases: number;
+    total_resultados: number;
+  };
+
+  const filas = data as FilaBusqueda[];
+  const totalResultados = filas[0]?.total_resultados ?? 0;
+
+  const cursos: CursoDeCategoria[] = filas.map((fila) => ({
+    id: fila.curso_id,
+    titulo: fila.titulo,
+    nivel: fila.nivel,
+    instructorNombre: fila.instructor_nombre ?? "Sin instructor",
+    categoriaNombre: fila.categoria_nombre ?? "General",
+    totalClases: Number(fila.total_clases),
+    imagenPortada: fila.imagen_portada,
+  }));
 
   return {
-    id: curso.id,
-    titulo: curso.titulo,
-    nivel: curso.nivel,
-    instructorNombre: instructor?.nombre ?? "Sin instructor",
-    totalClases,
-    imagenPortada: curso.imagen_portada,
+    cursos,
+    totalResultados,
+    pagina,
+    totalPaginas: Math.max(1, Math.ceil(totalResultados / CURSOS_POR_PAGINA)),
   };
 }
 
@@ -93,9 +114,10 @@ export type CursoOpcionBuscador = {
 
 /**
  * Listado liviano (sin imagen ni temario) de todos los cursos publicados,
- * para alimentar el dropdown de sugerencias del buscador de los headers
- * (que no reciben el catálogo completo como prop). Se pide una sola vez y
- * se cachea en el cliente — ver src/actions/cursos/buscador.ts.
+ * para alimentar el dropdown de sugerencias del buscador (que resalta
+ * coincidencias mientras se escribe, sin disparar una consulta al
+ * servidor por tecla — ver BuscadorInput.tsx). Se pide una sola vez y se
+ * cachea en el cliente — ver src/actions/cursos/buscador.ts.
  */
 export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
   const supabase = await createClient();
@@ -114,50 +136,4 @@ export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
       instructorNombre: instructor?.nombre ?? "Sin instructor",
     };
   });
-}
-
-/**
- * Catálogo completo del estudiante: todas las categorías activas que ya
- * tienen al menos un curso publicado, cada una con sus cursos. Sin
- * agrupación por "ruta" (esa entidad no existe en el esquema): la categoría
- * lista sus cursos directo, igual que la pantalla "Ver categoría".
- */
-export async function getCatalogo(): Promise<CategoriaDetalle[]> {
-  const supabase = await createClient();
-
-  const { data: categoriasRows } = await supabase
-    .from("categorias")
-    .select("id, slug, nombre, descripcion")
-    .eq("activo", true);
-
-  const { data: cursosRows } = await supabase
-    .from("cursos")
-    .select(
-      "id, titulo, nivel, imagen_portada, orden_visualizacion, instructor:instructores(nombre), modulos(lecciones(id)), curso_categorias(id_categoria)",
-    )
-    .eq("mostrado", true)
-    .order("orden_visualizacion");
-
-  // Un curso aparece bajo cada una de sus categorías, no solo bajo la
-  // primera: `curso_categorias` es muchos-a-muchos y el CMS ya permite
-  // asignar varias.
-  const cursosPorCategoria = new Map<string, CursoDeCategoria[]>();
-  for (const curso of cursosRows ?? []) {
-    const mapeado = mapCursoDeCategoria(curso);
-    for (const { id_categoria: idCategoria } of curso.curso_categorias ?? []) {
-      const lista = cursosPorCategoria.get(idCategoria) ?? [];
-      lista.push(mapeado);
-      cursosPorCategoria.set(idCategoria, lista);
-    }
-  }
-
-  return (categoriasRows ?? [])
-    .map((categoria) => ({
-      id: categoria.id,
-      slug: categoria.slug,
-      nombre: categoria.nombre,
-      descripcion: categoria.descripcion,
-      cursos: cursosPorCategoria.get(categoria.id) ?? [],
-    }))
-    .filter((categoria) => categoria.cursos.length > 0);
 }

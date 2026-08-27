@@ -1,6 +1,6 @@
-# Porcentaje de avance por curso y sección 'Mis cursos / Continuar viendo'
+# Catálogo con búsqueda por palabra clave y filtro por categoría
 
-Estado: Resuelto (1-5); punto 6 deliberadamente sin implementar, ver nota
+Estado: Resuelto
 Fase: Fase 3 — Experiencia del estudiante (https://app.notion.com/p/Fase-3-Experiencia-del-estudiante-3b4ba9d6712e8101a01fcda5eda9ab42?pvs=21)
 Prioridad: Media
 Responsable: Andres Felipe Escobar Duque
@@ -8,17 +8,18 @@ Semana estimada: 29 ago – 4 sep
 
 ## Qué hay que entregar
 
-Cálculo del porcentaje de avance por curso y la sección personal del estudiante ("Mis cursos" / "Continuar viendo").
+La página de catálogo con búsqueda por texto y filtro por categoría.
 
 ## Requisitos de calidad (nivel senior)
 
-- [x] El porcentaje se calcula como lecciones completadas sobre total de lecciones **publicadas** del curso. Las lecciones en borrador no cuentan.
-- [x] Calcularlo con una vista de Postgres o una consulta agregada, **no** trayendo todo el progreso al cliente y sumando ahí.
-- [x] Si se agrega una lección nueva a un curso, el porcentaje de quienes ya lo terminaron bajará. Decidir y documentar si eso revoca el certificado (recomendación: no, el certificado ya emitido se conserva).
-- [x] "Continuar viendo" ordena por última actividad y lleva directo a la lección exacta, no al inicio del curso.
-- [x] Estado vacío con propuesta clara: si el estudiante no tiene cursos, mostrar el catálogo.
-- [ ] Cachear el cálculo si la consulta pesa; invalidar al registrar progreso nuevo. **Decisión:** sin implementar a propósito. `unstable_cache` de Next.js no permite leer `cookies()` dentro de la función cacheada, y la vista de Postgres (`progreso_cursos_estudiante`) depende de RLS, que a su vez depende de la sesión leída por cookies. Cachearlo de verdad exigiría un cliente Supabase autenticado por bearer token en vez de por cookies — un patrón nuevo, más superficie de riesgo. Con el volumen real de datos (4-11 lecciones por curso, un puñado de cursos) la consulta no pesa: la condición que este mismo punto pone para justificar el cache no se cumple todavía. Revisitar si el catálogo crece.
+- [x] La búsqueda y el filtrado se hacen **en el servidor**, no cargando todos los cursos y filtrando en el navegador. Hoy son 10 cursos, pero el patrón correcto se define ahora.
+- [x] Usar búsqueda de texto completo de Postgres (`tsvector` + índice GIN) o al menos `ILIKE` con índice. Normalizar tildes: buscar "diseno" debe encontrar "diseño". **Implementado con `ILIKE` + índice GIN de trigramas (`pg_trgm`)**, no `tsvector`: la búsqueda necesita coincidir con substrings a mitad de palabra, que `tsquery` no resuelve bien (opera por palabras completas). Verificado en vivo: `buscar_catalogo('diseno', ...)` encuentra "Diseño Estructural...".
+- [x] `debounce` de ~300 ms en el campo de búsqueda para no disparar una consulta por tecla. Se mantuvo el dropdown de sugerencias (en memoria, sin red) y ADEMÁS cada tecla dispara, con debounce de 300ms, una búsqueda real contra el servidor que actualiza la grilla — así seleccionar una sugerencia sigue siendo instantáneo, y escribir sin seleccionar nada también termina filtrando.
+- [x] Los filtros viven en la URL (`?categoria=x&q=y`), para que el estado sea compartible y el botón "atrás" funcione. `categoria` usa el slug, no el UUID, para que la URL sea legible.
+- [x] Paginación o scroll infinito desde el principio, aunque hoy quepan todos en una página. Paginación con Anterior/Siguiente (`?page=`), 12 cursos por página.
+- [x] Estado vacío con mensaje útil ("no encontramos cursos para «x»") y forma de limpiar los filtros. Botón "Limpiar filtros" visible en el estado vacío cuando hay búsqueda o categoría activa.
+- [x] Renderizado en servidor de la primera carga para que el catálogo sea indexable por buscadores. Ahora también las cargas CON `?q=`/`?categoria=` se renderizan filtradas en el servidor (antes solo la carga sin parámetros era real SSR; una URL filtrada compartida devolvía el catálogo completo sin filtrar hasta hidratar).
 
 ## Definición de "terminado"
 
-El estudiante entra a su panel, ve sus cursos con porcentaje correcto, y con un clic vuelve exactamente donde se quedó.
+Buscar, filtrar, recargar la página y usar el botón atrás mantienen el estado correcto en todo momento.
