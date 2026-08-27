@@ -22,6 +22,13 @@ import { GrantCourtesyDialog } from "@/components/admin/usuarios/GrantCourtesyDi
 import { quitarCortesia } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
+import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
+
+/** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil), para que admin y estudiante hablen el mismo idioma. */
+const TIPO_ACCESO_LABEL: Record<TipoAccesoGratuito, string> = {
+  INVITACION: "Invitación gratuita",
+  OTORGADO_ADMIN: "Acceso otorgado",
+};
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -96,6 +103,12 @@ export function UsuarioDetalleView({
               Añadirlo aquí desborda la cabecera de una línea. */}
           <StatusBadge tone="neutral">{usuario.planActual ?? "—"}</StatusBadge>
         </div>
+        {usuario.tipoAccesoSuscripcion && (
+          <div className="flex items-center gap-[5px]">
+            <EtiquetaBadge>Acceso:</EtiquetaBadge>
+            <StatusBadge tone="accent">{TIPO_ACCESO_LABEL[usuario.tipoAccesoSuscripcion]}</StatusBadge>
+          </div>
+        )}
         <div className="ml-auto text-[12px] text-uva-muted-2">
           Registrado {formatFecha(usuario.fechaRegistro)}
         </div>

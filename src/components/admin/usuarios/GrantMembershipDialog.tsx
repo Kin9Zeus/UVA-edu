@@ -107,7 +107,11 @@ export function GrantMembershipDialog({
               Nuevo plan: <span className="text-uva-accent-text">{planElegido.nombre}</span> (
               {formatMoneda(planElegido.precio_centavos, planElegido.moneda)})
             </p>
-            <p className="text-uva-text-faint">La suscripción quedará en estado Activa de inmediato.</p>
+            <p className="text-uva-text-faint">
+              La suscripción quedará en estado Activa de inmediato, sin pasar por Stripe/Wompi. El
+              estudiante la verá en su perfil como &ldquo;Acceso otorgado por U.V.A.&rdquo;, sin
+              historial de pagos.
+            </p>
           </div>
         )}
 

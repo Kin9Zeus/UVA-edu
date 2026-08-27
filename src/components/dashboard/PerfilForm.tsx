@@ -10,6 +10,8 @@ import {
   actualizarPerfil,
   type ActualizarPerfilState,
 } from "@/actions/perfil/actualizar";
+import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
+import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -25,18 +27,27 @@ type Certificado = {
   fecha: string;
 };
 
+type EstadoAcceso = {
+  tipo: TipoAccesoGratuito;
+  fechaVigencia: string | null;
+  diasRestantes: number | null;
+  avisoVencimiento: boolean;
+};
+
 export function PerfilForm({
   nombre,
   correo,
   celular,
   planNombre,
   certificados,
+  estadoAcceso,
 }: {
   nombre: string;
   correo: string;
   celular: string | null;
   planNombre: string | null;
   certificados: Certificado[];
+  estadoAcceso: EstadoAcceso | null;
 }) {
   const [state, formAction, pending] = useActionState<
     ActualizarPerfilState,
@@ -177,6 +188,15 @@ export function PerfilForm({
       </div>
 
       <div className="flex flex-col gap-4">
+        {estadoAcceso && (
+          <EstadoAccesoCard
+            tipo={estadoAcceso.tipo}
+            fechaVigencia={estadoAcceso.fechaVigencia}
+            diasRestantes={estadoAcceso.diasRestantes}
+            avisoVencimiento={estadoAcceso.avisoVencimiento}
+          />
+        )}
+
         <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-[22px]">
           <div className="flex items-center gap-2.5">
             <h4 className="font-heading text-[17px] text-uva-text">

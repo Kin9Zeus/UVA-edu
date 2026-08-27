@@ -16,6 +16,10 @@ export type SuscripcionActual = {
   fechaRenovacion: string | null;
   estado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA";
   pagos: PagoItem[];
+  /** true si no pasó por Stripe/Wompi: la otorgó un admin o vino de un código de invitación. */
+  accesoManual: boolean;
+  /** Distingue, dentro de un acceso manual, si el estudiante lo canjeó él mismo o si un admin lo otorgó directo. */
+  tieneCodigoInvitacion: boolean;
 };
 
 export async function getSuscripcionActual(usuarioId: string): Promise<SuscripcionActual | null> {
@@ -24,7 +28,7 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
   const { data: suscripcion } = await supabase
     .from("suscripciones")
     .select(
-      "id, fecha_inicio, fecha_renovacion, estado, plan:planes(nombre, duracion_dias), pagos(id, fecha:creado_en, monto_centavos, moneda, estado)",
+      "id, fecha_inicio, fecha_renovacion, estado, acceso_manual, id_codigo_invitacion, plan:planes(nombre, duracion_dias), pagos(id, fecha:creado_en, monto_centavos, moneda, estado)",
     )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
@@ -45,5 +49,7 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
     pagos: (suscripcion.pagos ?? [])
       .slice()
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
+    accesoManual: suscripcion.acceso_manual,
+    tieneCodigoInvitacion: suscripcion.id_codigo_invitacion !== null,
   };
 }

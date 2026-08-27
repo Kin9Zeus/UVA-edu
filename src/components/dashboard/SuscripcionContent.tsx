@@ -114,33 +114,40 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
         </Badge>
       </div>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
-        <h2 className="mb-4 text-base text-uva-text">Historial de pagos</h2>
-        {suscripcion.pagos.length === 0 ? (
-          <p className="text-sm text-uva-text-muted">Todavía no hay pagos registrados.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Monto</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suscripcion.pagos.map((pago) => (
-                <TableRow key={pago.id}>
-                  <TableCell>{formatFecha(pago.fecha)}</TableCell>
-                  <TableCell className="font-mono tabular-nums">
-                    {formatMoneda(pago.monto_centavos, pago.moneda)}
-                  </TableCell>
-                  <TableCell>{ESTADO_PAGO_LABEL[pago.estado]}</TableCell>
+      {/* Un acceso manual (cortesía/invitación) nunca tendrá filas en Pagos
+          — es gratis por definición — así que el módulo ni se muestra en
+          vez de mostrarse vacío ("Todavía no hay pagos registrados"),
+          que lee como desconfianza sobre una suscripción que nunca debió
+          pasar por caja. */}
+      {!suscripcion.accesoManual && (
+        <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+          <h2 className="mb-4 text-base text-uva-text">Historial de pagos</h2>
+          {suscripcion.pagos.length === 0 ? (
+            <p className="text-sm text-uva-text-muted">Todavía no hay pagos registrados.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Estado</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+              </TableHeader>
+              <TableBody>
+                {suscripcion.pagos.map((pago) => (
+                  <TableRow key={pago.id}>
+                    <TableCell>{formatFecha(pago.fecha)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">
+                      {formatMoneda(pago.monto_centavos, pago.moneda)}
+                    </TableCell>
+                    <TableCell>{ESTADO_PAGO_LABEL[pago.estado]}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
 
       {/* El formulario NO se muestra a quien ya tiene una suscripción
           vigente: `suscripcion_activa_unica_por_usuario` solo admite una en

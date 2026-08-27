@@ -26,6 +26,13 @@ import { useAdminSearch } from "@/components/admin/SearchContext";
 import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioListado } from "@/lib/admin/usuarios";
+import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
+
+/** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil) y el admin en la ficha de usuario. */
+const TIPO_ACCESO_LABEL: Record<TipoAccesoGratuito, string> = {
+  INVITACION: "Invitación gratuita",
+  OTORGADO_ADMIN: "Acceso otorgado",
+};
 
 const ROL_LABEL: Record<UsuarioListado["rol"], string> = {
   ESTUDIANTE: "Estudiante",
@@ -184,13 +191,20 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
                   />
                 </TableCell>
                 <TableCell>
-                  {usuario.suscripcionEstado ? (
-                    <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
-                      {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
-                    </StatusBadge>
-                  ) : (
-                    <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {usuario.suscripcionEstado ? (
+                      <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
+                        {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
+                      </StatusBadge>
+                    ) : (
+                      <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
+                    )}
+                    {usuario.tipoAccesoSuscripcion && (
+                      <StatusBadge tone="accent">
+                        {TIPO_ACCESO_LABEL[usuario.tipoAccesoSuscripcion]}
+                      </StatusBadge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(usuario.fechaRegistro)}

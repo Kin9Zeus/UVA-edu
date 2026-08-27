@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
 
 export type CursoDelUsuario = {
   /**
@@ -25,6 +26,8 @@ export type UsuarioDetalle = {
   fechaRegistro: string;
   suscripcionEstado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA" | null;
   planActual: string | null;
+  /** null = sin suscripción o de pago (Stripe/Wompi). Misma clasificación que ve el estudiante, ver src/lib/estadoAcceso.ts. */
+  tipoAccesoSuscripcion: TipoAccesoGratuito | null;
   cursos: CursoDelUsuario[];
   metricas: {
     cursosInscritos: number;
@@ -47,13 +50,19 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: suscripciones } = await supabase
     .from("suscripciones")
-    .select("estado, fecha_inicio, plan:planes(nombre)")
+    .select("estado, fecha_inicio, acceso_manual, id_codigo_invitacion, plan:planes(nombre)")
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
     .limit(1);
 
   const suscripcion = suscripciones?.[0];
   const plan = suscripcion ? (Array.isArray(suscripcion.plan) ? suscripcion.plan[0] : suscripcion.plan) : null;
+  const tipoAccesoSuscripcion = suscripcion
+    ? tipoAccesoGratuito({
+        accesoManual: suscripcion.acceso_manual,
+        tieneCodigoInvitacion: suscripcion.id_codigo_invitacion !== null,
+      })
+    : null;
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
@@ -181,6 +190,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     fechaRegistro: perfil.fecha_registro,
     suscripcionEstado: suscripcion?.estado ?? null,
     planActual: plan?.nombre ?? null,
+    tipoAccesoSuscripcion,
     cursos,
     metricas: {
       cursosInscritos: cursos.length,

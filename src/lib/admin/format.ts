@@ -25,6 +25,7 @@ export function formatFecha(fechaIso: string) {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "America/Bogota",
   });
 }
 

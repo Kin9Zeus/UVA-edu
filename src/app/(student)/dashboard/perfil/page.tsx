@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
+import { tipoAccesoGratuito, calcularDiasVigencia, proximoAVencer } from "@/lib/estadoAcceso";
 import { PerfilForm } from "@/components/dashboard/PerfilForm";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default async function PerfilPage() {
         year: "numeric",
         month: "short",
         day: "2-digit",
+        timeZone: "America/Bogota",
       }),
     };
   });
@@ -40,6 +42,20 @@ export default async function PerfilPage() {
       ? suscripcion.planNombre
       : null;
 
+  const tipoAcceso =
+    suscripcion && (suscripcion.estado === "ACTIVA" || suscripcion.estado === "PAST_DUE")
+      ? tipoAccesoGratuito(suscripcion)
+      : null;
+  const diasVigencia = tipoAcceso ? calcularDiasVigencia(suscripcion!.fechaRenovacion) : null;
+  const estadoAcceso = tipoAcceso
+    ? {
+        tipo: tipoAcceso,
+        fechaVigencia: suscripcion!.fechaRenovacion,
+        diasRestantes: diasVigencia,
+        avisoVencimiento: proximoAVencer(diasVigencia),
+      }
+    : null;
+
   return (
     <div className="px-[clamp(20px,3vw,44px)] py-8">
       <PerfilForm
@@ -48,6 +64,7 @@ export default async function PerfilPage() {
         celular={perfil?.celular ?? null}
         planNombre={planNombre}
         certificados={certificados}
+        estadoAcceso={estadoAcceso}
       />
     </div>
   );
