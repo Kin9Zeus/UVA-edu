@@ -214,7 +214,7 @@
 > 2. Ingresa a la lección y selecciona "Reemplazar Video".  
 > 3. Se ejecuta el proceso de *Direct Upload* a Mux generando un nuevo playback\_id.  
 > 4. El backend actualiza la columna id\_video\_mux de la lección con el nuevo identificador.  
-> 5. **Regla de integridad:** Se conservan intactos el ID de la lección, los registros de progreso acumulados por los estudiantes y las asociaciones en módulos, evitando pérdida de historial.
+> 5. **Regla de integridad:** Se conservan intactos el ID de la lección y las asociaciones en módulos. Sobre el progreso de cada estudiante: la marca de lección **completada** se conserva (el video sigue siendo, en esencia, el mismo contenido), pero el **segundo de reanudación se reinicia a 0**, porque el video cambió y el punto exacto donde iba el estudiante ya no corresponde a nada coherente en el archivo nuevo.
 
 ### **Flujo 11: Backoffice — Otorgamiento de Accesos Manuales y Cortesías**
 
