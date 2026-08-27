@@ -16,51 +16,53 @@ export type ProgresoData = {
   cursos: CursoConProgreso[];
 };
 
+/**
+ * Revf3: el % de avance se calcula en Postgres (vista
+ * `progreso_cursos_estudiante`, supabase/sql/033_vista_progreso_cursos.sql)
+ * con un `count(...) filter (...)` agregado por curso — no trayendo cada
+ * fila de `progreso` y sumando acá. La vista ya excluye lecciones sin video
+ * listo y ya viene acotada por RLS a las filas del usuario de la sesión, así
+ * que esta función no vuelve a filtrar por `usuarioId` sobre ella.
+ */
 export async function getProgresoData(usuarioId: string): Promise<ProgresoData> {
   const supabase = await createClient();
 
-  const { data: inscripciones } = await supabase
-    .from("inscripciones")
-    .select("curso:cursos(id, titulo, curso_categorias(categoria:categorias(nombre)), modulos(lecciones(id)))")
-    .eq("id_usuario", usuarioId);
+  const [{ data: filas }, { count: certificadosCount }] = await Promise.all([
+    supabase
+      .from("progreso_cursos_estudiante")
+      .select("curso_id, titulo, lecciones_completadas, lecciones_total")
+      .order("ultima_actividad", { ascending: false }),
+    supabase.from("certificados").select("id", { count: "exact", head: true }).eq("id_usuario", usuarioId),
+  ]);
 
-  const { data: progresoRows } = await supabase
-    .from("progreso")
-    .select("id_leccion, completado")
-    .eq("id_usuario", usuarioId);
+  const cursoIds = (filas ?? []).map((fila) => fila.curso_id as string);
 
-  const { count: certificadosCount } = await supabase
-    .from("certificados")
-    .select("id", { count: "exact", head: true })
-    .eq("id_usuario", usuarioId);
+  // Consulta chica y acotada a los cursos ya tocados (no a todo el
+  // catálogo): traer la categoría de cada uno es justo el tipo de consulta
+  // liviana que la vista de arriba no necesita cubrir.
+  const { data: categoriasPorCurso } = cursoIds.length
+    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(nombre)").in("id_curso", cursoIds)
+    : { data: [] };
 
-  const completadoPorLeccion = new Map<string, boolean>();
-  for (const fila of progresoRows ?? []) {
-    completadoPorLeccion.set(fila.id_leccion, fila.completado);
+  const categoriaPorCurso = new Map<string, string>();
+  for (const fila of categoriasPorCurso ?? []) {
+    if (categoriaPorCurso.has(fila.id_curso as string)) continue;
+    const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+    categoriaPorCurso.set(fila.id_curso as string, categoria?.nombre ?? "General");
   }
 
-  const cursos: CursoConProgreso[] = (inscripciones ?? [])
-    .map((fila) => {
-      const curso = Array.isArray(fila.curso) ? fila.curso[0] : fila.curso;
-      if (!curso) return null;
-      const categoriaFila = curso.curso_categorias?.[0]?.categoria;
-      const categoria = Array.isArray(categoriaFila) ? categoriaFila[0] : categoriaFila;
-      const leccionIds = (curso.modulos ?? []).flatMap((modulo) =>
-        (modulo.lecciones ?? []).map((leccion) => leccion.id as string),
-      );
-      const total = leccionIds.length;
-      const completadas = leccionIds.filter((id) => completadoPorLeccion.get(id)).length;
-
-      return {
-        cursoId: curso.id as string,
-        titulo: curso.titulo as string,
-        categoriaNombre: categoria?.nombre ?? "General",
-        leccionesCompletadas: completadas,
-        leccionesTotal: total,
-        porcentaje: total > 0 ? Math.round((completadas / total) * 100) : 0,
-      };
-    })
-    .filter((curso): curso is CursoConProgreso => curso !== null);
+  const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
+    const total = fila.lecciones_total as number;
+    const completadas = fila.lecciones_completadas as number;
+    return {
+      cursoId: fila.curso_id as string,
+      titulo: fila.titulo as string,
+      categoriaNombre: categoriaPorCurso.get(fila.curso_id as string) ?? "General",
+      leccionesCompletadas: completadas,
+      leccionesTotal: total,
+      porcentaje: total > 0 ? Math.round((completadas / total) * 100) : 0,
+    };
+  });
 
   const clasesCompletadas = cursos.reduce((total, curso) => total + curso.leccionesCompletadas, 0);
   const clasesTotal = cursos.reduce((total, curso) => total + curso.leccionesTotal, 0);

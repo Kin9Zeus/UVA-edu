@@ -47,7 +47,7 @@ export function InicioContent({
             {sigueAprendiendo.map((clase) => (
               <Link
                 key={clase.leccionId}
-                href={`/cursos/${clase.cursoId}`}
+                href={`/cursos/${clase.cursoId}/${clase.leccionId}`}
                 className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
               >
                 <div
@@ -143,6 +143,12 @@ export function InicioContent({
             })}
           </div>
         </section>
+      )}
+
+      {sigueAprendiendo.length === 0 && categorias.length > 0 && (
+        <p className="-mt-6 text-sm text-uva-text-muted">
+          Todavía no tienes cursos en progreso. Explora el catálogo abajo y arranca con el primero.
+        </p>
       )}
 
       {sigueAprendiendo.length === 0 && categorias.length === 0 && (

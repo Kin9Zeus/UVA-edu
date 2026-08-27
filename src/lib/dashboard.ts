@@ -27,141 +27,104 @@ export type CategoriaConConteo = {
  * Datos reales para el Dashboard/Inicio del estudiante: cursos con progreso
  * sin terminar (para "Sigue aprendiendo") y categorías activas con su
  * conteo de cursos publicados (para "Explora por categoría").
+ *
+ * Revf3: qué cursos tocó el estudiante y cuántas lecciones LISTAS tiene
+ * completadas de cada uno sale de la vista `progreso_cursos_estudiante`
+ * (supabase/sql/033_vista_progreso_cursos.sql) — un `count(...) filter`
+ * agregado en Postgres, no una fila por cada progreso histórico traída acá
+ * para sumar en JS. Solo se hace una consulta por curso candidato (acotada,
+ * nunca por "todo el progreso") para averiguar CUÁL lección exacta es la
+ * siguiente a retomar, algo que un conteo agregado no puede responder.
+ *
+ * Sin parámetro de usuario: la vista es `security_invoker` y ya viene
+ * acotada por RLS al usuario de la sesión (createClient() más abajo), igual
+ * que si se consultara `progreso` directamente con ese mismo cliente.
  */
-export async function getInicioData(usuarioId: string) {
+export async function getInicioData() {
   const supabase = await createClient();
 
-  // Toda fila de progreso del estudiante, completada o no. Antes esta
-  // consulta filtraba `completado = false`, así que un curso donde ya
-  // había terminado todas las clases que había abierto (pero le faltaban
-  // otras por empezar) no dejaba ninguna fila "a medias" y desaparecía de
-  // "Sigue aprendiendo" aunque el curso estuviera lejos de terminado.
-  const { data: progresoRows } = await supabase
-    .from("progreso")
-    .select(
-      "id_leccion, completado, actualizado_en, leccion:lecciones(id, orden, duracion, modulo:modulos(id, orden, titulo, curso:cursos(id, titulo, imagen_portada, nivel, mostrado, curso_categorias(categoria:categorias(nombre)))))",
-    )
-    .eq("id_usuario", usuarioId)
-    .order("actualizado_en", { ascending: false });
+  const { data: progresoCursos } = await supabase
+    .from("progreso_cursos_estudiante")
+    .select("curso_id, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas")
+    .order("ultima_actividad", { ascending: false });
 
-  type FilaProgreso = {
-    leccionId: string;
-    completado: boolean;
-    actualizadoEn: string;
-    leccionOrden: number;
-    duracion: number | null;
-    moduloId: string;
-    moduloOrden: number;
-    moduloTitulo: string;
-    cursoId: string;
-    cursoTitulo: string;
-    imagenPortada: string;
-    nivel: ClaseEnProgreso["nivel"];
-    categoriaNombre: string;
-  };
+  // Ya en orden de última actividad (la vista ordena así) y ya sin los
+  // cursos terminados o sin ninguna lección lista todavía: nada de esto
+  // necesita traer progreso lección por lección.
+  const candidatos = (progresoCursos ?? []).filter(
+    (curso) => curso.lecciones_total > 0 && curso.lecciones_completadas < curso.lecciones_total,
+  );
 
-  const filas = (progresoRows ?? [])
-    .map((fila): FilaProgreso | null => {
-      const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
-      const modulo = leccion ? (Array.isArray(leccion.modulo) ? leccion.modulo[0] : leccion.modulo) : null;
-      const curso = modulo ? (Array.isArray(modulo.curso) ? modulo.curso[0] : modulo.curso) : null;
-      const categoria = curso?.curso_categorias?.[0]?.categoria
-        ? Array.isArray(curso.curso_categorias[0].categoria)
-          ? curso.curso_categorias[0].categoria[0]
-          : curso.curso_categorias[0].categoria
-        : null;
-
-      // Antes se excluía todo curso con `mostrado = false`, pero eso
-      // contradice la regla de acceso vigente (030_acceso_curso_despublicado.sql,
-      // Revcurso): un estudiante con membresía que YA tenía progreso en un
-      // curso que se despublica debe poder seguir viéndolo — no solo
-      // conservar el progreso en la base, sino seguir apareciendo acá para
-      // retomarlo. Como esta consulta usa el cliente de sesión (sujeto a
-      // RLS), si `curso` viene no-nulo es porque RLS ya confirmó acceso
-      // vigente (cortesía, o membresía con este mismo progreso); no hace
-      // falta repetir la comprobación de `mostrado` acá.
-      if (!leccion || !modulo || !curso) return null;
-
-      return {
-        leccionId: fila.id_leccion as string,
-        completado: fila.completado as boolean,
-        actualizadoEn: fila.actualizado_en as string,
-        leccionOrden: leccion.orden as number,
-        duracion: leccion.duracion,
-        moduloId: modulo.id as string,
-        moduloOrden: modulo.orden as number,
-        moduloTitulo: modulo.titulo as string,
-        cursoId: curso.id as string,
-        cursoTitulo: curso.titulo as string,
-        imagenPortada: curso.imagen_portada as string,
-        nivel: curso.nivel as ClaseEnProgreso["nivel"],
-        categoriaNombre: categoria?.nombre ?? "General",
-      };
-    })
-    .filter((fila): fila is FilaProgreso => fila !== null);
-
-  // Cursos tocados, en el orden en que se avanzó por última vez en cada uno
-  // (filas ya vienen ordenadas por actualizado_en desc).
-  const cursoIdsOrdenados = [...new Set(filas.map((fila) => fila.cursoId))];
-
-  const cursoIds = cursoIdsOrdenados;
-  const { data: cursosInfo } = cursoIds.length
-    ? await supabase.from("cursos").select("id, modulos(id, orden, lecciones(id, orden, duracion))").in("id", cursoIds)
+  const cursoIds = candidatos.map((curso) => curso.curso_id as string);
+  const { data: categoriasPorCurso } = cursoIds.length
+    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(nombre)").in("id_curso", cursoIds)
     : { data: [] };
+
+  const categoriaPorCurso = new Map<string, string>();
+  for (const fila of categoriasPorCurso ?? []) {
+    if (categoriaPorCurso.has(fila.id_curso as string)) continue;
+    const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+    categoriaPorCurso.set(fila.id_curso as string, categoria?.nombre ?? "General");
+  }
 
   const sigueAprendiendo: ClaseEnProgreso[] = [];
 
-  for (const cursoId of cursoIdsOrdenados) {
-    const cursoInfo = (cursosInfo ?? []).find((curso) => curso.id === cursoId);
-    if (!cursoInfo) continue;
+  for (const curso of candidatos) {
+    if (sigueAprendiendo.length >= 4) break;
 
-    const leccionesOrdenadas = (cursoInfo.modulos ?? [])
+    // Temario ordenado (solo lecciones LISTAS, "borrador" no cuenta) con la
+    // marca de completado propia embebida: RLS en `progreso` acota esa
+    // relación a la fila del propio usuario, igual que si se consultara la
+    // tabla por separado.
+    const { data: moduloRows } = await supabase
+      .from("modulos")
+      .select("orden, titulo, lecciones(id, orden, duracion, estado_procesamiento, progreso(completado))")
+      .eq("id_curso", curso.curso_id)
+      .order("orden");
+
+    const leccionesOrdenadas = (moduloRows ?? [])
       .slice()
       .sort((a, b) => a.orden - b.orden)
       .flatMap((modulo) =>
         (modulo.lecciones ?? [])
+          .filter((leccion) => leccion.estado_procesamiento === "LISTO")
           .slice()
           .sort((a, b) => a.orden - b.orden)
-          .map((leccion) => ({ id: leccion.id as string, duracion: leccion.duracion as number | null })),
+          .map((leccion) => ({
+            id: leccion.id as string,
+            duracion: leccion.duracion as number | null,
+            completada: !!leccion.progreso?.[0]?.completado,
+            moduloTitulo: modulo.titulo as string,
+          })),
       );
 
     if (leccionesOrdenadas.length === 0) continue;
 
+    // La clase a retomar es la primera del temario que no esté completada —
+    // no necesariamente la última que se abrió (esa pudo haberse terminado).
+    const siguiente = leccionesOrdenadas.find((leccion) => !leccion.completada);
+    if (!siguiente) continue;
+
+    const completadas = leccionesOrdenadas.filter((leccion) => leccion.completada).length;
     const duracionTotalCursoSegundos = leccionesOrdenadas.reduce(
       (total, leccion) => total + (leccion.duracion ?? 0),
       0,
     );
 
-    const filasDelCurso = filas.filter((fila) => fila.cursoId === cursoId);
-    const completadasIds = new Set(filasDelCurso.filter((fila) => fila.completado).map((fila) => fila.leccionId));
-
-    // Curso ya terminado: nada que "seguir viendo".
-    if (completadasIds.size >= leccionesOrdenadas.length) continue;
-
-    // La clase a retomar es la primera del temario que no esté completada —
-    // no necesariamente la última que se abrió (esa pudo haberse terminado).
-    const siguiente = leccionesOrdenadas.find((leccion) => !completadasIds.has(leccion.id));
-    if (!siguiente) continue;
-
-    const filaReferencia = filasDelCurso[0];
-    const progresoCurso = Math.round((completadasIds.size / leccionesOrdenadas.length) * 100);
-
     sigueAprendiendo.push({
       leccionId: siguiente.id,
-      cursoId,
-      cursoTitulo: filaReferencia.cursoTitulo,
-      imagenPortada: filaReferencia.imagenPortada,
-      moduloTitulo: filaReferencia.moduloTitulo,
-      categoriaNombre: filaReferencia.categoriaNombre,
-      nivel: filaReferencia.nivel,
+      cursoId: curso.curso_id as string,
+      cursoTitulo: curso.titulo as string,
+      imagenPortada: curso.imagen_portada as string,
+      moduloTitulo: siguiente.moduloTitulo,
+      categoriaNombre: categoriaPorCurso.get(curso.curso_id as string) ?? "General",
+      nivel: curso.nivel as ClaseEnProgreso["nivel"],
       duracionTotalCursoSegundos,
       duracion: siguiente.duracion,
-      clasesCompletadas: completadasIds.size,
+      clasesCompletadas: completadas,
       totalClases: leccionesOrdenadas.length,
-      progreso: progresoCurso,
+      progreso: Math.round((completadas / leccionesOrdenadas.length) * 100),
     });
-
-    if (sigueAprendiendo.length >= 4) break;
   }
 
   const { data: categoriasRows } = await supabase

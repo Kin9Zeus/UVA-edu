@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function DashboardInicioPage() {
   const { user, perfil } = await getPerfilActual();
   const nombre = perfil?.nombre ?? user?.email?.split("@")[0] ?? "Estudiante";
-  const { sigueAprendiendo, categorias } = await getInicioData(user!.id);
+  const { sigueAprendiendo, categorias } = await getInicioData();
 
   return (
     <InicioContent

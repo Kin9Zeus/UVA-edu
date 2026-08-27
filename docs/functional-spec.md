@@ -176,7 +176,8 @@
 > 1. El trigger de la base de datos detecta que todas las lecciones asociadas a un curso poseen un registro de progreso con completado \= true para el usuario.  
 > 2. Se inserta una entrada en la tabla certificados asignando la fecha de emisión y generando un codigo\_verificacion único e inmutable.  
 > 3. Cuando el estudiante hace clic en "Descargar Certificado", una función *serverless* genera el archivo PDF imprimiendo el campo nombre vigente en Perfiles, el nombre del curso y el código de verificación.  
-> 4. Cualquier persona puede acceder a la página de verificación para consultar la validez oficial del diploma, los datos del estudiante y la fecha de emisión.
+> 4. Cualquier persona puede acceder a la página de verificación para consultar la validez oficial del diploma, los datos del estudiante y la fecha de emisión.  
+> 5. **Regla de integridad (Revf3):** Si después de emitido un certificado se agrega una lección nueva al curso, el % de avance de ese estudiante puede bajar de 100% — el certificado ya emitido **no se revoca**. La emisión es un evento puntual (una fila en `certificados` con su propio `codigo_verificacion`), no una condición que se re-evalúe en cada lectura; revocarlo retroactivamente invalidaría un diploma que el estudiante ya pudo haber presentado a un tercero por un cambio de contenido posterior a su esfuerzo real.
 
 ### **Flujo 08: Backoffice — Creación y Estructuración de Cursos (CMS)**
 
