@@ -71,3 +71,46 @@ export async function iniciarProgresoLeccion(leccionId: string): Promise<void> {
 
   revalidatePath("/dashboard", "layout");
 }
+
+/**
+ * Guarda el segundo de reproducción actual (Revf3: guardado de progreso por
+ * lección). Se llama a intervalos desde el reproductor mientras la pestaña
+ * sigue activa — para el guardado al cerrar/ocultar la pestaña existe un
+ * mecanismo aparte (ver src/app/api/progreso/beacon/route.ts) porque
+ * `navigator.sendBeacon` no puede invocar un Server Action.
+ *
+ * A propósito solo toca `segundo_actual`: nunca debe pisar `completado`, así
+ * que ese campo no entra en el payload del upsert. Tampoco revalida ninguna
+ * ruta — se llama cada ~10s durante la reproducción y forzar una
+ * revalidación en cada guardado sería un costo sin ningún beneficio visible
+ * (nada en la UI muestra `segundo_actual` fuera del propio reproductor, que
+ * ya lo lleva en estado local).
+ *
+ * Devuelve si el guardado se confirmó: el reproductor lo usa para reintentar
+ * (Revf3, "tolerar el modo sin conexión... reintentar, no perder la
+ * posición silenciosamente") en vez de asumir éxito y perder la posición si
+ * el upsert falla por un corte de red.
+ */
+export async function guardarSegundoActual(
+  leccionId: string,
+  segundos: number,
+): Promise<{ ok: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false };
+  if (!Number.isFinite(segundos)) return { ok: false };
+
+  const segundoActual = Math.max(0, Math.floor(segundos));
+
+  const { error } = await supabase
+    .from("progreso")
+    .upsert(
+      { id_usuario: user.id, id_leccion: leccionId, segundo_actual: segundoActual },
+      { onConflict: "id_usuario,id_leccion" },
+    );
+
+  return { ok: !error };
+}

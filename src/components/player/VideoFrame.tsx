@@ -22,15 +22,27 @@ export function VideoFrame({
   leccionId,
   videoListo,
   titulo,
+  segundoActual,
+  onTerminado,
 }: {
   leccionId: string;
   videoListo: boolean;
   titulo: string;
+  /** Segundo donde retomar (Revf3: guardado de progreso). */
+  segundoActual?: number;
+  /** Se llama una sola vez cuando el video llega al final. */
+  onTerminado?: () => void;
 }) {
   if (videoListo) {
     return (
       <div className="overflow-hidden rounded-uva-md bg-black">
-        <VideoPlayer key={leccionId} leccionId={leccionId} titulo={titulo} />
+        <VideoPlayer
+          key={leccionId}
+          leccionId={leccionId}
+          titulo={titulo}
+          segundoActual={segundoActual}
+          onTerminado={onTerminado}
+        />
       </div>
     );
   }

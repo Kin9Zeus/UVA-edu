@@ -52,6 +52,16 @@ export function PlayerContent({ data }: { data: LeccionPlayer }) {
     });
   }
 
+  // El reproductor llama esto una sola vez al terminar el video (evento
+  // `ended`). Reusa el mismo camino optimista que el botón manual, pero solo
+  // si la clase todavía no estaba completada — evitar repetir la escritura
+  // no cambia el resultado, pero sí evita un upsert de sobra si el
+  // estudiante vuelve a ver una clase ya completada hasta el final.
+  function completarPorFinDeVideo() {
+    if (completada) return;
+    toggleCompletada();
+  }
+
   return (
     <div className="mx-auto max-w-[1320px] px-[clamp(20px,3vw,44px)] py-6">
       <div className="mb-[18px] flex items-center gap-3.5 rounded-uva-md bg-uva-text/[0.06] px-[18px] py-3">
@@ -97,6 +107,8 @@ export function PlayerContent({ data }: { data: LeccionPlayer }) {
             leccionId={data.leccionId}
             videoListo={data.videoListo}
             titulo={data.leccionTitulo}
+            segundoActual={data.segundoActual}
+            onTerminado={completarPorFinDeVideo}
           />
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
