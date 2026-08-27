@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getCursoPublico } from "@/lib/curso";
+import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
 
 export async function generateMetadata({
@@ -14,7 +15,29 @@ export async function generateMetadata({
   const { id } = await params;
   const { user } = await getPerfilActual();
   const curso = await getCursoPublico(id, user?.id ?? null);
-  return { title: curso ? `U.V.A. — ${curso.titulo}` : "U.V.A. — Curso" };
+
+  if (!curso) return { title: "U.V.A. — Curso" };
+
+  const titulo = `U.V.A. — ${curso.titulo}`;
+  // `imagenPortada` puede ser el placeholder (curso sin portada real, ver
+  // lib/media.ts): en ese caso no hay nada útil que compartir como og:image.
+  const imagenes = esPortadaReal(curso.imagenPortada) ? [curso.imagenPortada] : undefined;
+
+  return {
+    title: titulo,
+    description: curso.descripcion,
+    openGraph: {
+      title: titulo,
+      description: curso.descripcion,
+      images: imagenes,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: titulo,
+      description: curso.descripcion,
+      images: imagenes,
+    },
+  };
 }
 
 export default async function CursoDetallePage({
@@ -32,16 +55,12 @@ export default async function CursoDetallePage({
   }
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
-  // Con sesión, suscribirse debe quedarse dentro del dashboard (donde vive
-  // el checkout real) en vez de mandar al Header de marketing de la home,
-  // que no sabe que hay sesión iniciada y siempre muestra "Acceder".
-  const rutaPlanes = user ? "/dashboard/planes" : "/#planes";
 
   return (
     <>
       <SiteHeader {...perfilActual} />
       <main>
-        <CursoDetalleContent curso={curso} basePath={basePath} rutaPlanes={rutaPlanes} />
+        <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva={!!user} />
       </main>
       <Footer />
     </>

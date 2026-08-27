@@ -55,6 +55,12 @@ export async function getCursoPublico(
 ): Promise<CursoPublico | null> {
   const supabase = await createClient();
 
+  // Curso + categorías + módulos + lecciones en una sola consulta (embedding
+  // de PostgREST, resuelto con joins del lado de Postgres): nunca una
+  // consulta por módulo (problema N+1 explícitamente a evitar), y tampoco
+  // una consulta aparte por curso/categorías como antes. RLS decide qué
+  // filas embebidas devolver en cada tabla igual que si se pidieran sueltas.
+  //
   // Sin `.eq("mostrado", true)` a propósito: la policy "cursos_select_publicos"
   // (030_acceso_curso_despublicado.sql) ya deja pasar un curso despublicado
   // si el usuario tiene cortesía, o membresía con progreso ya guardado en
@@ -65,7 +71,10 @@ export async function getCursoPublico(
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado, instructor:instructores(nombre, especialidad)",
+      `id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
+      instructor:instructores(nombre, especialidad),
+      curso_categorias(categoria:categorias(id, slug, nombre)),
+      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))`,
     )
     .eq("id", cursoId)
     .single();
@@ -77,38 +86,34 @@ export async function getCursoPublico(
   // que getCatalogo() en lib/categoria.ts). Antes se cortaba con .limit(1) y
   // el detalle del curso solo mostraba una, aunque el admin le hubiera
   // asignado dos o tres.
-  const { data: categoriasCurso } = await supabase
-    .from("curso_categorias")
-    .select("id_categoria, categoria:categorias(id, slug, nombre)")
-    .eq("id_curso", cursoId);
-
-  const categorias: CategoriaDelCurso[] = (categoriasCurso ?? [])
+  const categorias: CategoriaDelCurso[] = (curso.curso_categorias ?? [])
     .map((fila) => {
       const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
       return categoria ? { id: categoria.id, slug: categoria.slug, nombre: categoria.nombre } : null;
     })
     .filter((categoria): categoria is CategoriaDelCurso => categoria !== null);
 
-  const { data: modulos } = await supabase
-    .from("modulos")
-    .select("id, titulo, orden, lecciones(id, titulo, orden, duracion)")
-    .eq("id_curso", cursoId)
-    .order("orden");
-
-  const modulosBase = (modulos ?? []).map((modulo) => ({
-    id: modulo.id,
-    titulo: modulo.titulo,
-    orden: modulo.orden,
-    lecciones: (modulo.lecciones ?? [])
-      .slice()
-      .sort((a, b) => a.orden - b.orden)
-      .map((leccion) => ({
-        id: leccion.id,
-        titulo: leccion.titulo,
-        orden: leccion.orden,
-        duracion: leccion.duracion,
-      })),
-  }));
+  // El embedding no garantiza el orden de las filas anidadas (ni PostgREST
+  // ni Postgres lo prometen sin un ORDER BY explícito por tabla embebida),
+  // así que el orden por `orden` se aplica acá, igual que ya se hacía con
+  // las lecciones antes de este cambio.
+  const modulosBase = (curso.modulos ?? [])
+    .slice()
+    .sort((a, b) => a.orden - b.orden)
+    .map((modulo) => ({
+      id: modulo.id,
+      titulo: modulo.titulo,
+      orden: modulo.orden,
+      lecciones: (modulo.lecciones ?? [])
+        .slice()
+        .sort((a, b) => a.orden - b.orden)
+        .map((leccion) => ({
+          id: leccion.id,
+          titulo: leccion.titulo,
+          orden: leccion.orden,
+          duracion: leccion.duracion,
+        })),
+    }));
 
   const leccionIds = modulosBase.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
   const totalClases = leccionIds.length;
@@ -118,37 +123,38 @@ export async function getCursoPublico(
     0,
   );
 
-  const { count: totalRecursos } =
+  // Recursos, inscripción y suscripción son independientes entre sí — se
+  // piden en paralelo en vez de una tras otra (antes la suscripción ni
+  // siquiera se pedía si ya había inscripción, pero eso encadenaba todo a
+  // una consulta más antes de poder resolver `tieneAcceso`).
+  const [{ count: totalRecursos }, { data: inscripcion }, { data: suscripcion }] = await Promise.all([
     leccionIds.length > 0
-      ? await supabase
+      ? supabase
           .from("recursos_descargables")
           .select("id", { count: "exact", head: true })
           .in("id_leccion", leccionIds)
-      : { count: 0 };
+      : Promise.resolve({ count: 0 }),
+    usuarioId
+      ? supabase
+          .from("inscripciones")
+          .select("id")
+          .eq("id_usuario", usuarioId)
+          .eq("id_curso", cursoId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    usuarioId
+      ? supabase
+          .from("suscripciones")
+          .select("estado")
+          .eq("id_usuario", usuarioId)
+          .order("fecha_inicio", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
-  let tieneAcceso = false;
-  if (usuarioId) {
-    const { data: inscripcion } = await supabase
-      .from("inscripciones")
-      .select("id")
-      .eq("id_usuario", usuarioId)
-      .eq("id_curso", cursoId)
-      .maybeSingle();
-
-    if (inscripcion) {
-      tieneAcceso = true;
-    } else {
-      const { data: suscripcion } = await supabase
-        .from("suscripciones")
-        .select("estado")
-        .eq("id_usuario", usuarioId)
-        .order("fecha_inicio", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      tieneAcceso = suscripcion?.estado === "ACTIVA" || suscripcion?.estado === "PAST_DUE";
-    }
-  }
+  const tieneAcceso =
+    inscripcion !== null || suscripcion?.estado === "ACTIVA" || suscripcion?.estado === "PAST_DUE";
 
   // Progreso guardado en las clases del curso: qué está completada (para el
   // check ✓ del temario) y cuál es la primera sin completar (para "Seguir

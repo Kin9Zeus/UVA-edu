@@ -16,21 +16,19 @@ const PORTADA_TRAMA = {
 export function CursoDetalleContent({
   curso,
   basePath = "/catalogo",
-  rutaPlanes = "/#planes",
+  sesionActiva,
 }: {
   curso: CursoPublico;
   basePath?: string;
   /**
-   * A dónde manda "Suscríbete para verlo". Con sesión iniciada debe ser
-   * `/dashboard/planes` (se queda dentro del panel del estudiante); sin
-   * sesión, el default `/#planes` de la home pública.
-   *
-   * Antes siempre era `/#planes`, incluso logueado: el estudiante caía en
-   * el Header de marketing (src/components/home/Header.tsx), que no lee
-   * sesión y siempre muestra "Acceder" — daba la impresión de que se había
-   * cerrado sesión sin que eso pasara de verdad.
+   * Sin esto el CTA de "sin acceso" no puede distinguir un visitante
+   * anónimo de un estudiante registrado sin código canjeado — son dos
+   * pasos distintos (iniciar sesión vs. canjear) y hoy no hay pasarela de
+   * pago activa (MVP del 12 de septiembre: acceso solo por código de
+   * invitación, ver actions/codigos-invitacion/canjear.ts), así que
+   * ninguno de los dos estados sin acceso debe mandar a /dashboard/planes.
    */
-  rutaPlanes?: string;
+  sesionActiva: boolean;
 }) {
   const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
     ?.id;
@@ -185,15 +183,25 @@ export function CursoDetalleContent({
               El curso todavía no tiene clases
             </Button>
           )
-        ) : (
+        ) : sesionActiva ? (
           <Button
-            render={<Link href={rutaPlanes} />}
+            render={<Link href="/dashboard/suscripcion" />}
             nativeButton={false}
             variant="uva-primary"
             size="uva"
             className="min-h-12"
           >
-            Suscríbete para verlo
+            Canjea tu código
+          </Button>
+        ) : (
+          <Button
+            render={<Link href={`/login?redirect=/cursos/${curso.id}`} />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-12"
+          >
+            Regístrate para canjear tu código
           </Button>
         )}
 
