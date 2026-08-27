@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import { procesarPortada } from "@/lib/admin/portada";
+import { procesarRecurso } from "@/lib/admin/recurso";
 import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
@@ -21,8 +22,6 @@ import { slugificar as slugificarTexto } from "@/lib/slug";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
-// Igual al máximo que acepta Supabase Storage por archivo (plan actual).
-const TAMANO_MAXIMO_RECURSO = 50 * 1024 * 1024;
 
 const slugificar = (texto: string) => slugificarTexto(texto, "curso");
 
@@ -729,9 +728,10 @@ export async function subirRecursoLeccion(
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { error: "Selecciona un archivo." };
   }
-  if (archivo.size > TAMANO_MAXIMO_RECURSO) {
-    return { error: "El archivo no puede superar los 50 MB." };
-  }
+
+  const resultado = await procesarRecurso(archivo);
+  if ("error" in resultado) return { error: resultado.error };
+  const { cuerpo, contentType, extension } = resultado.recurso;
 
   const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
   // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
@@ -739,12 +739,15 @@ export async function subirRecursoLeccion(
   // reemplaza al uuid crudo que se veía en Storage.
   const carpetaCurso = `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
 
-  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : null;
-  const rutaArchivo = `${carpetaCurso}/${leccionId}/${randomUUID()}${extension ? `.${extension}` : ""}`;
+  // La extensión es la que detectó procesarRecurso a partir de los magic
+  // bytes, no la del nombre subido por el usuario — evita que un archivo
+  // con extensión falsificada termine sirviéndose con un Content-Type que
+  // no corresponde a su contenido real.
+  const rutaArchivo = `${carpetaCurso}/${leccionId}/${randomUUID()}.${extension}`;
 
   const { error: errorSubida } = await admin.supabase.storage
     .from(BUCKET_MATERIALES)
-    .upload(rutaArchivo, archivo, { contentType: archivo.type || undefined });
+    .upload(rutaArchivo, cuerpo, { contentType });
 
   if (errorSubida) return { error: "No pudimos subir el archivo." };
 
@@ -753,9 +756,9 @@ export async function subirRecursoLeccion(
     .insert({
       id_leccion: leccionId,
       nombre: archivo.name,
-      tipo_archivo: archivo.type || "application/octet-stream",
+      tipo_archivo: contentType,
       url_archivo: rutaArchivo,
-      tamano_bytes: archivo.size,
+      tamano_bytes: cuerpo.byteLength,
     })
     .select("id, nombre, tipo_archivo, tamano_bytes")
     .single();
