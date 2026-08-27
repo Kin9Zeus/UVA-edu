@@ -189,7 +189,10 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     estado: perfil.estado,
     fechaRegistro: perfil.fecha_registro,
     suscripcionEstado: suscripcion?.estado ?? null,
-    planActual: plan?.nombre ?? null,
+    // Sin plan pero con suscripción = acceso por código de invitación
+    // (`id_plan` NULL, ver 035_canje_codigo_por_dias.sql). Distinto de no
+    // tener suscripción, que sí es null.
+    planActual: plan?.nombre ?? (suscripcion ? "Acceso por invitación" : null),
     tipoAccesoSuscripcion,
     cursos,
     metricas: {

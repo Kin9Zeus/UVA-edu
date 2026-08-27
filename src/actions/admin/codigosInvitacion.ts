@@ -10,48 +10,69 @@ import type { AdminActionResult } from "@/actions/admin/categorias";
 const INTENTOS_CODIGO_UNICO = 5;
 
 /**
- * Valida lo común a crear y editar: la fecha debe ser futura y el límite,
- * si se pone, un entero positivo.
+ * Tope de días que puede otorgar un código. No lo impone la base: es un
+ * freno a la equivocación de teclado (escribir 3650 en vez de 365 regala
+ * diez años de acceso, y revertirlo obliga a editar la suscripción ya
+ * creada). Súbelo si el negocio alguna vez necesita más.
  */
-function validar(input: { fechaVencimiento: string; limiteUsos: number | null }): string | null {
+const MAX_DURACION_DIAS = 730;
+
+/**
+ * Valida lo común a crear y editar: la fecha debe ser futura y el límite un
+ * entero positivo.
+ *
+ * `limiteUsos` es obligatorio, no opcional: la regla de negocio del
+ * lanzamiento es que un código sea de uso único o con tope, nunca
+ * ilimitado. La base lo respalda con NOT NULL + CHECK >= 1
+ * (`codigos_invitacion_limite_usos_positivo`), así que esto solo adelanta
+ * el mensaje de error para que no llegue como un fallo genérico de insert.
+ */
+function validar(input: { fechaVencimiento: string; limiteUsos: number }): string | null {
   const vence = new Date(input.fechaVencimiento);
   if (Number.isNaN(vence.getTime())) return "La fecha de vencimiento no es válida.";
   if (vence.getTime() <= Date.now()) return "La fecha de vencimiento debe ser futura.";
 
-  if (input.limiteUsos !== null) {
-    if (!Number.isInteger(input.limiteUsos) || input.limiteUsos < 1) {
-      return "El límite de usos debe ser un número entero mayor que cero.";
-    }
+  if (!Number.isInteger(input.limiteUsos) || input.limiteUsos < 1) {
+    return "El límite de usos debe ser un número entero mayor que cero.";
   }
 
   return null;
 }
 
+/** Los días de acceso solo se fijan al crear: ver el comentario de `actualizar`. */
+function validarDuracion(duracionDias: number): string | null {
+  if (!Number.isInteger(duracionDias) || duracionDias < 1) {
+    return "Los días de acceso deben ser un número entero mayor que cero.";
+  }
+  if (duracionDias > MAX_DURACION_DIAS) {
+    return `Los días de acceso no pueden superar ${MAX_DURACION_DIAS}.`;
+  }
+  return null;
+}
+
 /**
  * Crea un código de invitación: al canjearse otorga una suscripción activa
- * del plan elegido, gratis y por la duración de ese plan
- * (ver supabase/sql/017_canjear_codigo_invitacion.sql).
+ * y gratuita por los días indicados (ver
+ * supabase/sql/035_canje_codigo_por_dias.sql).
+ *
+ * `duracionDias` reemplaza al antiguo `planId`. Un código no vende un plan:
+ * regala un periodo de acceso que el administrador fija libremente, sin
+ * tener que traducir "quiero dar 45 días" a "elijo el plan que dure 45
+ * días" ni inventarse un plan cuando ninguno cuadra.
  */
 export async function crearCodigoInvitacion(input: {
-  planId: string;
+  duracionDias: number;
   fechaVencimiento: string;
-  limiteUsos: number | null;
+  limiteUsos: number;
 }): Promise<AdminActionResult & { codigo?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  if (!input.planId) return { error: "Selecciona un plan." };
+  const duracionInvalida = validarDuracion(input.duracionDias);
+  if (duracionInvalida) return { error: duracionInvalida };
 
   const invalido = validar(input);
   if (invalido) return { error: invalido };
-
-  const { data: plan } = await admin.supabase
-    .from("planes")
-    .select("nombre")
-    .eq("id", input.planId)
-    .maybeSingle();
-
-  if (!plan) return { error: "El plan seleccionado ya no existe." };
 
   // `codigo` es UNIQUE. La probabilidad de choque es ínfima (31^8), pero
   // reintentar es más barato que devolverle un error al administrador por
@@ -61,7 +82,7 @@ export async function crearCodigoInvitacion(input: {
 
     const { error } = await admin.supabase.from("codigos_invitacion").insert({
       codigo,
-      id_plan: input.planId,
+      duracion_dias: input.duracionDias,
       id_admin_creador: admin.adminId,
       fecha_vencimiento: new Date(input.fechaVencimiento).toISOString(),
       limite_usos: input.limiteUsos,
@@ -73,9 +94,7 @@ export async function crearCodigoInvitacion(input: {
         idAdmin: admin.adminId,
         accion: "Creó un código de invitación",
         entidadAfectada: "codigos_invitacion",
-        detalles: `${codigo} — plan ${plan.nombre}, ${
-          input.limiteUsos === null ? "usos ilimitados" : `${input.limiteUsos} uso(s)`
-        }`,
+        detalles: `${codigo} — ${input.duracionDias} día(s) de acceso, ${input.limiteUsos} uso(s)`,
       });
 
       revalidatePath("/admin/codigos");
@@ -93,14 +112,15 @@ export async function crearCodigoInvitacion(input: {
  * Edita un código existente. Solo se pueden cambiar la fecha de vencimiento
  * y el límite de usos.
  *
- * El código en sí y su plan son inmutables a propósito: ya se compartieron
- * y ya se canjearon con esas condiciones. Cambiar el plan de un código
- * usado dejaría suscripciones existentes apuntando a un código que dice
- * otra cosa de la que les dio acceso.
+ * El código en sí y sus días de acceso son inmutables a propósito: ya se
+ * compartieron y ya se canjearon con esas condiciones. Cambiar la duración
+ * de un código usado dejaría suscripciones existentes apuntando a un código
+ * que dice otra cosa de la que les dio acceso — y no las corregiría, porque
+ * su `fecha_renovacion` se calculó en el momento del canje.
  */
 export async function actualizarCodigoInvitacion(
   id: string,
-  input: { fechaVencimiento: string; limiteUsos: number | null },
+  input: { fechaVencimiento: string; limiteUsos: number },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
@@ -119,7 +139,7 @@ export async function actualizarCodigoInvitacion(
   // Bajar el límite por debajo de los canjes ya hechos no invalida nada
   // retroactivamente (esas suscripciones siguen vivas), pero deja el código
   // en un estado confuso: agotado y con veces_usado por encima del tope.
-  if (input.limiteUsos !== null && input.limiteUsos < (actual.veces_usado as number)) {
+  if (input.limiteUsos < (actual.veces_usado as number)) {
     return {
       error: `Ese código ya se canjeó ${actual.veces_usado} vez/veces: el límite no puede ser menor.`,
     };

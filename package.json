@@ -16,6 +16,7 @@
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:seed:clean": "tsx prisma/seed.ts --clean",
+    "db:reset": "tsx scripts/db-reset.ts",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
     "test": "vitest run",

@@ -49,13 +49,14 @@ export type EstadoCodigo = "ACTIVO" | "INACTIVO" | "VENCIDO" | "AGOTADO";
 
 /**
  * Estado real de un código, combinando sus tres formas de dejar de servir.
- * El orden importa: replica el de canjear_codigo_invitacion() (017) para
+ * El orden importa: replica el de canjear_codigo_invitacion() (035) para
  * que el panel muestre el mismo motivo que vería quien intenta canjearlo.
  */
 export function estadoCodigo(codigo: {
   activo: boolean;
   fechaVencimiento: string | Date;
-  limiteUsos: number | null;
+  /** Siempre un entero >= 1: no existen los códigos sin tope (migración 20260827000000). */
+  limiteUsos: number;
   vecesUsado: number;
 }): EstadoCodigo {
   if (!codigo.activo) return "INACTIVO";
@@ -63,9 +64,7 @@ export function estadoCodigo(codigo: {
   const vence = new Date(codigo.fechaVencimiento);
   if (vence.getTime() < Date.now()) return "VENCIDO";
 
-  if (codigo.limiteUsos !== null && codigo.vecesUsado >= codigo.limiteUsos) {
-    return "AGOTADO";
-  }
+  if (codigo.vecesUsado >= codigo.limiteUsos) return "AGOTADO";
 
   return "ACTIVO";
 }

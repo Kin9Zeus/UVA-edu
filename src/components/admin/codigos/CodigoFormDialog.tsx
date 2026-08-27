@@ -8,23 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useAdminToast } from "@/components/admin/Toast";
 import {
   crearCodigoInvitacion,
   actualizarCodigoInvitacion,
 } from "@/actions/admin/codigosInvitacion";
-import type { CodigoInvitacion, PlanOpcion } from "@/lib/admin/codigosInvitacion";
+import type { CodigoInvitacion } from "@/lib/admin/codigosInvitacion";
 
 /** `yyyy-MM-dd` para el <input type="date">, en hora local. */
 function comoValorDeInput(fecha: Date): string {
@@ -37,29 +29,29 @@ function vencimientoPorDefecto(): string {
   return comoValorDeInput(new Date(Date.now() + 30 * 86_400_000));
 }
 
+/** Duración por defecto del acceso que otorga un código nuevo. */
+const DURACION_POR_DEFECTO = "30";
+
 export function CodigoFormDialog({
   open,
   onOpenChange,
   codigo,
-  planes,
   onCreado,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** null = crear uno nuevo. */
   codigo?: CodigoInvitacion | null;
-  planes: PlanOpcion[];
   onCreado: (codigo: string) => void;
 }) {
   const editando = codigo != null;
 
-  const [planId, setPlanId] = useState(codigo?.planId ?? planes[0]?.id ?? "");
+  const [duracion, setDuracion] = useState(
+    codigo ? String(codigo.duracionDias) : DURACION_POR_DEFECTO,
+  );
   const [vencimiento, setVencimiento] = useState(
     codigo ? comoValorDeInput(new Date(codigo.fechaVencimiento)) : vencimientoPorDefecto(),
   );
-  // El límite se maneja con un interruptor + un número: `null` en la base
-  // significa "ilimitado", y un campo de texto vacío no comunica eso.
-  const [ilimitado, setIlimitado] = useState(codigo ? codigo.limiteUsos === null : false);
   const [limite, setLimite] = useState(String(codigo?.limiteUsos ?? 1));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -81,7 +73,7 @@ export function CodigoFormDialog({
     // 30" vencería a las 00:00 de ese día, un día antes de lo que el
     // administrador entendió al elegirlo.
     const fechaVencimiento = `${vencimiento}T23:59:59`;
-    const limiteUsos = ilimitado ? null : Number(limite);
+    const limiteUsos = Number(limite);
 
     // Ramas separadas en vez de un ternario: solo crearCodigoInvitacion
     // devuelve `codigo`, y unir los dos resultados pierde ese campo.
@@ -98,7 +90,11 @@ export function CodigoFormDialog({
       }
       showToast("Código actualizado.");
     } else {
-      const resultado = await crearCodigoInvitacion({ planId, fechaVencimiento, limiteUsos });
+      const resultado = await crearCodigoInvitacion({
+        duracionDias: Number(duracion),
+        fechaVencimiento,
+        limiteUsos,
+      });
       setPending(false);
 
       if (resultado.error || !resultado.codigo) {
@@ -110,8 +106,6 @@ export function CodigoFormDialog({
 
     onOpenChange(false);
   }
-
-  const planSeleccionado = planes.find((plan) => plan.id === planId);
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : onOpenChange(false))}>
@@ -134,38 +128,32 @@ export function CodigoFormDialog({
             )}
 
             <div>
-              <Label htmlFor="codigo-plan">Plan</Label>
+              <Label htmlFor="codigo-duracion">Días de acceso</Label>
               {editando ? (
-                // El plan es inmutable: el código ya se compartió (y quizá
-                // canjeado) prometiendo ese acceso concreto.
+                // La duración es inmutable: el código ya se compartió (y
+                // quizá se canjeó) prometiendo ese acceso concreto, y
+                // cambiarla no corregiría las suscripciones ya creadas —
+                // su fecha de fin se calculó en el momento del canje.
                 <p className="mt-1 text-[13.5px] text-uva-muted">
-                  {codigo.planNombre}{" "}
+                  {codigo.duracionDias} días{" "}
                   <span className="text-uva-text-faint">· no se puede cambiar</span>
                 </p>
               ) : (
                 <>
-                  <Select
-                    items={Object.fromEntries(planes.map((plan) => [plan.id, plan.nombre]))}
-                    value={planId}
-                    onValueChange={(value) => setPlanId(value ?? "")}
-                  >
-                    <SelectTrigger id="codigo-plan" className="w-full">
-                      <SelectValue placeholder="Selecciona un plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {planes.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {planSeleccionado && (
-                    <p className="mt-1.5 text-xs text-uva-text-faint">
-                      Quien lo canjee tendrá acceso {planSeleccionado.duracionDias} días, sin
-                      cobro.
-                    </p>
-                  )}
+                  <Input
+                    id="codigo-duracion"
+                    type="number"
+                    min={1}
+                    max={730}
+                    step={1}
+                    value={duracion}
+                    onChange={(event) => setDuracion(event.target.value)}
+                    className="max-w-[120px]"
+                    required
+                  />
+                  <p className="mt-1.5 text-xs text-uva-text-faint">
+                    Cuánto dura el acceso desde el momento en que se canjea, sin cobro.
+                  </p>
                 </>
               )}
             </div>
@@ -187,36 +175,23 @@ export function CodigoFormDialog({
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="codigo-ilimitado" className="mb-0">
-                  Usos ilimitados
-                </Label>
-                <Switch
-                  id="codigo-ilimitado"
-                  checked={ilimitado}
-                  onCheckedChange={setIlimitado}
-                  aria-label="Usos ilimitados"
-                />
-              </div>
-
-              {!ilimitado && (
-                <div className="mt-2.5">
-                  <Label htmlFor="codigo-limite">Límite de usos</Label>
-                  <Input
-                    id="codigo-limite"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={limite}
-                    onChange={(event) => setLimite(event.target.value)}
-                    className="max-w-[120px]"
-                    required
-                  />
-                  <p className="mt-1.5 text-xs text-uva-text-faint">
-                    Cuántas personas distintas pueden canjearlo. Cada una solo puede una vez.
-                  </p>
-                </div>
-              )}
+              {/* Sin interruptor de "ilimitado": un código sin tope no se
+                  puede contener si se filtra, así que la base lo prohíbe
+                  (limite_usos NOT NULL + CHECK >= 1). Para uso único, 1. */}
+              <Label htmlFor="codigo-limite">Límite de usos</Label>
+              <Input
+                id="codigo-limite"
+                type="number"
+                min={1}
+                step={1}
+                value={limite}
+                onChange={(event) => setLimite(event.target.value)}
+                className="max-w-[120px]"
+                required
+              />
+              <p className="mt-1.5 text-xs text-uva-text-faint">
+                Cuántas personas distintas pueden canjearlo. Cada una solo puede una vez.
+              </p>
             </div>
           </div>
 

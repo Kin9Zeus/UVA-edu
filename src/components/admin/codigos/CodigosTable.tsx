@@ -22,7 +22,7 @@ import {
   toggleActivoCodigoInvitacion,
 } from "@/actions/admin/codigosInvitacion";
 import { formatFecha } from "@/lib/admin/format";
-import type { CodigoInvitacion, PlanOpcion } from "@/lib/admin/codigosInvitacion";
+import type { CodigoInvitacion } from "@/lib/admin/codigosInvitacion";
 import type { EstadoCodigo } from "@/lib/codigoInvitacion";
 
 const TONO_ESTADO: Record<EstadoCodigo, "success" | "neutral" | "warning" | "error"> = {
@@ -39,13 +39,7 @@ const ETIQUETA_ESTADO: Record<EstadoCodigo, string> = {
   AGOTADO: "Agotado",
 };
 
-export function CodigosTable({
-  codigos,
-  planes,
-}: {
-  codigos: CodigoInvitacion[];
-  planes: PlanOpcion[];
-}) {
+export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<CodigoInvitacion | null>(null);
   const [borrando, setBorrando] = useState<CodigoInvitacion | null>(null);
@@ -139,7 +133,7 @@ export function CodigosTable({
           <TableHeader>
             <TableRow>
               <TableHead>Código</TableHead>
-              <TableHead>Plan</TableHead>
+              <TableHead>Acceso</TableHead>
               <TableHead>Usos</TableHead>
               <TableHead>Vence</TableHead>
               <TableHead>Estado</TableHead>
@@ -172,12 +166,10 @@ export function CodigosTable({
                     )}
                   </button>
                 </TableCell>
-                <TableCell className="text-uva-muted">{codigo.planNombre}</TableCell>
+                <TableCell className="text-uva-muted">{codigo.duracionDias} días</TableCell>
                 <TableCell className="font-mono tabular-nums">
                   {codigo.vecesUsado}
-                  <span className="text-uva-muted-2">
-                    /{codigo.limiteUsos === null ? "∞" : codigo.limiteUsos}
-                  </span>
+                  <span className="text-uva-muted-2">/{codigo.limiteUsos}</span>
                 </TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(codigo.fechaVencimiento)}
@@ -237,7 +229,6 @@ export function CodigosTable({
         open={formOpen}
         onOpenChange={setFormOpen}
         codigo={editando}
-        planes={planes}
         onCreado={(codigo) => {
           setRecienCreado(codigo);
           setCopiado(null);

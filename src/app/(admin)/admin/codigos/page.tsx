@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getCodigosInvitacion, getPlanesParaCodigos } from "@/lib/admin/codigosInvitacion";
+import { getCodigosInvitacion } from "@/lib/admin/codigosInvitacion";
 import { CodigosTable } from "@/components/admin/codigos/CodigosTable";
 
 export const metadata: Metadata = {
@@ -7,14 +7,11 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCodigosPage() {
-  const [codigos, planes] = await Promise.all([
-    getCodigosInvitacion(),
-    getPlanesParaCodigos(),
-  ]);
+  const codigos = await getCodigosInvitacion();
 
   return (
     <div className="flex flex-col gap-6">
-      <CodigosTable codigos={codigos} planes={planes} />
+      <CodigosTable codigos={codigos} />
     </div>
   );
 }

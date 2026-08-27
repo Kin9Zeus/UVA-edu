@@ -17,14 +17,16 @@ const MOTIVO_ERROR: Record<string, string> = {
   // nadie crea que su código no sirve y lo descarte.
   ya_tiene_suscripcion:
     "Ya tienes una suscripción activa. Podrás canjear este código cuando termine, si sigue vigente.",
-  plan_no_encontrado: "El plan de este código ya no existe.",
+  // Ya no existe 'plan_no_encontrado': desde
+  // 035_canje_codigo_por_dias.sql el código lleva sus propios
+  // `duracion_dias` y el canje no consulta ningún plan.
 };
 
 /**
  * Canjea un código de invitación por acceso completo a la plataforma.
  * La validación (vigencia, límite de uso, doble canje) y la creación de
  * la Suscripción viven en public.canjear_codigo_invitacion() (Service
- * Role Key, ver supabase/sql/017_canjear_codigo_invitacion.sql) — nunca
+ * Role Key, ver supabase/sql/035_canje_codigo_por_dias.sql) — nunca
  * un INSERT directo del cliente contra `codigos_invitacion` ni
  * `suscripciones`, mismo criterio que aplicar un cupón en checkout.
  *

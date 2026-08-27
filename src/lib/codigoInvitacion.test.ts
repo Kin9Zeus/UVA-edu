@@ -57,8 +57,8 @@ describe("estadoCodigo", () => {
     expect(estadoCodigo(vigente)).toBe("ACTIVO");
   });
 
-  it("sin límite de usos (null) nunca se agota", () => {
-    expect(estadoCodigo({ ...vigente, limiteUsos: null, vecesUsado: 9999 })).toBe("ACTIVO");
+  it("un código de uso único sin canjear sigue ACTIVO", () => {
+    expect(estadoCodigo({ ...vigente, limiteUsos: 1, vecesUsado: 0 })).toBe("ACTIVO");
   });
 
   it("desactivado a mano -> INACTIVO", () => {
@@ -74,7 +74,7 @@ describe("estadoCodigo", () => {
   });
 
   it("desactivado gana sobre vencido y agotado", () => {
-    // Mismo orden que canjear_codigo_invitacion() (017), para que el panel
+    // Mismo orden que canjear_codigo_invitacion() (035), para que el panel
     // muestre el motivo que de verdad vería quien intenta canjearlo.
     expect(
       estadoCodigo({ activo: false, fechaVencimiento: AYER, limiteUsos: 1, vecesUsado: 1 }),

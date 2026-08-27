@@ -66,13 +66,10 @@ async function main() {
 
   console.log("Preparando datos de prueba desechables...\n");
 
-  const { data: plan, error: errPlan } = await admin
-    .from("planes")
-    .insert({ nombre: `Plan canje test ${sufijo}`, precio_centavos: 0, moneda: "COP", duracion_dias: 30, activo: false })
-    .select("id")
-    .single();
-  if (errPlan || !plan) throw new Error(`No pude crear el plan de prueba: ${errPlan?.message}`);
-  const planId = plan.id; // TS no propaga el narrowing de "plan" dentro de crearCodigo()
+  // Ya no se crea un plan desechable: desde
+  // 035_canje_codigo_por_dias.sql un código lleva sus propios
+  // `duracion_dias` y el canje no consulta la tabla `planes`.
+  const DURACION_DIAS = 30;
 
   async function crearUsuario(etiqueta: string) {
     const email = `canje-test-${etiqueta}-${sufijo}@uva.test`;
@@ -84,17 +81,20 @@ async function main() {
   async function crearCodigo(sufijoCodigo: string, overrides: Partial<{
     activo: boolean;
     fecha_vencimiento: string;
-    limite_usos: number | null;
+    limite_usos: number;
     veces_usado: number;
   }>) {
     const { data, error } = await admin
       .from("codigos_invitacion")
       .insert({
         codigo: `CANJE-TEST-${sufijoCodigo}-${sufijo}`,
-        id_plan: planId,
+        duracion_dias: DURACION_DIAS,
         activo: true,
         fecha_vencimiento: new Date(ahora + 30 * 86_400_000).toISOString(),
-        limite_usos: null,
+        // La columna es NOT NULL con CHECK >= 1 desde la migración
+        // 20260827000000: ya no existe el código sin tope. 10 deja margen
+        // para varios canjes en los casos que no prueban el agotamiento.
+        limite_usos: 10,
         veces_usado: 0,
         ...overrides,
       })
@@ -156,14 +156,35 @@ async function main() {
 
     const { data: suscripcionCreada, error: errSuscripcion } = await admin
       .from("suscripciones")
-      .select("estado, id_plan, id_codigo_invitacion, acceso_manual")
+      .select("estado, id_plan, fecha_inicio, fecha_renovacion, id_codigo_invitacion, acceso_manual")
       .eq("id_usuario", usuarioExito.id)
       .eq("id_codigo_invitacion", codigoValido.id)
       .maybeSingle();
     registrar(
       "el canje exitoso creó una Suscripción ACTIVA vinculada al código",
-      !errSuscripcion && suscripcionCreada?.estado === "ACTIVA" && suscripcionCreada?.id_plan === plan.id,
+      !errSuscripcion && suscripcionCreada?.estado === "ACTIVA",
       errSuscripcion?.message,
+    );
+    // Un acceso por invitación no compró ningún plan: la columna quedó
+    // nullable justamente para no tener que inventarle uno.
+    registrar(
+      "la Suscripción del canje NO referencia ningún plan (id_plan null)",
+      suscripcionCreada?.id_plan === null,
+      `id_plan=${suscripcionCreada?.id_plan ?? "null"}`,
+    );
+    // Lo que antes salía de planes.duracion_dias ahora sale del código.
+    const diasOtorgados =
+      suscripcionCreada?.fecha_renovacion && suscripcionCreada?.fecha_inicio
+        ? Math.round(
+            (new Date(suscripcionCreada.fecha_renovacion).getTime() -
+              new Date(suscripcionCreada.fecha_inicio).getTime()) /
+              86_400_000,
+          )
+        : null;
+    registrar(
+      `la vigencia sale de codigos_invitacion.duracion_dias (${DURACION_DIAS} días)`,
+      diasOtorgados === DURACION_DIAS,
+      `días otorgados=${diasOtorgados ?? "null"}`,
     );
 
     const { data: codigoTrasCanje, error: errCodigoTrasCanje } = await admin
@@ -211,7 +232,6 @@ async function main() {
     console.log("\nLimpiando datos de prueba...");
     await admin.from("suscripciones").delete().in("id_usuario", idsUsuarios);
     await admin.from("codigos_invitacion").delete().in("id", idsCodigos);
-    await admin.from("planes").delete().eq("id", plan.id);
     for (const id of idsUsuarios) await admin.auth.admin.deleteUser(id);
   }
 

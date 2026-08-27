@@ -61,23 +61,33 @@
  *   - 3 instructores con especialidad. No son cuentas de usuario: no existen
  *     en auth.users ni inician sesión, son catálogo que gestiona el admin.
  *   - 3 planes: Mensual y Anual activos, Trimestral descontinuado (activo=false).
- *   - 6 cursos (4 con mostrado=true, 2 con mostrado=false), creados por el admin.
- *   - 2-3 módulos por curso, 2-3 lecciones por módulo. Casi todas en estado
- *     LISTO; 2 lecciones quedan en SUBIENDO y PROCESANDO para simular carga.
- *   - 4 suscripciones: ACTIVA, PAST_DUE, VENCIDA y CANCELADA (historial).
- *   - 3 pagos: 2 EXITOSO y 1 FALLIDO.
- *   - 4 cupones: PORCENTAJE vigente, MONTO_FIJO vigente, uno vencido y uno
- *     con el límite de usos agotado.
+ *     Los códigos de invitación ya NO usan planes (ver más abajo), pero
+ *     "otorgar membresía" del panel admin sigue pidiendo uno.
+ *   - 6 cursos (4 con mostrado=true, 2 con mostrado=false), con los tres
+ *     niveles representados y 2 destacados, creados por el admin.
+ *   - 2-3 módulos por curso, 2-3 lecciones por módulo. NINGUNA con video:
+ *     quedan en SUBIENDO (dos en PROCESANDO) porque un playback ID inventado
+ *     rompe el reproductor firmado. Los videos reales se suben por el CMS.
+ *   - 4 suscripciones: ACTIVA, PAST_DUE, VENCIDA y CANCELADA (historial),
+ *     más la ACTIVA vía código descrita arriba.
  *   - 2 inscripciones: una MEMBRESIA y una CORTESIA otorgada por el admin
  *     (Flujo 11 de docs/functional-spec.md).
- *   - 1 código de invitación con cupo disponible (UVA-BIENVENIDA-2026,
- *     10 de 25 usos), ya canjeado una vez por estudiante-por-codigo.
+ *   - 6 códigos de invitación, uno por cada rama de
+ *     canjear_codigo_invitacion(): vigente con cupo, de uso único sin
+ *     estrenar, de 90 días, agotado, vencido y desactivado. Es el único
+ *     camino de acceso del MVP, así que todas sus ramas de error tienen que
+ *     poder probarse sin editar filas a mano.
  *   - 2 filas de progreso (una completada, una a mitad de video).
  *   - 1 certificado con código de verificación único.
  *   - 2 recursos descargables.
  *
- * NO siembra `bitacora_administrativa` (se genera con acciones reales) ni
- * `eventos_webhook` (son eventos reales de Stripe/Wompi/Mux).
+ * NO siembra:
+ *   - `pagos` ni `cupones`: son artefactos de Stripe/Wompi, y el MVP del 12
+ *     de septiembre de 2026 no tiene pasarela de pago. Vuelven con los cobros.
+ *   - `bitacora_administrativa` (se genera con acciones reales) ni
+ *     `eventos_webhook` (son eventos reales de Stripe/Wompi/Mux).
+ *   - `mux_assets_pendientes_eliminacion` ni `tokens_vista_previa`, que sí
+ *     las escriben acciones reales — limpiar() las borra aunque no las siembre.
  *
  * ============================================================================
  * IDEMPOTENCIA
@@ -184,8 +194,6 @@ const B = {
   modulo: "0d000000",
   leccion: "0e000000",
   suscripcion: "0f000000",
-  pago: "1a000000",
-  cupon: "1b000000",
   inscripcion: "1c000000",
   progreso: "1d000000",
   certificado: "1e000000",
@@ -241,7 +249,12 @@ const INSTRUCTORES = [
 type LeccionSeed = {
   titulo: string;
   duracion: number;
-  estado?: "SUBIENDO" | "PROCESANDO" | "LISTO";
+  /**
+   * Sin video real no hay estado LISTO posible: por defecto queda SUBIENDO, y
+   * "PROCESANDO" se marca en un par de lecciones para poder ver ese estado en
+   * la UI del CMS.
+   */
+  estado?: "SUBIENDO" | "PROCESANDO";
 };
 
 type CursoSeed = {
@@ -251,6 +264,14 @@ type CursoSeed = {
   /** Índice dentro de INSTRUCTORES, no el nombre suelto. */
   instructor: number;
   mostrado: boolean;
+  /**
+   * Antes no se sembraba y los 6 cursos caían al default BASICO, así que la
+   * insignia de nivel del detalle decía "Básico" en todos y no había forma
+   * de ver que el filtro por nivel funciona.
+   */
+  nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  /** Al menos uno en true: el toggle de "destacado" del CMS no tenía ejemplo. */
+  destacado?: boolean;
   modulos: { titulo: string; lecciones: LeccionSeed[] }[];
 };
 
@@ -262,6 +283,8 @@ const CURSOS: CursoSeed[] = [
       "Del muro básico al modelo coordinado: aprende Revit resolviendo un proyecto de vivienda completo, desde los ejes hasta la documentación para licencia.",
     instructor: 0,
     mostrado: true,
+    nivel: "BASICO",
+    destacado: true,
     modulos: [
       {
         titulo: "Fundamentos y entorno de trabajo",
@@ -294,6 +317,7 @@ const CURSOS: CursoSeed[] = [
       "Vincula el modelo con el cronograma y el presupuesto. Simulación constructiva, cantidades de obra y control de desviaciones sobre el modelo federado.",
     instructor: 0,
     mostrado: false,
+    nivel: "AVANZADO",
     modulos: [
       {
         titulo: "Modelo federado y coordinación",
@@ -322,6 +346,8 @@ const CURSOS: CursoSeed[] = [
       "Iluminación física, materiales PBR y postproducción. Aprende a leer un render como fotografía y a controlar el ruido sin quemar horas de cómputo.",
     instructor: 1,
     mostrado: true,
+    nivel: "INTERMEDIO",
+    destacado: true,
     modulos: [
       {
         titulo: "Iluminación",
@@ -347,6 +373,7 @@ const CURSOS: CursoSeed[] = [
       "Recorridos, animaciones y presentaciones de cliente en horas, no en días. Flujo de sincronización en vivo desde Revit, SketchUp y Rhino.",
     instructor: 1,
     mostrado: true,
+    nivel: "BASICO",
     modulos: [
       {
         titulo: "Flujo de trabajo en vivo",
@@ -375,6 +402,7 @@ const CURSOS: CursoSeed[] = [
       "Predimensionamiento, análisis y detallado de vigas, columnas y losas. Del diagrama de momentos al despiece que realmente se construye en obra.",
     instructor: 2,
     mostrado: true,
+    nivel: "AVANZADO",
     modulos: [
       {
         titulo: "Comportamiento del material",
@@ -406,6 +434,7 @@ const CURSOS: CursoSeed[] = [
       "Programación, presupuesto y control de una obra real, con el marco normativo colombiano como columna vertebral de las decisiones de diseño.",
     instructor: 2,
     mostrado: false,
+    nivel: "INTERMEDIO",
     modulos: [
       {
         titulo: "Marco normativo",
@@ -505,14 +534,83 @@ const IDS_CATEGORIAS = CATEGORIAS.map((_, i) => uuid(B.categoria, i + 1));
 const IDS_INSTRUCTORES = INSTRUCTORES.map((_, i) => uuid(B.instructor, i + 1));
 const IDS_PLANES = [1, 2, 3].map((i) => uuid(B.plan, i));
 const IDS_CURSOS = CURSOS.map((_, i) => uuid(B.curso, i + 1));
-const CODIGOS_CUPONES = [
-  "BIENVENIDA20",
-  "AHORRA50MIL",
-  "LANZAMIENTO2025",
-  "SOLO10CUPOS",
+/**
+ * Los códigos son el ÚNICO camino de acceso del MVP del 12 de septiembre, así
+ * que se siembra uno por cada rama de canjear_codigo_invitacion()
+ * (035_canje_codigo_por_dias.sql). Antes había uno solo y las ramas de error
+ * — vencido, inactivo, agotado — no se podían probar sin editar filas a mano.
+ *
+ * `duracion_dias` va en el propio código desde la migración 20260827000000:
+ * ya no se hereda de un plan.
+ */
+const CODIGOS_INVITACION = [
+  {
+    n: 1,
+    codigo: "UVA-BIENVENIDA-2026",
+    duracion_dias: 30,
+    limite_usos: 25,
+    // 1, no 10: `veces_usado` debe cuadrar con las suscripciones realmente
+    // sembradas. Antes decía 10 con un solo canje existente, así que el panel
+    // mostraba "10/25 usos" que ninguna fila respaldaba.
+    veces_usado: 1,
+    vence_en_dias: 90,
+    activo: true,
+    nota: "campaña con cupo, ya canjeado por estudiante-por-codigo",
+  },
+  {
+    n: 2,
+    codigo: "UVA-UNICO-2026",
+    duracion_dias: 30,
+    limite_usos: 1,
+    veces_usado: 0,
+    vence_en_dias: 60,
+    activo: true,
+    nota: "uso único sin estrenar — el caso del lanzamiento",
+  },
+  {
+    n: 3,
+    codigo: "UVA-TRIMESTRE-2026",
+    duracion_dias: 90,
+    limite_usos: 10,
+    veces_usado: 0,
+    vence_en_dias: 45,
+    activo: true,
+    nota: "90 días: prueba que la duración sale del código, no de un plan",
+  },
+  {
+    n: 4,
+    codigo: "UVA-AGOTADO-2026",
+    duracion_dias: 30,
+    limite_usos: 5,
+    veces_usado: 5,
+    vence_en_dias: 30,
+    activo: true,
+    nota: "sin cupo -> codigo_agotado",
+  },
+  {
+    n: 5,
+    codigo: "UVA-VENCIDO-2025",
+    duracion_dias: 30,
+    limite_usos: 50,
+    veces_usado: 12,
+    vence_en_dias: -10,
+    activo: true,
+    nota: "fuera de fecha -> codigo_vencido",
+  },
+  {
+    n: 6,
+    codigo: "UVA-APAGADO-2026",
+    duracion_dias: 30,
+    limite_usos: 20,
+    veces_usado: 3,
+    vence_en_dias: 120,
+    activo: false,
+    nota: "desactivado a mano -> codigo_inactivo",
+  },
 ];
-const ID_CODIGO_INVITACION = uuid(B.codigoInvitacion, 1);
-const CODIGO_INVITACION = "UVA-BIENVENIDA-2026";
+
+/** El que ya canjeó estudiante-por-codigo; su suscripción lo referencia. */
+const ID_CODIGO_CANJEADO = uuid(B.codigoInvitacion, 1);
 
 /**
  * Borra todo lo que este seed puede haber creado, en orden inverso a las
@@ -544,6 +642,19 @@ async function limpiar(): Promise<void> {
   await prisma.recursosDescargables.deleteMany({
     where: { leccion: enCursosSeed },
   });
+  // `mux_assets_pendientes_eliminacion` y `tokens_vista_previa` no se
+  // siembran, pero sí las escriben acciones reales sobre cursos sembrados
+  // (reemplazar un video, generar un enlace de vista previa). Ninguna se
+  // borraba antes: la primera tiene FK ON DELETE SET NULL, así que sus filas
+  // sobrevivían al borrado del curso y se acumulaban huérfanas corrida tras
+  // corrida; la segunda cascadea, pero borrarla explícitamente deja el
+  // recuento del resumen honesto.
+  await prisma.muxAssetsPendientesEliminacion.deleteMany({
+    where: { leccion: enCursosSeed },
+  });
+  await prisma.tokensVistaPrevia.deleteMany({
+    where: { id_curso: { in: IDS_CURSOS } },
+  });
   await prisma.inscripciones.deleteMany({
     where: {
       OR: [
@@ -552,9 +663,6 @@ async function limpiar(): Promise<void> {
         { id_curso: { in: IDS_CURSOS } },
       ],
     },
-  });
-  await prisma.pagos.deleteMany({
-    where: { suscripcion: { id_usuario: { in: idsUsuarios } } },
   });
   await prisma.suscripciones.deleteMany({
     where: {
@@ -565,7 +673,12 @@ async function limpiar(): Promise<void> {
   // (FK id_plan), mismo criterio de orden que instructores/cupones: se
   // borra por ID fijo o por código único, por si sobrevivió con otro id.
   await prisma.codigosInvitacion.deleteMany({
-    where: { OR: [{ id: ID_CODIGO_INVITACION }, { codigo: CODIGO_INVITACION }] },
+    where: {
+      OR: [
+        { id: { in: CODIGOS_INVITACION.map((c) => uuid(B.codigoInvitacion, c.n)) } },
+        { codigo: { in: CODIGOS_INVITACION.map((c) => c.codigo) } },
+      ],
+    },
   });
   // No sembramos bitácora, pero si alguna acción real la escribió apuntando a
   // un admin de prueba, bloquearía el borrado del perfil.
@@ -592,7 +705,6 @@ async function limpiar(): Promise<void> {
     },
   });
   await prisma.categorias.deleteMany({ where: { id: { in: IDS_CATEGORIAS } } });
-  await prisma.cupones.deleteMany({ where: { codigo: { in: CODIGOS_CUPONES } } });
   await prisma.planes.deleteMany({ where: { id: { in: IDS_PLANES } } });
   await prisma.perfiles.deleteMany({ where: { id: { in: idsUsuarios } } });
 
@@ -772,22 +884,29 @@ async function sembrar(): Promise<void> {
   });
   console.log("💳 3 planes (2 activos, 1 descontinuado)");
 
-  // --- Código de invitación ------------------------------------------------
-  // Cupo disponible (veces_usado < limite_usos) para que se pueda probar un
-  // canje nuevo en desarrollo, además del que ya dejó estudiante-por-codigo.
-  await prisma.codigosInvitacion.create({
-    data: {
-      id: ID_CODIGO_INVITACION,
-      codigo: CODIGO_INVITACION,
-      id_plan: IDS_PLANES[0],
+  // --- Códigos de invitación -----------------------------------------------
+  // Ver CODIGOS_INVITACION arriba: uno por cada rama de
+  // canjear_codigo_invitacion(), para que las de error se puedan probar sin
+  // editar filas a mano.
+  await prisma.codigosInvitacion.createMany({
+    data: CODIGOS_INVITACION.map((c) => ({
+      id: uuid(B.codigoInvitacion, c.n),
+      codigo: c.codigo,
+      duracion_dias: c.duracion_dias,
       id_admin_creador: idAdmin,
-      fecha_vencimiento: enDias(90),
-      limite_usos: 25,
-      veces_usado: 10,
-      activo: true,
-    },
+      fecha_vencimiento: enDias(c.vence_en_dias),
+      limite_usos: c.limite_usos,
+      veces_usado: c.veces_usado,
+      activo: c.activo,
+    })),
   });
-  console.log(`🎫 1 código de invitación (${CODIGO_INVITACION}, 10/25 usos)`);
+  console.log(`🎫 ${CODIGOS_INVITACION.length} códigos de invitación:`);
+  for (const c of CODIGOS_INVITACION) {
+    console.log(
+      `   ${c.codigo.padEnd(20, " ")} ${String(c.duracion_dias).padStart(3, " ")} días · ` +
+        `${c.veces_usado}/${c.limite_usos} usos · ${c.nota}`
+    );
+  }
 
   // --- Instructores --------------------------------------------------------
   // Antes que los cursos: `cursos.id_instructor` es obligatorio.
@@ -808,6 +927,12 @@ async function sembrar(): Promise<void> {
       descripcion: c.descripcion,
       imagen_portada: `https://picsum.photos/seed/uva-curso-${i + 1}/1200/675`,
       id_instructor: IDS_INSTRUCTORES[c.instructor],
+      nivel: c.nivel,
+      destacado: c.destacado ?? false,
+      // Orden explícito y espaciado (mismo criterio que `modulos`/`lecciones`,
+      // migración 20260824020000): reordenar en el CMS no obliga a reescribir
+      // todas las filas.
+      orden_visualizacion: (i + 1) * 10,
       mostrado: c.mostrado,
       id_admin_creador: idAdmin,
     })),
@@ -829,8 +954,7 @@ async function sembrar(): Promise<void> {
     titulo: string;
     orden: number;
     duracion: number;
-    id_video_mux: string | null;
-    estado_procesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO";
+    estado_procesamiento: "SUBIENDO" | "PROCESANDO";
     resumen: string;
   }[] = [];
 
@@ -844,19 +968,27 @@ async function sembrar(): Promise<void> {
         orden: m + 1,
       });
       modulo.lecciones.forEach((leccion, l) => {
-        const estado = leccion.estado ?? "LISTO";
         lecciones.push({
           id: uuid(B.leccion, (c + 1) * 10_000 + (m + 1) * 100 + (l + 1)),
           id_modulo: idModulo,
           titulo: leccion.titulo,
           orden: l + 1,
           duracion: leccion.duracion,
-          // Mux solo entrega el playback ID cuando el asset termina de
-          // procesarse (Flujo 09), así que las lecciones que aún están
-          // SUBIENDO o PROCESANDO no tienen id_video_mux todavía.
-          id_video_mux:
-            estado === "LISTO" ? `mux_pb_${c + 1}${m + 1}${l + 1}_uvaseed` : null,
-          estado_procesamiento: estado,
+          // NINGUNA lección sembrada tiene `id_video_mux`.
+          //
+          // Antes se escribían playback IDs inventados (`mux_pb_111_uvaseed`)
+          // con estado LISTO. Eso era inofensivo mientras el reproductor no
+          // existía, pero desde que obtenerTokenReproduccion() firma tokens
+          // contra Mux (actions/video/reproduccion.ts) esos IDs producen un
+          // reproductor roto en TODAS las lecciones: Mux rechaza un playback
+          // ID que no existe, y el estudiante ve un error en vez de un video.
+          //
+          // Dejarlas en SUBIENDO/PROCESANDO muestra el estado honesto de
+          // "el video todavía no está disponible" y deja el árbol de módulos,
+          // el candado de la lección bloqueada y la duración total —que es lo
+          // que estas filas existen para probar— funcionando igual. Los
+          // videos reales se suben por el CMS.
+          estado_procesamiento: leccion.estado === "PROCESANDO" ? "PROCESANDO" : "SUBIENDO",
           resumen: `Notas y recursos de la lección **${leccion.titulo}**.`,
         });
       });
@@ -866,11 +998,9 @@ async function sembrar(): Promise<void> {
   await prisma.modulos.createMany({ data: modulos });
   await prisma.lecciones.createMany({ data: lecciones });
 
-  const enCarga = lecciones.filter((l) => l.estado_procesamiento !== "LISTO");
   console.log(
     `🎬 ${CURSOS.length} cursos (${CURSOS.filter((c) => c.mostrado).length} mostrados) · ` +
-      `${modulos.length} módulos · ${lecciones.length} lecciones ` +
-      `(${enCarga.length} en carga: ${enCarga.map((l) => l.estado_procesamiento).join(", ")})`
+      `${modulos.length} módulos · ${lecciones.length} lecciones (ninguna con video: se suben por el CMS)`
   );
 
   // --- Suscripciones ------------------------------------------------------
@@ -933,19 +1063,22 @@ async function sembrar(): Promise<void> {
       },
       {
         // Mismas columnas que dejaría un canje real de código de invitación
-        // (public.canjear_codigo_invitacion(), 017_canjear_codigo_invitacion.sql):
-        // proveedor "invitacion", monto_centavos 0, acceso_manual true y
-        // otorgado_por = el admin que creó el código.
+        // (public.canjear_codigo_invitacion(), 035_canje_codigo_por_dias.sql):
+        // proveedor "invitacion", monto_centavos 0, acceso_manual true,
+        // otorgado_por = el admin que creó el código y — desde la migración
+        // 20260827000000 — id_plan NULL: un acceso regalado no compró ningún
+        // plan. Las fechas reflejan los 30 días de UVA-BIENVENIDA-2026,
+        // canjeados hace 5 días.
         id: uuid(B.suscripcion, 5),
         id_usuario: idPorCodigo,
-        id_plan: IDS_PLANES[0],
+        id_plan: null,
         fecha_inicio: enDias(-5),
         fecha_renovacion: enDias(25),
         estado: "ACTIVA",
         proveedor: "invitacion",
         monto_centavos: 0,
         moneda: "COP",
-        id_codigo_invitacion: ID_CODIGO_INVITACION,
+        id_codigo_invitacion: ID_CODIGO_CANJEADO,
         acceso_manual: true,
         otorgado_por: idAdmin,
       },
@@ -953,84 +1086,11 @@ async function sembrar(): Promise<void> {
   });
   console.log("🔁 5 suscripciones (ACTIVA, PAST_DUE, VENCIDA, CANCELADA, ACTIVA vía código)");
 
-  // --- Pagos --------------------------------------------------------------
-  await prisma.pagos.createMany({
-    data: [
-      {
-        id: uuid(B.pago, 1),
-        id_suscripcion: uuid(B.suscripcion, 1),
-        creado_en: enDias(-12),
-        estado: "EXITOSO",
-        monto_centavos: 8_990_000,
-        moneda: "COP",
-        ref_transaccion_externa: "pi_seed_activo_001",
-        ref_factura_dian: "UVA-FE-000123",
-      },
-      {
-        id: uuid(B.pago, 2),
-        id_suscripcion: uuid(B.suscripcion, 2),
-        creado_en: enDias(-2),
-        estado: "FALLIDO",
-        monto_centavos: 8_990_000,
-        moneda: "COP",
-        ref_transaccion_externa: "pi_seed_pastdue_001",
-      },
-      {
-        id: uuid(B.pago, 3),
-        id_suscripcion: uuid(B.suscripcion, 4),
-        creado_en: enDias(-400),
-        estado: "EXITOSO",
-        monto_centavos: 89_900_000,
-        moneda: "COP",
-        ref_transaccion_externa: "pi_seed_anual_001",
-        ref_factura_dian: "UVA-FE-000045",
-      },
-    ],
-  });
-  console.log("🧾 3 pagos (2 EXITOSO, 1 FALLIDO)");
-
-  // --- Cupones ------------------------------------------------------------
-  await prisma.cupones.createMany({
-    data: [
-      {
-        id: uuid(B.cupon, 1),
-        codigo: CODIGOS_CUPONES[0],
-        tipo_descuento: "PORCENTAJE",
-        valor: 20, // 20 %
-        fecha_vencimiento: enDias(60),
-        limite_usos: 100,
-        veces_usado: 12,
-      },
-      {
-        id: uuid(B.cupon, 2),
-        codigo: CODIGOS_CUPONES[1],
-        tipo_descuento: "MONTO_FIJO",
-        valor: 5_000_000, // $50.000 COP en centavos
-        fecha_vencimiento: enDias(30),
-        limite_usos: null, // sin límite
-        veces_usado: 3,
-      },
-      {
-        id: uuid(B.cupon, 3),
-        codigo: CODIGOS_CUPONES[2],
-        tipo_descuento: "PORCENTAJE",
-        valor: 30,
-        fecha_vencimiento: enDias(-45), // vencido
-        limite_usos: 500,
-        veces_usado: 187,
-      },
-      {
-        id: uuid(B.cupon, 4),
-        codigo: CODIGOS_CUPONES[3],
-        tipo_descuento: "PORCENTAJE",
-        valor: 15,
-        fecha_vencimiento: enDias(90), // vigente, pero…
-        limite_usos: 10,
-        veces_usado: 10, // …ya agotó sus cupos
-      },
-    ],
-  });
-  console.log("🎟️  4 cupones (vigente %, vigente monto fijo, vencido, agotado)");
+  // Sin `pagos` ni `cupones`: son artefactos de Stripe/Wompi y el MVP del 12
+  // de septiembre no tiene pasarela de pago (el acceso se da solo por códigos
+  // de invitación). Sembrar transacciones y descuentos de un checkout que no
+  // existe solo mete ruido en el panel administrativo. Vuelven cuando vuelvan
+  // los cobros.
 
   // --- Inscripciones ------------------------------------------------------
   await prisma.inscripciones.createMany({
@@ -1151,12 +1211,8 @@ async function resumen(): Promise<void> {
     suscripciones: await prisma.suscripciones.count({
       where: { usuario: { correo: { endsWith: DOMINIO_SEED } } },
     }),
-    pagos: await prisma.pagos.count({
-      where: { suscripcion: { usuario: { correo: { endsWith: DOMINIO_SEED } } } },
-    }),
-    cupones: await prisma.cupones.count({ where: { codigo: { in: CODIGOS_CUPONES } } }),
     codigos_invitacion: await prisma.codigosInvitacion.count({
-      where: { id: ID_CODIGO_INVITACION },
+      where: { id: { in: CODIGOS_INVITACION.map((c) => uuid(B.codigoInvitacion, c.n)) } },
     }),
     inscripciones: await prisma.inscripciones.count({
       where: { id_curso: { in: IDS_CURSOS } },

@@ -39,10 +39,30 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
 
   const plan = Array.isArray(suscripcion.plan) ? suscripcion.plan[0] : suscripcion.plan;
 
+  // Sin plan = acceso otorgado por un código de invitación: esas
+  // suscripciones se crean con `id_plan` NULL porque nadie compró nada
+  // (035_canje_codigo_por_dias.sql). Decir "Plan" a secas ahí sugería una
+  // compra que no existió.
+  //
+  // `duracionDias` cae a los días reales entre inicio y fin en vez de a un
+  // 30 fijo: es el dato que el código otorgó, y la barra de vigencia del
+  // perfil lo usa para calcular cuánto se lleva consumido.
+  const duracionReal =
+    suscripcion.fecha_renovacion !== null
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(suscripcion.fecha_renovacion).getTime() -
+              new Date(suscripcion.fecha_inicio).getTime()) /
+              86_400_000,
+          ),
+        )
+      : 30;
+
   return {
     id: suscripcion.id,
-    planNombre: plan?.nombre ?? "Plan",
-    duracionDias: plan?.duracion_dias ?? 30,
+    planNombre: plan?.nombre ?? "Acceso por invitación",
+    duracionDias: plan?.duracion_dias ?? duracionReal,
     fechaInicio: suscripcion.fecha_inicio,
     fechaRenovacion: suscripcion.fecha_renovacion,
     estado: suscripcion.estado,

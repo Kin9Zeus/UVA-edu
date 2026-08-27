@@ -117,7 +117,6 @@ model Planes {
   actualizado_en  DateTime @updatedAt @db.Timestamptz
 
   suscripciones      Suscripciones[]
-  codigos_invitacion CodigosInvitacion[]
 
   @@map("planes")
 }
@@ -125,7 +124,12 @@ model Planes {
 model Suscripciones {
   id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_usuario             String            @db.Uuid
-  id_plan                String            @db.Uuid
+  /// Nullable: un acceso otorgado por código de invitación no compró ningún
+  /// plan, así que no tiene ninguno que referenciar. Las suscripciones de
+  /// pago (Stripe/Wompi) y las que otorga el admin a mano sí lo llenan.
+  /// Quien lo lee debe tener un valor por defecto — ver `lib/suscripcion.ts`
+  /// y `lib/admin/usuarioDetalle.ts`, que muestran "Acceso por invitación".
+  id_plan                String?           @db.Uuid
   fecha_inicio           DateTime
   fecha_renovacion       DateTime?
   estado                 EstadoSuscripcion
@@ -142,7 +146,7 @@ model Suscripciones {
   actualizado_en         DateTime          @updatedAt @db.Timestamptz
 
   usuario           Perfiles           @relation("SuscripcionesDelUsuario", fields: [id_usuario], references: [id])
-  plan              Planes             @relation(fields: [id_plan], references: [id])
+  plan              Planes?            @relation(fields: [id_plan], references: [id])
   cupon             Cupones?           @relation(fields: [id_cupon], references: [id])
   codigo_invitacion CodigosInvitacion? @relation(fields: [id_codigo_invitacion], references: [id])
   admin_otorgo      Perfiles?          @relation("SuscripcionesOtorgadasPorAdmin", fields: [otorgado_por], references: [id])
@@ -405,21 +409,35 @@ model Certificados {
 /// que Cupones en checkout): valida vigencia/límite de uso y crea la fila
 /// de Suscripciones — nunca un INSERT directo del cliente contra esta
 /// tabla ni contra Suscripciones.
+/// Código que un estudiante canjea para obtener acceso, sin pasar por
+/// ninguna pasarela de pago (MVP del 12 de septiembre de 2026).
+///
+/// NO apunta a un `Planes`: un código no vende un plan, regala un periodo
+/// de acceso que el administrador fija libremente en `duracion_dias`. Antes
+/// sí tenía `id_plan` y el canje sacaba de ahí la duración, lo que obligaba
+/// al admin a traducir "quiero dar 45 días" a "elijo el plan que dure 45
+/// días" — y a crear un plan falso cuando no existía ninguno con esa
+/// duración.
 model CodigosInvitacion {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   codigo            String   @unique
-  id_plan           String   @db.Uuid
+  /// Días de acceso que otorga el canje, contados desde el momento de
+  /// canjear. Lo usa public.canjear_codigo_invitacion() para calcular
+  /// `suscripciones.fecha_renovacion`.
+  duracion_dias     Int
   id_admin_creador  String?  @db.Uuid
   fecha_vencimiento DateTime
-  /// null = sin límite de usos. Todavía no se define la regla de negocio
-  /// (single-use vs multi-use); el esquema soporta ambas sin migración.
-  limite_usos       Int?
+  /// Cuántas veces se puede canjear. Obligatorio y con CHECK >= 1 en la
+  /// base (`codigos_invitacion_limite_usos_positivo`, ver la migración
+  /// 20260827000000): la regla de negocio es "uso único o con límite,
+  /// nunca ilimitado", y dejarlo nullable permitía crear por descuido un
+  /// código que cualquiera puede repartir sin tope.
+  limite_usos       Int
   veces_usado       Int      @default(0)
   activo            Boolean  @default(true)
   creado_en         DateTime @default(now()) @db.Timestamptz
   actualizado_en    DateTime @updatedAt @db.Timestamptz
 
-  plan          Planes          @relation(fields: [id_plan], references: [id])
   admin_creador Perfiles?       @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   suscripciones Suscripciones[]
 
