@@ -838,6 +838,65 @@ async function main() {
       `${(filtroActiva ?? []).length} fila(s)`,
     );
 
+    // ------------------------------------------------------------------
+    // otorgarMembresia puede chocar contra el mismo índice único que
+    // canjear_codigo_invitacion ya resolvió — para la otra puerta (041)
+    //
+    // El usuario sigue con `estado = 'ACTIVA'` y `fecha_renovacion` vencida
+    // desde el bloque de arriba (nadie la cerró: no volvió a canjear). Es
+    // exactamente el estado en el que `otorgarMembresia` chocaba contra
+    // `suscripcion_activa_unica_por_usuario` con un 23505 crudo.
+    // ------------------------------------------------------------------
+    await esperarBloqueado(
+      "un NO administrador no puede llamar cerrar_suscripcion_caducada_admin (ni sobre sí mismo)",
+      clienteConAcceso.rpc("cerrar_suscripcion_caducada_admin", {
+        p_usuario_id: userConAcceso.user!.id,
+      }),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede llamar cerrar_suscripcion_caducada_admin",
+      clienteAdmin.rpc("cerrar_suscripcion_caducada_admin", {
+        p_usuario_id: userConAcceso.user!.id,
+      }),
+    );
+
+    const { data: filaCerrada } = await admin
+      .from("suscripciones")
+      .select("estado")
+      .eq("id_usuario", userConAcceso.user!.id)
+      .order("fecha_inicio", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    registrar(
+      "cerrar_suscripcion_caducada_admin puso VENCIDA la fila caducada",
+      filaCerrada?.estado === "VENCIDA",
+      `estado=${filaCerrada?.estado ?? "sin fila"}`,
+    );
+
+    // Antes de 041 este insert reventaba con 23505 contra
+    // suscripcion_activa_unica_por_usuario, porque la fila vieja seguía
+    // contando como ACTIVA para el índice. Es el mismo insert que hace
+    // otorgarMembresia (src/actions/admin/usuarios.ts) justo después del RPC
+    // de arriba.
+    const { error: errOtorgarTrasCierre } = await admin.from("suscripciones").insert({
+      id_usuario: userConAcceso.user!.id,
+      id_plan: plan.id,
+      fecha_inicio: new Date().toISOString(),
+      fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      estado: "ACTIVA",
+      proveedor: "manual",
+      monto_centavos: 0,
+      moneda: "COP",
+      acceso_manual: true,
+      otorgado_por: adminPerfil.id,
+    });
+    registrar(
+      "otorgar una membresía nueva tras cerrar la caducada YA NO choca con el índice único",
+      !errOtorgarTrasCierre,
+      errOtorgarTrasCierre?.message,
+    );
+
     const { error: errRestaurarPanel } = await admin
       .from("suscripciones")
       .update({ fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString() })

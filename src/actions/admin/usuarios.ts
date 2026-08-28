@@ -67,6 +67,16 @@ export async function otorgarMembresia(usuarioId: string, planId: string): Promi
 
   if (errorPlan || !plan) return { error: "No encontramos el plan seleccionado." };
 
+  // Cierra cualquier suscripción vieja que ya venció por fecha pero que
+  // nada había marcado como tal (private.suscripcion_da_acceso, 038): sin
+  // esto, el insert de abajo choca contra `suscripcion_activa_unica_por_usuario`
+  // en cuanto el usuario tuvo una invitación caducada, con un 23505 crudo en
+  // vez de un mensaje legible (supabase/sql/041).
+  const { error: errorCierre } = await admin.supabase.rpc("cerrar_suscripcion_caducada_admin", {
+    p_usuario_id: usuarioId,
+  });
+  if (errorCierre) return { error: "No pudimos otorgar la membresía." };
+
   const fechaInicio = new Date();
   const fechaRenovacion = new Date(fechaInicio);
   fechaRenovacion.setDate(fechaRenovacion.getDate() + plan.duracion_dias);
