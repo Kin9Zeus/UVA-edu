@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type CanjearCodigoResult = { error?: string; success?: true };
+export type CanjearCodigoResult = {
+  error?: string;
+  success?: true;
+  /**
+   * Solo presente cuando `error` viene del rate limit (P2-2): cuántos
+   * segundos faltan para que `verificar_limite_canjear_codigo` vuelva a
+   * permitir un intento. El cliente lo usa para deshabilitar el formulario
+   * con una cuenta regresiva en vez de dejar que seguir dando clic muestre
+   * el mismo error una y otra vez.
+   */
+  segundosEspera?: number;
+};
 
 const MOTIVO_ERROR: Record<string, string> = {
   codigo_invalido: "Ese código no existe.",
@@ -63,8 +74,12 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
     return { error: "No pudimos procesar el código. Intenta de nuevo." };
   }
 
-  if (!(limite as { permitido: boolean }).permitido) {
-    return { error: "Demasiados intentos. Espera un momento antes de volver a intentar." };
+  const { permitido, segundos_espera } = limite as { permitido: boolean; segundos_espera: number };
+  if (!permitido) {
+    return {
+      error: "Demasiados intentos. Espera un momento antes de volver a intentar.",
+      segundosEspera: segundos_espera,
+    };
   }
 
   const { data, error } = await admin
