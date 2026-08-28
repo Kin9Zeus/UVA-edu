@@ -14,6 +14,11 @@ export type UsuarioListado = {
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   cursosInscritos: number;
+  /**
+   * Estado EFECTIVO, no el crudo de `suscripciones.estado`: el RPC
+   * (supabase/sql/040) ya reporta VENCIDA cuando la fecha pasó aunque nada
+   * haya actualizado la fila todavía. No hace falta re-derivarlo aquí.
+   */
   suscripcionEstado: EstadoSuscripcionListado | null;
   /** null = sin suscripción o de pago. Misma clasificación que ve el estudiante, ver src/lib/estadoAcceso.ts. */
   tipoAccesoSuscripcion: TipoAccesoGratuito | null;

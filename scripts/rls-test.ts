@@ -784,6 +784,67 @@ async function main() {
         ? `${metricasAdmin.usuarios_registrados} = ${metricasAdmin.usuarios_acceso_vigente} + ${metricasAdmin.usuarios_acceso_vencido} + ${metricasAdmin.usuarios_sin_acceso}`
         : "sin fila",
     );
+
+    // ------------------------------------------------------------------
+    // admin_listar_usuarios usa vigencia real, no el estado crudo (040)
+    //
+    // Mismo caso del P0 de 038 (ACTIVA con fecha_renovacion pasada), pero
+    // visto desde la tabla del panel en vez del acceso al contenido: antes
+    // de 040 la fila de este usuario seguía diciendo "Activa" aquí aunque
+    // metricas_panel_usuarios ya lo contara como vencido — el panel
+    // contradiciéndose a sí mismo, justo lo que RevUsuariof4 pide evitar.
+    // ------------------------------------------------------------------
+    const { error: errVencerPanel } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errVencerPanel) throw new Error(`No pude vencer la suscripción para el panel: ${errVencerPanel.message}`);
+
+    const { data: filaVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
+      p_query: correoConAcceso,
+      p_limite: 5,
+      p_offset: 0,
+    });
+    const filaDelUsuario = (filaVencida ?? []).find(
+      (fila: { id: string }) => fila.id === userConAcceso.user!.id,
+    );
+    registrar(
+      "admin_listar_usuarios reporta VENCIDA para una ACTIVA con fecha pasada, no el estado crudo",
+      filaDelUsuario?.suscripcion_estado === "VENCIDA",
+      `suscripcion_estado=${filaDelUsuario?.suscripcion_estado ?? "fila no encontrada"}`,
+    );
+
+    const { data: filtroVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
+      p_query: correoConAcceso,
+      p_suscripcion: "VENCIDA",
+      p_limite: 5,
+      p_offset: 0,
+    });
+    registrar(
+      "filtro suscripcion=VENCIDA SÍ encuentra al acceso vencido por fecha",
+      (filtroVencida ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
+      `${(filtroVencida ?? []).length} fila(s)`,
+    );
+
+    const { data: filtroActiva } = await clienteAdmin.rpc("admin_listar_usuarios", {
+      p_query: correoConAcceso,
+      p_suscripcion: "ACTIVA",
+      p_limite: 5,
+      p_offset: 0,
+    });
+    registrar(
+      "filtro suscripcion=ACTIVA YA NO incluye al acceso vencido por fecha",
+      !(filtroActiva ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
+      `${(filtroActiva ?? []).length} fila(s)`,
+    );
+
+    const { error: errRestaurarPanel } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString() })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errRestaurarPanel) {
+      throw new Error(`No pude restaurar la suscripción tras la prueba del panel: ${errRestaurarPanel.message}`);
+    }
   } finally {
     console.log("\nLimpiando datos de prueba...");
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
