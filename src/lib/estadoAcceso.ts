@@ -68,6 +68,42 @@ export function tipoAccesoGratuito(
   return suscripcion.tieneCodigoInvitacion ? "INVITACION" : "OTORGADO_ADMIN";
 }
 
+export type EstadoSuscripcionAdmin = "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA";
+
+/**
+ * Única fuente de verdad para pintar `suscripciones.estado` en el panel
+ * admin (listado de usuarios y ficha de usuario) — vivía duplicada solo en
+ * `UsuariosTable.tsx`, y la ficha de usuario no la mostraba en absoluto:
+ * un admin que revocaba una membresía manual (`revocarMembresia`, deja
+ * `estado = 'CANCELADA'`) no tenía forma de verlo en la ficha del usuario,
+ * solo notaba que el botón "Revocar membresía" había desaparecido.
+ */
+export const ETIQUETA_ESTADO_SUSCRIPCION: Record<EstadoSuscripcionAdmin, string> = {
+  ACTIVA: "Activa",
+  PAST_DUE: "Pago pendiente",
+  VENCIDA: "Vencida",
+  CANCELADA: "Cancelada",
+};
+
+export const TONO_ESTADO_SUSCRIPCION: Record<EstadoSuscripcionAdmin, "success" | "warning" | "error" | "neutral"> = {
+  ACTIVA: "success",
+  PAST_DUE: "warning",
+  VENCIDA: "error",
+  CANCELADA: "neutral",
+};
+
+/**
+ * Si el estado todavía da acceso (misma regla que `suscripcionDaAcceso`,
+ * sin mirar la fecha: aquí solo importa si vale la pena seguir mostrando
+ * "Acceso otorgado"/"Invitación gratuita" como si el acceso siguiera en
+ * pie). Una suscripción CANCELADA o VENCIDA no debería seguir luciendo esa
+ * etiqueta junto a su estado — leía como si el acceso "otorgado" siguiera
+ * activo cuando ya no lo está.
+ */
+export function suscripcionEstaVigentePorEstado(estado: EstadoSuscripcionAdmin | null): boolean {
+  return estado === "ACTIVA" || estado === "PAST_DUE";
+}
+
 /**
  * Días de calendario colombiano que faltan hasta `fechaRenovacion`:
  * 0 = vence hoy, 1 = mañana, y NEGATIVO si ya pasó.

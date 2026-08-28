@@ -16,6 +16,8 @@ export type CursoDelUsuario = {
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
   /** Solo relevante para CORTESIA: false si el admin la revocó (f4accesos.md). MEMBRESIA siempre viene en true — no tiene este concepto. */
   activo: boolean;
+  /** Motivo que el admin escribió al revocar. null si sigue activa o si es MEMBRESIA (ese concepto no existe ahí). */
+  motivoRevocacion: string | null;
   ultimaActividad: string | null;
 };
 
@@ -37,6 +39,8 @@ export type UsuarioDetalle = {
   /** Cuándo empezó y cuándo se vence/renueva la suscripción actual. null si nunca tuvo una. */
   suscripcionInicio: string | null;
   suscripcionFin: string | null;
+  /** Motivo que el admin escribió al revocar (`revocarMembresia`). null si nunca se canceló a mano. */
+  suscripcionMotivoCancelacion: string | null;
   cursos: CursoDelUsuario[];
   metricas: {
     cursosInscritos: number;
@@ -60,7 +64,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   const { data: suscripciones } = await supabase
     .from("suscripciones")
     .select(
-      "id, estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, plan:planes(nombre)",
+      "id, estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, motivo_cancelacion, plan:planes(nombre)",
     )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
@@ -93,7 +97,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
-    .select("id, id_curso, tipo_acceso, activo, curso:cursos(titulo)")
+    .select("id, id_curso, tipo_acceso, activo, motivo_revocacion, curso:cursos(titulo)")
     .eq("id_usuario", usuarioId);
 
   const cursos: CursoDelUsuario[] = [];
@@ -132,6 +136,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
       activo: inscripcion.activo,
+      motivoRevocacion: inscripcion.motivo_revocacion,
       ultimaActividad,
     });
   }
@@ -198,6 +203,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: "MEMBRESIA",
       activo: true,
+      motivoRevocacion: null,
       ultimaActividad: datos.ultimaActividad,
     });
   }
@@ -235,6 +241,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     tipoAccesoSuscripcion,
     suscripcionInicio: suscripcion?.fecha_inicio ?? null,
     suscripcionFin: suscripcion?.fecha_renovacion ?? null,
+    suscripcionMotivoCancelacion: suscripcion?.motivo_cancelacion ?? null,
     cursos,
     metricas: {
       cursosInscritos: cursos.length,

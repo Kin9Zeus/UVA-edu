@@ -103,27 +103,42 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
           <div>
             <p className="font-heading text-xl text-uva-text">{nombrePlan}</p>
             <p className="text-[13px] text-uva-text-muted">
-              {suscripcion.fechaRenovacion
-                ? // Un acceso manual (cupón/cortesía) no se renueva solo: se
-                  // vence y punto, no hay cobro automático detrás. "Renovación"
-                  // ahí prometía algo que no iba a pasar. La de pago sí
-                  // renueva, así que conserva su palabra.
-                  `${suscripcion.accesoManual ? "Vence" : "Renovación"} ${formatFecha(suscripcion.fechaRenovacion)}`
-                : "Sin fecha de vencimiento"}
+              {/* Sin acceso vigente (revocada, cancelada o vencida por fecha):
+                  "Vence"/"Renovación" en futuro le mentiría al estudiante —
+                  ese acceso ya no está en curso, así que la fecha pasa a ser
+                  solo un dato histórico. */}
+              {!accesoVigente
+                ? `${ESTADO_LABEL[estadoMostrado]}${
+                    suscripcion.fechaRenovacion ? ` desde el ${formatFecha(suscripcion.fechaRenovacion)}` : ""
+                  }`
+                : suscripcion.fechaRenovacion
+                  ? // Un acceso manual (cupón/cortesía) no se renueva solo: se
+                    // vence y punto, no hay cobro automático detrás. "Renovación"
+                    // ahí prometía algo que no iba a pasar. La de pago sí
+                    // renueva, así que conserva su palabra.
+                    `${suscripcion.accesoManual ? "Vence" : "Renovación"} ${formatFecha(suscripcion.fechaRenovacion)}`
+                  : "Sin fecha de vencimiento"}
             </p>
           </div>
           <div className="ml-auto text-right">
-            {dias !== null ? (
+            {/* "X días restantes" solo tiene sentido con acceso vigente: una
+                CANCELADA con fecha de renovación todavía futura (el admin
+                revocó antes de que terminara el periodo) seguía mostrando
+                "quedan 12 días" — que leía como suscripción activa cuando ya
+                no lo estaba. */}
+            {accesoVigente && dias !== null ? (
               <>
                 <p className="font-heading text-2xl text-uva-accent">{dias}</p>
                 <p className="text-[11.5px] text-uva-text-muted">días restantes</p>
               </>
             ) : (
-              <Badge variant="secondary">{ESTADO_LABEL[estadoMostrado]}</Badge>
+              <Badge variant={accesoVigente ? "default" : estadoMostrado === "CANCELADA" ? "secondary" : "destructive"}>
+                {ESTADO_LABEL[estadoMostrado]}
+              </Badge>
             )}
           </div>
         </div>
-        {suscripcion.fechaRenovacion && (
+        {accesoVigente && suscripcion.fechaRenovacion && (
           <div className="h-[7px] rounded-full bg-black/25">
             <div
               className="h-full rounded-full bg-uva-accent"
@@ -131,7 +146,10 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
             />
           </div>
         )}
-        <Badge variant="secondary" className="w-fit">
+        <Badge
+          variant={accesoVigente ? "default" : estadoMostrado === "CANCELADA" ? "secondary" : "destructive"}
+          className="w-fit"
+        >
           {ESTADO_LABEL[estadoMostrado]}
         </Badge>
       </div>

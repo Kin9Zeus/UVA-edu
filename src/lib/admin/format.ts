@@ -29,6 +29,18 @@ export function formatFecha(fechaIso: string) {
   });
 }
 
+/** Fecha y hora (bitácora administrativa): una fila por acción, más de una puede caer el mismo día. */
+export function formatFechaHora(fechaIso: string) {
+  return new Date(fechaIso).toLocaleString("es-CO", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Bogota",
+  });
+}
+
 export function formatMoneda(centavos: number, moneda: string) {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",

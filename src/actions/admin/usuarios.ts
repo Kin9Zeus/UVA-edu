@@ -199,7 +199,11 @@ export async function quitarCortesia(
     idAdmin: admin.adminId,
     accion: "Revocó un curso de cortesía",
     entidadAfectada: "inscripciones",
-    idEntidadAfectada: inscripcionId,
+    // usuarioId, no inscripcionId: mismo criterio que ofrecerCortesia() y
+    // revocarMembresia() — la bitácora resuelve "a quién" enlazando
+    // id_entidad_afectada a /admin/usuarios/[id], y ahí solo sirve un id de
+    // usuario.
+    idEntidadAfectada: usuarioId,
     detalles: motivoLimpio,
   });
 

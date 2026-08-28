@@ -64,7 +64,13 @@ export function EstadoAccesoCard({
               : "ml-auto shrink-0 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text"
           }
         >
-          {ETIQUETA_TIPO_ACCESO[tipo]}
+          {/* Antes decía "Acceso otorgado"/"Invitación gratuita" (el
+              ORIGEN del acceso) incluso ya terminado, y la línea de abajo
+              decía "estuvo vigente hasta X, ya terminó" justo debajo — dos
+              frases contradiciéndose en la misma tarjeta. El badge ahora
+              habla del ESTADO actual; el origen queda solo en el párrafo
+              de descripción. */}
+          {vencido ? "Acceso finalizado" : ETIQUETA_TIPO_ACCESO[tipo]}
         </span>
       </div>
 
