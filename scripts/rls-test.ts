@@ -45,6 +45,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // dentro de `main()`, el módulo se evalúa después de que el .env ya cargó.
 type ResolverTokenReproduccion = typeof import("../src/lib/video/reproduccion").resolverTokenReproduccion;
 type BuscarMembresiaVigente = typeof import("../src/lib/admin/membresiaManual").buscarMembresiaVigente;
+type SuscripcionDaAcceso = typeof import("../src/lib/estadoAcceso").suscripcionDaAcceso;
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -90,6 +91,13 @@ async function main() {
   // no dependa de ninguna variable de entorno (solo tipos de supabase-js).
   const { buscarMembresiaVigente }: { buscarMembresiaVigente: BuscarMembresiaVigente } =
     await import("../src/lib/admin/membresiaManual");
+  // La gemela en TypeScript de private.suscripcion_da_acceso(). Se importa
+  // para poder comprobar que las DOS dicen lo mismo, que es lo que exige la
+  // cabecera de 038 y lo que dejó de cumplirse mientras la columna fue
+  // `timestamp` sin zona. `estadoAcceso` solo trae `calcularDiasGracia` y un
+  // `import type`, así que no arrastra `next/headers` a este script.
+  const { suscripcionDaAcceso }: { suscripcionDaAcceso: SuscripcionDaAcceso } =
+    await import("../src/lib/estadoAcceso");
 
   const admin = createClient(URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -100,6 +108,9 @@ async function main() {
   const correoSinAcceso = `rls-test-sin-acceso-${sufijo}@uva.test`;
   const correoConAcceso = `rls-test-con-acceso-${sufijo}@uva.test`;
   const correoAdmin = `rls-test-admin-${sufijo}@uva.test`;
+  // Se declara aquí, no dentro del try, para que la limpieza del finally pueda
+  // borrar los pagos de prueba aunque una aserción falle antes.
+  const refPagoPrueba = `ref_rls_test_${sufijo}`;
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -973,8 +984,241 @@ async function main() {
     if (errRestaurarPanel) {
       throw new Error(`No pude restaurar la suscripción tras la prueba del panel: ${errRestaurarPanel.message}`);
     }
+
+    console.log("\n=== Sesión: ESQUEMA LISTO PARA COBRO (042/043) ===\n");
+
+    // --- Regresión de la vigencia (043) -----------------------------------
+    //
+    // El caso que fallaba: una fecha de renovación fijada a las 3:00 p.m. hora
+    // de Colombia. Mientras `fecha_renovacion` fue `timestamp` sin zona, la
+    // app guardaba las 20:00 UTC desnudas y 038 las reinterpretaba como hora
+    // de Bogotá — sumando cinco horas en vez de restarlas, y corriendo el día
+    // civil al siguiente. Resultado: SQL decía "vigente" sobre una suscripción
+    // que TypeScript ya daba por vencida, y el estudiante conservaba las
+    // descargas un día después de perder el video.
+    //
+    // Se elige AYER a las 3:00 p.m. de Bogotá porque es el instante donde las
+    // dos capas discrepaban: TS lo ve vencido (ayer < hoy) y el SQL viejo lo
+    // veía vigente (su cuenta daba hoy).
+    const ayer3pmBogota = new Date();
+    ayer3pmBogota.setUTCDate(ayer3pmBogota.getUTCDate() - 1);
+    ayer3pmBogota.setUTCHours(20, 0, 0, 0); // 20:00 UTC = 15:00 en Bogotá
+    const fechaLimite = ayer3pmBogota.toISOString();
+
+    // A estas alturas el usuario arrastra DOS suscripciones: la que quedó
+    // VENCIDA al probar el cierre de caducadas y la que se otorgó después. Hay
+    // que quedarse con el id de la vigente y operar sobre esa: un update por
+    // `id_usuario` tocaría las dos y pondría dos filas en ACTIVA, que es justo
+    // lo que el índice único parcial prohíbe.
+    const { data: suscripcionVigente } = await admin
+      .from("suscripciones")
+      .select("id")
+      .eq("id_usuario", userConAcceso.user!.id)
+      .in("estado", ["ACTIVA", "PAST_DUE"])
+      .maybeSingle();
+    if (!suscripcionVigente) {
+      throw new Error("No encontré la suscripción vigente para la prueba de fechas.");
+    }
+
+    const { error: errFijarLimite } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: fechaLimite })
+      .eq("id", suscripcionVigente.id);
+    if (errFijarLimite) {
+      throw new Error(`No pude fijar la fecha límite de la prueba de vigencia: ${errFijarLimite.message}`);
+    }
+
+    const tsDiceVigente = suscripcionDaAcceso({
+      estado: "ACTIVA",
+      fechaRenovacion: fechaLimite,
+    });
+    registrar(
+      "TypeScript da por VENCIDA una renovación de ayer 3:00 p.m. hora de Colombia",
+      tsDiceVigente === false,
+      `suscripcionDaAcceso = ${tsDiceVigente}`,
+    );
+
+    // `private.suscripcion_da_acceso` no está expuesta a PostgREST, así que se
+    // observa a través de quien la usa: el cierre de caducadas solo marca
+    // VENCIDA cuando esa función dice que ya no hay acceso.
+    await esperarPermitido(
+      "cerrar_suscripcion_caducada_admin corre sobre la fecha límite",
+      clienteAdmin.rpc("cerrar_suscripcion_caducada_admin", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    const { data: filaTrasLimite } = await admin
+      .from("suscripciones")
+      .select("estado")
+      .eq("id", suscripcionVigente.id)
+      .maybeSingle();
+    const sqlDiceVigente = filaTrasLimite?.estado === "ACTIVA";
+    registrar(
+      "SQL coincide con TypeScript en el caso de las 3:00 p.m. (regresión de 043)",
+      sqlDiceVigente === tsDiceVigente,
+      `TS vigente=${tsDiceVigente}, SQL vigente=${sqlDiceVigente} (estado=${filaTrasLimite?.estado})`,
+    );
+
+    const { error: errRestaurarVigencia } = await admin
+      .from("suscripciones")
+      .update({
+        estado: "ACTIVA",
+        fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      })
+      .eq("id", suscripcionVigente.id);
+    if (errRestaurarVigencia) {
+      throw new Error(`No pude restaurar la vigencia tras la prueba de fechas: ${errRestaurarVigencia.message}`);
+    }
+
+    // --- Restricciones de dinero y procedencia (042) ----------------------
+    //
+    // Se prueban con Service Role, que ignora RLS: lo que tiene que frenar
+    // aquí es el CHECK de la base, no una policy. 23514 = check_violation.
+    const suscripcionBase = {
+      id_usuario: userSinAcceso.user!.id,
+      id_plan: null,
+      fecha_inicio: new Date().toISOString(),
+      fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      estado: "VENCIDA" as const, // VENCIDA para no chocar con el índice único parcial
+      proveedor: "manual",
+      monto_centavos: 0,
+      moneda: "COP",
+      acceso_manual: true,
+    };
+
+    const { error: errMonedaMinuscula } = await admin
+      .from("suscripciones")
+      .insert({ ...suscripcionBase, moneda: "usd" });
+    registrar(
+      "moneda en minúsculas se rechaza — es lo que envía Stripe y lo que tumbaba formatMoneda",
+      errMonedaMinuscula?.code === "23514",
+      errMonedaMinuscula ? `${errMonedaMinuscula.code}` : "el insert pasó: el CHECK de ISO-4217 no está",
+    );
+
+    const { error: errMontoNegativo } = await admin
+      .from("suscripciones")
+      .insert({ ...suscripcionBase, monto_centavos: -1 });
+    registrar(
+      "un monto negativo se rechaza — un reembolso se modela con estado, no con signo",
+      errMontoNegativo?.code === "23514",
+      errMontoNegativo ? `${errMontoNegativo.code}` : "el insert pasó: el CHECK de monto no está",
+    );
+
+    const { error: errProveedorMayuscula } = await admin
+      .from("suscripciones")
+      .insert({ ...suscripcionBase, proveedor: "Stripe", acceso_manual: false });
+    registrar(
+      "'Stripe' con mayúscula se rechaza — el typo que rompería la conciliación en silencio",
+      errProveedorMayuscula?.code === "23514",
+      errProveedorMayuscula ? `${errProveedorMayuscula.code}` : "el insert pasó: la lista cerrada no está",
+    );
+
+    const { error: errManualIncoherente } = await admin
+      .from("suscripciones")
+      .insert({ ...suscripcionBase, proveedor: "manual", acceso_manual: false });
+    registrar(
+      "acceso_manual ya no puede contradecir a proveedor",
+      errManualIncoherente?.code === "23514",
+      errManualIncoherente ? `${errManualIncoherente.code}` : "el insert pasó: las dos columnas pueden separarse",
+    );
+
+    const { error: errSuscripcionStripe } = await admin
+      .from("suscripciones")
+      .insert({ ...suscripcionBase, proveedor: "stripe", acceso_manual: false });
+    registrar(
+      "'stripe' SÍ es un origen válido hoy, aunque no exista el cobro — el requisito de la tarea",
+      !errSuscripcionStripe,
+      errSuscripcionStripe?.message,
+    );
+
+    // --- Idempotencia compuesta de pagos (042 + migración) ----------------
+    const pagoBase = {
+      id_suscripcion: suscripcionVigente.id,
+      estado: "EXITOSO" as const,
+      monto_centavos: 8_990_000,
+      moneda: "COP",
+      ref_transaccion_externa: refPagoPrueba,
+    };
+
+    const { error: errPagoMux } = await admin
+      .from("pagos")
+      .insert({ ...pagoBase, proveedor: "mux" });
+    registrar(
+      "pagos rechaza 'mux' aunque eventos_webhook lo admita — por eso no es un enum compartido",
+      errPagoMux?.code === "23514",
+      errPagoMux ? `${errPagoMux.code}` : "el insert pasó: pagos admite un proveedor que no cobra",
+    );
+
+    await esperarPermitido(
+      "un pago de Stripe se registra",
+      admin.from("pagos").insert({ ...pagoBase, proveedor: "stripe" }),
+    );
+    await esperarPermitido(
+      "la MISMA referencia bajo otra pasarela también, porque la clave es (proveedor, referencia)",
+      admin.from("pagos").insert({ ...pagoBase, proveedor: "wompi" }),
+    );
+
+    const { error: errPagoDuplicado } = await admin
+      .from("pagos")
+      .insert({ ...pagoBase, proveedor: "stripe" });
+    registrar(
+      "repetir (proveedor, referencia) SÍ choca: es la clave de idempotencia del cobro",
+      errPagoDuplicado?.code === "23505",
+      errPagoDuplicado ? `${errPagoDuplicado.code}` : "el insert pasó: un reintento duplicaría el pago",
+    );
+
+    // --- El muro de acceso sigue siendo agnóstico al origen ---------------
+    const { data: reembolsado, error: errReembolso } = await admin
+      .from("pagos")
+      .update({ estado: "REEMBOLSADO" })
+      .eq("ref_transaccion_externa", refPagoPrueba)
+      .eq("proveedor", "wompi")
+      .select("estado")
+      .maybeSingle();
+    registrar(
+      "un pago se puede marcar REEMBOLSADO sin destruir la fila original",
+      !errReembolso && reembolsado?.estado === "REEMBOLSADO",
+      errReembolso?.message ?? `estado=${reembolsado?.estado}`,
+    );
+
+    await esperarBloqueado(
+      "estudiante no puede leer planes_precios inactivos (RLS de la tabla nueva)",
+      clienteSinAcceso.from("planes_precios").select("*").eq("activo", false),
+    );
+    await esperarBloqueado(
+      "estudiante no puede escribir en planes_precios",
+      clienteSinAcceso
+        .from("planes_precios")
+        .insert({
+          id_plan: plan.id,
+          proveedor: "stripe",
+          id_precio_externo: "price_rls_test",
+          monto_centavos: 8_990_000,
+          moneda: "COP",
+        })
+        .select(),
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
+
+    // El orden lo dictan las FK, y antes no lo respetaba: los cursos se
+    // borraban ANTES que las inscripciones de los usuarios de prueba, así que
+    // una inscripción sobre `cursoReproduccion` bloqueaba el borrado del curso
+    // y, más abajo, el del propio perfil (la FK es RESTRICT). Como el error de
+    // `deleteUser` no se comprobaba, cada corrida dejaba un usuario de prueba
+    // vivo en la base sin avisar — se habían acumulado ocho.
+    //
+    // Ahora va de las hojas al tronco: primero todo lo que cuelga de los
+    // usuarios, después el contenido, y los usuarios al final.
+    const usuariosDePrueba = [userSinAcceso.user!, userConAcceso.user!, userAdmin.user!];
+
+    // Los pagos van antes que las suscripciones: `pagos.id_suscripcion` es una
+    // FK sin cascada.
+    await admin.from("pagos").delete().eq("ref_transaccion_externa", refPagoPrueba);
+    for (const usuario of usuariosDePrueba) {
+      await admin.from("progreso").delete().eq("id_usuario", usuario.id);
+      await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);
+      await admin.from("suscripciones").delete().eq("id_usuario", usuario.id);
+    }
+
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
     await admin.from("modulos").delete().eq("id_curso", cursoReproduccion.id);
     await admin.from("cursos").delete().eq("id", cursoReproduccion.id);
@@ -983,11 +1227,16 @@ async function main() {
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);
     await admin.from("instructores").delete().eq("id", instructor.id);
     await admin.from("categorias").delete().eq("id", categoria.id);
-    await admin.from("suscripciones").delete().eq("id_usuario", userConAcceso.user!.id);
     await admin.from("planes").delete().eq("id", plan.id);
-    await admin.auth.admin.deleteUser(userSinAcceso.user!.id);
-    await admin.auth.admin.deleteUser(userConAcceso.user!.id);
-    await admin.auth.admin.deleteUser(userAdmin.user!.id);
+
+    for (const usuario of usuariosDePrueba) {
+      const { error } = await admin.auth.admin.deleteUser(usuario.id);
+      // Se avisa en vez de seguir en silencio: si vuelve a quedar algo
+      // colgando, el síntoma tiene que ser visible en la corrida que lo causa.
+      if (error) {
+        console.log(`⚠️  No pude borrar el usuario de prueba ${usuario.email}: ${error.message}`);
+      }
+    }
   }
 
   const fallidos = resultados.filter((r) => !r.ok);
