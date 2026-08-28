@@ -1,5 +1,14 @@
-/** Días de gracia que Revcurso ofrece a una suscripción PAST_DUE antes de cortar el acceso. */
-const DURACION_GRACIA_DIAS = 5;
+/**
+ * Días de gracia que Revcurso ofrece a una suscripción PAST_DUE antes de
+ * cortar el acceso.
+ *
+ * Este valor está DUPLICADO en SQL: la vista `metricas_panel_usuarios`
+ * (supabase/sql/036_vistas_metricas_panel.sql) decide con `interval '5 days'`
+ * quién cuenta como "acceso vigente", y Postgres no puede importar una
+ * constante de TypeScript. Si cambias este número, cambia también el de la
+ * vista — hay un test que falla si se separan (src/lib/gracia.test.ts).
+ */
+export const DURACION_GRACIA_DIAS = 5;
 
 /**
  * Días de gracia restantes de una suscripción PAST_DUE, a partir de su

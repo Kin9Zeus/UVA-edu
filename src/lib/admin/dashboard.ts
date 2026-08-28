@@ -25,7 +25,10 @@ export async function getDashboardData() {
     { count: cursosBorrador },
     { count: inscripciones },
   ] = await Promise.all([
-    supabase.from("perfiles").select("id", { count: "exact", head: true }),
+    // Solo estudiantes: el panel mide a quienes usan la plataforma, no al
+    // equipo de UVA. Antes contaba también a los administradores, así que
+    // esta cifra y la de /admin/usuarios no coincidían.
+    supabase.from("perfiles").select("id", { count: "exact", head: true }).eq("rol", "ESTUDIANTE"),
     supabase.from("cursos").select("id", { count: "exact", head: true }).eq("mostrado", true),
     supabase.from("cursos").select("id", { count: "exact", head: true }).eq("mostrado", false),
     supabase.from("inscripciones").select("id", { count: "exact", head: true }),
@@ -65,36 +68,44 @@ export async function getDashboardData() {
     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .slice(0, 6);
 
-  const { data: cursos } = await supabase
-    .from("cursos")
-    .select("id, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
-    .order("creado_en", { ascending: false })
-    .limit(20);
+  // El avance por curso lo calcula Postgres en la vista `avance_cursos`
+  // (supabase/sql/036), no este archivo.
+  //
+  // Antes se hacía aquí con `completados / total de filas de progreso`, que
+  // inflaba la cifra: ignoraba las lecciones que nadie tocó, así que un curso
+  // de 20 lecciones donde una persona vio y completó una sola marcaba 100%.
+  // Es el mismo bug que ya habían corregido usuarioDetalle.ts y
+  // cursoDetalle.ts; este era el último sitio que lo conservaba, y hacía que
+  // /admin y /admin/usuarios mostraran números distintos para lo mismo.
+  //
+  // De paso desaparece el N+1: había una consulta de progreso por cada curso
+  // del top, dentro de un Promise.all.
+  const [{ data: cursos }, { data: avances }] = await Promise.all([
+    supabase
+      .from("cursos")
+      .select("id, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
+      .order("creado_en", { ascending: false })
+      .limit(20),
+    supabase
+      .from("avance_cursos")
+      .select("curso_id, participantes, avance_promedio")
+      .order("participantes", { ascending: false })
+      .limit(20),
+  ]);
 
-  const { data: todasInscripciones } = await supabase.from("inscripciones").select("id_curso");
+  const avancePorCurso = new Map(
+    (avances ?? []).map((fila) => [
+      fila.curso_id as string,
+      {
+        estudiantes: Number(fila.participantes),
+        porcentaje: Number(fila.avance_promedio),
+      },
+    ]),
+  );
 
-  const conteoInscritos = new Map<string, number>();
-  for (const inscripcion of todasInscripciones ?? []) {
-    conteoInscritos.set(inscripcion.id_curso, (conteoInscritos.get(inscripcion.id_curso) ?? 0) + 1);
-  }
-
-  const topCursos = (cursos ?? [])
-    .map((curso) => ({
-      ...curso,
-      estudiantes: conteoInscritos.get(curso.id) ?? 0,
-    }))
-    .sort((a, b) => b.estudiantes - a.estudiantes)
-    .slice(0, 5);
-
-  const cursosPopulares: CursoPopular[] = await Promise.all(
-    topCursos.map(async (curso) => {
-      const { data: progreso } = await supabase
-        .from("progreso")
-        .select("completado, leccion:lecciones!inner(modulo:modulos!inner(id_curso))")
-        .eq("leccion.modulo.id_curso", curso.id);
-
-      const total = progreso?.length ?? 0;
-      const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
+  const cursosPopulares: CursoPopular[] = (cursos ?? [])
+    .map((curso) => {
+      const avance = avancePorCurso.get(curso.id);
       // Todas las categorías del curso, no solo la primera. Acá se unen en
       // una cadena porque esta tabla del panel es un resumen de una línea
       // por curso; el listado de /admin/cursos sí las pinta como chips.
@@ -110,12 +121,13 @@ export async function getDashboardData() {
         id: curso.id,
         titulo: curso.titulo,
         categoria: nombresCategorias.join(", ") || "Sin categoría",
-        estudiantes: curso.estudiantes,
-        porcentajeFinalizacion: total > 0 ? Math.round((completados / total) * 100) : 0,
+        estudiantes: avance?.estudiantes ?? 0,
+        porcentajeFinalizacion: avance?.porcentaje ?? 0,
         mostrado: curso.mostrado,
       };
-    }),
-  );
+    })
+    .sort((a, b) => b.estudiantes - a.estudiantes)
+    .slice(0, 5);
 
   return {
     metricas: {

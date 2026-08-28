@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Users, BookOpen, FileEdit, GraduationCap } from "lucide-react";
 import { AdminCard } from "@/components/admin/AdminCard";
+import { MetricaCard } from "@/components/admin/MetricaCard";
 import {
   Table,
   TableBody,
@@ -54,21 +55,12 @@ export default async function AdminDashboardPage() {
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tarjetas.map(({ label, valor, icon: Icon }) => (
-          // El mockup solo pinta etiqueta y valor; el icono es un añadido del
-          // panel, así que va como acento en la esquina para no romper esa
-          // lectura de arriba abajo.
-          <AdminCard key={label} className="gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[12.5px] text-uva-muted">{label}</p>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-uva-md bg-uva-accent-soft text-uva-accent-text">
-                <Icon className="size-[18px]" strokeWidth={1.9} />
-              </div>
-            </div>
-            <p className="font-mono text-[28px] leading-none font-bold tabular-nums">
-              {valor}
-            </p>
-          </AdminCard>
+        {/* El mockup solo pinta etiqueta y valor; el icono es un añadido del
+            panel, así que va como acento en la esquina para no romper esa
+            lectura de arriba abajo. El markup vive en MetricaCard para que
+            esta pantalla y /admin/usuarios se lean igual. */}
+        {tarjetas.map(({ label, valor, icon }) => (
+          <MetricaCard key={label} label={label} valor={valor} icon={icon} />
         ))}
       </div>
 

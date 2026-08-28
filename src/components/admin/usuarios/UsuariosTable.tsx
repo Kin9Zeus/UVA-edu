@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Download } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -21,11 +23,12 @@ import {
 } from "@/components/ui/select";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { Paginacion } from "@/components/Paginacion";
 import { useAdminToast } from "@/components/admin/Toast";
-import { useAdminSearch } from "@/components/admin/SearchContext";
 import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
+import { exportarUsuariosCsv } from "@/actions/admin/exportarUsuarios";
 import { formatFecha } from "@/lib/admin/format";
-import type { UsuarioListado } from "@/lib/admin/usuarios";
+import type { ResultadoUsuarios, UsuarioListado } from "@/lib/admin/usuarios";
 import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
 
 /** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil) y el admin en la ficha de usuario. */
@@ -55,53 +58,106 @@ const SUSCRIPCION_TONO: Record<NonNullable<UsuarioListado["suscripcionEstado"]>,
 
 const ROL_ITEMS = { todos: "Todos los roles", ...ROL_LABEL };
 const ESTADO_CUENTA_ITEMS = { todos: "Todos los estados", ACTIVO: "Activo", SUSPENDIDO: "Suspendido" };
-const SUSCRIPCION_ITEMS = { todos: "Toda suscripción", ...SUSCRIPCION_LABEL };
+const SUSCRIPCION_ITEMS = {
+  todos: "Toda suscripción",
+  ...SUSCRIPCION_LABEL,
+  SIN_SUSCRIPCION: "Sin suscripción",
+};
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   return partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "").join("") || "U";
 }
 
-export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: UsuarioListado[] }) {
-  const [usuarios, setUsuarios] = useState(usuariosIniciales);
-  // El texto de búsqueda lo escribe el header (mockup: `showSearch`).
-  const { query: busqueda } = useAdminSearch();
-  const [filtroRol, setFiltroRol] = useState<string>("todos");
-  const [filtroEstado, setFiltroEstado] = useState<string>("todos");
-  const [filtroSuscripcion, setFiltroSuscripcion] = useState<string>("todos");
+export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const showToast = useAdminToast();
+  const [pendiente, startTransition] = useTransition();
+  const [exportando, setExportando] = useState(false);
 
-  const filtrados = useMemo(() => {
-    return usuarios.filter((usuario) => {
-      const coincideBusqueda =
-        !busqueda ||
-        usuario.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        usuario.correo.toLowerCase().includes(busqueda.toLowerCase());
-      const coincideRol = filtroRol === "todos" || usuario.rol === filtroRol;
-      const coincideEstado = filtroEstado === "todos" || usuario.estado === filtroEstado;
-      const coincideSuscripcion =
-        filtroSuscripcion === "todos" || usuario.suscripcionEstado === filtroSuscripcion;
-      return coincideBusqueda && coincideRol && coincideEstado && coincideSuscripcion;
+  /**
+   * Los filtros viven en la URL, no en `useState`, porque el filtrado ocurre
+   * en Postgres (RPC admin_listar_usuarios). Filtrar en cliente sobre la
+   * página cargada daría resultados falsos: "suspendidos" mostraría los
+   * suspendidos de estas 25 filas, no de todos los usuarios.
+   */
+  const valorFiltro = (clave: string) => searchParams.get(clave) ?? "todos";
+
+  function actualizarUrl(cambios: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams);
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor === null || valor === "" || valor === "todos") params.delete(clave);
+      else params.set(clave, valor);
+    }
+    // Cualquier cambio de filtro vuelve a la página 1: si estabas en la 3 y
+    // el filtro deja dos resultados, la 3 queda vacía.
+    if (!("page" in cambios)) params.delete("page");
+
+    const cadena = params.toString();
+    startTransition(() => {
+      router.replace(cadena ? `${pathname}?${cadena}` : pathname, { scroll: false });
     });
-  }, [usuarios, busqueda, filtroRol, filtroEstado, filtroSuscripcion]);
+  }
 
   async function handleToggleEstado(usuario: UsuarioListado) {
     const nuevoEstado = usuario.estado === "ACTIVO" ? "SUSPENDIDO" : "ACTIVO";
-    const resultado = await suspenderActivarUsuario(usuario.id, nuevoEstado);
-    if (resultado.error) {
-      showToast(resultado.error, "error");
+    const respuesta = await suspenderActivarUsuario(usuario.id, nuevoEstado);
+    if (respuesta.error) {
+      showToast(respuesta.error, "error");
       return;
     }
-    setUsuarios((current) =>
-      current.map((item) => (item.id === usuario.id ? { ...item, estado: nuevoEstado } : item)),
-    );
+    // Sin estado local: la acción ya hace revalidatePath("/admin/usuarios") y
+    // el servidor devuelve la página con los filtros aplicados. Mutar una
+    // copia en memoria dejaría visible una fila que el filtro actual ya
+    // excluye (p. ej. suspender con el filtro "Activo" puesto).
     showToast(nuevoEstado === "SUSPENDIDO" ? "Usuario suspendido." : "Usuario activado.");
   }
+
+  async function handleExportar() {
+    setExportando(true);
+    try {
+      const respuesta = await exportarUsuariosCsv({
+        query: searchParams.get("q") ?? undefined,
+        desde: searchParams.get("desde") ?? undefined,
+        hasta: searchParams.get("hasta") ?? undefined,
+        rol: searchParams.get("rol") ?? undefined,
+        estado: searchParams.get("estado") ?? undefined,
+        suscripcion: searchParams.get("suscripcion") ?? undefined,
+      });
+
+      if (respuesta.error || !respuesta.csv || !respuesta.nombreArchivo) {
+        showToast(respuesta.error ?? "No pudimos generar la exportación.", "error");
+        return;
+      }
+
+      // El Server Action devuelve el CSV como texto y la descarga se dispara
+      // aquí: CLAUDE.md §3.1 reserva /api/ para webhooks externos, así que no
+      // hay Route Handler que sirva el archivo.
+      const blob = new Blob([respuesta.csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = respuesta.nombreArchivo;
+      enlace.click();
+      URL.revokeObjectURL(url);
+      showToast("Exportación descargada.");
+    } finally {
+      setExportando(false);
+    }
+  }
+
+  const { usuarios, total, pagina, totalPaginas } = resultado;
 
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-center gap-3">
-        <Select items={ROL_ITEMS} value={filtroRol} onValueChange={(value) => setFiltroRol(value ?? "todos")}>
+        <Select
+          items={ROL_ITEMS}
+          value={valorFiltro("rol")}
+          onValueChange={(value) => actualizarUrl({ rol: value ?? "todos" })}
+        >
           <SelectTrigger><SelectValue placeholder="Rol" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los roles</SelectItem>
@@ -110,10 +166,10 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
           </SelectContent>
         </Select>
         <Select
-            items={ESTADO_CUENTA_ITEMS}
-            value={filtroEstado}
-            onValueChange={(value) => setFiltroEstado(value ?? "todos")}
-          >
+          items={ESTADO_CUENTA_ITEMS}
+          value={valorFiltro("estado")}
+          onValueChange={(value) => actualizarUrl({ estado: value ?? "todos" })}
+        >
           <SelectTrigger><SelectValue placeholder="Estado de cuenta" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los estados</SelectItem>
@@ -122,10 +178,10 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
           </SelectContent>
         </Select>
         <Select
-            items={SUSCRIPCION_ITEMS}
-            value={filtroSuscripcion}
-            onValueChange={(value) => setFiltroSuscripcion(value ?? "todos")}
-          >
+          items={SUSCRIPCION_ITEMS}
+          value={valorFiltro("suscripcion")}
+          onValueChange={(value) => actualizarUrl({ suscripcion: value ?? "todos" })}
+        >
           <SelectTrigger><SelectValue placeholder="Suscripción" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Toda suscripción</SelectItem>
@@ -133,8 +189,45 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
             <SelectItem value="PAST_DUE">Pago pendiente</SelectItem>
             <SelectItem value="VENCIDA">Vencida</SelectItem>
             <SelectItem value="CANCELADA">Cancelada</SelectItem>
+            <SelectItem value="SIN_SUSCRIPCION">Sin suscripción</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Rango sobre la fecha de registro. Solo filtra la tabla: los KPIs
+            de arriba siempre muestran el acumulado, porque "cupos
+            disponibles" es un saldo y acotarlo a un periodo no significa
+            nada. */}
+        <div className="flex items-center gap-2">
+          <label className="text-[12.5px] text-uva-muted" htmlFor="filtro-desde">
+            Registro
+          </label>
+          <input
+            id="filtro-desde"
+            type="date"
+            value={searchParams.get("desde") ?? ""}
+            onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
+            className="rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text"
+            aria-label="Registrados desde"
+          />
+          <span className="text-[12.5px] text-uva-muted-2">a</span>
+          <input
+            type="date"
+            value={searchParams.get("hasta") ?? ""}
+            onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
+            className="rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text"
+            aria-label="Registrados hasta"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleExportar}
+          disabled={exportando || total === 0}
+          className="ml-auto flex items-center gap-2 rounded-uva-md border border-uva-divider px-3.5 py-2 text-[13px] text-uva-text hover:border-uva-accent hover:text-uva-accent-text disabled:opacity-40"
+        >
+          <Download className="size-4" strokeWidth={1.9} />
+          {exportando ? "Preparando..." : "Exportar CSV"}
+        </button>
       </div>
 
       <AdminCard flush>
@@ -149,18 +242,22 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
               <TableHead>Estado</TableHead>
               <TableHead>Suscripción</TableHead>
               <TableHead>Registro</TableHead>
+              {/* "en contenido" no es un adorno: la columna sale del progreso
+                  de reproducción, así que alguien que entró pero no abrió
+                  ningún video aparece vacío. */}
+              <TableHead>Actividad en contenido</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtrados.length === 0 && (
+            {usuarios.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-uva-muted-2">
+                <TableCell colSpan={9} className="text-center text-uva-muted-2">
                   No hay usuarios que coincidan con los filtros.
                 </TableCell>
               </TableRow>
             )}
-            {filtrados.map((usuario) => (
-              <TableRow key={usuario.id}>
+            {usuarios.map((usuario) => (
+              <TableRow key={usuario.id} className={pendiente ? "opacity-60" : undefined}>
                 <TableCell className="w-px pr-0">
                   <Avatar className="size-[30px] bg-uva-divider after:hidden">
                     <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
@@ -209,11 +306,25 @@ export function UsuariosTable({ usuarios: usuariosIniciales }: { usuarios: Usuar
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(usuario.fechaRegistro)}
                 </TableCell>
+                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {usuario.ultimaActividad ? formatFecha(usuario.ultimaActividad) : "—"}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </AdminCard>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-xs text-uva-text-faint tabular-nums">
+          {total} usuario{total === 1 ? "" : "s"}
+        </p>
+        <Paginacion
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          onCambiarPagina={(destino) => actualizarUrl({ page: String(destino) })}
+        />
+      </div>
     </div>
   );
 }

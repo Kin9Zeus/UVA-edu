@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { CursoCard } from "@/components/catalogo/CursoCard";
 import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
+import { Paginacion } from "@/components/Paginacion";
 import type { CategoriaActiva, CategoriaInfo, CursoOpcionBuscador, ResultadoCatalogo } from "@/lib/categoria";
 
 // Revf3 ("Catálogo con búsqueda por palabra clave y filtro por categoría"):
@@ -176,29 +177,11 @@ export function CatalogoContent({
             ))}
           </div>
 
-          {resultado.totalPaginas > 1 && (
-            <div className="flex items-center justify-center gap-4">
-              <button
-                type="button"
-                disabled={resultado.pagina <= 1}
-                onClick={() => actualizarUrl({ page: String(resultado.pagina - 1) })}
-                className="rounded-uva-md border border-uva-divider px-4 py-2 text-[13px] text-uva-text disabled:opacity-40"
-              >
-                Anterior
-              </button>
-              <span className="font-mono text-xs text-uva-text-faint">
-                Página {resultado.pagina} de {resultado.totalPaginas}
-              </span>
-              <button
-                type="button"
-                disabled={resultado.pagina >= resultado.totalPaginas}
-                onClick={() => actualizarUrl({ page: String(resultado.pagina + 1) })}
-                className="rounded-uva-md border border-uva-divider px-4 py-2 text-[13px] text-uva-text disabled:opacity-40"
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
+          <Paginacion
+            pagina={resultado.pagina}
+            totalPaginas={resultado.totalPaginas}
+            onCambiarPagina={(pagina) => actualizarUrl({ page: String(pagina) })}
+          />
         </>
       )}
     </div>

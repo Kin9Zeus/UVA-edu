@@ -81,6 +81,7 @@ async function main() {
   const password = "RlsTest2026!";
   const correoSinAcceso = `rls-test-sin-acceso-${sufijo}@uva.test`;
   const correoConAcceso = `rls-test-con-acceso-${sufijo}@uva.test`;
+  const correoAdmin = `rls-test-admin-${sufijo}@uva.test`;
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -107,6 +108,28 @@ async function main() {
     email_confirm: true,
   });
   if (errConAcceso || !userConAcceso.user) throw new Error(`No pude crear el usuario con acceso: ${errConAcceso?.message}`);
+
+  // Administrador desechable para probar el panel (036/037). No se reutiliza
+  // el admin real del seed porque su contraseña no la conoce este script, y
+  // hace falta una SESIÓN autenticada: el cliente service_role se salta RLS,
+  // que es justo lo que hay que verificar.
+  //
+  // El trigger de auth.users crea el perfil con rol ESTUDIANTE
+  // (000_perfil_desde_auth_users.sql); se promueve con el cliente
+  // service_role porque 013_perfiles_bloquea_autopromocion.sql impide que un
+  // usuario se cambie el rol a sí mismo.
+  const { data: userAdmin, error: errAdmin } = await admin.auth.admin.createUser({
+    email: correoAdmin,
+    password,
+    email_confirm: true,
+  });
+  if (errAdmin || !userAdmin.user) throw new Error(`No pude crear el admin de prueba: ${errAdmin?.message}`);
+
+  const { error: errPromover } = await admin
+    .from("perfiles")
+    .update({ rol: "ADMINISTRADOR" })
+    .eq("id", userAdmin.user.id);
+  if (errPromover) throw new Error(`No pude promover el admin de prueba: ${errPromover.message}`);
 
   const { data: plan, error: errPlan } = await admin
     .from("planes")
@@ -409,6 +432,101 @@ async function main() {
       "membresía CON progreso ya guardado SÍ ve el curso despublicado ('ya lo estaba viendo')",
       clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
     );
+
+    // ------------------------------------------------------------------
+    // Panel de usuarios (Fase 4, supabase/sql/036 y 037)
+    //
+    // Estas superficies son admin-only y devuelven el padrón completo, pero
+    // el arnés no tenía ninguna sesión de ADMINISTRADOR: se probaban cuatro
+    // sesiones y ninguna era la del panel.
+    //
+    // Lo que más importa es la prueba NEGATIVA. La vista y el RPC son
+    // `security_invoker`, así que un estudiante que los invoque directamente
+    // por POST solo debería ver lo suyo. Si alguien los convirtiera a
+    // SECURITY DEFINER "para que el admin no dependa de la política", estas
+    // pruebas son las que lo detectarían.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: PANEL DE USUARIOS (036/037) ===\n");
+
+    const { data: filasEstudiante, error: errRpcEstudiante } = await clienteConAcceso.rpc(
+      "admin_listar_usuarios",
+      { p_limite: 100, p_offset: 0 },
+    );
+    const idsVistos = (filasEstudiante ?? []).map((fila: { id: string }) => fila.id);
+    const soloSeVeASiMismo =
+      !errRpcEstudiante && idsVistos.every((id: string) => id === userConAcceso.user!.id);
+    registrar(
+      "estudiante que invoca admin_listar_usuarios NO obtiene el padrón (solo su propia fila)",
+      soloSeVeASiMismo,
+      errRpcEstudiante
+        ? errRpcEstudiante.message
+        : `${idsVistos.length} fila(s) visible(s)`,
+    );
+
+    const { data: metricasEstudiante } = await clienteConAcceso
+      .from("metricas_panel_usuarios")
+      .select("cupos_totales, usuarios_registrados")
+      .maybeSingle();
+    registrar(
+      "estudiante NO ve cifras reales en metricas_panel_usuarios (RLS filtra por debajo)",
+      Number(metricasEstudiante?.cupos_totales ?? 0) === 0,
+      `cupos_totales=${metricasEstudiante?.cupos_totales ?? "sin fila"}`,
+    );
+
+    const clienteAdmin: SupabaseClient = createClient(URL, ANON_KEY);
+    const loginAdmin = await clienteAdmin.auth.signInWithPassword({
+      email: correoAdmin,
+      password,
+    });
+    if (loginAdmin.error) throw new Error(`No pude iniciar sesión como admin: ${loginAdmin.error.message}`);
+
+    await esperarPermitido(
+      "administrador SÍ puede listar usuarios por el RPC",
+      clienteAdmin.rpc("admin_listar_usuarios", { p_limite: 5, p_offset: 0 }),
+    );
+
+    const { data: metricasAdmin } = await clienteAdmin
+      .from("metricas_panel_usuarios")
+      .select("*")
+      .maybeSingle();
+    registrar(
+      "administrador SÍ ve las métricas del panel",
+      !!metricasAdmin && Number(metricasAdmin.usuarios_registrados) > 0,
+      `usuarios_registrados=${metricasAdmin?.usuarios_registrados ?? "sin fila"}`,
+    );
+
+    // La aritmética de cupos tiene que cerrar: si no, alguna de las cuatro
+    // cifras está contando sobre un universo distinto (docs §1.3).
+    const cuadra =
+      !!metricasAdmin &&
+      Number(metricasAdmin.cupos_totales) ===
+        Number(metricasAdmin.cupos_canjeados) +
+          Number(metricasAdmin.cupos_disponibles) +
+          Number(metricasAdmin.cupos_caducados);
+    registrar(
+      "cupos_totales = canjeados + disponibles + caducados",
+      cuadra,
+      metricasAdmin
+        ? `${metricasAdmin.cupos_totales} = ${metricasAdmin.cupos_canjeados} + ${metricasAdmin.cupos_disponibles} + ${metricasAdmin.cupos_caducados}`
+        : "sin fila",
+    );
+
+    // registrados = vigentes + vencidos + sin acceso. Los tres cubos parten
+    // del mismo universo de estudiantes, así que la suma no puede fallar
+    // salvo por un error en la consulta.
+    const cubosCuadran =
+      !!metricasAdmin &&
+      Number(metricasAdmin.usuarios_registrados) ===
+        Number(metricasAdmin.usuarios_acceso_vigente) +
+          Number(metricasAdmin.usuarios_acceso_vencido) +
+          Number(metricasAdmin.usuarios_sin_acceso);
+    registrar(
+      "usuarios_registrados = vigentes + vencidos + sin acceso",
+      cubosCuadran,
+      metricasAdmin
+        ? `${metricasAdmin.usuarios_registrados} = ${metricasAdmin.usuarios_acceso_vigente} + ${metricasAdmin.usuarios_acceso_vencido} + ${metricasAdmin.usuarios_sin_acceso}`
+        : "sin fila",
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
     await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
@@ -420,6 +538,7 @@ async function main() {
     await admin.from("planes").delete().eq("id", plan.id);
     await admin.auth.admin.deleteUser(userSinAcceso.user!.id);
     await admin.auth.admin.deleteUser(userConAcceso.user!.id);
+    await admin.auth.admin.deleteUser(userAdmin.user!.id);
   }
 
   const fallidos = resultados.filter((r) => !r.ok);
