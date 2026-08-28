@@ -40,6 +40,15 @@ export default async function LeccionPlayerPage({
   const data = await getLeccionPlayer(id, leccionId, user.id);
 
   if (!data) {
+    // Sin acceso vigente (o con la lección ya borrada). Si el curso todavía
+    // se puede ver, se devuelve a su ficha —temario con candado y CTA de
+    // renovación— en vez de a un 404: quien llega aquí suele ser alguien
+    // con el enlace guardado a quien se le terminó el periodo.
+    const supabase = await createClient();
+    const { data: curso } = await supabase.from("cursos").select("id").eq("id", id).maybeSingle();
+    if (curso) {
+      redirect(`/cursos/${id}`);
+    }
     notFound();
   }
 

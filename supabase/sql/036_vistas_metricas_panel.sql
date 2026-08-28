@@ -95,9 +95,17 @@ estudiantes as (
   from public.perfiles p
   where p.rol = 'ESTUDIANTE'::"RolPerfil"
 ),
--- Vigente = ACTIVA, o PAST_DUE dentro del periodo de gracia. Es la misma
--- regla que decide hoy si el usuario entra al contenido, así que el panel
--- no puede contradecir a la aplicación.
+-- Vigente = ACTIVA con la fecha de renovación todavía en pie, o PAST_DUE
+-- dentro del periodo de gracia. Es la misma regla que decide si el usuario
+-- entra al contenido —`private.suscripcion_da_acceso()` en
+-- 038_vigencia_por_fecha.sql y `suscripcionDaAcceso()` en
+-- src/lib/estadoAcceso.ts—, así que el panel no puede contradecir a la
+-- aplicación. Va escrita aquí en vez de llamando a esa función porque la
+-- vista se crea antes que ella (036 corre antes que 038).
+--
+-- La condición de fecha importa: nada mueve la fila a VENCIDA cuando el
+-- periodo termina, así que sin ella el panel contaba como "acceso vigente"
+-- a invitados que llevaban meses fuera.
 --
 -- Los 5 días son DURACION_GRACIA_DIAS en src/lib/gracia.ts. SQL no puede
 -- importar esa constante: si cambia allí, hay que cambiarla aquí. Hay un
@@ -109,7 +117,14 @@ acceso as (
       select 1 from public.suscripciones s
       where s.id_usuario = e.id
         and (
-          s.estado = 'ACTIVA'::"EstadoSuscripcion"
+          (
+            s.estado = 'ACTIVA'::"EstadoSuscripcion"
+            and (
+              s.fecha_renovacion is null
+              or (s.fecha_renovacion at time zone 'America/Bogota')::date
+                 >= (now() at time zone 'America/Bogota')::date
+            )
+          )
           or (
             s.estado = 'PAST_DUE'::"EstadoSuscripcion"
             and s.fecha_renovacion is not null

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { CanjearCodigoForm } from "@/components/dashboard/CanjearCodigoForm";
 import { formatFecha, formatMoneda } from "@/lib/admin/format";
+import { calcularDiasVigencia, suscripcionDaAcceso } from "@/lib/estadoAcceso";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 
 const ESTADO_LABEL: Record<SuscripcionActual["estado"], string> = {
@@ -25,12 +26,6 @@ const ESTADO_PAGO_LABEL = {
   FALLIDO: "Fallido",
   PENDIENTE: "Pendiente",
 };
-
-function diasRestantes(fechaRenovacion: string | null) {
-  if (!fechaRenovacion) return null;
-  const ms = new Date(fechaRenovacion).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-}
 
 function porcentajeTranscurrido(fechaInicio: string, fechaRenovacion: string | null) {
   if (!fechaRenovacion) return 0;
@@ -69,7 +64,20 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
     );
   }
 
-  const dias = diasRestantes(suscripcion.fechaRenovacion);
+  // Mismo conteo (días de calendario colombiano) que la tarjeta "Tu acceso"
+  // del perfil: si cada pantalla lo calculara a su manera, la misma
+  // suscripción diría 6 días aquí y 7 allá. Acotado a 0 solo al mostrarlo.
+  const accesoVigente = suscripcionDaAcceso(suscripcion);
+  // Una suscripción cuyo periodo terminó sigue guardada como ACTIVA (nada la
+  // mueve), pero anunciarla como "Activa" al lado de un catálogo con candado
+  // sería mentirle al estudiante.
+  const estadoMostrado = accesoVigente
+    ? suscripcion.estado
+    : suscripcion.estado === "CANCELADA"
+      ? "CANCELADA"
+      : "VENCIDA";
+  const diasSinAcotar = calcularDiasVigencia(suscripcion.fechaRenovacion);
+  const dias = diasSinAcotar === null ? null : Math.max(0, diasSinAcotar);
   const avance = porcentajeTranscurrido(suscripcion.fechaInicio, suscripcion.fechaRenovacion);
 
   // "Mensual"/"Anual" solo tiene sentido para un plan de pago, que sí se
@@ -111,7 +119,7 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
                 <p className="text-[11.5px] text-uva-text-muted">días restantes</p>
               </>
             ) : (
-              <Badge variant="secondary">{ESTADO_LABEL[suscripcion.estado]}</Badge>
+              <Badge variant="secondary">{ESTADO_LABEL[estadoMostrado]}</Badge>
             )}
           </div>
         </div>
@@ -124,7 +132,7 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
           </div>
         )}
         <Badge variant="secondary" className="w-fit">
-          {ESTADO_LABEL[suscripcion.estado]}
+          {ESTADO_LABEL[estadoMostrado]}
         </Badge>
       </div>
 
@@ -163,14 +171,15 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
         </div>
       )}
 
-      {/* El formulario NO se muestra a quien ya tiene una suscripción
-          vigente: `suscripcion_activa_unica_por_usuario` solo admite una en
-          ACTIVA o PAST_DUE, así que el canje se rechazaría
-          ('ya_tiene_suscripcion' en 027). Ofrecerlo sería invitar a un
-          error seguro. */}
-      {(suscripcion.estado === "VENCIDA" || suscripcion.estado === "CANCELADA") && (
-        <CanjearCodigoForm tieneSuscripcion />
-      )}
+      {/* El formulario se ofrece a quien NO tiene acceso vigente, no solo a
+          quien está en VENCIDA/CANCELADA: un periodo terminado deja la fila
+          en ACTIVA (nadie la mueve), y ese es justo el estudiante que llega
+          aquí desde "Renueva tu acceso". El canje sobre una suscripción
+          caducada funciona porque `canjear_codigo_invitacion` la cierra
+          antes de comprobar el índice único (038_vigencia_por_fecha.sql).
+          A quien sí tiene acceso vigente no se le ofrece: se rechazaría con
+          'ya_tiene_suscripcion'. */}
+      {!accesoVigente && <CanjearCodigoForm tieneSuscripcion />}
     </div>
   );
 }

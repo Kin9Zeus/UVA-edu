@@ -228,6 +228,38 @@ async function main() {
       segundoTrasIntento?.veces_usado === 0,
       `veces_usado=${segundoTrasIntento?.veces_usado}`,
     );
+
+    console.log("\n=== Usuario cuyo periodo ya terminó (renovación) ===\n");
+
+    // 038_vigencia_por_fecha.sql: nadie mueve la suscripción a VENCIDA al
+    // pasar la fecha, así que la fila sigue en ACTIVA. Antes eso dejaba al
+    // estudiante encerrado — sin acceso al contenido (la fecha ya pasó) y
+    // sin poder canjear un código nuevo ('ya_tiene_suscripcion'). El canje
+    // cierra él mismo lo caducado antes de mirar el índice único.
+    const { error: errCaducar } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: new Date(Date.now() - 3 * 86_400_000).toISOString() })
+      .eq("id_usuario", usuarioExito.id);
+    if (errCaducar) throw new Error(`No pude caducar la suscripción de prueba: ${errCaducar.message}`);
+
+    const respuestaRenovacion = await canjear(admin, codigoSegundo.codigo, usuarioExito.id);
+    registrar(
+      "con el periodo terminado, un código nuevo SÍ se puede canjear (renovar)",
+      respuestaRenovacion.ok === true,
+      `ok=${respuestaRenovacion.ok} motivo=${respuestaRenovacion.motivo ?? "null"}`,
+    );
+
+    const { data: suscripcionesTrasRenovar } = await admin
+      .from("suscripciones")
+      .select("estado, id_codigo_invitacion")
+      .eq("id_usuario", usuarioExito.id);
+
+    const vigentes = (suscripcionesTrasRenovar ?? []).filter((f) => f.estado === "ACTIVA");
+    registrar(
+      "la renovación deja UNA sola suscripción ACTIVA (la vieja queda VENCIDA)",
+      vigentes.length === 1 && vigentes[0].id_codigo_invitacion === codigoSegundo.id,
+      `activas=${vigentes.length} de ${(suscripcionesTrasRenovar ?? []).length}`,
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
     await admin.from("suscripciones").delete().in("id_usuario", idsUsuarios);

@@ -133,6 +133,12 @@ export function CursoDetalleContent({
                         className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
+                        {/* El candado sustituye al play, pero el ✓ de lo ya
+                            visto se conserva: el progreso no se pierde al
+                            vencerse el acceso. */}
+                        {leccion.completado ? (
+                          <CircleCheck className="size-4 shrink-0 text-uva-accent-2/60" strokeWidth={1.8} />
+                        ) : null}
                         <Lock className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
                         <span className="flex-1 truncate">{leccion.titulo}</span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
@@ -183,6 +189,21 @@ export function CursoDetalleContent({
               El curso todavía no tiene clases
             </Button>
           )
+        ) : curso.accesoVencido ? (
+          // Ya estuvo dentro: se le habla de retomar, no de empezar. El
+          // progreso sigue guardado, así que al renovar vuelve a su clase.
+          <Button
+            render={<Link href="/dashboard/suscripcion" />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-12 flex-col gap-0.5 py-2"
+          >
+            <span>Renueva tu acceso</span>
+            <span className="truncate text-[11.5px] font-normal opacity-80">
+              {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
+            </span>
+          </Button>
         ) : sesionActiva ? (
           <Button
             render={<Link href="/dashboard/suscripcion" />}

@@ -434,6 +434,61 @@ async function main() {
     );
 
     // ------------------------------------------------------------------
+    // Vigencia por fecha (supabase/sql/038)
+    //
+    // Nada mueve una suscripción a VENCIDA cuando pasa su fecha de
+    // renovación, así que la fila sigue diciendo ACTIVA. Antes de 038 eso
+    // bastaba para seguir bajando materiales y viendo cursos: una
+    // invitación de 30 días daba acceso permanente. Se prueba con la MISMA
+    // fila, moviéndole solo la fecha.
+    // ------------------------------------------------------------------
+    const { data: recurso, error: errRecurso } = await admin
+      .from("recursos_descargables")
+      .insert({
+        id_leccion: leccionDespublicada.id,
+        nombre: "Material RLS test.pdf",
+        tipo_archivo: "application/pdf",
+        url_archivo: "https://example.test/material.pdf",
+      })
+      .select("id")
+      .single();
+    if (errRecurso || !recurso) throw new Error(`No pude crear el recurso de prueba: ${errRecurso?.message}`);
+
+    await esperarPermitido(
+      "suscripción vigente SÍ descarga los materiales de la lección",
+      clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
+    );
+
+    const { error: errVencer } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errVencer) throw new Error(`No pude vencer la suscripción de prueba: ${errVencer.message}`);
+
+    await esperarBloqueado(
+      "acceso vencido (ACTIVA con fecha pasada) NO descarga los materiales",
+      clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
+    );
+
+    await esperarBloqueado(
+      "acceso vencido NO ve el curso despublicado, ni con MEMBRESIA y progreso",
+      clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
+
+    await esperarPermitido(
+      "el progreso del acceso vencido sigue guardado (vuelve donde iba al renovar)",
+      clienteConAcceso.from("progreso").select("id").eq("id_usuario", userConAcceso.user!.id),
+    );
+
+    // Se devuelve a vigente: las pruebas del panel de más abajo cuentan
+    // usuarios con acceso vigente.
+    const { error: errRestaurar } = await admin
+      .from("suscripciones")
+      .update({ fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString() })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errRestaurar) throw new Error(`No pude restaurar la suscripción de prueba: ${errRestaurar.message}`);
+
+    // ------------------------------------------------------------------
     // Panel de usuarios (Fase 4, supabase/sql/036 y 037)
     //
     // Estas superficies son admin-only y devuelven el padrón completo, pero
@@ -529,6 +584,7 @@ async function main() {
     );
   } finally {
     console.log("\nLimpiando datos de prueba...");
+    await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
     await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("inscripciones").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);

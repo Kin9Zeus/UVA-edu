@@ -51,24 +51,40 @@ export async function obtenerTokenReproduccion(leccionId: string): Promise<Token
 
   const [{ data: perfil }, { data: suscripcion }, { data: inscripcion }] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user.id).single(),
+    // Se pide la última suscripción sin filtrar por estado: la vigencia la
+    // decide `tieneAccesoVigente`, que además de ACTIVA/PAST_DUE mira la
+    // fecha. Filtrar aquí por estado escondía justo el caso que hay que
+    // detectar — una ACTIVA con el periodo ya terminado.
     supabase
       .from("suscripciones")
-      .select("estado")
+      .select("estado, fecha_renovacion")
       .eq("id_usuario", user.id)
-      .in("estado", ["ACTIVA", "PAST_DUE"])
+      .order("fecha_inicio", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Solo CORTESIA: una MEMBRESIA es el registro de haber entrado bajo una
+    // suscripción, no un permiso que la sobreviva (ver mux/acceso.ts).
     supabase
       .from("inscripciones")
       .select("id")
       .eq("id_usuario", user.id)
       .eq("id_curso", cursoId)
+      .eq("tipo_acceso", "CORTESIA")
       .limit(1)
       .maybeSingle(),
   ]);
 
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
-  if (!esAdmin && !tieneAccesoVigente(suscripcion, inscripcion !== null)) {
+  if (
+    !esAdmin &&
+    !tieneAccesoVigente(
+      suscripcion && {
+        estado: suscripcion.estado,
+        fechaRenovacion: suscripcion.fecha_renovacion,
+      },
+      inscripcion !== null,
+    )
+  ) {
     return { error: "No tienes acceso vigente a este curso." };
   }
 

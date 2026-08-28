@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { calcularDiasGracia, DURACION_GRACIA_DIAS } from "@/lib/gracia";
@@ -29,29 +29,35 @@ describe("calcularDiasGracia", () => {
  * La ventana de gracia decide dos cosas en dos lenguajes distintos: si el
  * estudiante entra al contenido (TypeScript) y si el panel lo cuenta como
  * "acceso vigente" (SQL). Postgres no puede importar la constante, así que el
- * número está escrito dos veces.
+ * número está escrito varias veces: la vista de métricas (036), la función de
+ * vigencia y el canje (038).
  *
  * Si se separan, el panel reporta como vencido a alguien que sigue entrando
- * —o al revés— y nada más lo detectaría: son dos ficheros que nadie edita
- * junto. Este test lee el SQL y compara.
+ * —o al revés— y nada más lo detectaría: son ficheros que nadie edita junto.
+ * Este test barre todo `supabase/sql/` y compara cada aparición.
  */
 describe("la ventana de gracia no se separa entre TypeScript y SQL", () => {
-  it("el interval de la vista de métricas coincide con DURACION_GRACIA_DIAS", () => {
-    const sql = readFileSync(
-      join(process.cwd(), "supabase/sql/036_vistas_metricas_panel.sql"),
-      "utf8",
-    );
-
+  it("todos los interval de gracia del SQL coinciden con DURACION_GRACIA_DIAS", () => {
+    const directorio = join(process.cwd(), "supabase/sql");
     // La línea exacta que suma la ventana de gracia a la fecha de renovación.
-    const coincidencias = [
-      ...sql.matchAll(/fecha_renovacion at time zone 'UTC'\)\s*\+\s*interval '(\d+) days'/g),
-    ];
+    const patron = /fecha_renovacion at time zone 'UTC'\)\s*\+\s*interval '(\d+) days'/g;
+
+    const encontrados = readdirSync(directorio)
+      .filter((nombre) => nombre.endsWith(".sql"))
+      .flatMap((nombre) =>
+        [...readFileSync(join(directorio, nombre), "utf8").matchAll(patron)].map((m) => ({
+          archivo: nombre,
+          dias: Number(m[1]),
+        })),
+      );
 
     expect(
-      coincidencias.length,
-      "no se encontró el interval de gracia en 036_vistas_metricas_panel.sql; ¿se renombró la vista o la columna?",
-    ).toBe(1);
+      encontrados.length,
+      "no se encontró ningún interval de gracia en supabase/sql/; ¿se renombró la vista o la columna?",
+    ).toBeGreaterThan(0);
 
-    expect(Number(coincidencias[0][1])).toBe(DURACION_GRACIA_DIAS);
+    for (const { archivo, dias } of encontrados) {
+      expect(dias, `${archivo} usa otra ventana de gracia`).toBe(DURACION_GRACIA_DIAS);
+    }
   });
 });

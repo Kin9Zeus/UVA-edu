@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
 
 export type LeccionPublica = {
   id: string;
@@ -37,6 +38,13 @@ export type CursoPublico = {
   totalRecursos: number;
   duracionTotalSegundos: number;
   tieneAcceso: boolean;
+  /**
+   * true cuando el estudiante SÍ tuvo acceso y se le terminó: cambia el CTA
+   * de "Canjea tu código" a "Renueva tu acceso". Distinto de no haber
+   * canjeado nunca — a quien ya estuvo dentro no se le habla como a un
+   * recién llegado.
+   */
+  accesoVencido: boolean;
   /** true si hay al menos una clase con progreso guardado (completada o no). */
   progresoIniciado: boolean;
   /**
@@ -140,12 +148,13 @@ export async function getCursoPublico(
           .select("id")
           .eq("id_usuario", usuarioId)
           .eq("id_curso", cursoId)
+          .eq("tipo_acceso", "CORTESIA")
           .maybeSingle()
       : Promise.resolve({ data: null }),
     usuarioId
       ? supabase
           .from("suscripciones")
-          .select("estado")
+          .select("estado, fecha_renovacion")
           .eq("id_usuario", usuarioId)
           .order("fecha_inicio", { ascending: false })
           .limit(1)
@@ -153,8 +162,15 @@ export async function getCursoPublico(
       : Promise.resolve({ data: null }),
   ]);
 
-  const tieneAcceso =
-    inscripcion !== null || suscripcion?.estado === "ACTIVA" || suscripcion?.estado === "PAST_DUE";
+  // Misma regla que el reproductor (`suscripcionDaAcceso`): estado Y fecha.
+  // Solo una CORTESIA otorgada por un admin abre el curso por su cuenta.
+  const suscripcionVigente = suscripcionDaAcceso(
+    suscripcion && { estado: suscripcion.estado, fechaRenovacion: suscripcion.fecha_renovacion },
+  );
+  const tieneAcceso = inscripcion !== null || suscripcionVigente;
+  // Tuvo una suscripción y ya no le sirve: el temario se sigue viendo, pero
+  // con candado, y el CTA invita a renovar en vez de a canjear por primera vez.
+  const accesoVencido = !tieneAcceso && suscripcion !== null;
 
   // Progreso guardado en las clases del curso: qué está completada (para el
   // check ✓ del temario) y cuál es la primera sin completar (para "Seguir
@@ -163,7 +179,10 @@ export async function getCursoPublico(
   // de vuelta a una clase terminada en vez de a la siguiente pendiente.
   let progresoIniciado = false;
   const completadoIds = new Set<string>();
-  if (usuarioId && tieneAcceso && leccionIds.length > 0) {
+  // Sin `tieneAcceso` en la condición: el progreso es del estudiante y
+  // sobrevive al vencimiento — los ✓ del temario y "Seguir viendo" tienen
+  // que seguir ahí cuando renueve, en la clase donde se quedó.
+  if (usuarioId && leccionIds.length > 0) {
     const { data: progresoRows } = await supabase
       .from("progreso")
       .select("id_leccion, completado")
@@ -211,6 +230,7 @@ export async function getCursoPublico(
     totalRecursos: totalRecursos ?? 0,
     duracionTotalSegundos,
     tieneAcceso,
+    accesoVencido,
     progresoIniciado,
     leccionContinuarId,
     leccionContinuarTitulo,

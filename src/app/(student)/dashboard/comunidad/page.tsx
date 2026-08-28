@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPerfilActual } from "@/lib/perfil";
 import { createClient } from "@/lib/supabase/server";
+import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
 import { ComunidadPausada } from "@/components/dashboard/ComunidadPausada";
 import { Proximamente } from "@/components/dashboard/Proximamente";
 
@@ -12,7 +13,7 @@ export default async function ComunidadPage() {
 
   const { data: suscripcion } = await supabase
     .from("suscripciones")
-    .select("estado")
+    .select("estado, fecha_renovacion")
     .eq("id_usuario", user!.id)
     .order("fecha_inicio", { ascending: false })
     .limit(1)
@@ -21,11 +22,15 @@ export default async function ComunidadPage() {
   if (!suscripcion) {
     return <ComunidadPausada motivo="SIN_SUSCRIPCION" />;
   }
-  if (suscripcion.estado === "VENCIDA") {
-    return <ComunidadPausada motivo="VENCIDA" />;
-  }
-  if (suscripcion.estado === "CANCELADA") {
-    return <ComunidadPausada motivo="CANCELADA" />;
+  // Misma regla de vigencia que el reproductor: un periodo terminado
+  // cierra la comunidad aunque la fila siga en ACTIVA.
+  if (
+    !suscripcionDaAcceso({
+      estado: suscripcion.estado,
+      fechaRenovacion: suscripcion.fecha_renovacion,
+    })
+  ) {
+    return <ComunidadPausada motivo={suscripcion.estado === "CANCELADA" ? "CANCELADA" : "VENCIDA"} />;
   }
 
   return (

@@ -11,7 +11,7 @@ import {
   type ActualizarPerfilState,
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
-import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
+import type { EstadoAcceso } from "@/lib/estadoAcceso";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -27,25 +27,25 @@ type Certificado = {
   fecha: string;
 };
 
-type EstadoAcceso = {
-  tipo: TipoAccesoGratuito;
-  fechaVigencia: string | null;
-  diasRestantes: number | null;
-  avisoVencimiento: boolean;
+/** Etiqueta de la cabecera: el plan comprado, o el estado del acceso gratuito. */
+type Insignia = {
+  texto: string;
+  /** true la pinta en gris (acceso ya terminado), no en magenta. */
+  atenuada: boolean;
 };
 
 export function PerfilForm({
   nombre,
   correo,
   celular,
-  planNombre,
+  insignia,
   certificados,
   estadoAcceso,
 }: {
   nombre: string;
   correo: string;
   celular: string | null;
-  planNombre: string | null;
+  insignia: Insignia | null;
   certificados: Certificado[];
   estadoAcceso: EstadoAcceso | null;
 }) {
@@ -78,9 +78,15 @@ export function PerfilForm({
                 @{usuario || "tu-usuario"}
               </div>
             </div>
-            {planNombre ? (
-              <span className="ml-auto shrink-0 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text">
-                {planNombre}
+            {insignia ? (
+              <span
+                className={
+                  insignia.atenuada
+                    ? "ml-auto shrink-0 rounded-full bg-uva-hover px-2.5 py-1 text-[11px] text-uva-text-muted"
+                    : "ml-auto shrink-0 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text"
+                }
+              >
+                {insignia.texto}
               </span>
             ) : (
               <span className="ml-auto shrink-0 rounded-full bg-uva-hover px-2.5 py-1 text-[11px] text-uva-text-muted">
@@ -193,7 +199,7 @@ export function PerfilForm({
             tipo={estadoAcceso.tipo}
             fechaVigencia={estadoAcceso.fechaVigencia}
             diasRestantes={estadoAcceso.diasRestantes}
-            avisoVencimiento={estadoAcceso.avisoVencimiento}
+            vigencia={estadoAcceso.vigencia}
           />
         )}
 

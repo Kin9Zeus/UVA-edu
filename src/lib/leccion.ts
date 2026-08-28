@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
 
 export type RecursoLeccion = {
   id: string;
@@ -43,32 +44,38 @@ export type LeccionPlayer = {
 };
 
 /**
- * Verifica que el usuario pueda ver el contenido del curso: inscripción
- * directa (compra / cortesía) o suscripción vigente. Misma regla que
- * `getCursoPublico` en lib/curso.ts — el catálogo muestra el temario a
- * cualquiera, pero el reproductor exige acceso.
+ * Verifica que el usuario pueda ver el contenido del curso: cortesía al
+ * curso, o suscripción VIGENTE por estado y fecha (`suscripcionDaAcceso`).
+ * Misma regla que `getCursoPublico` en lib/curso.ts y que el firmado del
+ * token de Mux — el catálogo muestra el temario a cualquiera, con candado,
+ * pero el reproductor exige acceso vigente.
  */
 async function tieneAccesoAlCurso(cursoId: string, usuarioId: string) {
   const supabase = await createClient();
 
+  // Solo CORTESIA: una MEMBRESIA no sobrevive a la suscripción que la
+  // originó (ver src/lib/mux/acceso.ts).
   const { data: inscripcion } = await supabase
     .from("inscripciones")
     .select("id")
     .eq("id_usuario", usuarioId)
     .eq("id_curso", cursoId)
+    .eq("tipo_acceso", "CORTESIA")
     .maybeSingle();
 
   if (inscripcion) return true;
 
   const { data: suscripcion } = await supabase
     .from("suscripciones")
-    .select("estado")
+    .select("estado, fecha_renovacion")
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  return suscripcion?.estado === "ACTIVA" || suscripcion?.estado === "PAST_DUE";
+  return suscripcionDaAcceso(
+    suscripcion && { estado: suscripcion.estado, fechaRenovacion: suscripcion.fecha_renovacion },
+  );
 }
 
 export async function getLeccionPlayer(

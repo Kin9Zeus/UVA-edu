@@ -29,13 +29,7 @@ import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { exportarUsuariosCsv } from "@/actions/admin/exportarUsuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { ResultadoUsuarios, UsuarioListado } from "@/lib/admin/usuarios";
-import type { TipoAccesoGratuito } from "@/lib/estadoAcceso";
-
-/** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil) y el admin en la ficha de usuario. */
-const TIPO_ACCESO_LABEL: Record<TipoAccesoGratuito, string> = {
-  INVITACION: "Invitación gratuita",
-  OTORGADO_ADMIN: "Acceso otorgado",
-};
+import { ETIQUETA_TIPO_ACCESO } from "@/lib/estadoAcceso";
 
 const ROL_LABEL: Record<UsuarioListado["rol"], string> = {
   ESTUDIANTE: "Estudiante",
@@ -298,7 +292,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                     )}
                     {usuario.tipoAccesoSuscripcion && (
                       <StatusBadge tone="accent">
-                        {TIPO_ACCESO_LABEL[usuario.tipoAccesoSuscripcion]}
+                        {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
                       </StatusBadge>
                     )}
                   </div>
