@@ -12,7 +12,7 @@ import {
 import { CanjearCodigoForm } from "@/components/dashboard/CanjearCodigoForm";
 import { formatFecha, formatMoneda } from "@/lib/admin/format";
 import { calcularDiasVigencia, suscripcionDaAcceso } from "@/lib/estadoAcceso";
-import type { SuscripcionActual } from "@/lib/suscripcion";
+import type { PagoItem, SuscripcionActual } from "@/lib/suscripcion";
 
 const ESTADO_LABEL: Record<SuscripcionActual["estado"], string> = {
   ACTIVA: "Activa",
@@ -21,10 +21,17 @@ const ESTADO_LABEL: Record<SuscripcionActual["estado"], string> = {
   CANCELADA: "Cancelada",
 };
 
-const ESTADO_PAGO_LABEL = {
+/**
+ * Tipado como Record sobre la unión —no un objeto suelto— para que agregar un
+ * valor a `EstadoPago` rompa la compilación en vez de pintar la celda vacía.
+ * Es justo lo que habría pasado al sumar REEMBOLSADO y REVERSADO al enum.
+ */
+const ESTADO_PAGO_LABEL: Record<PagoItem["estado"], string> = {
   EXITOSO: "Pagado",
   FALLIDO: "Fallido",
   PENDIENTE: "Pendiente",
+  REEMBOLSADO: "Reembolsado",
+  REVERSADO: "Reversado",
 };
 
 function porcentajeTranscurrido(fechaInicio: string, fechaRenovacion: string | null) {

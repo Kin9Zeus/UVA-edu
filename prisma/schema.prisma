@@ -296,9 +296,11 @@ model Pagos {
   creado_en               DateTime   @default(now()) @db.Timestamptz
   actualizado_en          DateTime   @updatedAt @db.Timestamptz
   /// Cuándo cobró la PASARELA, según la pasarela. Nullable porque no todas lo
-  /// reportan; quien la lea cae a `creado_en`. Existe porque Stripe reintenta
-  /// la entrega de un webhook hasta tres días, y sin esta columna el
-  /// estudiante vería la fecha del reintento como la fecha de su pago.
+  /// reportan: `getSuscripcionActual` (src/lib/suscripcion.ts) resuelve
+  /// `fecha_pago ?? creado_en` y ordena el historial por esa fecha ya
+  /// resuelta. Existe porque Stripe reintenta la entrega de un webhook hasta
+  /// tres días, y sin esta columna el estudiante vería la fecha del reintento
+  /// como la fecha de su pago.
   fecha_pago              DateTime?  @db.Timestamptz
   estado                  EstadoPago
   /// Qué pasarela procesó este cobro. Sin esta columna habría que deducirlo

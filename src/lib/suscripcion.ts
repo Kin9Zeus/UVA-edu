@@ -2,10 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 
 export type PagoItem = {
   id: string;
+  /**
+   * Cuándo cobró la pasarela. Sale de `pagos.fecha_pago`, y solo cae a
+   * `creado_en` cuando el proveedor no la reporta.
+   *
+   * No son lo mismo: `creado_en` es cuándo insertamos NOSOTROS la fila, y
+   * Stripe reintenta la entrega de un webhook hasta tres días. Mostrando
+   * `creado_en` a secas, un estudiante vería la fecha del reintento como la
+   * fecha de su pago.
+   */
   fecha: string;
   monto_centavos: number;
   moneda: string;
-  estado: "EXITOSO" | "FALLIDO" | "PENDIENTE";
+  estado: "EXITOSO" | "FALLIDO" | "PENDIENTE" | "REEMBOLSADO" | "REVERSADO";
 };
 
 export type SuscripcionActual = {
@@ -28,7 +37,7 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
   const { data: suscripcion } = await supabase
     .from("suscripciones")
     .select(
-      "id, fecha_inicio, fecha_renovacion, estado, acceso_manual, id_codigo_invitacion, plan:planes(nombre, duracion_dias), pagos(id, fecha:creado_en, monto_centavos, moneda, estado)",
+      "id, fecha_inicio, fecha_renovacion, estado, acceso_manual, id_codigo_invitacion, plan:planes(nombre, duracion_dias), pagos(id, creado_en, fecha_pago, monto_centavos, moneda, estado)",
     )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
@@ -66,8 +75,22 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
     fechaInicio: suscripcion.fecha_inicio,
     fechaRenovacion: suscripcion.fecha_renovacion,
     estado: suscripcion.estado,
+    // `fecha_pago ?? creado_en`: la fecha que el estudiante ve es la del cobro
+    // según la pasarela, no la del INSERT nuestro. El fallback existe porque la
+    // columna es nullable — no toda pasarela reporta la fecha, y las filas
+    // anteriores a que existiera la columna la tienen en NULL.
+    //
+    // El orden se calcula sobre esa misma fecha ya resuelta: ordenar por
+    // `creado_en` y mostrar `fecha_pago` dejaría el historial descuadrado en
+    // cuanto un webhook llegara con retraso.
     pagos: (suscripcion.pagos ?? [])
-      .slice()
+      .map((pago) => ({
+        id: pago.id,
+        fecha: pago.fecha_pago ?? pago.creado_en,
+        monto_centavos: pago.monto_centavos,
+        moneda: pago.moneda,
+        estado: pago.estado,
+      }))
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
     accesoManual: suscripcion.acceso_manual,
     tieneCodigoInvitacion: suscripcion.id_codigo_invitacion !== null,
