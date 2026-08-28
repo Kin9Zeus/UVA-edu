@@ -22,7 +22,12 @@ import { RevokeAccessDialog } from "@/components/admin/usuarios/RevokeAccessDial
 import { quitarCortesia, revocarMembresia } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
-import { ETIQUETA_TIPO_ACCESO } from "@/lib/estadoAcceso";
+import {
+  ETIQUETA_TIPO_ACCESO,
+  ETIQUETA_ESTADO_SUSCRIPCION,
+  TONO_ESTADO_SUSCRIPCION,
+  suscripcionEstaVigentePorEstado,
+} from "@/lib/estadoAcceso";
 
 /** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil), para que admin y estudiante hablen el mismo idioma. */
 function iniciales(nombre: string) {
@@ -53,9 +58,8 @@ export function UsuarioDetalleView({
   // Solo se puede revocar una membresía manual todavía activa (f4accesos.md
   // no diseña cancelación para las de Stripe/Wompi, y una ya CANCELADA/
   // VENCIDA no tiene nada que revocar).
-  const puedeRevocarMembresia =
-    usuario.suscripcionEsManual &&
-    (usuario.suscripcionEstado === "ACTIVA" || usuario.suscripcionEstado === "PAST_DUE");
+  const suscripcionVigente = suscripcionEstaVigentePorEstado(usuario.suscripcionEstado);
+  const puedeRevocarMembresia = usuario.suscripcionEsManual && suscripcionVigente;
 
   async function handleQuitarCortesia(motivo: string) {
     if (!quitando) return { error: "Selecciona qué cortesía revocar." };
@@ -105,12 +109,27 @@ export function UsuarioDetalleView({
         </div>
         <div className="flex items-center gap-[5px]">
           <EtiquetaBadge>Plan:</EtiquetaBadge>
-          {/* Solo el nombre del plan, como el mockup: el estado de la
-              suscripción se lee en su columna del listado de usuarios.
-              Añadirlo aquí desborda la cabecera de una línea. */}
-          <StatusBadge tone="neutral">{usuario.planActual ?? "—"}</StatusBadge>
+          {/* Antes siempre gris, sin importar si seguía vigente — mismo plan
+              se veía igual de "activo" que uno ya cancelado hace meses. */}
+          <StatusBadge tone={usuario.planActual && suscripcionVigente ? "accent" : "neutral"}>
+            {usuario.planActual ?? "—"}
+          </StatusBadge>
         </div>
-        {usuario.tipoAccesoSuscripcion && (
+        {/* El listado de usuarios ya mostraba este estado; la ficha no lo
+            traía, así que revocar una membresía manual (revocarMembresia,
+            deja CANCELADA) no se notaba aquí — solo desaparecía el botón
+            "Revocar membresía", sin ninguna confirmación visual. */}
+        {usuario.suscripcionEstado && (
+          <div className="flex items-center gap-[5px]">
+            <EtiquetaBadge>Estado:</EtiquetaBadge>
+            <StatusBadge tone={TONO_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}>
+              {ETIQUETA_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}
+            </StatusBadge>
+          </div>
+        )}
+        {/* Solo mientras siga vigente: "Acceso otorgado" junto a "Cancelada"
+            leía como si el acceso siguiera en pie después de revocarlo. */}
+        {usuario.tipoAccesoSuscripcion && suscripcionVigente && (
           <div className="flex items-center gap-[5px]">
             <EtiquetaBadge>Acceso:</EtiquetaBadge>
             <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
@@ -129,12 +148,20 @@ export function UsuarioDetalleView({
       {usuario.suscripcionInicio && (
         <p className="-mt-2 text-[12px] text-uva-muted-2">
           Suscripción desde {formatFecha(usuario.suscripcionInicio)}
-          {usuario.suscripcionFin && (
-            <>
-              {" "}
-              · {usuario.tipoAccesoSuscripcion ? "vence" : "renueva"}{" "}
-              {formatFecha(usuario.suscripcionFin)}
-            </>
+          {usuario.suscripcionEstado === "CANCELADA" ? (
+            // Revocada a mano (revocarMembresia): no tiene sentido seguir
+            // diciendo "vence"/"renueva" en futuro de algo que un admin ya
+            // cerró. El motivo que escribió queda visible aquí mismo — es
+            // la trazabilidad que ve el admin sin tener que ir a la base.
+            <> · cancelada{usuario.suscripcionMotivoCancelacion ? ` — ${usuario.suscripcionMotivoCancelacion}` : ""}</>
+          ) : (
+            usuario.suscripcionFin && (
+              <>
+                {" "}
+                · {usuario.tipoAccesoSuscripcion ? "vence" : "renueva"}{" "}
+                {formatFecha(usuario.suscripcionFin)}
+              </>
+            )
           )}
         </p>
       )}
@@ -249,7 +276,9 @@ export function UsuarioDetalleView({
                       {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
                     </StatusBadge>
                     {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
-                      <StatusBadge tone="error">Revocada</StatusBadge>
+                      <span title={curso.motivoRevocacion ?? undefined}>
+                        <StatusBadge tone="error">Revocada</StatusBadge>
+                      </span>
                     )}
                   </div>
                 </TableCell>

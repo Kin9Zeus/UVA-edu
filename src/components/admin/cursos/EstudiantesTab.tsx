@@ -127,9 +127,17 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                   </StatusBadge>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge tone={estudiante.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                    {estudiante.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                  </StatusBadge>
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge tone={estudiante.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                      {estudiante.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                    </StatusBadge>
+                    {/* Se mantiene en la lista (no desaparece al revocar):
+                        el progreso que dejó sigue siendo real, ver
+                        lib/admin/cursoDetalle.ts. */}
+                    {estudiante.tipoAcceso === "CORTESIA" && !estudiante.activo && (
+                      <StatusBadge tone="error">Revocada</StatusBadge>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

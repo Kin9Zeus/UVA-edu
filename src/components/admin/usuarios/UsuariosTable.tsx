@@ -29,26 +29,20 @@ import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { exportarUsuariosCsv } from "@/actions/admin/exportarUsuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { ResultadoUsuarios, UsuarioListado } from "@/lib/admin/usuarios";
-import { ETIQUETA_TIPO_ACCESO } from "@/lib/estadoAcceso";
+import {
+  ETIQUETA_TIPO_ACCESO,
+  ETIQUETA_ESTADO_SUSCRIPCION,
+  TONO_ESTADO_SUSCRIPCION,
+  suscripcionEstaVigentePorEstado,
+} from "@/lib/estadoAcceso";
 
 const ROL_LABEL: Record<UsuarioListado["rol"], string> = {
   ESTUDIANTE: "Estudiante",
   ADMINISTRADOR: "Administrador",
 };
 
-const SUSCRIPCION_LABEL: Record<NonNullable<UsuarioListado["suscripcionEstado"]>, string> = {
-  ACTIVA: "Activa",
-  PAST_DUE: "Pago pendiente",
-  VENCIDA: "Vencida",
-  CANCELADA: "Cancelada",
-};
-
-const SUSCRIPCION_TONO: Record<NonNullable<UsuarioListado["suscripcionEstado"]>, "success" | "warning" | "error" | "neutral"> = {
-  ACTIVA: "success",
-  PAST_DUE: "warning",
-  VENCIDA: "error",
-  CANCELADA: "neutral",
-};
+const SUSCRIPCION_LABEL = ETIQUETA_ESTADO_SUSCRIPCION;
+const SUSCRIPCION_TONO = TONO_ESTADO_SUSCRIPCION;
 
 const ROL_ITEMS = { todos: "Todos los roles", ...ROL_LABEL };
 const ESTADO_CUENTA_ITEMS = { todos: "Todos los estados", ACTIVO: "Activo", SUSPENDIDO: "Suspendido" };
@@ -290,7 +284,12 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                     ) : (
                       <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
                     )}
-                    {usuario.tipoAccesoSuscripcion && (
+                    {/* Solo mientras la suscripción siga dando acceso: una
+                        CANCELADA o VENCIDA no debería seguir luciendo
+                        "Acceso otorgado" junto a su propio estado — leía
+                        como si el acceso siguiera en pie después de
+                        revocarlo. */}
+                    {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
                       <StatusBadge tone="accent">
                         {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
                       </StatusBadge>

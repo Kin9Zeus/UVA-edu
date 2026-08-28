@@ -49,6 +49,11 @@ export type EstudianteDeCurso = {
   progreso: number;
   estado: "EN_PROGRESO" | "COMPLETADO";
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
+  /** Solo relevante para CORTESIA: false si el admin la revocó. Se mantiene
+   * en la lista en vez de desaparecer — mismo criterio que la ficha de
+   * usuario (UsuarioDetalleView) — porque el progreso que dejó sigue
+   * siendo real; solo cambia si el candado de acceso sigue abierto. */
+  activo: boolean;
 };
 
 /**
@@ -151,7 +156,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     // Hint de FK explícito: inscripciones tiene dos relaciones hacia perfiles
     // (id_usuario y otorgado_por), así que `perfiles(nombre)` sin desambiguar
     // es un embed ambiguo para PostgREST y la query falla en silencio.
-    .select("id, id_usuario, tipo_acceso, usuario:perfiles!inscripciones_id_usuario_fkey(nombre)")
+    .select("id, id_usuario, tipo_acceso, activo, usuario:perfiles!inscripciones_id_usuario_fkey(nombre)")
     .eq("id_curso", cursoId);
 
   const { data: progreso } =
@@ -204,6 +209,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       progreso: porcentaje,
       estado: porcentaje >= 100 && leccionIds.length > 0 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
+      activo: inscripcion.activo,
     };
   });
 
@@ -237,6 +243,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         progreso: porcentaje,
         estado: porcentaje >= 100 && leccionIds.length > 0 ? "COMPLETADO" : "EN_PROGRESO",
         tipoAcceso: "MEMBRESIA",
+        activo: true,
       });
     }
   }
