@@ -98,7 +98,7 @@ export function CodigoFormDialog({
       setPending(false);
 
       if (resultado.error || !resultado.codigo) {
-        setError(resultado.error ?? "No pudimos generar el cupón.");
+        setError(resultado.error ?? "No pudimos generar el código.");
         return;
       }
       onCreado(resultado.codigo);
@@ -113,7 +113,7 @@ export function CodigoFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {editando ? `Editar ${codigo.codigo}` : "Nuevo cupón de invitación"}
+              {editando ? `Editar ${codigo.codigo}` : "Nuevo código de invitación"}
             </DialogTitle>
           </DialogHeader>
 
@@ -169,7 +169,7 @@ export function CodigoFormDialog({
                 required
               />
               <p className="mt-1.5 text-xs text-uva-text-faint">
-                Después de esa fecha el cupón deja de canjearse. No afecta a las suscripciones
+                Después de esa fecha el código deja de canjearse. No afecta a las suscripciones
                 ya otorgadas.
               </p>
             </div>
@@ -205,7 +205,7 @@ export function CodigoFormDialog({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={pending}>
-              {pending ? "Guardando…" : editando ? "Guardar" : "Generar cupón"}
+              {pending ? "Guardando…" : editando ? "Guardar" : "Generar código"}
             </Button>
           </DialogFooter>
         </form>
