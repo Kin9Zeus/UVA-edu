@@ -5,7 +5,7 @@ export type CursoDelUsuario = {
   /**
    * `null` cuando el curso no tiene fila en `inscripciones` — un estudiante
    * con membresía activa tiene acceso a todos los cursos sin que se le cree
-   * una por cada uno (ver tieneAccesoAlCurso, lib/leccion.ts), así que el
+   * una por cada uno (ver obtenerAccesoAlCurso, src/lib/accesoCurso.ts), así que el
    * único rastro de que empezó ESTE curso es su progreso.
    */
   inscripcionId: string | null;
@@ -144,7 +144,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   // Cursos que el estudiante empezó por MEMBRESÍA sin una fila en
   // `inscripciones` (el acceso por suscripción se valida en caliente contra
   // `suscripciones`, no se materializa una inscripción por curso — ver
-  // tieneAccesoAlCurso en lib/leccion.ts). Sin este bloque, un curso que el
+  // obtenerAccesoAlCurso en src/lib/accesoCurso.ts). Sin este bloque, un curso que el
   // usuario ya venía viendo en "Sigue aprendiendo" del dashboard no
   // aparecía aquí: la ficha de admin solo mostraba las cortesías.
   const cursoIdsConInscripcion = new Set(cursos.map((curso) => curso.cursoId));

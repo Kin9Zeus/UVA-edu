@@ -166,10 +166,10 @@ export async function ofrecerCortesia(usuarioId: string, cursoId: string): Promi
 /**
  * Revoca una cortesía (f4accesos.md): NO borra la fila, la marca inactiva
  * con fecha (`revocado_en`), motivo y qué admin la ejecutó. El corte de
- * acceso real lo hacen `tieneAccesoAlCurso` (lib/leccion.ts, lib/curso.ts),
- * `resolverTokenReproduccion` (lib/video/reproduccion.ts) y las policies de
- * RLS (039_revocacion_cortesia.sql), que ahora exigen `activo = true` — no
- * el borrado en sí.
+ * acceso real lo hacen `obtenerAccesoAlCurso` (src/lib/accesoCurso.ts, usada
+ * por lib/leccion.ts, lib/curso.ts y lib/video/reproduccion.ts) y las
+ * policies de RLS (039_revocacion_cortesia.sql), que ahora exigen
+ * `activo = true` — no el borrado en sí.
  */
 export async function quitarCortesia(
   inscripcionId: string,

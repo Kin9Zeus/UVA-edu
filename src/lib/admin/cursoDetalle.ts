@@ -39,8 +39,8 @@ export type EstudianteDeCurso = {
   /**
    * `null` cuando el acceso es por membresía sin fila en `inscripciones`
    * (la suscripción da acceso a todo el catálogo publicado, no se
-   * materializa una inscripción por curso — ver tieneAccesoAlCurso,
-   * lib/leccion.ts). Solo una inscripción real (típicamente cortesía)
+   * materializa una inscripción por curso — ver obtenerAccesoAlCurso,
+   * src/lib/accesoCurso.ts). Solo una inscripción real (típicamente cortesía)
    * tiene id para poder revocarla.
    */
   inscripcionId: string | null;
