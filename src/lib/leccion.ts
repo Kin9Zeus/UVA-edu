@@ -61,6 +61,7 @@ async function tieneAccesoAlCurso(cursoId: string, usuarioId: string) {
     .eq("id_usuario", usuarioId)
     .eq("id_curso", cursoId)
     .eq("tipo_acceso", "CORTESIA")
+    .eq("activo", true)
     .maybeSingle();
 
   if (inscripcion) return true;

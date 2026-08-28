@@ -15,11 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { GrantMembershipDialog } from "@/components/admin/usuarios/GrantMembershipDialog";
 import { GrantCourtesyDialog } from "@/components/admin/usuarios/GrantCourtesyDialog";
-import { quitarCortesia } from "@/actions/admin/usuarios";
+import { RevokeAccessDialog } from "@/components/admin/usuarios/RevokeAccessDialog";
+import { quitarCortesia, revocarMembresia } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
 import { ETIQUETA_TIPO_ACCESO } from "@/lib/estadoAcceso";
@@ -46,17 +46,29 @@ export function UsuarioDetalleView({
 }) {
   const [membresiaOpen, setMembresiaOpen] = useState(false);
   const [cortesiaOpen, setCortesiaOpen] = useState(false);
+  const [revocandoMembresia, setRevocandoMembresia] = useState(false);
   const [quitando, setQuitando] = useState<{ inscripcionId: string; titulo: string } | null>(null);
   const showToast = useAdminToast();
 
-  async function handleQuitarCortesia() {
-    if (!quitando) return;
-    const resultado = await quitarCortesia(quitando.inscripcionId, usuario.id);
-    if (resultado.error) {
-      showToast(resultado.error, "error");
-      return;
-    }
-    showToast("Cortesía retirada.");
+  // Solo se puede revocar una membresía manual todavía activa (f4accesos.md
+  // no diseña cancelación para las de Stripe/Wompi, y una ya CANCELADA/
+  // VENCIDA no tiene nada que revocar).
+  const puedeRevocarMembresia =
+    usuario.suscripcionEsManual &&
+    (usuario.suscripcionEstado === "ACTIVA" || usuario.suscripcionEstado === "PAST_DUE");
+
+  async function handleQuitarCortesia(motivo: string) {
+    if (!quitando) return { error: "Selecciona qué cortesía revocar." };
+    const resultado = await quitarCortesia(quitando.inscripcionId, usuario.id, motivo);
+    if (!resultado.error) showToast("Cortesía revocada.");
+    return resultado;
+  }
+
+  async function handleRevocarMembresia(motivo: string) {
+    if (!usuario.suscripcionId) return { error: "No encontramos la membresía." };
+    const resultado = await revocarMembresia(usuario.suscripcionId, usuario.id, motivo);
+    if (!resultado.error) showToast("Membresía revocada.");
+    return resultado;
   }
 
   return (
@@ -134,6 +146,11 @@ export function UsuarioDetalleView({
         <Button type="button" onClick={() => setCortesiaOpen(true)}>
           Ofrecer curso de cortesía
         </Button>
+        {puedeRevocarMembresia && (
+          <Button type="button" variant="destructive" onClick={() => setRevocandoMembresia(true)}>
+            Revocar membresía
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -227,15 +244,20 @@ export function UsuarioDetalleView({
                   </StatusBadge>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                    {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                  </StatusBadge>
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                      {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                    </StatusBadge>
+                    {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
+                      <StatusBadge tone="error">Revocada</StatusBadge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-[12px] text-uva-muted-2">
                   {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  {curso.tipoAcceso === "CORTESIA" && curso.inscripcionId && (
+                  {curso.tipoAcceso === "CORTESIA" && curso.activo && curso.inscripcionId && (
                     <Button
                       type="button"
                       variant="destructive"
@@ -267,12 +289,21 @@ export function UsuarioDetalleView({
         usuarioId={usuario.id}
         cursos={cursosDisponibles}
       />
-      <ConfirmDialog
+      <RevokeAccessDialog
         open={quitando !== null}
         onOpenChange={(open) => !open && setQuitando(null)}
-        title="Quitar cortesía"
-        description={`¿Retirar el acceso de cortesía a "${quitando?.titulo}"? El usuario perderá el acceso a este curso.`}
+        title="Revocar cortesía"
+        usuarioNombre={usuario.nombre}
+        recurso={quitando ? `el curso de cortesía "${quitando.titulo}"` : ""}
         onConfirm={handleQuitarCortesia}
+      />
+      <RevokeAccessDialog
+        open={revocandoMembresia}
+        onOpenChange={setRevocandoMembresia}
+        title="Revocar membresía"
+        usuarioNombre={usuario.nombre}
+        recurso="su membresía manual"
+        onConfirm={handleRevocarMembresia}
       />
     </div>
   );

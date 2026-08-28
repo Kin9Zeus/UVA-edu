@@ -103,18 +103,43 @@ export async function ofrecerCortesia(usuarioId: string, cursoId: string): Promi
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { error } = await admin.supabase.from("inscripciones").insert({
-    id_usuario: usuarioId,
-    id_curso: cursoId,
-    otorgado_por: admin.adminId,
-    tipo_acceso: "CORTESIA",
-  });
+  // El índice único (id_usuario, id_curso) sigue vivo aunque una fila esté
+  // revocada (quitarCortesia ya no borra, ver f4accesos.md) -- un INSERT
+  // directo chocaría contra la fila vieja con 23505 aunque esté inactiva.
+  // Si existe, se reactiva la misma fila en vez de crear una segunda: es
+  // la forma en que "revocar y volver a otorgar" queda consistente con el
+  // índice sin tener que convertirlo en uno parcial.
+  const { data: existente } = await admin.supabase
+    .from("inscripciones")
+    .select("id, activo")
+    .eq("id_usuario", usuarioId)
+    .eq("id_curso", cursoId)
+    .maybeSingle();
 
-  if (error) {
-    return {
-      error: error.code === "23505" ? "El usuario ya tiene acceso a este curso." : "No pudimos otorgar la cortesía.",
-    };
+  if (existente?.activo) {
+    return { error: "El usuario ya tiene acceso a este curso." };
   }
+
+  const { error } = existente
+    ? await admin.supabase
+        .from("inscripciones")
+        .update({
+          activo: true,
+          tipo_acceso: "CORTESIA",
+          otorgado_por: admin.adminId,
+          revocado_en: null,
+          motivo_revocacion: null,
+          revocado_por: null,
+        })
+        .eq("id", existente.id)
+    : await admin.supabase.from("inscripciones").insert({
+        id_usuario: usuarioId,
+        id_curso: cursoId,
+        otorgado_por: admin.adminId,
+        tipo_acceso: "CORTESIA",
+      });
+
+  if (error) return { error: "No pudimos otorgar la cortesía." };
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
@@ -128,13 +153,33 @@ export async function ofrecerCortesia(usuarioId: string, cursoId: string): Promi
   return { success: true };
 }
 
-export async function quitarCortesia(inscripcionId: string, usuarioId: string): Promise<AdminActionResult> {
+/**
+ * Revoca una cortesía (f4accesos.md): NO borra la fila, la marca inactiva
+ * con fecha (`revocado_en`), motivo y qué admin la ejecutó. El corte de
+ * acceso real lo hacen `tieneAccesoAlCurso` (lib/leccion.ts, lib/curso.ts),
+ * `resolverTokenReproduccion` (lib/video/reproduccion.ts) y las policies de
+ * RLS (039_revocacion_cortesia.sql), que ahora exigen `activo = true` — no
+ * el borrado en sí.
+ */
+export async function quitarCortesia(
+  inscripcionId: string,
+  usuarioId: string,
+  motivo: string,
+): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
+  const motivoLimpio = motivo.trim();
+  if (!motivoLimpio) return { error: "Escribe el motivo de la revocación." };
+
   const { error } = await admin.supabase
     .from("inscripciones")
-    .delete()
+    .update({
+      activo: false,
+      revocado_en: new Date().toISOString(),
+      motivo_revocacion: motivoLimpio,
+      revocado_por: admin.adminId,
+    })
     .eq("id", inscripcionId)
     .eq("tipo_acceso", "CORTESIA");
 
@@ -142,11 +187,69 @@ export async function quitarCortesia(inscripcionId: string, usuarioId: string): 
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
-    accion: "Quitó un curso de cortesía",
+    accion: "Revocó un curso de cortesía",
     entidadAfectada: "inscripciones",
     idEntidadAfectada: inscripcionId,
+    detalles: motivoLimpio,
   });
 
   revalidatePath(`/admin/usuarios/${usuarioId}`);
+  return { success: true };
+}
+
+/**
+ * Revoca una membresía manual (f4accesos.md): cierra la suscripción como
+ * `CANCELADA` — estado que `suscripcionDaAcceso`/`private.suscripcion_da_acceso`
+ * (038_vigencia_por_fecha.sql) ya excluyen del acceso vigente, así que no
+ * hace falta ninguna regla nueva de RLS para que el corte surta efecto en
+ * la siguiente petición. Solo puede revocarse una suscripción que el admin
+ * otorgó a mano (`acceso_manual`): una de Stripe/Wompi no tiene todavía un
+ * flujo de cancelación diseñado y no es lo que pide este documento.
+ */
+export async function revocarMembresia(
+  suscripcionId: string,
+  usuarioId: string,
+  motivo: string,
+): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  const motivoLimpio = motivo.trim();
+  if (!motivoLimpio) return { error: "Escribe el motivo de la revocación." };
+
+  const { data: suscripcion } = await admin.supabase
+    .from("suscripciones")
+    .select("id, id_usuario, acceso_manual, estado")
+    .eq("id", suscripcionId)
+    .single();
+
+  if (!suscripcion || suscripcion.id_usuario !== usuarioId || !suscripcion.acceso_manual) {
+    return { error: "No encontramos esa membresía manual." };
+  }
+  if (suscripcion.estado === "CANCELADA") {
+    return { error: "Esa membresía ya está cancelada." };
+  }
+
+  const { error } = await admin.supabase
+    .from("suscripciones")
+    .update({
+      estado: "CANCELADA",
+      motivo_cancelacion: motivoLimpio,
+      cancelado_por: admin.adminId,
+    })
+    .eq("id", suscripcionId);
+
+  if (error) return { error: "No pudimos revocar la membresía." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Revocó una membresía manual",
+    entidadAfectada: "suscripciones",
+    idEntidadAfectada: usuarioId,
+    detalles: motivoLimpio,
+  });
+
+  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidatePath("/admin/usuarios");
   return { success: true };
 }

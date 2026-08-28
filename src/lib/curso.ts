@@ -149,6 +149,7 @@ export async function getCursoPublico(
           .eq("id_usuario", usuarioId)
           .eq("id_curso", cursoId)
           .eq("tipo_acceso", "CORTESIA")
+          .eq("activo", true)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     usuarioId

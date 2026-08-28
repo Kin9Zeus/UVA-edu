@@ -34,6 +34,16 @@ try {
 }
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+// Import dinámico, no estático: un `import` de nivel superior se eleva por
+// encima del `process.loadEnvFile(".env.local")` de arriba (los ESM izan
+// TODOS los imports antes de cualquier otra sentencia, sin importar el
+// orden en el código fuente). `resolverTokenReproduccion` arrastra
+// `@/lib/mux/client`, que construye el cliente de Mux al cargarse — con un
+// import estático, esa construcción ocurriría con `process.env` todavía
+// vacío y el token saldría sin firmar ("Signing key required"), un fallo de
+// configuración del script, no del control de acceso. Con `await import()`
+// dentro de `main()`, el módulo se evalúa después de que el .env ya cargó.
+type ResolverTokenReproduccion = typeof import("../src/lib/video/reproduccion").resolverTokenReproduccion;
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -73,6 +83,9 @@ async function esperarPermitido(
 }
 
 async function main() {
+  const { resolverTokenReproduccion }: { resolverTokenReproduccion: ResolverTokenReproduccion } =
+    await import("../src/lib/video/reproduccion");
+
   const admin = createClient(URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -200,6 +213,58 @@ async function main() {
   const clienteConAcceso: SupabaseClient = createClient(URL, ANON_KEY);
   const loginConAcceso = await clienteConAcceso.auth.signInWithPassword({ email: correoConAcceso, password });
   if (loginConAcceso.error) throw new Error(`No pude iniciar sesión (con acceso): ${loginConAcceso.error.message}`);
+
+  // Curso PUBLICADO (`mostrado = true`) para la prueba de reproducción: así
+  // la lectura de la lección no depende de RLS de visibilidad de curso (eso
+  // ya lo prueba el bloque de "curso despublicado"), y el resultado aísla
+  // justo lo que hay que probar — la vigencia de la suscripción.
+  const { data: cursoReproduccion, error: errCursoReproduccion } = await admin
+    .from("cursos")
+    .insert({
+      titulo: `Curso RLS test (reproducción) ${sufijo}`,
+      descripcion: "x",
+      imagen_portada: "x",
+      id_instructor: instructor.id,
+      mostrado: true,
+      id_admin_creador: adminPerfil.id,
+    })
+    .select("id")
+    .single();
+  if (errCursoReproduccion || !cursoReproduccion) {
+    throw new Error(`No pude crear el curso de reproducción de prueba: ${errCursoReproduccion?.message}`);
+  }
+
+  const { data: moduloReproduccion, error: errModuloReproduccion } = await admin
+    .from("modulos")
+    .insert({ id_curso: cursoReproduccion.id, titulo: "Módulo reproducción RLS test", orden: 10 })
+    .select("id")
+    .single();
+  if (errModuloReproduccion || !moduloReproduccion) {
+    throw new Error(`No pude crear el módulo de reproducción de prueba: ${errModuloReproduccion?.message}`);
+  }
+
+  // `id_video_mux` no necesita ser un asset real: firmar el JWT es una
+  // operación puramente criptográfica con la private key de Mux, sin
+  // llamada de red — no hace falta que el playback ID exista en Mux para
+  // probar la DECISIÓN de acceso, que es lo único que interesa aquí.
+  const { data: leccionReproduccion, error: errLeccionReproduccion } = await admin
+    .from("lecciones")
+    .insert({
+      id_modulo: moduloReproduccion.id,
+      titulo: "Lección reproducción RLS test",
+      orden: 10,
+      id_video_mux: `rls-test-playback-${sufijo}`,
+      estado_procesamiento: "LISTO",
+    })
+    .select("id")
+    .single();
+  if (errLeccionReproduccion || !leccionReproduccion) {
+    throw new Error(`No pude crear la lección de reproducción de prueba: ${errLeccionReproduccion?.message}`);
+  }
+  // TS no arrastra el `!leccionReproduccion` de arriba hasta dentro de la
+  // función definida más abajo (verificarReproduccion): con una constante
+  // aparte que ya no es nullable, no hace falta un `!` en cada uso.
+  const idLeccionReproduccion: string = leccionReproduccion.id;
 
   try {
     console.log("\n=== Sesión: ANÓNIMO (sin login) ===\n");
@@ -389,6 +454,28 @@ async function main() {
       clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
     );
 
+    // Revocar (f4accesos.md): quitarCortesia() ya no borra la fila, la
+    // marca `activo = false` — esta es la prueba de que
+    // 039_revocacion_cortesia.sql realmente deja de contarla en
+    // private.tiene_acceso_vigente_curso(). Antes de esa migración, la fila
+    // seguía siendo tipo_acceso = 'CORTESIA' y el acceso NUNCA se cortaba.
+    const { error: errRevocarCortesia } = await admin
+      .from("inscripciones")
+      .update({
+        activo: false,
+        revocado_en: new Date().toISOString(),
+        motivo_revocacion: "prueba RLS",
+        revocado_por: adminPerfil.id,
+      })
+      .eq("id_usuario", userSinAcceso.user!.id)
+      .eq("id_curso", cursoNoPublicado.id);
+    if (errRevocarCortesia) throw new Error(`No pude revocar la cortesía de prueba: ${errRevocarCortesia.message}`);
+
+    await esperarBloqueado(
+      "cortesía revocada NO ve un curso despublicado",
+      clienteSinAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
+    );
+
     // Membresía: la prueba de arriba ya confirmó que el cliente no puede
     // crearla por su cuenta (P0-1); acá el admin la siembra directamente
     // (Service Role Key, se salta RLS) solo para poder seguir probando la
@@ -434,6 +521,85 @@ async function main() {
     );
 
     // ------------------------------------------------------------------
+    // REPRODUCCIÓN (RevAccesof4, "Definición de terminado": las 3 cuentas
+    // probadas en catálogo, detalle de curso Y reproducción, vía API
+    // directa, no solo desde la interfaz).
+    //
+    // El resto de este archivo prueba RLS — la segunda capa. Esto prueba la
+    // PRIMERA: `resolverTokenReproduccion()` (src/lib/video/reproduccion.ts),
+    // la función que de verdad decide si se firma el JWT de Mux. No es
+    // invocable como Server Action fuera de una petición de Next (depende de
+    // `cookies()`), así que se llama a la función ya extraída, pasándole un
+    // cliente autenticado a mano — exactamente lo que hace este script con
+    // el resto de sesiones. Los fixtures (curso/módulo/lección) se crean
+    // antes del `try`, junto al resto — así el `finally` también puede
+    // limpiarlos.
+    // ------------------------------------------------------------------
+    async function verificarReproduccion(
+      nombre: string,
+      cliente: SupabaseClient,
+      esperado: "permitido" | "bloqueado",
+    ) {
+      const resultado = await resolverTokenReproduccion(cliente, idLeccionReproduccion);
+      const tieneToken = "token" in resultado;
+      const ok = esperado === "permitido" ? tieneToken : !tieneToken;
+      registrar(
+        nombre,
+        ok,
+        tieneToken ? "token firmado" : (resultado as { error: string }).error,
+      );
+    }
+
+    await verificarReproduccion(
+      "reproducción: sin acceso NO obtiene token de video",
+      clienteSinAcceso,
+      "bloqueado",
+    );
+    await verificarReproduccion(
+      "reproducción: con acceso vigente SÍ obtiene token de video",
+      clienteConAcceso,
+      "permitido",
+    );
+
+    // Cortesía otorgada y luego revocada (f4accesos.md) sobre el MISMO
+    // curso publicado que usa la prueba de arriba: confirma que
+    // resolverTokenReproduccion() — que ahora exige `activo = true` en su
+    // consulta a `inscripciones` — deja de firmar el token en cuanto se
+    // revoca, sin esperar a que expire el token de 15 minutos ya emitido
+    // (la mitigación aceptada para ese, documentada en
+    // src/lib/video/reproduccion.ts).
+    const { error: errCortesiaReproduccion } = await admin.from("inscripciones").insert({
+      id_usuario: userSinAcceso.user!.id,
+      id_curso: cursoReproduccion.id,
+      tipo_acceso: "CORTESIA",
+      otorgado_por: adminPerfil.id,
+    });
+    if (errCortesiaReproduccion) {
+      throw new Error(`No pude otorgar la cortesía de reproducción de prueba: ${errCortesiaReproduccion.message}`);
+    }
+
+    await verificarReproduccion(
+      "reproducción: cortesía activa SÍ obtiene token de video",
+      clienteSinAcceso,
+      "permitido",
+    );
+
+    const { error: errRevocarCortesiaReproduccion } = await admin
+      .from("inscripciones")
+      .update({ activo: false, revocado_en: new Date().toISOString(), motivo_revocacion: "prueba RLS" })
+      .eq("id_usuario", userSinAcceso.user!.id)
+      .eq("id_curso", cursoReproduccion.id);
+    if (errRevocarCortesiaReproduccion) {
+      throw new Error(`No pude revocar la cortesía de reproducción de prueba: ${errRevocarCortesiaReproduccion.message}`);
+    }
+
+    await verificarReproduccion(
+      "reproducción: cortesía revocada NO obtiene token de video",
+      clienteSinAcceso,
+      "bloqueado",
+    );
+
+    // ------------------------------------------------------------------
     // Vigencia por fecha (supabase/sql/038)
     //
     // Nada mueve una suscripción a VENCIDA cuando pasa su fecha de
@@ -470,6 +636,15 @@ async function main() {
       clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
     );
 
+    // El caso exacto del P0 original: una ACTIVA con la fecha ya pasada
+    // seguía firmando el JWT de Mux para siempre, porque nada movía la fila
+    // a VENCIDA. Esta es la prueba que lo habría detectado.
+    await verificarReproduccion(
+      "reproducción: acceso vencido (ACTIVA con fecha pasada) NO obtiene token de video",
+      clienteConAcceso,
+      "bloqueado",
+    );
+
     await esperarBloqueado(
       "acceso vencido NO ve el curso despublicado, ni con MEMBRESIA y progreso",
       clienteConAcceso.from("cursos").select("id").eq("id", cursoNoPublicado.id),
@@ -487,6 +662,33 @@ async function main() {
       .update({ fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString() })
       .eq("id_usuario", userConAcceso.user!.id);
     if (errRestaurar) throw new Error(`No pude restaurar la suscripción de prueba: ${errRestaurar.message}`);
+
+    // Revocar una membresía manual (f4accesos.md, revocarMembresia): pone
+    // estado = 'CANCELADA'. No hace falta ninguna regla nueva de RLS para
+    // esto — private.suscripcion_da_acceso() (038) ya solo da acceso a
+    // ACTIVA/PAST_DUE, así que CANCELADA cae sola por la rama que falta.
+    // Esta prueba confirma que ese camino, ya existente, sigue cerrado.
+    const { error: errCancelar } = await admin
+      .from("suscripciones")
+      .update({ estado: "CANCELADA", motivo_cancelacion: "prueba RLS", cancelado_por: adminPerfil.id })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errCancelar) throw new Error(`No pude cancelar la suscripción de prueba: ${errCancelar.message}`);
+
+    await esperarBloqueado(
+      "membresía manual revocada (CANCELADA) NO descarga los materiales",
+      clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
+    );
+    await verificarReproduccion(
+      "reproducción: membresía manual revocada (CANCELADA) NO obtiene token de video",
+      clienteConAcceso,
+      "bloqueado",
+    );
+
+    const { error: errReactivar } = await admin
+      .from("suscripciones")
+      .update({ estado: "ACTIVA", motivo_cancelacion: null, cancelado_por: null })
+      .eq("id_usuario", userConAcceso.user!.id);
+    if (errReactivar) throw new Error(`No pude reactivar la suscripción de prueba: ${errReactivar.message}`);
 
     // ------------------------------------------------------------------
     // Panel de usuarios (Fase 4, supabase/sql/036 y 037)
@@ -585,6 +787,8 @@ async function main() {
   } finally {
     console.log("\nLimpiando datos de prueba...");
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
+    await admin.from("modulos").delete().eq("id_curso", cursoReproduccion.id);
+    await admin.from("cursos").delete().eq("id", cursoReproduccion.id);
     await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("inscripciones").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);

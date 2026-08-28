@@ -14,6 +14,8 @@ export type CursoDelUsuario = {
   progreso: number;
   estado: "EN_PROGRESO" | "COMPLETADO";
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
+  /** Solo relevante para CORTESIA: false si el admin la revocó (f4accesos.md). MEMBRESIA siempre viene en true — no tiene este concepto. */
+  activo: boolean;
   ultimaActividad: string | null;
 };
 
@@ -25,6 +27,10 @@ export type UsuarioDetalle = {
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   suscripcionEstado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA" | null;
+  /** null = nunca tuvo ninguna. Se necesita para poder revocarla (revocarMembresia). */
+  suscripcionId: string | null;
+  /** true si esta suscripción la otorgó un admin a mano (o vía código de invitación), no Stripe/Wompi. Revocar (f4accesos.md) solo aplica a estas. */
+  suscripcionEsManual: boolean;
   planActual: string | null;
   /** null = sin suscripción o de pago (Stripe/Wompi). Misma clasificación que ve el estudiante, ver src/lib/estadoAcceso.ts. */
   tipoAccesoSuscripcion: TipoAccesoGratuito | null;
@@ -54,7 +60,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   const { data: suscripciones } = await supabase
     .from("suscripciones")
     .select(
-      "estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, plan:planes(nombre)",
+      "id, estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, plan:planes(nombre)",
     )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
@@ -87,7 +93,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
-    .select("id, id_curso, tipo_acceso, curso:cursos(titulo)")
+    .select("id, id_curso, tipo_acceso, activo, curso:cursos(titulo)")
     .eq("id_usuario", usuarioId);
 
   const cursos: CursoDelUsuario[] = [];
@@ -125,6 +131,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       progreso: porcentaje,
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
+      activo: inscripcion.activo,
       ultimaActividad,
     });
   }
@@ -190,6 +197,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       progreso: porcentaje,
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: "MEMBRESIA",
+      activo: true,
       ultimaActividad: datos.ultimaActividad,
     });
   }
@@ -210,6 +218,8 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     estado: perfil.estado,
     fechaRegistro: perfil.fecha_registro,
     suscripcionEstado: suscripcion?.estado ?? null,
+    suscripcionId: suscripcion?.id ?? null,
+    suscripcionEsManual: suscripcion?.acceso_manual ?? false,
     // Sin plan pero con suscripción = acceso por código de invitación
     // (`id_plan` NULL, ver 035_canje_codigo_por_dias.sql). Distinto de no
     // tener suscripción, que sí es null. Con los días reales al lado: antes
