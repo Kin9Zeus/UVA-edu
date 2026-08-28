@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { canjearCodigoInvitacion } from "@/actions/codigos-invitacion/canjear";
-import { normalizarCodigo } from "@/lib/codigoInvitacion";
+import { formatearCodigoMientrasEscribe, normalizarCodigo } from "@/lib/codigoInvitacion";
 
 function formatearEspera(segundos: number): string {
   const minutos = Math.ceil(segundos / 60);
@@ -50,6 +50,22 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
   }, [segundosRestantes]);
 
   const bloqueado = segundosRestantes !== null && segundosRestantes > 0;
+
+  function handleCodigoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const valorCrudo = event.target.value;
+    const sinGuionesAnterior = codigo.replace(/-/g, "");
+    let sinGuionesNuevo = valorCrudo.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+    // Backspace justo sobre un guion: el valor crudo se acorta pero el
+    // guion no formaba parte del contenido real, así que el contenido
+    // "limpio" queda igual y el input parece no reaccionar. Se interpreta
+    // como "borra también el caracter anterior al guion".
+    if (valorCrudo.length < codigo.length && sinGuionesNuevo === sinGuionesAnterior) {
+      sinGuionesNuevo = sinGuionesNuevo.slice(0, -1);
+    }
+
+    setCodigo(formatearCodigoMientrasEscribe(sinGuionesNuevo));
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -109,13 +125,14 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
             <Input
               id="codigo-invitacion"
               value={codigo}
-              onChange={(event) => setCodigo(event.target.value)}
+              onChange={handleCodigoChange}
               placeholder="UVA-K7M2-QP4X"
               // `characters`: el código es alfanumérico y sin palabras, así
               // que la autocorrección del móvil solo estorba.
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
+              maxLength={13}
               className="max-w-[220px] font-mono tracking-[0.08em] uppercase"
               disabled={bloqueado}
               required

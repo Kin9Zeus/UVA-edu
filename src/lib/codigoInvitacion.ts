@@ -45,6 +45,34 @@ export function normalizarCodigo(entrada: string): string {
   return entrada.trim().toUpperCase().replace(/\s+/g, "");
 }
 
+/** Cuántos caracteres alfanuméricos tiene un código sin contar los guiones: 3 (prefijo) + 4 + 4. */
+const LARGO_SIN_GUIONES = 11;
+
+/**
+ * Reformatea lo que va tecleando el usuario al formato `UVA-K7M2-QP4X`
+ * (CanjearCodigoForm.tsx), insertando los guiones solos a medida que
+ * escribe. Recibe el valor SIN guiones (ya le corresponde al llamador
+ * decidir si un guion borrado con backspace cuenta como un caracter
+ * borrado, ver el manejador de `onChange`) y siempre devuelve un código
+ * bien formado o un prefijo parcial de uno.
+ *
+ * No usa `generarCodigoInvitacion`'s prefijo dinámico: en la práctica todo
+ * código que se genera usa "UVA" (`src/actions/admin/codigosInvitacion.ts`
+ * nunca pasa otro), así que el formato de tecleo asume 3-4-4 igual que la
+ * visualización en el panel admin.
+ */
+export function formatearCodigoMientrasEscribe(sinGuiones: string): string {
+  const limpio = sinGuiones
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, LARGO_SIN_GUIONES);
+
+  let resultado = limpio.slice(0, 3);
+  if (limpio.length > 3) resultado += `-${limpio.slice(3, 7)}`;
+  if (limpio.length > 7) resultado += `-${limpio.slice(7, 11)}`;
+  return resultado;
+}
+
 export type EstadoCodigo = "ACTIVO" | "INACTIVO" | "VENCIDO" | "AGOTADO";
 
 /**
