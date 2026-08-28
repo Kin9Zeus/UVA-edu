@@ -39,8 +39,13 @@ describe("calcularDiasGracia", () => {
 describe("la ventana de gracia no se separa entre TypeScript y SQL", () => {
   it("todos los interval de gracia del SQL coinciden con DURACION_GRACIA_DIAS", () => {
     const directorio = join(process.cwd(), "supabase/sql");
-    // La línea exacta que suma la ventana de gracia a la fecha de renovación.
-    const patron = /fecha_renovacion at time zone 'UTC'\)\s*\+\s*interval '(\d+) days'/g;
+    // La línea que suma la ventana de gracia a la fecha de renovación, en sus
+    // dos formas. El `at time zone 'UTC'` era obligatorio mientras la columna
+    // fue `timestamp` sin zona; desde que 043 la pasó a `timestamptz` sobra, y
+    // las versiones vigentes comparan instantes directamente. El grupo
+    // opcional cubre las dos para que el barrido no deje fuera justo el
+    // archivo que manda (043), que es lo que pasaría con el patrón anterior.
+    const patron = /fecha_renovacion(?: at time zone 'UTC'\))?\s*\+\s*interval '(\d+) days'/g;
 
     const encontrados = readdirSync(directorio)
       .filter((nombre) => nombre.endsWith(".sql"))

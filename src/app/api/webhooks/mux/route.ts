@@ -253,6 +253,6 @@ export async function POST(request: NextRequest) {
       break;
   }
 
-  await marcarProcesado(evento.id);
+  await marcarProcesado("mux", evento.id);
   return NextResponse.json({ received: true });
 }

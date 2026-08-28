@@ -33,10 +33,22 @@ enum EstadoSuscripcion {
   CANCELADA
 }
 
+/// REEMBOLSADO y REVERSADO existen desde el diseño, aunque hoy ninguna
+/// pasarela esté conectada: sin ellos, registrar una devolución obligaría a
+/// mutar la fila del pago original y destruir el rastro contable. El
+/// Estatuto del Consumidor colombiano da derecho de retracto en ventas a
+/// distancia, y `ref_factura_dian` ya anticipa la factura electrónica —
+/// cuya contraparte de una devolución es la nota crédito.
+///
+/// REEMBOLSADO: devolvimos el dinero al estudiante.
+/// REVERSADO:   la pasarela o el banco anularon la transacción (contracargo),
+///              sin que mediara una devolución nuestra.
 enum EstadoPago {
   EXITOSO
   FALLIDO
   PENDIENTE
+  REEMBOLSADO
+  REVERSADO
 }
 
 enum EstadoProcesamientoLeccion {
@@ -105,11 +117,24 @@ model Perfiles {
   @@map("perfiles")
 }
 
+/// Catálogo de planes de membresía. `precio_centavos` + `moneda` son el
+/// precio de REFERENCIA que muestra el catálogo público; lo que efectivamente
+/// se cobra a través de cada pasarela vive en `PlanesPrecios`, porque el mismo
+/// plan necesita precio en COP (Wompi) y en USD (Stripe).
+///
+/// Hoy la tabla se usa sin cobro: `otorgarMembresia` lee `duracion_dias` para
+/// calcular hasta cuándo dura un acceso otorgado a mano.
 model Planes {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre          String
   descripcion     String?
-  precio_centavos Int
+  /// BigInt, no Int: en centavos de peso colombiano un INTEGER de 4 bytes
+  /// tope en $21.474.836, y Postgres no trunca — lanza 22003 y el INSERT
+  /// falla. Ver la migración `esquema_listo_para_cobro`.
+  precio_centavos BigInt
+  /// ISO-4217 en mayúsculas ('COP', 'USD'). Lo garantiza un CHECK en la base
+  /// (supabase/sql/042): `formatMoneda` se lo pasa a Intl.NumberFormat, que
+  /// lanza RangeError con cualquier otra cosa y tumbaría la pantalla.
   moneda          String
   duracion_dias   Int
   nivel_acceso    String?
@@ -119,10 +144,61 @@ model Planes {
   actualizado_en  DateTime @updatedAt @db.Timestamptz
 
   suscripciones Suscripciones[]
+  precios       PlanesPrecios[]
 
   @@map("planes")
 }
 
+/// Precio de un plan EN una pasarela concreta. Tabla vacía a propósito:
+/// llenarla es parte de la integración de cobro, que está diferida.
+///
+/// Resuelve dos cosas de una vez, sin tocar `Planes`:
+///   1. El mapeo plan → precio del proveedor. Sin él no hay contra qué
+///      conciliar un webhook, que es literalmente lo que dice el TODO de
+///      `src/app/api/webhooks/stripe/route.ts`.
+///   2. El precio por moneda. `Planes` tiene una sola pareja precio/moneda,
+///      pero docs/technical-spec.md define Stripe para facturación
+///      internacional y Wompi para Colombia.
+///
+/// Para enchufar una pasarela se insertan filas aquí y se lee
+/// `id_precio_externo` desde el webhook. Ninguna tabla existente cambia.
+model PlanesPrecios {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_plan           String   @db.Uuid
+  /// Genérico, nunca una columna por pasarela ('id_precio_stripe'). Valores
+  /// admitidos acotados por CHECK en supabase/sql/042 y por
+  /// `PROVEEDORES_PASARELA` en src/lib/pagos/proveedores.ts.
+  proveedor         String
+  /// El identificador del lado del proveedor (`price_...` en Stripe): es lo
+  /// que llega en el webhook.
+  id_precio_externo String
+  monto_centavos    BigInt
+  moneda            String
+  /// Retirar un precio sin borrar la fila: los pagos históricos tienen que
+  /// seguir pudiendo explicarse.
+  activo            Boolean  @default(true)
+  creado_en         DateTime @default(now()) @db.Timestamptz
+  actualizado_en    DateTime @updatedAt @db.Timestamptz
+
+  plan Planes @relation(fields: [id_plan], references: [id], onDelete: Restrict)
+
+  @@unique([id_plan, proveedor, moneda])
+  @@unique([proveedor, id_precio_externo])
+  @@index([id_plan])
+  @@map("planes_precios")
+}
+
+/// El "permiso de acceso" de la plataforma. Una fila aquí es lo que abre el
+/// contenido, venga de donde venga: `proveedor` es lo único que distingue una
+/// invitación canjeada de un acceso otorgado a mano o de un cobro por
+/// pasarela. Por eso enchufar Stripe no toca el muro de acceso —
+/// `tieneAccesoVigente()` (src/lib/mux/acceso.ts) solo mira `estado` y
+/// `fecha_renovacion`, nunca el origen.
+///
+/// Un índice único parcial (`suscripcion_activa_unica_por_usuario`) admite a
+/// lo sumo UNA fila en ACTIVA o PAST_DUE por usuario. Consecuencia a tener
+/// presente cuando llegue el cobro: no se puede modelar una renovación
+/// programada ni un cambio de plan solapado sin cerrar antes la vigente.
 model Suscripciones {
   id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_usuario             String            @db.Uuid
@@ -132,16 +208,37 @@ model Suscripciones {
   /// Quien lo lee debe tener un valor por defecto — ver `lib/suscripcion.ts`
   /// y `lib/admin/usuarioDetalle.ts`, que muestran "Acceso por invitación".
   id_plan                String?           @db.Uuid
-  fecha_inicio           DateTime
-  fecha_renovacion       DateTime?
+  /// `@db.Timestamptz` no es decorativo: `private.suscripcion_da_acceso()`
+  /// hace `fecha_renovacion AT TIME ZONE 'America/Bogota'`, y esa expresión
+  /// significa cosas OPUESTAS según el tipo — sobre `timestamptz` convierte un
+  /// instante a hora de pared (lo correcto), sobre un `timestamp` desnudo
+  /// interpreta la hora de pared como si fuera de esa zona. Mientras fueron
+  /// `timestamp`, toda membresía otorgada después de las 2 p.m. hora de
+  /// Colombia vencía un día tarde. Además Stripe envía `current_period_end`
+  /// como epoch Unix: un instante absoluto, que sin zona pierde su sentido.
+  fecha_inicio           DateTime          @db.Timestamptz
+  fecha_renovacion       DateTime?         @db.Timestamptz
   estado                 EstadoSuscripcion
+  /// El ORIGEN del acceso, y el único campo que hay que mirar para saber de
+  /// dónde salió: 'invitacion' (código canjeado), 'manual' (otorgado por un
+  /// admin) y, cuando llegue el cobro, 'stripe' o 'wompi'. Genérico a
+  /// propósito, nunca acoplado a una pasarela concreta. Valores admitidos en
+  /// src/lib/pagos/proveedores.ts, sellados por CHECK en supabase/sql/042.
   proveedor              String
   id_cliente_externo     String?
   id_suscripcion_externa String?
-  monto_centavos         Int
+  /// BigInt por el techo de $21.474.836 COP de un INTEGER en centavos.
+  /// NOT NULL, así que las invitaciones escriben 0: un acceso gratuito no
+  /// tiene monto, pero la columna no admite ausencia.
+  monto_centavos         BigInt
+  /// ISO-4217 en mayúsculas, garantizado por CHECK en supabase/sql/042.
   moneda                 String
   id_cupon               String?           @db.Uuid
   id_codigo_invitacion   String?           @db.Uuid
+  /// Redundante con `proveedor` a propósito: equivale exactamente a
+  /// `proveedor IN ('manual','invitacion')`. Se conserva porque la leen seis
+  /// módulos, pero un CHECK (supabase/sql/042) sella la equivalencia para que
+  /// las dos columnas no puedan contradecirse.
   acceso_manual          Boolean           @default(false)
   otorgado_por           String?           @db.Uuid
   /// Motivo que el admin escribió al revocar (f4accesos.md: "marca inactivo
@@ -167,6 +264,9 @@ model Suscripciones {
   @@index([id_usuario])
   @@index([id_plan])
   @@index([proveedor, id_suscripcion_externa])
+  /// Los eventos `customer.*` de Stripe llegan identificados por el cliente,
+  /// no por la suscripción: ese camino de conciliación necesita su índice.
+  @@index([id_cliente_externo])
   @@index([id_cupon])
   @@index([id_codigo_invitacion])
   // Dos índices únicos PARCIALES viven como SQL crudo, no como @@unique
@@ -179,20 +279,46 @@ model Suscripciones {
   @@map("suscripciones")
 }
 
+/// Registro de un cobro. Tabla VACÍA: nada en el código escribe en ella
+/// todavía, y llenarla es parte de la integración de cobro, que está diferida.
+///
+/// La idempotencia está pensada en dos niveles y los dos hacen falta:
+///   - AQUÍ, por transacción: `@@unique([proveedor, ref_transaccion_externa])`
+///     impide una segunda fila para el mismo cobro.
+///   - En `EventosWebhook`, por evento: impide reprocesar la misma entrega.
+/// Las dos claves se componen con `proveedor` porque dos pasarelas distintas
+/// pueden emitir la misma cadena y nada más las distinguiría.
 model Pagos {
   id                      String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_suscripcion          String     @db.Uuid
+  /// Cuándo insertamos NOSOTROS la fila. No es la fecha del cobro: ver
+  /// `fecha_pago`.
   creado_en               DateTime   @default(now()) @db.Timestamptz
   actualizado_en          DateTime   @updatedAt @db.Timestamptz
+  /// Cuándo cobró la PASARELA, según la pasarela. Nullable porque no todas lo
+  /// reportan; quien la lea cae a `creado_en`. Existe porque Stripe reintenta
+  /// la entrega de un webhook hasta tres días, y sin esta columna el
+  /// estudiante vería la fecha del reintento como la fecha de su pago.
+  fecha_pago              DateTime?  @db.Timestamptz
   estado                  EstadoPago
-  monto_centavos          Int
+  /// Qué pasarela procesó este cobro. Sin esta columna habría que deducirlo
+  /// por join contra `suscripciones`, y la clave de idempotencia de abajo no
+  /// se podría componer. Solo pasarelas reales: un acceso manual o por
+  /// invitación nunca genera una fila aquí (CHECK en supabase/sql/042).
+  proveedor               String
+  /// BigInt por el techo de $21.474.836 COP de un INTEGER en centavos.
+  monto_centavos          BigInt
+  /// ISO-4217 en mayúsculas, garantizado por CHECK en supabase/sql/042.
   moneda                  String
-  ref_transaccion_externa String     @unique
+  /// La CLAVE DE IDEMPOTENCIA: el identificador de la transacción del lado del
+  /// proveedor. El nombre no lo transmite, por eso este comentario.
+  ref_transaccion_externa String
   ref_factura_dian        String?
   url_pdf_factura         String?
 
   suscripcion Suscripciones @relation(fields: [id_suscripcion], references: [id])
 
+  @@unique([proveedor, ref_transaccion_externa])
   @@index([id_suscripcion])
   @@map("pagos")
 }
@@ -445,7 +571,10 @@ model CodigosInvitacion {
   /// `suscripciones.fecha_renovacion`.
   duracion_dias     Int
   id_admin_creador  String?  @db.Uuid
-  fecha_vencimiento DateTime
+  /// `@db.Timestamptz` por el mismo motivo que las fechas de `Suscripciones`:
+  /// las vistas de métricas y el canje la comparan contra `now()`, y sin zona
+  /// esa comparación dependía de la TimeZone de la sesión.
+  fecha_vencimiento DateTime @db.Timestamptz
   /// Cuántas veces se puede canjear. Obligatorio y con CHECK >= 1 en la
   /// base (`codigos_invitacion_limite_usos_positivo`, ver la migración
   /// 20260827000000): la regla de negocio es "uso único o con límite,
@@ -463,12 +592,19 @@ model CodigosInvitacion {
   @@map("codigos_invitacion")
 }
 
+/// Descuento aplicable en el checkout — entidad DISTINTA de
+/// `CodigosInvitacion`, que regala acceso sin pasar por caja. Sin uso en el
+/// código todavía: existe para cuando llegue el cobro.
 model Cupones {
   id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   codigo            String        @unique
   tipo_descuento    TipoDescuento
-  valor             Int
-  fecha_vencimiento DateTime
+  /// OJO — la unidad depende de `tipo_descuento`: centavos cuando es
+  /// MONTO_FIJO, y un porcentaje entero (0-100) cuando es PORCENTAJE. Una sola
+  /// columna para dos unidades; quien la lea tiene que ramificar. BigInt por
+  /// la mitad de los casos que sí son dinero.
+  valor             BigInt
+  fecha_vencimiento DateTime      @db.Timestamptz
   limite_usos       Int?
   veces_usado       Int           @default(0)
   creado_en         DateTime      @default(now()) @db.Timestamptz
@@ -525,16 +661,27 @@ model BitacoraAdministrativa {
   @@map("bitacora_administrativa")
 }
 
+/// Bitácora de idempotencia de TODO webhook entrante (CLAUDE.md §3.1: se
+/// registra aquí antes de ejecutar cualquier lógica de negocio). No es solo de
+/// pagos: `proveedor` incluye 'mux', que no cobra nada — por eso el CHECK de
+/// esta tabla admite un conjunto distinto al de `pagos`.
+///
+/// RLS activo SIN política (supabase/sql/003): nadie la lee ni la escribe
+/// salvo el backend con Service Role Key.
 model EventosWebhook {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   proveedor         String
-  id_evento_externo String   @unique
+  /// Identificador del evento del lado del proveedor: `evt_...` en Stripe, un
+  /// UUID en Mux, y en Wompi el checksum SHA-256 del propio evento (no manda
+  /// id, ver el comentario en app/api/webhooks/wompi/route.ts).
+  id_evento_externo String
   tipo_evento       String
   payload           Json
   procesado         Boolean  @default(false)
   creado_en         DateTime @default(now()) @db.Timestamptz
   actualizado_en    DateTime @updatedAt @db.Timestamptz
 
+  @@unique([proveedor, id_evento_externo])
   @@map("eventos_webhook")
 }
 

@@ -71,6 +71,6 @@ export async function POST(request: NextRequest) {
   // no hay forma de agregar negocio salteándolas.
   console.log("[webhook:stripe] evento verificado", { id: evento.id, tipo: evento.type });
 
-  await marcarProcesado(evento.id);
+  await marcarProcesado("stripe", evento.id);
   return NextResponse.json({ received: true });
 }

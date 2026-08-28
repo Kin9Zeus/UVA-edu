@@ -105,6 +105,6 @@ export async function POST(request: NextRequest) {
   // resueltas arriba.
   console.log("[webhook:wompi] evento verificado", { evento: evento.event });
 
-  await marcarProcesado(checksumRecibido);
+  await marcarProcesado("wompi", checksumRecibido);
   return NextResponse.json({ received: true });
 }

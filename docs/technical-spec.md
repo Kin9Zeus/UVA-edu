@@ -71,8 +71,8 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **id** | UUID (Primary Key) | Identificador único |
 | **nombre** | String | Ej. Básico, Premium, Anual |
 | **descripcion** | String (nullable) | Descripción del plan |
-| **precio\_centavos** | Int | Evita errores de coma flotante |
-| **moneda** | String | Ej. 'USD', 'COP' |
+| **precio\_centavos** | BigInt | Precio de referencia del catálogo. Entero en la unidad mínima: evita coma flotante, y BigInt porque en centavos de COP un Int de 4 bytes tope en $21.474.836 |
+| **moneda** | String (CHECK ISO-4217) | Ej. 'USD', 'COP' |
 | **duracion\_dias** | Int | 30 para mensual, 365 para anual |
 | **nivel\_acceso** | String (nullable) | Nivel de acceso que otorga |
 | **activo** | Boolean | Default true |
@@ -85,14 +85,14 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | **id** | UUID (Primary Key) | Identificador único |
 | **id\_usuario** | UUID (Foreign Key) | A qué usuario pertenece |
 | **id\_plan** | UUID (Foreign Key) | Qué plan eligió |
-| **fecha\_inicio** | DateTime | Inicio de la suscripción |
-| **fecha\_renovacion** | DateTime | Próxima fecha de cobro |
+| **fecha\_inicio** | Timestamptz | Inicio de la suscripción |
+| **fecha\_renovacion** | Timestamptz (nullable) | Próxima fecha de cobro, o fin del acceso si es manual |
 | **estado** | Enum | ACTIVA, PAST\_DUE, VENCIDA, CANCELADA |
-| **proveedor** | String | Ej. 'stripe', 'wompi' |
+| **proveedor** | String (CHECK) | El ORIGEN del acceso: 'stripe', 'wompi', 'manual', 'invitacion' |
 | **id\_cliente\_externo** | String (nullable) | Customer ID de pasarela |
 | **id\_suscripcion\_externa** | String (nullable) | Subscription ID de pasarela |
-| **monto\_centavos** | Int | Valor realmente pagado |
-| **moneda** | String | Ej. 'COP', 'USD' |
+| **monto\_centavos** | BigInt | Valor realmente pagado, en la unidad mínima |
+| **moneda** | String (CHECK ISO-4217) | Ej. 'COP', 'USD' |
 | **id\_cupon** | UUID (Foreign Key) | Cupón aplicado, si tiene |
 | **acceso\_manual** | Boolean | Default false |
 | **otorgado\_por** | UUID (Foreign Key) | Admin que otorgó acceso manual |
@@ -103,13 +103,40 @@ Nota: La contraseña y proveedor de login viven en auth.users de Supabase.
 | :---- | :---- | :---- |
 | **id** | UUID (Primary Key) | Identificador único |
 | **id\_suscripcion** | UUID (Foreign Key) | A qué suscripción pertenece |
-| **fecha** | DateTime | Default now() |
-| **estado** | Enum | EXITOSO, FALLIDO, PENDIENTE |
-| **monto\_centavos** | Int | Valor cobrado |
-| **moneda** | String | Moneda del cobro |
-| **ref\_transaccion\_externa** | String (Unique) | Referencia pasarela |
+| **creado\_en** | Timestamptz | Cuándo insertamos NOSOTROS la fila |
+| **fecha\_pago** | Timestamptz (nullable) | Cuándo cobró la pasarela, según la pasarela |
+| **estado** | Enum | EXITOSO, FALLIDO, PENDIENTE, REEMBOLSADO, REVERSADO |
+| **proveedor** | String (CHECK) | Qué pasarela procesó el cobro: 'stripe' o 'wompi' |
+| **monto\_centavos** | BigInt | Valor cobrado, en la unidad mínima |
+| **moneda** | String (CHECK ISO-4217) | Moneda del cobro |
+| **ref\_transaccion\_externa** | String | **Clave de idempotencia**, única junto a `proveedor` |
 | **ref\_factura\_dian** | String (nullable) | Referencia factura electrónica |
 | **url\_pdf\_factura** | String (nullable) | Enlace al PDF de la factura |
+
+Tabla **vacía**: nada la escribe todavía. `creado_en` y `fecha_pago` son
+distintas a propósito — Stripe reintenta la entrega de un webhook hasta tres
+días, y sin separarlas el estudiante vería la fecha del reintento como la de su
+pago.
+
+#### **Tabla: Planes\_Precios**
+
+Precio de un plan **en una pasarela concreta**. Vacía: llenarla es parte de la
+integración de cobro.
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **id\_plan** | UUID (Foreign Key) | Qué plan se está cotizando |
+| **proveedor** | String (CHECK) | 'stripe' o 'wompi' |
+| **id\_precio\_externo** | String | `price_...` en Stripe. Único junto a `proveedor` |
+| **monto\_centavos** | BigInt | Lo que se cobra por esta pasarela |
+| **moneda** | String (CHECK ISO-4217) | Permite el mismo plan en COP y en USD |
+| **activo** | Boolean | Retirar un precio sin borrar la fila |
+
+Existe por dos motivos que se resuelven juntos: sin ella no hay contra qué
+conciliar un webhook (no hay mapeo plan → precio del proveedor), y `Planes`
+tiene una sola pareja precio/moneda cuando el stack define Stripe para
+facturación internacional y Wompi para Colombia.
 
 ### **Módulo de Contenido (Catálogo LMS)**
 
@@ -209,8 +236,8 @@ Sustituye al antiguo campo de texto libre `Cursos.instructor`.
 | **id** | UUID (Primary Key) | Identificador único |
 | **codigo** | String (Unique) | Código del cupón |
 | **tipo\_descuento** | String | Porcentaje o monto fijo |
-| **valor** | Int | Valor del descuento |
-| **fecha\_vencimiento** | DateTime | Vigencia del cupón |
+| **valor** | BigInt | Valor del descuento. **La unidad depende de `tipo_descuento`**: centavos si es MONTO\_FIJO, porcentaje entero si es PORCENTAJE |
+| **fecha\_vencimiento** | Timestamptz | Vigencia del cupón |
 | **limite\_usos** | Int (nullable) | Máximo de usos permitidos |
 | **veces\_usado** | Int | Default 0 |
 
@@ -242,7 +269,7 @@ Sustituye al antiguo campo de texto libre `Cursos.instructor`.
 | :---- | :---- | :---- |
 | **id** | UUID (Primary Key) | Identificador único |
 | **proveedor** | String | Ej. 'stripe', 'mux' |
-| **id\_evento\_externo** | String (Unique) | Identificador único que envía la pasarela |
+| **id\_evento\_externo** | String | Identificador del evento del lado del proveedor. **Único junto a `proveedor`**: bajo un índice global convivirían `evt_...` de Stripe, un UUID de Mux y un checksum SHA-256 de Wompi |
 | **tipo\_evento** | String | Ej. invoice.payment\_succeeded |
 | **payload** | JSONB | Data completa recibida |
 | **procesado** | Boolean | Default false |
@@ -284,6 +311,57 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 > 2. La pasarela aprueba el cobro y dispara un webhook apuntando a /api/webhooks/stripe.  
 > 3. El endpoint registra el id\_evento\_externo en la tabla Eventos\_Webhook. Si este evento ya existe, el sistema retorna un código 200 OK para detener la ejecución y evitar la duplicación del procesamiento.  
 > 4. Una vez confirmada la novedad, se actualiza el estado de la suscripción a activa y se inserta el respectivo Pago.
+
+### **7.1 Cómo se conecta una pasarela (el esquema ya está listo)**
+
+El cobro está diferido, pero el esquema quedó preparado para que enchufar una
+pasarela sea un trabajo aislado. **No hay que modificar ninguna tabla
+existente**; son cuatro pasos, y todos escriben en estructuras que ya existen y
+están vacías.
+
+**1. Registrar los precios.** Insertar una fila en `Planes_Precios` por cada
+plan × pasarela × moneda, con el `id_precio_externo` que devuelve el proveedor
+(`price_...` en Stripe). Es lo que permite resolver "de qué plan me está
+hablando este webhook".
+
+**2. Escribir el checkout.** Va en `src/actions/suscripciones/` (hoy vacío, con
+solo un `.gitkeep`), como Server Action — no como ruta `/api/`, que está
+reservada a webhooks entrantes (§2.2). Crea la sesión en la pasarela y guarda
+`id_cliente_externo` en la suscripción.
+
+**3. Rellenar el TODO del webhook.** `src/app/api/webhooks/stripe/route.ts` y
+`.../wompi/route.ts` ya verifican la firma y registran el evento en
+`Eventos_Webhook` antes de cualquier otra cosa; el bloque de negocio va
+exactamente donde está el `TODO`, y no hay forma de agregarlo salteándose la
+idempotencia. Al procesar:
+>
+> * Se **inserta** una fila en `Suscripciones` con `proveedor = 'stripe'` (o
+>   `'wompi'`). Nada más: el muro de acceso es agnóstico al origen, así que el
+>   acceso queda abierto sin tocar una línea de autorización.
+> * Se inserta el `Pago` con su `proveedor` y su `ref_transaccion_externa`, que
+>   juntos son la clave de idempotencia de la tabla.
+> * La moneda que reporta el proveedor se normaliza con `normalizarMoneda()`
+>   (`src/lib/pagos/proveedores.ts`) antes de escribirla: Stripe la envía en
+>   minúsculas y la base exige ISO-4217 en mayúsculas.
+
+**4. Nada más.** `tieneAccesoVigente()` (`src/lib/mux/acceso.ts`) y su gemela en
+SQL `private.suscripcion_da_acceso()` solo miran `estado` y `fecha_renovacion`.
+No consultan `proveedor`, `acceso_manual` ni `id_codigo_invitacion`, así que una
+suscripción de pago abre el contenido por el mismo camino que una invitación.
+
+**Restricciones que hay que tener presentes:**
+>
+> * El índice único parcial `suscripcion_activa_unica_por_usuario` admite **una
+>   sola** suscripción en ACTIVA o PAST\_DUE por usuario. No se puede modelar
+>   una renovación programada ni un cambio de plan solapado sin cerrar antes la
+>   vigente; `private.cerrar_suscripcion_caducada()` es el camino existente.
+> * Los valores admitidos de `proveedor` están acotados por CHECK
+>   (`supabase/sql/042`) y su contraparte tipada vive en
+>   `src/lib/pagos/proveedores.ts`, con un test que falla si las dos listas se
+>   separan. Agregar una pasarela nueva es editar los dos sitios.
+> * Un reembolso **no** se registra como monto negativo (hay un CHECK que lo
+>   impide): se modela con `EstadoPago = 'REEMBOLSADO'` en su propia fila, para
+>   que el rastro contable quede completo de cara a la factura electrónica.
 
 ## **8\. Upload de Imágenes y Streaming de Video**
 

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import type { ProveedorWebhook } from "@/lib/pagos/proveedores";
 
 /**
  * Registro de idempotencia para webhooks entrantes
@@ -8,9 +9,11 @@ import { logError } from "@/lib/log";
  * Toda pasarela reintenta: Stripe reenvía un evento hasta 3 días si no
  * recibe 2xx, Wompi y Mux hacen lo propio. Sin este registro, un reintento
  * de `invoice.paid` crea una segunda Suscripción, y uno de `charge.refunded`
- * descuenta dos veces. La tabla `eventos_webhook` tiene `id_evento_externo`
- * UNIQUE justamente para que la base sea el árbitro y no la memoria del
- * proceso.
+ * descuenta dos veces. La tabla `eventos_webhook` tiene UNIQUE sobre
+ * (proveedor, id_evento_externo) justamente para que la base sea el árbitro y
+ * no la memoria del proceso. La clave se compone con el proveedor porque bajo
+ * un único índice global conviven identificadores de formatos distintos —
+ * `evt_...` de Stripe, un UUID de Mux y un checksum SHA-256 de Wompi.
  *
  * Se usa Service Role Key: `eventos_webhook` tiene RLS activo y ninguna
  * política (ver supabase/sql/001_rls_policies.sql:44 y la nota al final de
@@ -36,16 +39,24 @@ export type ResultadoRegistro =
  * preferible que la pasarela reintente a arriesgar un cobro doble.
  */
 export async function registrarEvento(params: {
-  proveedor: "stripe" | "wompi" | "mux";
+  // La unión venía escrita a mano aquí. Ahora sale de la misma constante que
+  // el CHECK de eventos_webhook (supabase/sql/042), con un test que falla si
+  // las dos se separan.
+  proveedor: ProveedorWebhook;
   idEventoExterno: string;
   tipoEvento: string;
   payload: unknown;
 }): Promise<ResultadoRegistro> {
   const admin = createAdminClient();
 
+  // Se filtra TAMBIÉN por proveedor: la clave de idempotencia es
+  // (proveedor, id_evento_externo) desde 042, no el id a secas. Buscando solo
+  // por el id, una colisión entre pasarelas devolvería el evento ajeno y este
+  // se descartaría como "duplicado" sin procesarse jamás.
   const { data: existente, error: errorLectura } = await admin
     .from("eventos_webhook")
     .select("id, procesado")
+    .eq("proveedor", params.proveedor)
     .eq("id_evento_externo", params.idEventoExterno)
     .maybeSingle();
 
@@ -83,17 +94,25 @@ export async function registrarEvento(params: {
  * negocio terminó bien: si se llamara antes, un fallo a mitad dejaría el
  * evento marcado y la pasarela no volvería a intentarlo nunca.
  */
-export async function marcarProcesado(idEventoExterno: string): Promise<void> {
+export async function marcarProcesado(
+  proveedor: ProveedorWebhook,
+  idEventoExterno: string,
+): Promise<void> {
   const admin = createAdminClient();
   const { error } = await admin
     .from("eventos_webhook")
     .update({ procesado: true })
+    .eq("proveedor", proveedor)
     .eq("id_evento_externo", idEventoExterno);
 
   if (error) {
     // No se aborta: el negocio ya se ejecutó. Queda como no procesado, así que
     // un reintento de la pasarela volverá a entrar — por eso la lógica de
     // negocio de cada handler debe ser idempotente por su cuenta también.
-    logError("webhooks", "no se pudo marcar procesado", error, { idEventoExterno, area: "webhook" });
+    logError("webhooks", "no se pudo marcar procesado", error, {
+      proveedor,
+      idEventoExterno,
+      area: "webhook",
+    });
   }
 }

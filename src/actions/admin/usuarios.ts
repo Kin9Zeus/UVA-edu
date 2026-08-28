@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import { logError } from "@/lib/log";
 
@@ -103,7 +104,10 @@ export async function otorgarMembresia(usuarioId: string, planId: string): Promi
     fecha_inicio: fechaInicio.toISOString(),
     fecha_renovacion: fechaRenovacion.toISOString(),
     estado: "ACTIVA",
-    proveedor: "manual",
+    // `satisfies` y no un literal suelto: el insert de supabase-js no está
+    // tipado contra el CHECK de la base, así que un typo aquí solo aparecería
+    // como un 23514 en tiempo de ejecución.
+    proveedor: "manual" satisfies ProveedorSuscripcion,
     monto_centavos: plan.precio_centavos,
     moneda: plan.moneda,
     acceso_manual: true,
