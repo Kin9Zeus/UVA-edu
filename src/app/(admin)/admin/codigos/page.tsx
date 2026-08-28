@@ -3,7 +3,7 @@ import { getCodigosInvitacion } from "@/lib/admin/codigosInvitacion";
 import { CodigosTable } from "@/components/admin/codigos/CodigosTable";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Códigos de invitación",
+  title: "U.V.A. Admin — Cupones de invitación",
 };
 
 export default async function AdminCodigosPage() {

@@ -7,7 +7,7 @@ const TITULO_TIPO: Record<TipoAccesoGratuito, string> = {
 };
 
 const DESCRIPCION_TIPO: Record<TipoAccesoGratuito, string> = {
-  INVITACION: "Canjeaste un código de invitación con cupo limitado.",
+  INVITACION: "Canjeaste un cupón de invitación con usos limitados.",
   OTORGADO_ADMIN: "El equipo de U.V.A. te dio acceso completo a la plataforma.",
 };
 

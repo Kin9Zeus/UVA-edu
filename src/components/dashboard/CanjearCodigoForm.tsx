@@ -50,11 +50,11 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
     <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
       <h2 className="flex items-center gap-2 text-base text-uva-text">
         <Ticket className="size-4 text-uva-accent" aria-hidden />
-        {tieneSuscripcion ? "Reactivar con un código" : "¿Tienes un código de invitación?"}
+        {tieneSuscripcion ? "Reactivar con un cupón" : "¿Tienes un cupón de invitación?"}
       </h2>
       <p className="mt-1 text-[13px] text-uva-text-muted">
         {tieneSuscripcion
-          ? "Tu suscripción anterior terminó. Si tienes un código, canjéalo para recuperar el acceso."
+          ? "Tu suscripción anterior terminó. Si tienes un cupón, canjéalo para recuperar el acceso."
           : "Canjéalo aquí y tendrás acceso completo al catálogo, sin ningún cobro."}
       </p>
 
@@ -69,7 +69,7 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
         )}
 
         <div>
-          <Label htmlFor="codigo-invitacion">Código</Label>
+          <Label htmlFor="codigo-invitacion">Cupón</Label>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               id="codigo-invitacion"

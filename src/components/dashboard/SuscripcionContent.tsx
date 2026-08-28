@@ -71,10 +71,20 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
 
   const dias = diasRestantes(suscripcion.fechaRenovacion);
   const avance = porcentajeTranscurrido(suscripcion.fechaInicio, suscripcion.fechaRenovacion);
-  const periodoLabel = suscripcion.duracionDias >= 360 ? "Anual" : "Mensual";
-  const nombrePlan = suscripcion.planNombre.toLowerCase().includes(periodoLabel.toLowerCase())
-    ? suscripcion.planNombre
-    : `${suscripcion.planNombre} · ${periodoLabel}`;
+
+  // "Mensual"/"Anual" solo tiene sentido para un plan de pago, que sí se
+  // renueva en un ciclo fijo. Un cupón puede otorgar cualquier número de
+  // días (15, 45, 90...) y antes esto lo etiquetaba igual que un plan
+  // mensual con solo que duracionDias < 360 — un cupón de 15 días se leía
+  // literalmente como "Acceso por invitación · Mensual", que es falso.
+  const nombrePlan = suscripcion.accesoManual
+    ? `${suscripcion.planNombre} · ${suscripcion.duracionDias} día${suscripcion.duracionDias === 1 ? "" : "s"}`
+    : (() => {
+        const periodoLabel = suscripcion.duracionDias >= 360 ? "Anual" : "Mensual";
+        return suscripcion.planNombre.toLowerCase().includes(periodoLabel.toLowerCase())
+          ? suscripcion.planNombre
+          : `${suscripcion.planNombre} · ${periodoLabel}`;
+      })();
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
@@ -86,8 +96,12 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
             <p className="font-heading text-xl text-uva-text">{nombrePlan}</p>
             <p className="text-[13px] text-uva-text-muted">
               {suscripcion.fechaRenovacion
-                ? `Renovación ${formatFecha(suscripcion.fechaRenovacion)}`
-                : "Sin fecha de renovación"}
+                ? // Un acceso manual (cupón/cortesía) no se renueva solo: se
+                  // vence y punto, no hay cobro automático detrás. "Renovación"
+                  // ahí prometía algo que no iba a pasar. La de pago sí
+                  // renueva, así que conserva su palabra.
+                  `${suscripcion.accesoManual ? "Vence" : "Renovación"} ${formatFecha(suscripcion.fechaRenovacion)}`
+                : "Sin fecha de vencimiento"}
             </p>
           </div>
           <div className="ml-auto text-right">

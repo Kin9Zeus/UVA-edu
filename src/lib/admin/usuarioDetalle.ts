@@ -28,6 +28,9 @@ export type UsuarioDetalle = {
   planActual: string | null;
   /** null = sin suscripción o de pago (Stripe/Wompi). Misma clasificación que ve el estudiante, ver src/lib/estadoAcceso.ts. */
   tipoAccesoSuscripcion: TipoAccesoGratuito | null;
+  /** Cuándo empezó y cuándo se vence/renueva la suscripción actual. null si nunca tuvo una. */
+  suscripcionInicio: string | null;
+  suscripcionFin: string | null;
   cursos: CursoDelUsuario[];
   metricas: {
     cursosInscritos: number;
@@ -50,7 +53,9 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: suscripciones } = await supabase
     .from("suscripciones")
-    .select("estado, fecha_inicio, acceso_manual, id_codigo_invitacion, plan:planes(nombre)")
+    .select(
+      "estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, plan:planes(nombre)",
+    )
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
     .limit(1);
@@ -63,6 +68,22 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
         tieneCodigoInvitacion: suscripcion.id_codigo_invitacion !== null,
       })
     : null;
+
+  // Un acceso por cupón/cortesía (sin plan) no tiene un nombre que decir la
+  // duración por sí solo — "Acceso por invitación" a secas no distingue un
+  // cupón de 15 días de uno de 90. Se deriva de las fechas reales, mismo
+  // cálculo que ya hacía el lado del estudiante (src/lib/suscripcion.ts).
+  const duracionDiasManual =
+    !plan && suscripcion?.fecha_renovacion
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(suscripcion.fecha_renovacion).getTime() -
+              new Date(suscripcion.fecha_inicio).getTime()) /
+              86_400_000,
+          ),
+        )
+      : null;
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
@@ -191,9 +212,19 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     suscripcionEstado: suscripcion?.estado ?? null,
     // Sin plan pero con suscripción = acceso por código de invitación
     // (`id_plan` NULL, ver 035_canje_codigo_por_dias.sql). Distinto de no
-    // tener suscripción, que sí es null.
-    planActual: plan?.nombre ?? (suscripcion ? "Acceso por invitación" : null),
+    // tener suscripción, que sí es null. Con los días reales al lado: antes
+    // decía "Acceso por invitación" a secas, sin distinguir un cupón de 15
+    // días de uno de 90 — justo lo que el admin necesita ver de un vistazo.
+    planActual: plan?.nombre
+      ? plan.nombre
+      : suscripcion
+        ? duracionDiasManual
+          ? `Acceso por invitación · ${duracionDiasManual} día${duracionDiasManual === 1 ? "" : "s"}`
+          : "Acceso por invitación"
+        : null,
     tipoAccesoSuscripcion,
+    suscripcionInicio: suscripcion?.fecha_inicio ?? null,
+    suscripcionFin: suscripcion?.fecha_renovacion ?? null,
     cursos,
     metricas: {
       cursosInscritos: cursos.length,

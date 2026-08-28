@@ -65,7 +65,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       setCopiado(codigo);
       setTimeout(() => setCopiado((actual) => (actual === codigo ? null : actual)), 2000);
     } catch {
-      showToast("No pudimos copiar. Selecciona el código y cópialo a mano.", "error");
+      showToast("No pudimos copiar. Selecciona el cupón y cópialo a mano.", "error");
     }
   }
 
@@ -75,7 +75,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast(activo ? "Código activado." : "Código desactivado.");
+    showToast(activo ? "Cupón activado." : "Cupón desactivado.");
   }
 
   async function handleEliminar() {
@@ -85,21 +85,21 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast("Código eliminado.");
+    showToast("Cupón eliminado.");
   }
 
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
         <Button type="button" variant="primary" onClick={abrirCrear}>
-          + Nuevo código
+          + Nuevo cupón
         </Button>
       </div>
 
       {recienCreado && (
         <div className="rounded-uva-md border border-uva-accent/40 bg-uva-accent-soft px-4 py-3.5">
           <p className="text-xs font-semibold text-uva-accent-text">
-            Código generado. Compártelo con quien va a recibir el acceso:
+            Cupón generado. Compártelo con quien va a recibir el acceso:
           </p>
           <div className="mt-2 flex items-center gap-2">
             <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-mono text-[15px] font-semibold tracking-[0.08em] text-uva-text">
@@ -132,7 +132,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Código</TableHead>
+              <TableHead>Cupón</TableHead>
               <TableHead>Acceso</TableHead>
               <TableHead>Usos</TableHead>
               <TableHead>Vence</TableHead>
@@ -145,7 +145,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
             {codigos.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-uva-muted-2">
-                  No hay códigos de invitación todavía.
+                  No hay cupones de invitación todavía.
                 </TableCell>
               </TableRow>
             )}
@@ -155,7 +155,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                   <button
                     type="button"
                     onClick={() => handleCopiar(codigo.codigo)}
-                    title="Copiar código"
+                    title="Copiar cupón"
                     className="flex items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     {codigo.codigo}
@@ -181,40 +181,49 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                 </TableCell>
                 <TableCell className="text-[12px] text-uva-muted-2">{codigo.creadoPor}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1.5">
+                  {/* `justify-end` con un tercer botón condicional corría todo
+                      el grupo hacia la derecha cuando la papelera no aparecía:
+                      al ser un bloque anclado al borde, cambiar su ancho movía
+                      switch y editar de columna entre una fila y otra. Con un
+                      grid de 3 columnas fijas cada botón vive siempre en la
+                      misma posición; cuando no hay papelera, la última celda
+                      queda vacía (mismo ancho reservado) en vez de desaparecer. */}
+                  <div className="grid grid-cols-[auto_auto_28px] items-center justify-end gap-1.5">
                     <SwitchEstado
                       checked={codigo.activo}
                       onCheckedChange={(checked) => handleToggle(codigo, checked)}
                       etiquetas={["", ""]}
-                      acciones={["Activar código", "Desactivar código"]}
+                      acciones={["Activar cupón", "Desactivar cupón"]}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Editar código"
+                      aria-label="Editar cupón"
                       title="Editar vencimiento y límite de usos"
                       className="text-uva-muted-2 hover:text-uva-accent"
                       onClick={() => abrirEditar(codigo)}
                     >
                       <Pencil className="size-4" />
                     </Button>
-                    {/* Solo se ofrece borrar lo que nunca se canjeó: un código
+                    {/* Solo se ofrece borrar lo que nunca se canjeó: un cupón
                         usado dejaría suscripciones sin rastro de su origen
                         (la FK es ON DELETE SET NULL). Para esos, el
                         interruptor de al lado. */}
-                    {codigo.vecesUsado === 0 && (
+                    {codigo.vecesUsado === 0 ? (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        aria-label="Eliminar código"
-                        title="Eliminar código"
+                        aria-label="Eliminar cupón"
+                        title="Eliminar cupón"
                         className="text-uva-muted-2 hover:text-uva-accent"
                         onClick={() => setBorrando(codigo)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
+                    ) : (
+                      <span aria-hidden="true" />
                     )}
                   </div>
                 </TableCell>
@@ -238,7 +247,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       <ConfirmDialog
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
-        title="Eliminar código"
+        title="Eliminar cupón"
         description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se canjeó, así que no afecta a ninguna suscripción.`}
         onConfirm={handleEliminar}
       />
