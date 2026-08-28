@@ -44,6 +44,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // configuración del script, no del control de acceso. Con `await import()`
 // dentro de `main()`, el módulo se evalúa después de que el .env ya cargó.
 type ResolverTokenReproduccion = typeof import("../src/lib/video/reproduccion").resolverTokenReproduccion;
+type BuscarMembresiaVigente = typeof import("../src/lib/admin/membresiaManual").buscarMembresiaVigente;
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -85,6 +86,10 @@ async function esperarPermitido(
 async function main() {
   const { resolverTokenReproduccion }: { resolverTokenReproduccion: ResolverTokenReproduccion } =
     await import("../src/lib/video/reproduccion");
+  // Mismo import diferido por coherencia con el de arriba, aunque este módulo
+  // no dependa de ninguna variable de entorno (solo tipos de supabase-js).
+  const { buscarMembresiaVigente }: { buscarMembresiaVigente: BuscarMembresiaVigente } =
+    await import("../src/lib/admin/membresiaManual");
 
   const admin = createClient(URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -895,6 +900,70 @@ async function main() {
       "otorgar una membresía nueva tras cerrar la caducada YA NO choca con el índice único",
       !errOtorgarTrasCierre,
       errOtorgarTrasCierre?.message,
+    );
+
+    // ------------------------------------------------------------------
+    // El OTRO caso del cupo ocupado: la suscripción sigue vigente de verdad
+    //
+    // Tras el insert de arriba, el usuario tiene una ACTIVA con fecha futura
+    // — acceso legítimo ahora mismo. 041 no aplica aquí (no hay nada
+    // caducado que cerrar), así que `otorgarMembresia` llegaba igual al
+    // insert y moría contra el índice único con un 23505 que el catch
+    // genérico convertía en "No pudimos otorgar la membresía." Es justo el
+    // caso de uso "alguien que perdió su código" cuando su acceso sigue vivo.
+    // ------------------------------------------------------------------
+    await esperarPermitido(
+      "cerrar_suscripcion_caducada_admin sobre una vigente no falla (no tiene nada que cerrar)",
+      clienteAdmin.rpc("cerrar_suscripcion_caducada_admin", {
+        p_usuario_id: userConAcceso.user!.id,
+      }),
+    );
+
+    const { data: filaVigenteTrasRpc } = await admin
+      .from("suscripciones")
+      .select("estado")
+      .eq("id_usuario", userConAcceso.user!.id)
+      .in("estado", ["ACTIVA", "PAST_DUE"])
+      .maybeSingle();
+    registrar(
+      "una suscripción VIGENTE sobrevive al cierre de caducadas — por eso hace falta el guard",
+      filaVigenteTrasRpc?.estado === "ACTIVA",
+      `estado=${filaVigenteTrasRpc?.estado ?? "sin fila vigente"}`,
+    );
+
+    // El guard que ahora corre dentro de otorgarMembresia, llamado con la
+    // sesión real del admin (depende de `suscripciones_select_propio`, 003,
+    // para poder leer la suscripción de OTRO usuario).
+    const vigenteVistaPorElGuard = await buscarMembresiaVigente(
+      clienteAdmin,
+      userConAcceso.user!.id,
+    );
+    registrar(
+      "buscarMembresiaVigente ve la membresía que ocupa el cupo (y sabe que es manual)",
+      vigenteVistaPorElGuard?.estado === "ACTIVA" && vigenteVistaPorElGuard.esManual === true,
+      vigenteVistaPorElGuard
+        ? `estado=${vigenteVistaPorElGuard.estado} manual=${vigenteVistaPorElGuard.esManual} plan=${vigenteVistaPorElGuard.planNombre ?? "—"}`
+        : "no encontró ninguna vigente",
+    );
+
+    // El error que el guard le evita al admin: sin él, ESTO es lo que
+    // otorgarMembresia recibía de la base.
+    const { error: errOtorgarSobreVigente } = await admin.from("suscripciones").insert({
+      id_usuario: userConAcceso.user!.id,
+      id_plan: plan.id,
+      fecha_inicio: new Date().toISOString(),
+      fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      estado: "ACTIVA",
+      proveedor: "manual",
+      monto_centavos: 0,
+      moneda: "COP",
+      acceso_manual: true,
+      otorgado_por: adminPerfil.id,
+    });
+    registrar(
+      "otorgar sobre una membresía vigente SÍ choca con el índice único (23505) — el guard llega antes",
+      errOtorgarSobreVigente?.code === "23505",
+      errOtorgarSobreVigente ? `${errOtorgarSobreVigente.code}: ${errOtorgarSobreVigente.message}` : "el insert pasó, el cupo único no se respetó",
     );
 
     const { error: errRestaurarPanel } = await admin

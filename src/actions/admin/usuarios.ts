@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import { logError } from "@/lib/log";
@@ -54,6 +55,15 @@ export async function suspenderActivarUsuario(
  * crea una Suscripción con acceso_manual = true y otorgado_por = admin. No
  * pasa por Stripe/Wompi — es el equivalente a "otorgar membresía" del
  * prompt-panel-admin-claude-code.md.
+ *
+ * Los dos casos en que el cupo único del usuario ya está ocupado se resuelven
+ * antes de insertar, y son distintos: una suscripción CADUCADA que nadie marcó
+ * se cierra sola (`cerrar_suscripcion_caducada_admin`, 041), mientras que una
+ * VIGENTE de verdad detiene la operación con un mensaje que dice qué hacer
+ * (`buscarMembresiaVigente`). Sin lo segundo, otorgarle una membresía a alguien
+ * que ya tiene acceso — el caso "perdió su código" pero su suscripción sigue
+ * viva — moría contra `suscripcion_activa_unica_por_usuario` con un 23505 que
+ * el catch de abajo convertía en "No pudimos otorgar la membresía." a secas.
  */
 export async function otorgarMembresia(usuarioId: string, planId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
@@ -77,6 +87,12 @@ export async function otorgarMembresia(usuarioId: string, planId: string): Promi
   });
   if (errorCierre) return { error: "No pudimos otorgar la membresía." };
 
+  // Lo que sobrevivió al cierre de arriba es acceso vigente de verdad, no una
+  // fila caducada sin marcar: el insert chocaría igual contra el índice único,
+  // pero aquí sí hay algo accionable que decirle al admin.
+  const vigente = await buscarMembresiaVigente(admin.supabase, usuarioId);
+  if (vigente) return { error: mensajeMembresiaYaVigente(vigente) };
+
   const fechaInicio = new Date();
   const fechaRenovacion = new Date(fechaInicio);
   fechaRenovacion.setDate(fechaRenovacion.getDate() + plan.duracion_dias);
@@ -94,7 +110,15 @@ export async function otorgarMembresia(usuarioId: string, planId: string): Promi
     otorgado_por: admin.adminId,
   });
 
-  if (error) return { error: "No pudimos otorgar la membresía." };
+  if (error) {
+    // Carrera contra el chequeo de arriba: entre uno y otro, otra pestaña u
+    // otro admin pudo ocupar el cupo. El índice parcial es la última palabra,
+    // así que su 23505 se traduce en vez de salir crudo como "No pudimos…".
+    if (error.code === "23505") {
+      return { error: "Este usuario ya tiene una membresía activa. Recarga la página para ver su estado actual." };
+    }
+    return { error: "No pudimos otorgar la membresía." };
+  }
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
