@@ -125,6 +125,12 @@ async function main() {
     codigoSegundo.id,
   ];
 
+  // Recursos de la prueba de concurrencia (más abajo): se crean dentro del
+  // try, así que se declaran aparte para poder limpiarlos en el finally
+  // aunque la prueba secuencial de arriba falle antes de llegar a ellos.
+  let idsUsuariosConcurrencia: string[] = [];
+  let idCodigoConcurrencia: string | null = null;
+
   try {
     console.log("\n=== Casos de rechazo ===\n");
 
@@ -260,11 +266,75 @@ async function main() {
       vigentes.length === 1 && vigentes[0].id_codigo_invitacion === codigoSegundo.id,
       `activas=${vigentes.length} de ${(suscripcionesTrasRenovar ?? []).length}`,
     );
+
+    console.log("\n=== Canje concurrente por el último cupo ===\n");
+
+    // "Definición de terminado" de f4.md: se crea un código con cupo de 5,
+    // se canjea 5 veces, y el sexto intento falla. Se prueba además el
+    // canje concurrente (peticiones simultáneas por el último cupo) y
+    // solo el cupo exacto pasa. Más peticiones que cupos (8 contra 5) para
+    // forzar contención real sobre el `for update` de la fila del código,
+    // no solo sobre `veces_usado`.
+    const CUPO_CONCURRENCIA = 5;
+    const PETICIONES_CONCURRENCIA = 8;
+
+    const codigoConcurrencia = await crearCodigo("concurrencia", { limite_usos: CUPO_CONCURRENCIA });
+    idCodigoConcurrencia = codigoConcurrencia.id;
+
+    const usuariosConcurrencia = await Promise.all(
+      Array.from({ length: PETICIONES_CONCURRENCIA }, (_, i) => crearUsuario(`conc-${i}`)),
+    );
+    idsUsuariosConcurrencia = usuariosConcurrencia.map((u) => u.id);
+
+    // Promise.all, no un for-await: las peticiones deben salir todas a la
+    // vez para que compitan de verdad por el mismo cupo. Si el canje
+    // hiciera "leer cupo, sumar uno, escribir" en vez de un `for update`
+    // atómico, esto es lo que expondría la condición de carrera.
+    const respuestasConcurrencia = await Promise.all(
+      usuariosConcurrencia.map((u) => canjear(admin, codigoConcurrencia.codigo, u.id)),
+    );
+
+    const exitosos = respuestasConcurrencia.filter((r) => r.ok === true).length;
+    const agotados = respuestasConcurrencia.filter((r) => r.ok === false && r.motivo === "codigo_agotado").length;
+
+    registrar(
+      `${PETICIONES_CONCURRENCIA} canjes simultáneos contra un cupo de ${CUPO_CONCURRENCIA} -> exactamente ${CUPO_CONCURRENCIA} pasan`,
+      exitosos === CUPO_CONCURRENCIA,
+      `exitosos=${exitosos}`,
+    );
+    registrar(
+      `los ${PETICIONES_CONCURRENCIA - CUPO_CONCURRENCIA} restantes fallan con codigo_agotado, no con un error inesperado`,
+      agotados === PETICIONES_CONCURRENCIA - CUPO_CONCURRENCIA,
+      `agotados=${agotados}`,
+    );
+
+    const { data: codigoConcurrenciaTrasCanjes, error: errConcurrenciaTrasCanjes } = await admin
+      .from("codigos_invitacion")
+      .select("veces_usado")
+      .eq("id", codigoConcurrencia.id)
+      .single();
+    registrar(
+      "veces_usado nunca superó el cupo bajo concurrencia (sin doble incremento)",
+      !errConcurrenciaTrasCanjes && codigoConcurrenciaTrasCanjes?.veces_usado === CUPO_CONCURRENCIA,
+      `veces_usado=${codigoConcurrenciaTrasCanjes?.veces_usado}`,
+    );
+
+    const { count: suscripcionesConcurrencia } = await admin
+      .from("suscripciones")
+      .select("id", { count: "exact", head: true })
+      .eq("id_codigo_invitacion", codigoConcurrencia.id);
+    registrar(
+      "se crearon exactamente CUPO_CONCURRENCIA suscripciones, no más",
+      suscripcionesConcurrencia === CUPO_CONCURRENCIA,
+      `suscripciones=${suscripcionesConcurrencia}`,
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
-    await admin.from("suscripciones").delete().in("id_usuario", idsUsuarios);
-    await admin.from("codigos_invitacion").delete().in("id", idsCodigos);
-    for (const id of idsUsuarios) await admin.auth.admin.deleteUser(id);
+    const todosLosUsuarios = [...idsUsuarios, ...idsUsuariosConcurrencia];
+    const todosLosCodigos = idCodigoConcurrencia ? [...idsCodigos, idCodigoConcurrencia] : idsCodigos;
+    await admin.from("suscripciones").delete().in("id_usuario", todosLosUsuarios);
+    await admin.from("codigos_invitacion").delete().in("id", todosLosCodigos);
+    for (const id of todosLosUsuarios) await admin.auth.admin.deleteUser(id);
   }
 
   const fallidos = resultados.filter((r) => !r.ok);
