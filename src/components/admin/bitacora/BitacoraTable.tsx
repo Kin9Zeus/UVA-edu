@@ -24,7 +24,7 @@ const ENTIDAD_INFO: Record<string, { etiqueta: string; ruta?: (id: string) => st
   cursos: { etiqueta: "Curso", ruta: (id) => `/admin/cursos/${id}` },
   categorias: { etiqueta: "Categoría" },
   instructores: { etiqueta: "Instructor" },
-  codigos_invitacion: { etiqueta: "Cupón de invitación", ruta: () => "/admin/codigos" },
+  codigos_invitacion: { etiqueta: "Código de invitación", ruta: () => "/admin/codigos" },
   lecciones: { etiqueta: "Lección" },
 };
 

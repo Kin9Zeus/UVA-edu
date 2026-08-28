@@ -143,7 +143,7 @@ export function UsuarioDetalleView({
       {/* Cuándo empieza y cuándo se le acaba la suscripción actual: antes no
           se mostraba en ningún sitio del panel — ni siquiera se traía de la
           base (el registro de arriba es cuándo se creó la CUENTA, no cuándo
-          empezó a tener acceso). "Vence" para cupón/cortesía (no hay cobro
+          empezó a tener acceso). "Vence" para código/cortesía (no hay cobro
           automático detrás); "Renueva" para una suscripción de pago. */}
       {usuario.suscripcionInicio && (
         <p className="-mt-2 text-[12px] text-uva-muted-2">

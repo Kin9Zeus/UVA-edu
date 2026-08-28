@@ -79,9 +79,9 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       })
     : null;
 
-  // Un acceso por cupón/cortesía (sin plan) no tiene un nombre que decir la
+  // Un acceso por código/cortesía (sin plan) no tiene un nombre que decir la
   // duración por sí solo — "Acceso por invitación" a secas no distingue un
-  // cupón de 15 días de uno de 90. Se deriva de las fechas reales, mismo
+  // código de 15 días de uno de 90. Se deriva de las fechas reales, mismo
   // cálculo que ya hacía el lado del estudiante (src/lib/suscripcion.ts).
   const duracionDiasManual =
     !plan && suscripcion?.fecha_renovacion
@@ -229,7 +229,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     // Sin plan pero con suscripción = acceso por código de invitación
     // (`id_plan` NULL, ver 035_canje_codigo_por_dias.sql). Distinto de no
     // tener suscripción, que sí es null. Con los días reales al lado: antes
-    // decía "Acceso por invitación" a secas, sin distinguir un cupón de 15
+    // decía "Acceso por invitación" a secas, sin distinguir un código de 15
     // días de uno de 90 — justo lo que el admin necesita ver de un vistazo.
     planActual: plan?.nombre
       ? plan.nombre

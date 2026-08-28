@@ -247,7 +247,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       <ConfirmDialog
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
-        title="Eliminar cupón"
+        title="Eliminar código"
         description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se canjeó, así que no afecta a ninguna suscripción.`}
         onConfirm={handleEliminar}
       />

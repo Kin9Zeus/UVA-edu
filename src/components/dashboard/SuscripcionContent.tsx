@@ -81,9 +81,9 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
   const avance = porcentajeTranscurrido(suscripcion.fechaInicio, suscripcion.fechaRenovacion);
 
   // "Mensual"/"Anual" solo tiene sentido para un plan de pago, que sí se
-  // renueva en un ciclo fijo. Un cupón puede otorgar cualquier número de
+  // renueva en un ciclo fijo. Un código puede otorgar cualquier número de
   // días (15, 45, 90...) y antes esto lo etiquetaba igual que un plan
-  // mensual con solo que duracionDias < 360 — un cupón de 15 días se leía
+  // mensual con solo que duracionDias < 360 — un código de 15 días se leía
   // literalmente como "Acceso por invitación · Mensual", que es falso.
   const nombrePlan = suscripcion.accesoManual
     ? `${suscripcion.planNombre} · ${suscripcion.duracionDias} día${suscripcion.duracionDias === 1 ? "" : "s"}`
@@ -112,7 +112,7 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
                     suscripcion.fechaRenovacion ? ` desde el ${formatFecha(suscripcion.fechaRenovacion)}` : ""
                   }`
                 : suscripcion.fechaRenovacion
-                  ? // Un acceso manual (cupón/cortesía) no se renueva solo: se
+                  ? // Un acceso manual (código/cortesía) no se renueva solo: se
                     // vence y punto, no hay cobro automático detrás. "Renovación"
                     // ahí prometía algo que no iba a pasar. La de pago sí
                     // renueva, así que conserva su palabra.
