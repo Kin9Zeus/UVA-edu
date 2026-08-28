@@ -6,7 +6,7 @@ funciones `SECURITY DEFINER`, buckets de Storage) vive aquí como SQL plano.
 
 ## Cómo se aplican
 
-**Ya no se pegan a mano en el SQL Editor.** Los 22 archivos se aplican con un
+**Ya no se pegan a mano en el SQL Editor.** Los archivos se aplican con un
 comando, en orden y dentro de una sola transacción:
 
 ```bash

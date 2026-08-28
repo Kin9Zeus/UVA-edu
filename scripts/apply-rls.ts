@@ -8,7 +8,7 @@
  *
  * Por qué existe
  * --------------
- * Hasta ahora estos 22 archivos se pegaban a mano en el SQL Editor de
+ * Hasta ahora estos archivos se pegaban a mano en el SQL Editor de
  * Supabase, en orden, siguiendo instrucciones en comentarios. Eso hacía que
  * ningún entorno pudiera *demostrar* que los tenía aplicados: saltarse uno
  * solo reabre el hueco que ese script cerraba, y el peor caso está
@@ -30,7 +30,7 @@
  *
  * Una sola transacción
  * --------------------
- * Los 22 archivos van dentro de un único BEGIN/COMMIT: o quedan todos
+ * Todos los archivos van dentro de un único BEGIN/COMMIT: o quedan todos
  * aplicados o ninguno. Aplicar la mitad es exactamente el estado que este
  * script existe para evitar. Se verificó que ningún script contiene
  * sentencias no transaccionables (CONCURRENTLY, VACUUM, CREATE DATABASE) ni
