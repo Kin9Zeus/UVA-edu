@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 
 export type RecursoLeccion = {
   id: string;
@@ -43,42 +43,6 @@ export type LeccionPlayer = {
   segundoActual: number;
 };
 
-/**
- * Verifica que el usuario pueda ver el contenido del curso: cortesía al
- * curso, o suscripción VIGENTE por estado y fecha (`suscripcionDaAcceso`).
- * Misma regla que `getCursoPublico` en lib/curso.ts y que el firmado del
- * token de Mux — el catálogo muestra el temario a cualquiera, con candado,
- * pero el reproductor exige acceso vigente.
- */
-async function tieneAccesoAlCurso(cursoId: string, usuarioId: string) {
-  const supabase = await createClient();
-
-  // Solo CORTESIA: una MEMBRESIA no sobrevive a la suscripción que la
-  // originó (ver src/lib/mux/acceso.ts).
-  const { data: inscripcion } = await supabase
-    .from("inscripciones")
-    .select("id")
-    .eq("id_usuario", usuarioId)
-    .eq("id_curso", cursoId)
-    .eq("tipo_acceso", "CORTESIA")
-    .eq("activo", true)
-    .maybeSingle();
-
-  if (inscripcion) return true;
-
-  const { data: suscripcion } = await supabase
-    .from("suscripciones")
-    .select("estado, fecha_renovacion")
-    .eq("id_usuario", usuarioId)
-    .order("fecha_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return suscripcionDaAcceso(
-    suscripcion && { estado: suscripcion.estado, fechaRenovacion: suscripcion.fecha_renovacion },
-  );
-}
-
 export async function getLeccionPlayer(
   cursoId: string,
   leccionId: string,
@@ -99,7 +63,11 @@ export async function getLeccionPlayer(
     .single();
 
   if (!curso) return null;
-  if (!(await tieneAccesoAlCurso(cursoId, usuarioId))) return null;
+  // Cortesía al curso, o suscripción VIGENTE por estado y fecha — misma
+  // regla que `getCursoPublico` (lib/curso.ts) y el firmado del token de
+  // Mux (lib/video/reproduccion.ts): el catálogo muestra el temario a
+  // cualquiera, con candado, pero el reproductor exige acceso vigente.
+  if (!(await obtenerAccesoAlCurso(supabase, usuarioId, cursoId)).tieneAcceso) return null;
 
   const { data: categoriaCurso } = await supabase
     .from("curso_categorias")

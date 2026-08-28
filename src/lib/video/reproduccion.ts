@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mux } from "@/lib/mux/client";
-import { tieneAccesoVigente } from "@/lib/mux/acceso";
+import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { logError } from "@/lib/log";
 
 // Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5,
@@ -29,9 +29,10 @@ export type TokenReproduccionResultado = { error: string } | { playbackId: strin
  * cumpla también para la reproducción, no solo para RLS.
  *
  * Valida ANTES de firmar que el usuario autenticado tiene acceso vigente
- * (`tieneAccesoVigente`, única regla del muro) — sin eso una URL "signed" no
- * protege nada distinto de una "public" (docs/technical-spec.md §5, error a
- * evitar explícitamente pedido en la tarea).
+ * (`obtenerAccesoAlCurso`, única función que decide el muro — ver
+ * src/lib/accesoCurso.ts) — sin eso una URL "signed" no protege nada
+ * distinto de una "public" (docs/technical-spec.md §5, error a evitar
+ * explícitamente pedido en la tarea).
  *
  * Los administradores pueden previsualizar cualquier lección sin
  * Suscripción/Inscripción propia: lo necesita el panel admin para mostrar
@@ -62,45 +63,13 @@ export async function resolverTokenReproduccion(
   const cursoId = modulo?.id_curso;
   if (!cursoId) return { error: "El video todavía no está disponible." };
 
-  const [{ data: perfil }, { data: suscripcion }, { data: inscripcion }] = await Promise.all([
+  const [{ data: perfil }, acceso] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user.id).single(),
-    // Se pide la última suscripción sin filtrar por estado: la vigencia la
-    // decide `tieneAccesoVigente`, que además de ACTIVA/PAST_DUE mira la
-    // fecha. Filtrar aquí por estado escondía justo el caso que hay que
-    // detectar — una ACTIVA con el periodo ya terminado.
-    supabase
-      .from("suscripciones")
-      .select("estado, fecha_renovacion")
-      .eq("id_usuario", user.id)
-      .order("fecha_inicio", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    // Solo CORTESIA activa: una MEMBRESIA es el registro de haber entrado
-    // bajo una suscripción, no un permiso que la sobreviva (ver
-    // mux/acceso.ts); una CORTESIA revocada (f4accesos.md) tampoco cuenta
-    // — la fila se conserva marcada `activo = false`, no se borra.
-    supabase
-      .from("inscripciones")
-      .select("id")
-      .eq("id_usuario", user.id)
-      .eq("id_curso", cursoId)
-      .eq("tipo_acceso", "CORTESIA")
-      .eq("activo", true)
-      .limit(1)
-      .maybeSingle(),
+    obtenerAccesoAlCurso(supabase, user.id, cursoId),
   ]);
 
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
-  if (
-    !esAdmin &&
-    !tieneAccesoVigente(
-      suscripcion && {
-        estado: suscripcion.estado,
-        fechaRenovacion: suscripcion.fecha_renovacion,
-      },
-      inscripcion !== null,
-    )
-  ) {
+  if (!esAdmin && !acceso.tieneAcceso) {
     return { error: "No tienes acceso vigente a este curso." };
   }
 

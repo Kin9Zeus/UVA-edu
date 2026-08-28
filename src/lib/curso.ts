@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 
 export type LeccionPublica = {
   id: string;
@@ -131,47 +131,25 @@ export async function getCursoPublico(
     0,
   );
 
-  // Recursos, inscripción y suscripción son independientes entre sí — se
-  // piden en paralelo en vez de una tras otra (antes la suscripción ni
-  // siquiera se pedía si ya había inscripción, pero eso encadenaba todo a
-  // una consulta más antes de poder resolver `tieneAcceso`).
-  const [{ count: totalRecursos }, { data: inscripcion }, { data: suscripcion }] = await Promise.all([
+  // Recursos y acceso son independientes entre sí — se piden en paralelo en
+  // vez de uno tras otro. `obtenerAccesoAlCurso` (src/lib/accesoCurso.ts) es
+  // la única función que decide "cortesía O suscripción vigente" — misma
+  // regla que usan el reproductor y el reproductor de lección, no una copia
+  // paralela.
+  const [{ count: totalRecursos }, acceso] = await Promise.all([
     leccionIds.length > 0
       ? supabase
           .from("recursos_descargables")
           .select("id", { count: "exact", head: true })
           .in("id_leccion", leccionIds)
       : Promise.resolve({ count: 0 }),
-    usuarioId
-      ? supabase
-          .from("inscripciones")
-          .select("id")
-          .eq("id_usuario", usuarioId)
-          .eq("id_curso", cursoId)
-          .eq("tipo_acceso", "CORTESIA")
-          .eq("activo", true)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    usuarioId
-      ? supabase
-          .from("suscripciones")
-          .select("estado, fecha_renovacion")
-          .eq("id_usuario", usuarioId)
-          .order("fecha_inicio", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    obtenerAccesoAlCurso(supabase, usuarioId, cursoId),
   ]);
 
-  // Misma regla que el reproductor (`suscripcionDaAcceso`): estado Y fecha.
-  // Solo una CORTESIA otorgada por un admin abre el curso por su cuenta.
-  const suscripcionVigente = suscripcionDaAcceso(
-    suscripcion && { estado: suscripcion.estado, fechaRenovacion: suscripcion.fecha_renovacion },
-  );
-  const tieneAcceso = inscripcion !== null || suscripcionVigente;
+  const tieneAcceso = acceso.tieneAcceso;
   // Tuvo una suscripción y ya no le sirve: el temario se sigue viendo, pero
   // con candado, y el CTA invita a renovar en vez de a canjear por primera vez.
-  const accesoVencido = !tieneAcceso && suscripcion !== null;
+  const accesoVencido = !tieneAcceso && acceso.suscripcion !== null;
 
   // Progreso guardado en las clases del curso: qué está completada (para el
   // check ✓ del temario) y cuál es la primera sin completar (para "Seguir
