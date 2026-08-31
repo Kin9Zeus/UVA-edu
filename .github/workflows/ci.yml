@@ -112,3 +112,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Sin estas dos, resolverTokenReproduccion no puede firmar el
+          # playback token de Mux y las 2 pruebas de reproducción de
+          # scripts/rls-test.ts fallan con "Signing key required" — no por
+          # falta de un curso/video real, sino porque el runner de CI tiene
+          # su propio almacén de secretos (este `environment:
+          # supabase-test`), separado del de Railway.
+          MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
