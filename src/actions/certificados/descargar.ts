@@ -1,0 +1,99 @@
+"use server";
+
+import { headers } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { getPerfilActual } from "@/lib/perfil";
+import { construirCertificadoPdf } from "@/lib/certificados/pdf";
+import { logError } from "@/lib/log";
+
+const BUCKET_CERTIFICADOS = "certificados";
+const DURACION_URL_SEGUNDOS = 300;
+
+async function getOrigin() {
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+export type DescargarCertificadoResult = { url?: string; error?: string };
+
+/**
+ * Devuelve una URL firmada al PDF del certificado, generándolo (y
+ * cacheándolo en Storage) la primera vez que se pide — Certificado.md:
+ * "generar bajo demanda y cachear... no regenerar en cada descarga". Todas
+ * las operaciones usan la sesión propia del estudiante (RLS), nunca la
+ * Service Role Key: `certificados_select_propio` (001) ya impide traer un
+ * certificado ajeno, y las policies de storage.objects de 049 acotan el
+ * bucket al mismo `auth.uid()`.
+ */
+export async function descargarCertificadoPdf(certificadoId: string): Promise<DescargarCertificadoResult> {
+  const { user, perfil } = await getPerfilActual();
+  if (!user || !perfil) return { error: "Debes iniciar sesión para descargar tu certificado." };
+
+  const supabase = await createClient();
+
+  const { data: certificado, error: errorCertificado } = await supabase
+    .from("certificados")
+    .select("id, fecha_emision, codigo_verificacion, archivo_pdf, curso:cursos(titulo)")
+    .eq("id", certificadoId)
+    .maybeSingle();
+
+  if (errorCertificado || !certificado) {
+    return { error: "No encontramos ese certificado." };
+  }
+
+  const rutaArchivo = `${user.id}/${certificado.id}.pdf`;
+
+  if (!certificado.archivo_pdf) {
+    const curso = Array.isArray(certificado.curso) ? certificado.curso[0] : certificado.curso;
+    const origin = await getOrigin();
+    const urlVerificacion = `${origin}/verificar-certificado/${certificado.codigo_verificacion}`;
+
+    let pdfBytes: Uint8Array;
+    try {
+      pdfBytes = await construirCertificadoPdf({
+        nombreEstudiante: perfil.nombre,
+        cursoTitulo: curso?.titulo ?? "Curso",
+        fechaEmision: new Date(certificado.fecha_emision),
+        codigoVerificacion: certificado.codigo_verificacion,
+        urlVerificacion,
+      });
+    } catch (error) {
+      logError("descargarCertificadoPdf", "No se pudo construir el PDF", error, { area: "certificados" });
+      return { error: "No pudimos generar tu certificado. Intenta de nuevo." };
+    }
+
+    const { error: errorSubida } = await supabase.storage
+      .from(BUCKET_CERTIFICADOS)
+      .upload(rutaArchivo, pdfBytes, { contentType: "application/pdf", upsert: true });
+
+    if (errorSubida) {
+      logError("descargarCertificadoPdf", "No se pudo subir el PDF a Storage", errorSubida, { area: "certificados" });
+      return { error: "No pudimos guardar tu certificado. Intenta de nuevo." };
+    }
+
+    const { error: errorRegistro } = await supabase.rpc("registrar_archivo_certificado", {
+      p_certificado_id: certificado.id,
+      p_archivo_pdf: rutaArchivo,
+    });
+    if (errorRegistro) {
+      // El PDF ya quedó subido y es descargable — no perder la descarga
+      // por esto. La próxima vez `archivo_pdf` seguirá null y se
+      // regenerará (mismo resultado, solo repite el trabajo de armar el
+      // PDF una vez más).
+      logError("descargarCertificadoPdf", "No se pudo registrar archivo_pdf", errorRegistro, { area: "certificados" });
+    }
+  }
+
+  const { data: firmada, error: errorFirma } = await supabase.storage
+    .from(BUCKET_CERTIFICADOS)
+    .createSignedUrl(rutaArchivo, DURACION_URL_SEGUNDOS, { download: `certificado-uva-${certificado.codigo_verificacion}.pdf` });
+
+  if (errorFirma || !firmada) {
+    logError("descargarCertificadoPdf", "No se pudo firmar la URL de descarga", errorFirma, { area: "certificados" });
+    return { error: "No pudimos generar el enlace de descarga." };
+  }
+
+  return { url: firmada.signedUrl };
+}

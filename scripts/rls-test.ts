@@ -114,6 +114,9 @@ async function main() {
   // Mismo motivo: el lote de códigos (044/045) se crea dentro del try, pero
   // su id hay que conocerlo en el finally para borrar también sus códigos.
   let idLotePrueba: string | null = null;
+  // Mismo motivo: el certificado que emite el trigger (047) hay que
+  // conocerlo en el finally para borrar también su archivo de Storage.
+  let idCertificadoPrueba: string | null = null;
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -339,21 +342,28 @@ async function main() {
       "anon no puede llamar registrar_canje_fallido (RPC solo service_role, P2-2)",
       clienteAnonimo.rpc("registrar_canje_fallido", { p_usuario_id: userSinAcceso.user!.id }),
     );
+    // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
+    // service_role — el límite por IP de la página pública sería
+    // decorativo si cualquiera pudiera seguir llamándola directo por
+    // PostgREST. La prueba de "responde valido=false" vive más abajo, en
+    // la sesión de CERTIFICADOS, usando el cliente admin.
+    await esperarBloqueado(
+      "anon YA NO puede llamar verificar_certificado directo (endurecida en 050)",
+      clienteAnonimo.rpc("verificar_certificado", { p_codigo: "codigo-que-no-existe" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_certificado (RPC solo service_role, 050)",
+      clienteAnonimo.rpc("verificar_limite_certificado", { p_ip: "127.0.0.1" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_intento_verificar_certificado (RPC solo service_role, 050)",
+      clienteAnonimo.rpc("registrar_intento_verificar_certificado", { p_ip: "127.0.0.1" }),
+    );
 
     await esperarPermitido("anon SÍ puede leer el catálogo público (categorías activas)", clienteAnonimo.from("categorias").select("id").eq("activo", true));
     await esperarPermitido(
       "anon SÍ puede leer curso_categorias de cursos publicados",
       clienteAnonimo.from("curso_categorias").select("id_curso, id_categoria").limit(1),
-    );
-    const verificacion = await esperarPermitido(
-      "anon SÍ puede llamar verificar_certificado (función pública)",
-      clienteAnonimo.rpc("verificar_certificado", { p_codigo: "codigo-que-no-existe" }).select(),
-    );
-    const filaVerificacion = Array.isArray(verificacion) ? verificacion[0] : verificacion;
-    registrar(
-      "verificar_certificado responde valido=false para un código inexistente",
-      filaVerificacion?.valido === false,
-      JSON.stringify(filaVerificacion),
     );
 
     console.log("\n=== Sesión: ESTUDIANTE SIN ACCESO ===\n");
@@ -616,6 +626,117 @@ async function main() {
       "reproducción: cortesía revocada NO obtiene token de video",
       clienteSinAcceso,
       "bloqueado",
+    );
+
+    // ------------------------------------------------------------------
+    // Emisión automática de certificados (Certificado.md, 047-050)
+    //
+    // Reutiliza cursoReproduccion/leccionReproduccion (arriba): tiene
+    // exactamente UNA lección LISTO, así que marcarla completada para
+    // userConAcceso alcanza el 100% del curso de un solo golpe — el caso
+    // más simple para probar la emisión sin tener que armar un curso nuevo
+    // de varios módulos.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: EMISIÓN DE CERTIFICADOS (047-050) ===\n");
+
+    await esperarBloqueado(
+      "un estudiante NO puede insertar directo en certificados (solo el trigger, vía SECURITY DEFINER)",
+      clienteConAcceso
+        .from("certificados")
+        .insert({ id_usuario: userConAcceso.user!.id, id_curso: cursoReproduccion.id, codigo_verificacion: `RLSCERT${sufijo}` })
+        .select(),
+    );
+
+    const { error: errCompletarLeccion } = await clienteConAcceso
+      .from("progreso")
+      .upsert(
+        { id_usuario: userConAcceso.user!.id, id_leccion: idLeccionReproduccion, completado: true },
+        { onConflict: "id_usuario,id_leccion" },
+      );
+    if (errCompletarLeccion) throw new Error(`No pude completar la lección de prueba: ${errCompletarLeccion.message}`);
+
+    const { data: certificadoEmitido } = await admin
+      .from("certificados")
+      .select("id, codigo_verificacion, archivo_pdf")
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoReproduccion.id)
+      .maybeSingle();
+    registrar(
+      "completar la única lección del curso emite el certificado automáticamente (trigger 047)",
+      !!certificadoEmitido && /^[A-Z2-9]{5}-[A-Z2-9]{5}$/.test(certificadoEmitido.codigo_verificacion),
+      certificadoEmitido ? `codigo=${certificadoEmitido.codigo_verificacion}` : "no se emitió ningún certificado",
+    );
+    idCertificadoPrueba = certificadoEmitido!.id;
+
+    const { error: errReinsertar } = await admin.from("progreso").upsert(
+      { id_usuario: userConAcceso.user!.id, id_leccion: idLeccionReproduccion, completado: true },
+      { onConflict: "id_usuario,id_leccion" },
+    );
+    const { count: certificadosTrasRepetir } = await admin
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoReproduccion.id);
+    registrar(
+      "volver a marcar la lección completada NO duplica el certificado (unique id_usuario+id_curso)",
+      !errReinsertar && certificadosTrasRepetir === 1,
+      `certificados=${certificadosTrasRepetir}`,
+    );
+
+    const { data: verificacionOk } = await admin.rpc("verificar_certificado", {
+      p_codigo: certificadoEmitido!.codigo_verificacion,
+    });
+    const [filaOk] = (verificacionOk ?? []) as { valido: boolean; nombre_curso: string | null }[];
+    registrar(
+      "verificar_certificado (vía service_role) confirma el certificado recién emitido",
+      filaOk?.valido === true,
+      JSON.stringify(filaOk),
+    );
+
+    const { data: verificacionInexistente } = await admin.rpc("verificar_certificado", {
+      p_codigo: `NOEXISTE-${sufijo}`,
+    });
+    const [filaInexistente] = (verificacionInexistente ?? []) as { valido: boolean }[];
+    registrar(
+      "verificar_certificado responde valido=false para un código inexistente, sin distinguir formato",
+      filaInexistente?.valido === false,
+      JSON.stringify(filaInexistente),
+    );
+
+    await esperarBloqueado(
+      "un estudiante distinto no puede registrar el archivo PDF de un certificado ajeno",
+      clienteSinAcceso.rpc("registrar_archivo_certificado", {
+        p_certificado_id: idCertificadoPrueba,
+        p_archivo_pdf: `${userSinAcceso.user!.id}/intento-ajeno.pdf`,
+      }),
+    );
+    const { data: certificadoTrasIntentoAjeno } = await admin
+      .from("certificados")
+      .select("archivo_pdf")
+      .eq("id", idCertificadoPrueba)
+      .maybeSingle();
+    registrar(
+      "el intento ajeno no modificó archivo_pdf (0 filas afectadas, no un error ruidoso)",
+      certificadoTrasIntentoAjeno?.archivo_pdf === null,
+      `archivo_pdf=${certificadoTrasIntentoAjeno?.archivo_pdf ?? "null"}`,
+    );
+
+    await esperarPermitido(
+      "el dueño SÍ puede registrar el archivo PDF de su propio certificado",
+      clienteConAcceso.rpc("registrar_archivo_certificado", {
+        p_certificado_id: idCertificadoPrueba,
+        p_archivo_pdf: `${userConAcceso.user!.id}/${idCertificadoPrueba}.pdf`,
+      }),
+    );
+    const { data: certificadoConArchivo } = await admin
+      .from("certificados")
+      .select("archivo_pdf")
+      .eq("id", idCertificadoPrueba)
+      .maybeSingle();
+    registrar(
+      "registrar_archivo_certificado sí guardó la ruta cuando el dueño lo llama",
+      certificadoConArchivo?.archivo_pdf === `${userConAcceso.user!.id}/${idCertificadoPrueba}.pdf`,
+      `archivo_pdf=${certificadoConArchivo?.archivo_pdf ?? "null"}`,
     );
 
     // ------------------------------------------------------------------
@@ -1313,7 +1434,11 @@ async function main() {
     // Los pagos van antes que las suscripciones: `pagos.id_suscripcion` es una
     // FK sin cascada.
     await admin.from("pagos").delete().eq("ref_transaccion_externa", refPagoPrueba);
+    if (idCertificadoPrueba) {
+      await admin.storage.from("certificados").remove([`${userConAcceso.user!.id}/${idCertificadoPrueba}.pdf`]);
+    }
     for (const usuario of usuariosDePrueba) {
+      await admin.from("certificados").delete().eq("id_usuario", usuario.id);
       await admin.from("progreso").delete().eq("id_usuario", usuario.id);
       await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);
       await admin.from("suscripciones").delete().eq("id_usuario", usuario.id);

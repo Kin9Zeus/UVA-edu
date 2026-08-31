@@ -1,5 +1,6 @@
 import { Award } from "lucide-react";
 import { formatFecha } from "@/lib/admin/format";
+import { DescargarCertificadoButton } from "@/components/dashboard/DescargarCertificadoButton";
 
 export type CertificadoItem = {
   id: string;
@@ -47,6 +48,7 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
                 <span className="font-mono text-[11px] text-uva-text-faint">
                   {certificado.codigoVerificacion}
                 </span>
+                <DescargarCertificadoButton certificadoId={certificado.id} />
               </div>
             </div>
           ))}

@@ -495,6 +495,42 @@ estado.
 Repetir los pasos 1-23 en cada entorno nuevo (Staging y Production son
 proyectos de Supabase separados, ver `docs/technical-spec.md` §10).
 
+### `047_emision_automatica_certificados.sql`, `048_registrar_archivo_certificado.sql`, `049_bucket_certificados.sql` y `050_rate_limit_verificar_certificado.sql`
+
+Certificado.md ("PDF de certificado con código de verificación + página
+pública de validación"): hasta este punto `certificados` (001) solo tenía
+política de `SELECT` — ningún camino de escritura, así que
+`/dashboard/certificados` siempre estaba vacío sin importar cuántos cursos
+terminara un estudiante.
+
+- **047**: trigger `progreso_emite_certificado` (`AFTER INSERT OR UPDATE OF
+  completado ON progreso`) que detecta el 100% de un curso (mismo criterio
+  de "lección LISTO" que la vista `progreso_cursos_estudiante`, 033) y emite
+  el certificado con un código de verificación generado en SQL
+  (`private.generar_codigo_certificado()`, alfabeto legible sin 0/O/1/I/L,
+  formato `XXXXX-XXXXX`, vía `extensions.gen_random_bytes` — pgcrypto vive
+  en el schema `extensions` de este proyecto, no en `public`). `SECURITY
+  DEFINER` obligatorio: corre en la sesión del estudiante, que solo puede
+  `SELECT` sobre `certificados`.
+- **048**: `registrar_archivo_certificado(id, ruta)` — RPC angosto para
+  cachear `certificados.archivo_pdf` sin abrir una política de `UPDATE`
+  general sobre la tabla (que dejaría reescribir `fecha_emision` o
+  `codigo_verificacion` vía PATCH directo). Grant a `authenticated`: lo
+  llama la sesión propia del estudiante, con `auth.uid()` como único
+  chequeo de dueño.
+- **049**: bucket privado `certificados`, ruta
+  `{id_usuario}/{id_certificado}.pdf`, policies de `storage.objects` por
+  prefijo de carpeta (mismo patrón que otros buckets propios: el estudiante
+  sube/lee con su propia sesión, nunca con la Service Role Key).
+- **050**: rate limiting por IP para `verificar_certificado` (mismo patrón
+  que `verificar_limite_check_email`, 023) y endurecimiento del grant
+  existente de esa función: pasa de `anon, authenticated` a solo
+  `service_role`, porque dejarla pública habría hecho el límite decorativo
+  (cualquiera podría seguir golpeándola directo por PostgREST sin pasar por
+  la página que aplica el límite). La página pública
+  (`src/app/(public)/verificar-certificado/[codigo]/page.tsx`) la invoca
+  con el admin client después de pasar el límite.
+
 ## Prueba de RLS con 3 sesiones
 
 `scripts/rls-test.ts` (`npm run test:rls`) llama la API de Supabase
