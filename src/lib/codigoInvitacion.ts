@@ -73,6 +73,35 @@ export function formatearCodigoMientrasEscribe(sinGuiones: string): string {
   return resultado;
 }
 
+/**
+ * Tope de días que puede otorgar un código. No lo impone la base: es un
+ * freno a la equivocación de teclado (escribir 3650 en vez de 365 regala
+ * diez años de acceso, y revertirlo obliga a editar la suscripción ya
+ * creada). Compartido por los dos modos de generación (código único y
+ * lote): la regla de negocio es la misma sin importar cuál gane la
+ * decisión pendiente de rev.md.
+ */
+export const MAX_DURACION_DIAS = 730;
+
+/** Valida los días de acceso que otorga un código, sea único o de lote. */
+export function validarDuracionDias(duracionDias: number): string | null {
+  if (!Number.isInteger(duracionDias) || duracionDias < 1) {
+    return "Los días de acceso deben ser un número entero mayor que cero.";
+  }
+  if (duracionDias > MAX_DURACION_DIAS) {
+    return `Los días de acceso no pueden superar ${MAX_DURACION_DIAS}.`;
+  }
+  return null;
+}
+
+/** Valida la fecha de vencimiento de un código, sea único o de lote. */
+export function validarFechaVencimiento(fechaVencimiento: string): string | null {
+  const vence = new Date(fechaVencimiento);
+  if (Number.isNaN(vence.getTime())) return "La fecha de vencimiento no es válida.";
+  if (vence.getTime() <= Date.now()) return "La fecha de vencimiento debe ser futura.";
+  return null;
+}
+
 export type EstadoCodigo = "ACTIVO" | "INACTIVO" | "VENCIDO" | "AGOTADO";
 
 /**

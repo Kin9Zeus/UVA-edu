@@ -103,6 +103,7 @@ model Perfiles {
   categorias_creadas          Categorias[]             @relation("CategoriasCreadasPorAdmin")
   instructores_creados        Instructores[]           @relation("InstructoresCreadosPorAdmin")
   codigos_invitacion_creados  CodigosInvitacion[]      @relation("CodigosInvitacionCreadosPorAdmin")
+  lotes_codigos_creados       LotesCodigosInvitacion[] @relation("LotesCodigosCreadosPorAdmin")
   tokens_vista_previa_creados TokensVistaPrevia[]      @relation("TokensVistaPreviaCreadosPorAdmin")
   suscripciones               Suscripciones[]          @relation("SuscripcionesDelUsuario")
   suscripciones_otorgadas     Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
@@ -587,11 +588,47 @@ model CodigosInvitacion {
   activo            Boolean  @default(true)
   creado_en         DateTime @default(now()) @db.Timestamptz
   actualizado_en    DateTime @updatedAt @db.Timestamptz
+  /// Presente SOLO en los códigos que salieron de "Lote de códigos"
+  /// (crear_lote_codigos_invitacion, 045). Un código creado con "Código
+  /// único" (crearCodigoInvitacion) siempre lo tiene NULL. Sirve para
+  /// agrupar en la pantalla de lotes y para el filtro de exportación CSV;
+  /// no cambia nada del canje, que sigue operando fila por fila igual que
+  /// siempre.
+  id_lote           String?  @db.Uuid
 
-  admin_creador Perfiles?       @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  admin_creador Perfiles?                @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  lote          LotesCodigosInvitacion?  @relation(fields: [id_lote], references: [id])
   suscripciones Suscripciones[]
 
+  @@index([id_lote])
   @@map("codigos_invitacion")
+}
+
+/// Cabecera de una generación masiva de códigos de invitación (opción "Lote
+/// de códigos", alternativa a "Código único con cupo N" — ver rev.md: la
+/// decisión de qué modo de distribución usar en producción sigue pendiente
+/// de confirmación de negocio, así que ambos conviven hasta que se resuelva).
+///
+/// Existe para no escribir una fila de bitácora por cada uno de los N
+/// códigos generados ("Generó 100 códigos" en una sola entrada, no 100), y
+/// para poder listar/exportar un lote como unidad. Los códigos en sí viven
+/// en `CodigosInvitacion` (uno por fila, `limite_usos = 1` cada uno): esta
+/// tabla no duplica su estado, solo agrupa.
+model LotesCodigosInvitacion {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Cuántos códigos se pidieron generar. Se guarda aparte de `count(codigos)`
+  /// porque es un hecho fijado al crear el lote (como `duracion_dias` en un
+  /// código), no un estado que cambie con el tiempo.
+  cantidad          Int
+  duracion_dias     Int
+  fecha_vencimiento DateTime @db.Timestamptz
+  id_admin_creador  String?  @db.Uuid
+  creado_en         DateTime @default(now()) @db.Timestamptz
+
+  admin_creador Perfiles?           @relation("LotesCodigosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  codigos       CodigosInvitacion[]
+
+  @@map("lotes_codigos_invitacion")
 }
 
 /// Descuento aplicable en el checkout — entidad DISTINTA de

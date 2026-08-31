@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import { getCodigosInvitacion } from "@/lib/admin/codigosInvitacion";
-import { CodigosTable } from "@/components/admin/codigos/CodigosTable";
+import { getLotesCodigosInvitacion } from "@/lib/admin/lotesCodigosInvitacion";
+import { CodigosPanel } from "@/components/admin/codigos/CodigosPanel";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Códigos de invitación",
 };
 
 export default async function AdminCodigosPage() {
-  const codigos = await getCodigosInvitacion();
+  const [codigos, lotes] = await Promise.all([
+    getCodigosInvitacion(),
+    getLotesCodigosInvitacion(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
-      <CodigosTable codigos={codigos} />
+      <CodigosPanel codigos={codigos} lotes={lotes} />
     </div>
   );
 }

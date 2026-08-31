@@ -1,0 +1,297 @@
+"use client";
+
+import { useState } from "react";
+import { Copy, Check, Trash2, Download, ListChecks } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { AdminCard } from "@/components/admin/AdminCard";
+import { SwitchEstado } from "@/components/admin/SwitchEstado";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAdminToast } from "@/components/admin/Toast";
+import { LoteFormDialog } from "@/components/admin/codigos/LoteFormDialog";
+import { RedimidoresButton } from "@/components/admin/codigos/RedimidoresButton";
+import {
+  eliminarCodigoInvitacion,
+  toggleActivoCodigoInvitacion,
+} from "@/actions/admin/codigosInvitacion";
+import { exportarCodigosInvitacionCsv } from "@/actions/admin/exportarCodigosInvitacion";
+import { formatFecha } from "@/lib/admin/format";
+import type { CodigoInvitacion } from "@/lib/admin/codigosInvitacion";
+import type { LoteCodigosInvitacion } from "@/lib/admin/lotesCodigosInvitacion";
+import type { EstadoCodigo } from "@/lib/codigoInvitacion";
+
+const TONO_ESTADO: Record<EstadoCodigo, "success" | "neutral" | "warning" | "error"> = {
+  ACTIVO: "success",
+  INACTIVO: "neutral",
+  VENCIDO: "warning",
+  AGOTADO: "warning",
+};
+
+const ETIQUETA_ESTADO: Record<EstadoCodigo, string> = {
+  ACTIVO: "Activo",
+  INACTIVO: "Inactivo",
+  VENCIDO: "Vencido",
+  AGOTADO: "Agotado",
+};
+
+/**
+ * Opción "Lote de códigos" (rev.md), alternativa a "Código único con cupo
+ * N" (CodigosTable). Recibe solo los códigos con `idLote` no nulo — el
+ * llamador (CodigosPanel) separa los dos conjuntos.
+ */
+export function LotesTable({
+  lotes,
+  codigos,
+}: {
+  lotes: LoteCodigosInvitacion[];
+  codigos: CodigoInvitacion[];
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [loteAbierto, setLoteAbierto] = useState<LoteCodigosInvitacion | null>(null);
+  const [borrando, setBorrando] = useState<CodigoInvitacion | null>(null);
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [exportandoLote, setExportandoLote] = useState<string | null>(null);
+  const showToast = useAdminToast();
+
+  const codigosDelLoteAbierto = loteAbierto
+    ? codigos.filter((codigo) => codigo.idLote === loteAbierto.id)
+    : [];
+
+  async function handleCopiar(codigo: string) {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(codigo);
+      setTimeout(() => setCopiado((actual) => (actual === codigo ? null : actual)), 2000);
+    } catch {
+      showToast("No pudimos copiar. Selecciona el código y cópialo a mano.", "error");
+    }
+  }
+
+  async function handleToggle(codigo: CodigoInvitacion, activo: boolean) {
+    const resultado = await toggleActivoCodigoInvitacion(codigo.id, activo);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    showToast(
+      activo
+        ? "Código activado. Ya se puede volver a canjear."
+        : "Código desactivado. Si ya se había canjeado, quien lo usó conserva su acceso.",
+    );
+  }
+
+  async function handleEliminar() {
+    if (!borrando) return;
+    const resultado = await eliminarCodigoInvitacion(borrando.id);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    showToast("Código eliminado.");
+    setBorrando(null);
+  }
+
+  async function handleExportarLote(loteId: string) {
+    setExportandoLote(loteId);
+    try {
+      const respuesta = await exportarCodigosInvitacionCsv(loteId);
+      if (respuesta.error || !respuesta.csv || !respuesta.nombreArchivo) {
+        showToast(respuesta.error ?? "No pudimos generar la exportación.", "error");
+        return;
+      }
+      const blob = new Blob([respuesta.csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = respuesta.nombreArchivo;
+      enlace.click();
+      URL.revokeObjectURL(url);
+      showToast("Exportación descargada.");
+    } finally {
+      setExportandoLote(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-[18px]">
+      <div className="flex justify-end">
+        <Button type="button" variant="primary" onClick={() => setFormOpen(true)}>
+          + Nuevo lote
+        </Button>
+      </div>
+
+      <AdminCard flush>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Lote</TableHead>
+              <TableHead>Acceso</TableHead>
+              <TableHead>Canjeados</TableHead>
+              <TableHead>Activos</TableHead>
+              <TableHead>Vence</TableHead>
+              <TableHead>Creado por</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lotes.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-uva-muted-2">
+                  No hay lotes de códigos todavía.
+                </TableCell>
+              </TableRow>
+            )}
+            {lotes.map((lote) => (
+              <TableRow key={lote.id}>
+                <TableCell className="font-mono text-[13px] font-semibold text-uva-text">
+                  {lote.cantidad} código(s)
+                </TableCell>
+                <TableCell className="text-uva-muted">{lote.duracionDias} días</TableCell>
+                <TableCell className="font-mono tabular-nums">
+                  {lote.canjeados}
+                  <span className="text-uva-muted-2">/{lote.cantidad}</span>
+                </TableCell>
+                <TableCell className="font-mono tabular-nums text-uva-muted">{lote.activos}</TableCell>
+                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {formatFecha(lote.fechaVencimiento)}
+                </TableCell>
+                <TableCell className="text-[12px] text-uva-muted-2">{lote.creadoPor}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent"
+                      onClick={() => setLoteAbierto(lote)}
+                    >
+                      <ListChecks className="size-4" />
+                      Ver códigos
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Exportar CSV de este lote"
+                      title="Exportar CSV de este lote"
+                      className="text-uva-muted-2 hover:text-uva-accent"
+                      onClick={() => handleExportarLote(lote.id)}
+                      disabled={exportandoLote === lote.id}
+                    >
+                      <Download className="size-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </AdminCard>
+
+      <LoteFormDialog open={formOpen} onOpenChange={setFormOpen} />
+
+      <Dialog open={loteAbierto !== null} onOpenChange={(open) => !open && setLoteAbierto(null)}>
+        <DialogContent className="w-[620px]">
+          <DialogHeader>
+            <DialogTitle>
+              Códigos del lote{loteAbierto ? ` (${loteAbierto.cantidad})` : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[420px] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Canjeado por</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {codigosDelLoteAbierto.map((codigo) => (
+                  <TableRow key={codigo.id}>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => handleCopiar(codigo.codigo)}
+                        title="Copiar código"
+                        className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                      >
+                        {codigo.codigo}
+                        {copiado === codigo.codigo ? (
+                          <Check className="size-3.5 text-uva-accent" />
+                        ) : (
+                          <Copy className="size-3.5 text-uva-muted-2" />
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={TONO_ESTADO[codigo.estado]}>
+                        {ETIQUETA_ESTADO[codigo.estado]}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell>
+                      <RedimidoresButton
+                        codigoId={codigo.id}
+                        codigo={codigo.codigo}
+                        vecesUsado={codigo.vecesUsado}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="grid grid-cols-[auto_28px] items-center justify-end gap-1.5">
+                        <SwitchEstado
+                          checked={codigo.activo}
+                          onCheckedChange={(checked) => handleToggle(codigo, checked)}
+                          etiquetas={["", ""]}
+                          acciones={["Activar código", "Desactivar código"]}
+                        />
+                        {codigo.vecesUsado === 0 ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="Eliminar código"
+                            title="Eliminar código"
+                            className="text-uva-muted-2 hover:text-uva-accent"
+                            onClick={() => setBorrando(codigo)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <span aria-hidden="true" />
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={borrando !== null}
+        onOpenChange={(open) => !open && setBorrando(null)}
+        title="Eliminar código"
+        description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se canjeó, así que no afecta a ninguna suscripción.`}
+        onConfirm={handleEliminar}
+      />
+    </div>
+  );
+}

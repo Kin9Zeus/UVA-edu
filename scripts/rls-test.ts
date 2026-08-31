@@ -111,6 +111,9 @@ async function main() {
   // Se declara aquí, no dentro del try, para que la limpieza del finally pueda
   // borrar los pagos de prueba aunque una aserción falle antes.
   const refPagoPrueba = `ref_rls_test_${sufijo}`;
+  // Mismo motivo: el lote de códigos (044/045) se crea dentro del try, pero
+  // su id hay que conocerlo en el finally para borrar también sus códigos.
+  let idLotePrueba: string | null = null;
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -942,6 +945,103 @@ async function main() {
       `estado=${filaVigenteTrasRpc?.estado ?? "sin fila vigente"}`,
     );
 
+    // ------------------------------------------------------------------
+    // Lote de códigos de invitación (rev.md / 044-045): la opción "N
+    // códigos individuales" de un clic, alternativa a "código único con
+    // cupo N". Mismo criterio de exposición que
+    // cerrar_suscripcion_caducada_admin: SECURITY DEFINER + chequeo interno
+    // de private.es_administrador(), llamado con la sesión real del admin.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: LOTE DE CÓDIGOS DE INVITACIÓN (044/045) ===\n");
+
+    await esperarBloqueado(
+      "un NO administrador no puede llamar crear_lote_codigos_invitacion",
+      clienteConAcceso.rpc("crear_lote_codigos_invitacion", {
+        p_codigos: [`RLSLOTE${sufijo}X1`],
+        p_duracion_dias: 30,
+        p_fecha_vencimiento: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      }),
+    );
+
+    const { data: loteId, error: errCrearLote } = await clienteAdmin.rpc(
+      "crear_lote_codigos_invitacion",
+      {
+        p_codigos: [`RLSLOTE${sufijo}A`, `RLSLOTE${sufijo}B`, `RLSLOTE${sufijo}C`],
+        p_duracion_dias: 30,
+        p_fecha_vencimiento: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      },
+    );
+    registrar(
+      "administrador SÍ puede generar un lote de códigos",
+      !errCrearLote && !!loteId,
+      errCrearLote?.message,
+    );
+    idLotePrueba = (loteId as string | null) ?? null;
+
+    const { data: codigosDelLote } = await admin
+      .from("codigos_invitacion")
+      .select("codigo, limite_usos")
+      .eq("id_lote", idLotePrueba ?? "");
+    registrar(
+      "el lote insertó exactamente los 3 códigos pedidos, cada uno de uso único",
+      (codigosDelLote ?? []).length === 3 &&
+        (codigosDelLote ?? []).every((fila) => fila.limite_usos === 1),
+      `${(codigosDelLote ?? []).length} código(s)`,
+    );
+
+    const { data: cabeceraLote } = await admin
+      .from("lotes_codigos_invitacion")
+      .select("cantidad")
+      .eq("id", idLotePrueba ?? "")
+      .maybeSingle();
+    registrar(
+      "la cabecera del lote guarda la cantidad pedida",
+      cabeceraLote?.cantidad === 3,
+      `cantidad=${cabeceraLote?.cantidad ?? "sin fila"}`,
+    );
+
+    // Atomicidad (rev.md: "si falla a la mitad, no deben quedar códigos
+    // sueltos"): "A" ya existe (el lote de arriba), así que el insert
+    // completo debe revertir — cabecera nueva incluida — y no dejar ni
+    // "NUEVO1" ni "NUEVO2" sueltos.
+    const { count: lotesAntesDelChoque } = await admin
+      .from("lotes_codigos_invitacion")
+      .select("id", { count: "exact", head: true });
+
+    const { error: errChoque } = await clienteAdmin.rpc("crear_lote_codigos_invitacion", {
+      p_codigos: [`RLSLOTE${sufijo}NUEVO1`, `RLSLOTE${sufijo}A`, `RLSLOTE${sufijo}NUEVO2`],
+      p_duracion_dias: 30,
+      p_fecha_vencimiento: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    });
+    registrar(
+      "un código que choca con uno ya existente hace fallar la llamada completa",
+      !!errChoque,
+      errChoque?.message,
+    );
+
+    const { data: coladoTrasChoque } = await admin
+      .from("codigos_invitacion")
+      .select("id")
+      .eq("codigo", `RLSLOTE${sufijo}NUEVO1`)
+      .maybeSingle();
+    const { count: lotesTrasChoque } = await admin
+      .from("lotes_codigos_invitacion")
+      .select("id", { count: "exact", head: true });
+    registrar(
+      "el choque no dejó ni un código suelto ni una cabecera de lote huérfana",
+      !coladoTrasChoque && lotesTrasChoque === lotesAntesDelChoque,
+      `código colado=${!!coladoTrasChoque} lotes antes=${lotesAntesDelChoque} lotes después=${lotesTrasChoque}`,
+    );
+
+    await esperarBloqueado(
+      "un estudiante no puede leer lotes_codigos_invitacion",
+      clienteConAcceso.from("lotes_codigos_invitacion").select("*"),
+    );
+    await esperarPermitido(
+      "administrador SÍ puede leer lotes_codigos_invitacion",
+      clienteAdmin.from("lotes_codigos_invitacion").select("id").eq("id", idLotePrueba ?? ""),
+    );
+
     // El guard que ahora corre dentro de otorgarMembresia, llamado con la
     // sesión real del admin (depende de `suscripciones_select_propio`, 003,
     // para poder leer la suscripción de OTRO usuario).
@@ -1228,6 +1328,11 @@ async function main() {
     await admin.from("instructores").delete().eq("id", instructor.id);
     await admin.from("categorias").delete().eq("id", categoria.id);
     await admin.from("planes").delete().eq("id", plan.id);
+
+    if (idLotePrueba) {
+      await admin.from("codigos_invitacion").delete().eq("id_lote", idLotePrueba);
+      await admin.from("lotes_codigos_invitacion").delete().eq("id", idLotePrueba);
+    }
 
     for (const usuario of usuariosDePrueba) {
       const { error } = await admin.auth.admin.deleteUser(usuario.id);

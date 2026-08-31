@@ -3,6 +3,9 @@ import {
   estadoCodigo,
   generarCodigoInvitacion,
   normalizarCodigo,
+  validarDuracionDias,
+  validarFechaVencimiento,
+  MAX_DURACION_DIAS,
 } from "@/lib/codigoInvitacion";
 
 describe("generarCodigoInvitacion", () => {
@@ -85,5 +88,41 @@ describe("estadoCodigo", () => {
     expect(
       estadoCodigo({ activo: true, fechaVencimiento: AYER, limiteUsos: 1, vecesUsado: 1 }),
     ).toBe("VENCIDO");
+  });
+});
+
+// Compartidos por los dos modos de generación (código único y lote): la
+// regla de negocio de duración y vencimiento es la misma sin importar cuál
+// gane la decisión pendiente de rev.md.
+describe("validarDuracionDias", () => {
+  it("acepta un entero positivo dentro del tope", () => {
+    expect(validarDuracionDias(30)).toBeNull();
+    expect(validarDuracionDias(MAX_DURACION_DIAS)).toBeNull();
+  });
+
+  it("rechaza cero, negativos y no enteros", () => {
+    expect(validarDuracionDias(0)).not.toBeNull();
+    expect(validarDuracionDias(-5)).not.toBeNull();
+    expect(validarDuracionDias(1.5)).not.toBeNull();
+  });
+
+  it("rechaza superar el tope", () => {
+    expect(validarDuracionDias(MAX_DURACION_DIAS + 1)).not.toBeNull();
+  });
+});
+
+describe("validarFechaVencimiento", () => {
+  it("acepta una fecha futura", () => {
+    const manana = new Date(Date.now() + 86_400_000).toISOString();
+    expect(validarFechaVencimiento(manana)).toBeNull();
+  });
+
+  it("rechaza una fecha pasada", () => {
+    const ayer = new Date(Date.now() - 86_400_000).toISOString();
+    expect(validarFechaVencimiento(ayer)).not.toBeNull();
+  });
+
+  it("rechaza una fecha inválida", () => {
+    expect(validarFechaVencimiento("no-es-una-fecha")).not.toBeNull();
   });
 });

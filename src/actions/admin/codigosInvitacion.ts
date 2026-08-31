@@ -3,19 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
-import { generarCodigoInvitacion } from "@/lib/codigoInvitacion";
+import {
+  generarCodigoInvitacion,
+  validarDuracionDias,
+  validarFechaVencimiento,
+} from "@/lib/codigoInvitacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
 /** Intentos de generar un código libre antes de rendirse. */
 const INTENTOS_CODIGO_UNICO = 5;
-
-/**
- * Tope de días que puede otorgar un código. No lo impone la base: es un
- * freno a la equivocación de teclado (escribir 3650 en vez de 365 regala
- * diez años de acceso, y revertirlo obliga a editar la suscripción ya
- * creada). Súbelo si el negocio alguna vez necesita más.
- */
-const MAX_DURACION_DIAS = 730;
 
 /**
  * Valida lo común a crear y editar: la fecha debe ser futura y el límite un
@@ -28,25 +24,13 @@ const MAX_DURACION_DIAS = 730;
  * el mensaje de error para que no llegue como un fallo genérico de insert.
  */
 function validar(input: { fechaVencimiento: string; limiteUsos: number }): string | null {
-  const vence = new Date(input.fechaVencimiento);
-  if (Number.isNaN(vence.getTime())) return "La fecha de vencimiento no es válida.";
-  if (vence.getTime() <= Date.now()) return "La fecha de vencimiento debe ser futura.";
+  const fechaInvalida = validarFechaVencimiento(input.fechaVencimiento);
+  if (fechaInvalida) return fechaInvalida;
 
   if (!Number.isInteger(input.limiteUsos) || input.limiteUsos < 1) {
     return "El límite de usos debe ser un número entero mayor que cero.";
   }
 
-  return null;
-}
-
-/** Los días de acceso solo se fijan al crear: ver el comentario de `actualizar`. */
-function validarDuracion(duracionDias: number): string | null {
-  if (!Number.isInteger(duracionDias) || duracionDias < 1) {
-    return "Los días de acceso deben ser un número entero mayor que cero.";
-  }
-  if (duracionDias > MAX_DURACION_DIAS) {
-    return `Los días de acceso no pueden superar ${MAX_DURACION_DIAS}.`;
-  }
   return null;
 }
 
@@ -68,7 +52,7 @@ export async function crearCodigoInvitacion(input: {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const duracionInvalida = validarDuracion(input.duracionDias);
+  const duracionInvalida = validarDuracionDias(input.duracionDias);
   if (duracionInvalida) return { error: duracionInvalida };
 
   const invalido = validar(input);
@@ -227,4 +211,46 @@ export async function eliminarCodigoInvitacion(id: string): Promise<AdminActionR
 
   revalidatePath("/admin/codigos");
   return { success: true };
+}
+
+export type RedimidorCodigo = {
+  usuarioId: string;
+  nombre: string;
+  correo: string;
+  canjeadoEn: string;
+};
+
+/**
+ * Quiénes canjearon un código puntual (rev.md: "ver por código ... quiénes
+ * lo canjearon"). Un código de uso único tiene a lo sumo un redimidor; uno
+ * con `limite_usos` > 1 puede tener varios — de ahí que sea una consulta
+ * aparte y no un campo más de `getCodigosInvitacion` (traer esto para cada
+ * fila de la tabla haría un join innecesario en la carga inicial, cuando en
+ * la práctica solo se consulta al abrir el detalle de un código puntual).
+ */
+export async function obtenerRedimidoresCodigo(
+  id: string,
+): Promise<AdminActionResult & { redimidores?: RedimidorCodigo[] }> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  const { data, error } = await admin.supabase
+    .from("suscripciones")
+    .select("id_usuario, fecha_inicio, usuario:perfiles!suscripciones_id_usuario_fkey(nombre, correo)")
+    .eq("id_codigo_invitacion", id)
+    .order("fecha_inicio", { ascending: true });
+
+  if (error) return { error: "No pudimos cargar quiénes canjearon este código." };
+
+  const redimidores: RedimidorCodigo[] = (data ?? []).map((fila) => {
+    const usuario = Array.isArray(fila.usuario) ? fila.usuario[0] : fila.usuario;
+    return {
+      usuarioId: fila.id_usuario as string,
+      nombre: usuario?.nombre ?? "Usuario eliminado",
+      correo: usuario?.correo ?? "",
+      canjeadoEn: fila.fecha_inicio as string,
+    };
+  });
+
+  return { success: true, redimidores };
 }

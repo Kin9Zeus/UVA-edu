@@ -17,6 +17,8 @@ export type CodigoInvitacion = {
   estado: EstadoCodigo;
   creadoPor: string;
   creadoEn: string;
+  /** Presente solo en los códigos que salieron de un lote — ver `LoteCodigosInvitacion`. */
+  idLote: string | null;
 };
 
 export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
@@ -25,7 +27,7 @@ export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
   const { data } = await supabase
     .from("codigos_invitacion")
     .select(
-      "id, codigo, duracion_dias, fecha_vencimiento, limite_usos, veces_usado, activo, creado_en, admin_creador:perfiles(nombre)",
+      "id, codigo, duracion_dias, fecha_vencimiento, limite_usos, veces_usado, activo, creado_en, id_lote, admin_creador:perfiles(nombre)",
     )
     .order("creado_en", { ascending: false });
 
@@ -53,6 +55,7 @@ export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
       }),
       creadoPor: adminCreador?.nombre ?? "—",
       creadoEn: fila.creado_en as string,
+      idLote: (fila.id_lote as string | null) ?? null,
     };
   });
 }

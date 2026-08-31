@@ -17,6 +17,7 @@ import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { CodigoFormDialog } from "@/components/admin/codigos/CodigoFormDialog";
+import { RedimidoresButton } from "@/components/admin/codigos/RedimidoresButton";
 import {
   eliminarCodigoInvitacion,
   toggleActivoCodigoInvitacion,
@@ -75,8 +76,16 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast(activo ? "Código activado." : "Código desactivado.");
+    // Explícito a propósito (rev.md): desactivar y revocar acceso son dos
+    // acciones distintas. Quien ya canjeó este código conserva su acceso
+    // aunque el código deje de servir para canjes nuevos.
+    showToast(
+      activo
+        ? "Código activado. Ya se puede volver a canjear."
+        : "Código desactivado. Nadie podrá canjearlo, pero quienes ya lo usaron conservan su acceso.",
+    );
   }
+
 
   async function handleEliminar() {
     if (!borrando) return;
@@ -128,6 +137,14 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
         </div>
       )}
 
+      {/* Explícito a propósito (rev.md): desactivar y revocar acceso son dos
+          acciones distintas. Vive junto a la tabla, no solo en el toast,
+          para que quien nunca haya tocado el switch lo sepa de antemano. */}
+      <p className="text-[12.5px] text-uva-muted-2">
+        Desactivar un código impide que se siga canjeando, pero no revoca el acceso de quien ya lo
+        usó — para eso está la revocación manual en la ficha de cada usuario.
+      </p>
+
       <AdminCard flush>
         <Table>
           <TableHeader>
@@ -135,6 +152,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
               <TableHead>Código</TableHead>
               <TableHead>Acceso</TableHead>
               <TableHead>Usos</TableHead>
+              <TableHead>Canjeado por</TableHead>
               <TableHead>Vence</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Creado por</TableHead>
@@ -144,7 +162,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
           <TableBody>
             {codigos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-uva-muted-2">
+                <TableCell colSpan={8} className="text-center text-uva-muted-2">
                   No hay códigos de invitación todavía.
                 </TableCell>
               </TableRow>
@@ -170,6 +188,13 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                 <TableCell className="font-mono tabular-nums">
                   {codigo.vecesUsado}
                   <span className="text-uva-muted-2">/{codigo.limiteUsos}</span>
+                </TableCell>
+                <TableCell>
+                  <RedimidoresButton
+                    codigoId={codigo.id}
+                    codigo={codigo.codigo}
+                    vecesUsado={codigo.vecesUsado}
+                  />
                 </TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatFecha(codigo.fechaVencimiento)}
