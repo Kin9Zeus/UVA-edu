@@ -1,6 +1,7 @@
 import { resend } from "@/lib/resend/client";
 import { WelcomeEmail } from "@/emails/welcome";
 import { CertificadoEmitidoEmail } from "@/emails/certificado-emitido";
+import { ContrasenaActualizadaEmail } from "@/emails/contrasena-actualizada";
 
 export { resend };
 
@@ -64,6 +65,33 @@ export async function enviarCorreoCertificadoEmitido(
         codigoVerificacion,
         urlCertificados,
       }),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, id: data.id };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al enviar el correo.",
+    };
+  }
+}
+
+export async function enviarCorreoPasswordActualizada(
+  destinatario: string,
+): Promise<EnviarCorreoResultado> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL!,
+      to: destinatario,
+      subject: "Tu contraseña fue actualizada",
+      react: ContrasenaActualizadaEmail(),
     });
 
     if (error) {

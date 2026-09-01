@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
+import { enviarCorreoPasswordActualizada } from "@/lib/resend";
+import { logError } from "@/lib/log";
 
 export type ActualizarPasswordState = { error: string } | null;
 
@@ -33,6 +35,20 @@ export async function actualizarPassword(
 
   if (error) {
     return { error: "No pudimos actualizar tu contraseña. Intenta de nuevo." };
+  }
+
+  // Best-effort: si el correo de aviso falla, no debe bloquear el cambio
+  // de contraseña, que ya se aplicó. Solo queda log para investigar.
+  if (user.email) {
+    const resultado = await enviarCorreoPasswordActualizada(user.email);
+    if (!resultado.success) {
+      logError(
+        "actualizarPassword",
+        "enviarCorreoPasswordActualizada falló",
+        new Error(resultado.error),
+        { area: "email" },
+      );
+    }
   }
 
   // El enlace de recuperación deja una sesión activa; la cerramos para que

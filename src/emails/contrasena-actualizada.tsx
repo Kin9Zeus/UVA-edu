@@ -1,28 +1,20 @@
 import {
   Body,
-  Button,
   Container,
   Head,
   Hr,
   Html,
+  Link,
   Preview,
   Section,
   Text,
 } from "@react-email/components";
 
-type RecuperarPasswordEmailProps = {
-  actionLink: string;
-  nombre?: string;
-};
-
-export function RecuperarPasswordEmail({
-  actionLink,
-  nombre,
-}: RecuperarPasswordEmailProps) {
+export function ContrasenaActualizadaEmail() {
   return (
     <Html>
       <Head />
-      <Preview>Recupera tu contraseña en U.V.A</Preview>
+      <Preview>Tu contraseña de U.V.A fue actualizada</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -30,20 +22,18 @@ export function RecuperarPasswordEmail({
           </Section>
 
           <Section style={content}>
-            <Text style={heading}>Recupera tu contraseña</Text>
+            <Text style={heading}>Tu contraseña fue actualizada</Text>
             <Text style={paragraph}>
-              Hola{nombre ? ` ${nombre}` : ""}, recibimos una solicitud para
-              restablecer la contraseña de tu cuenta en U.V.A. Haz clic en el
-              botón para crear una nueva.
+              Confirmamos que la contraseña de tu cuenta en U.V.A se cambió
+              correctamente. Ya puedes iniciar sesión con tu contraseña
+              nueva.
             </Text>
-
-            <Button href={actionLink} style={button}>
-              Restablecer contraseña
-            </Button>
-
-            <Text style={smallPrint}>
-              Este enlace expira pronto por seguridad. Si no fuiste tú,
-              puedes ignorar este correo.
+            <Text style={{ ...paragraph, marginBottom: 0 }}>
+              Si no fuiste tú quien hizo este cambio,{" "}
+              <Link href="mailto:soporte@uva.edu" style={link}>
+                contáctanos de inmediato
+              </Link>{" "}
+              para proteger tu cuenta.
             </Text>
           </Section>
 
@@ -102,25 +92,12 @@ const paragraph = {
   color: "#A1A1AA",
   fontSize: "14px",
   lineHeight: "1.5",
-  margin: "0 0 20px",
+  margin: "0 0 12px",
 };
 
-const button = {
-  backgroundColor: "#FF007A",
-  color: "#FAFAFA",
-  borderRadius: "6px",
-  padding: "12px 24px",
-  fontSize: "14px",
-  fontWeight: 600,
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const smallPrint = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "20px 0 0",
+const link = {
+  color: "#FF007A",
+  textDecoration: "underline",
 };
 
 const hr = {
@@ -135,4 +112,4 @@ const footer = {
   margin: "0 0 4px",
 };
 
-export default RecuperarPasswordEmail;
+export default ContrasenaActualizadaEmail;

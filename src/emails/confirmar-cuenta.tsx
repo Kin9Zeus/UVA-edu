@@ -10,19 +10,15 @@ import {
   Text,
 } from "@react-email/components";
 
-type RecuperarPasswordEmailProps = {
+type ConfirmarCuentaEmailProps = {
   actionLink: string;
-  nombre?: string;
 };
 
-export function RecuperarPasswordEmail({
-  actionLink,
-  nombre,
-}: RecuperarPasswordEmailProps) {
+export function ConfirmarCuentaEmail({ actionLink }: ConfirmarCuentaEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>Recupera tu contraseña en U.V.A</Preview>
+      <Preview>Confirma tu cuenta en U.V.A</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -30,20 +26,19 @@ export function RecuperarPasswordEmail({
           </Section>
 
           <Section style={content}>
-            <Text style={heading}>Recupera tu contraseña</Text>
+            <Text style={heading}>Confirma tu cuenta</Text>
             <Text style={paragraph}>
-              Hola{nombre ? ` ${nombre}` : ""}, recibimos una solicitud para
-              restablecer la contraseña de tu cuenta en U.V.A. Haz clic en el
-              botón para crear una nueva.
+              Gracias por registrarte en U.V.A. Confirma tu correo para
+              activar tu cuenta y empezar a usar la plataforma.
             </Text>
 
             <Button href={actionLink} style={button}>
-              Restablecer contraseña
+              Confirmar mi cuenta
             </Button>
 
             <Text style={smallPrint}>
-              Este enlace expira pronto por seguridad. Si no fuiste tú,
-              puedes ignorar este correo.
+              Este enlace expira pronto por seguridad. Si no creaste esta
+              cuenta, puedes ignorar este correo.
             </Text>
           </Section>
 
@@ -135,4 +130,4 @@ const footer = {
   margin: "0 0 4px",
 };
 
-export default RecuperarPasswordEmail;
+export default ConfirmarCuentaEmail;
