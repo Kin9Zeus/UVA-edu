@@ -74,10 +74,15 @@ export async function POST(request: NextRequest) {
           });
 
     if (error) {
-      logError("webhook:supabase-auth", "resend.emails.send devolvió error", error, {
-        area: "email",
-        tipo: email_data.email_action_type,
-      });
+      // Resend devuelve un objeto plano ({ name, message }), no un Error
+      // — logError hace String(error) sobre lo que no es Error, y
+      // String({...}) da "[object Object]", perdiendo el mensaje real.
+      logError(
+        "webhook:supabase-auth",
+        "resend.emails.send devolvió error",
+        new Error(error.message ?? JSON.stringify(error)),
+        { area: "email", tipo: email_data.email_action_type },
+      );
       return NextResponse.json({ error: "no se pudo enviar el correo" }, { status: 500 });
     }
   } catch (error) {
