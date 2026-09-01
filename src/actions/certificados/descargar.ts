@@ -35,7 +35,7 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
 
   const { data: certificado, error: errorCertificado } = await supabase
     .from("certificados")
-    .select("id, fecha_emision, codigo_verificacion, archivo_pdf, curso:cursos(titulo)")
+    .select("id, id_curso, fecha_emision, codigo_verificacion, archivo_pdf, nombre_estudiante, nombre_curso")
     .eq("id", certificadoId)
     .maybeSingle();
 
@@ -46,18 +46,33 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
   const rutaArchivo = `${user.id}/${certificado.id}.pdf`;
 
   if (!certificado.archivo_pdf) {
-    const curso = Array.isArray(certificado.curso) ? certificado.curso[0] : certificado.curso;
     const origin = await getOrigin();
-    const urlVerificacion = `${origin}/verificar-certificado/${certificado.codigo_verificacion}`;
+    // El diseño (Uva - Certificado.dc.html) muestra la URL sin protocolo
+    // ("uva.co/verificar/@daniela" en el mockup) — esa es la que se
+    // imprime como texto. El QR necesita la URL completa y real para que
+    // escanearla funcione.
+    const urlVerificacionQr = `${origin}/verificar-certificado/${certificado.codigo_verificacion}`;
+    const urlVerificacion = urlVerificacionQr.replace(/^https?:\/\//, "");
+
+    const { data: lecciones } = await supabase
+      .from("lecciones")
+      .select("duracion, modulo:modulos!inner(id_curso)")
+      .eq("modulo.id_curso", certificado.id_curso)
+      .eq("estado_procesamiento", "LISTO");
+    const totalSegundos = (lecciones ?? []).reduce((acc, fila) => acc + (fila.duracion ?? 0), 0);
+    const horas = Math.round(totalSegundos / 3600);
+    const duracionTexto = horas > 0 ? `${horas} ${horas === 1 ? "hora" : "horas"} de teoría y práctica` : null;
 
     let pdfBytes: Uint8Array;
     try {
       pdfBytes = await construirCertificadoPdf({
-        nombreEstudiante: perfil.nombre,
-        cursoTitulo: curso?.titulo ?? "Curso",
+        nombreEstudiante: certificado.nombre_estudiante,
+        cursoTitulo: certificado.nombre_curso,
         fechaEmision: new Date(certificado.fecha_emision),
+        duracionTexto,
         codigoVerificacion: certificado.codigo_verificacion,
         urlVerificacion,
+        urlVerificacionQr,
       });
     } catch (error) {
       logError("descargarCertificadoPdf", "No se pudo construir el PDF", error, { area: "certificados" });

@@ -542,6 +542,22 @@ model Certificados {
   actualizado_en      DateTime @updatedAt @db.Timestamptz
   codigo_verificacion String   @unique
   archivo_pdf         String?
+  /// Snapshot congelado al momento de la emisión (Deteccion.md, requisitos
+  /// de calidad senior): un certificado ya expedido no debe cambiar si el
+  /// estudiante corrige su nombre en Perfiles o si el curso se renombra
+  /// después. Los escribe el trigger de emisión (supabase/sql/047), nunca
+  /// la aplicación — verificar_certificado() (015) y la generación del PDF
+  /// (descargarCertificadoPdf) leen estas columnas, no perfiles/cursos.
+  nombre_estudiante String
+  nombre_curso      String
+  /// NULL = correo de "certificado listo" pendiente de enviar; timestamp =
+  /// ya enviado. Lo actualiza scripts/certificados-enviar-notificaciones.ts
+  /// (outbox), nunca un Server Action ni el trigger de emisión — este
+  /// corre SECURITY DEFINER en la sesión del estudiante y no tiene forma
+  /// de hacer una llamada de red desde Postgres sin depender de
+  /// extensiones adicionales (mismo criterio que
+  /// mux_assets_pendientes_eliminacion / mux-limpiar-assets.ts).
+  notificado_en DateTime? @db.Timestamptz
 
   usuario Perfiles @relation(fields: [id_usuario], references: [id])
   curso   Cursos   @relation(fields: [id_curso], references: [id])

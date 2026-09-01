@@ -24,6 +24,14 @@
 -- `valido = false` y el resto de campos en null, para que el frontend
 -- distinga "código inválido" de "error de red" sin depender de un
 -- result set vacío.
+--
+-- Nota: esta definición queda reemplazada por
+-- 020_actualiza_verificar_certificado_timestamptz.sql (cambia el tipo de
+-- `fecha_emision`, que corre después en el orden de aplicación) y esa a
+-- su vez por la actualización 2026-08-31 documentada ahí (lee el
+-- snapshot congelado de `certificados` en vez de hacer JOIN en vivo
+-- contra `perfiles`/`cursos`) — ver ese archivo para la versión
+-- realmente vigente.
 -- ============================================================
 
 -- `create or replace function` no permite cambiar el tipo de retorno de una

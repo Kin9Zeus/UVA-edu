@@ -50,7 +50,7 @@
 
 > * **Autenticación Multicanal:** Inicio de sesión y registro vía email/contraseña y OAuth con Google gestionado a través de Supabase Auth.  
 > * **Vincular Perfil:** Sincronización automática mediante triggers de base de datos desde auth.users hacia la tabla Perfiles.  
-> * **Gestión de Identidad Académica:** Actualización del campo nombre en perfil, el cual actúa como fuente de verdad para la rotulación de certificados PDF.  
+> * **Gestión de Identidad Académica:** Actualización del campo nombre en perfil. Este nombre alimenta certificados que se emitan *a partir de ese momento*; un certificado ya emitido conserva el nombre congelado al momento de su emisión (ver Flujo 07, paso 2 — Revf4).  
 > * **Recuperación Transaccional:** Flujo de restablecimiento de contraseña mediante correos con tokens de expiración corta.
 
 ### **Módulo 3: Membresías, Cobros, Promociones y Checkout**
@@ -174,10 +174,12 @@
 ### **Flujo 07: Emisión, Impresión PDF y Verificación de Certificados**
 
 > 1. El trigger de la base de datos detecta que todas las lecciones asociadas a un curso poseen un registro de progreso con completado \= true para el usuario.  
-> 2. Se inserta una entrada en la tabla certificados asignando la fecha de emisión y generando un codigo\_verificacion único e inmutable.  
-> 3. Cuando el estudiante hace clic en "Descargar Certificado", una función *serverless* genera el archivo PDF imprimiendo el campo nombre vigente en Perfiles, el nombre del curso y el código de verificación.  
-> 4. Cualquier persona puede acceder a la página de verificación para consultar la validez oficial del diploma, los datos del estudiante y la fecha de emisión.  
-> 5. **Regla de integridad (Revf3):** Si después de emitido un certificado se agrega una lección nueva al curso, el % de avance de ese estudiante puede bajar de 100% — el certificado ya emitido **no se revoca**. La emisión es un evento puntual (una fila en `certificados` con su propio `codigo_verificacion`), no una condición que se re-evalúe en cada lectura; revocarlo retroactivamente invalidaría un diploma que el estudiante ya pudo haber presentado a un tercero por un cambio de contenido posterior a su esfuerzo real.
+> 2. Se inserta una entrada en la tabla certificados asignando la fecha de emisión, generando un codigo\_verificacion único e inmutable, y **congelando** en la misma fila el nombre del estudiante (Perfiles) y el título del curso (Cursos) tal como están en ese instante.  
+> 3. Cuando el estudiante hace clic en "Descargar Certificado", una función *serverless* genera el archivo PDF imprimiendo el nombre y el título del curso **congelados en el certificado** (no el valor vigente en Perfiles/Cursos) y el código de verificación.  
+> 4. Cualquier persona puede acceder a la página de verificación para consultar la validez oficial del diploma; los datos del estudiante y el curso que muestra son los mismos congelados del paso 2, no una consulta en vivo.  
+> 5. **Regla de integridad (Revf3):** Si después de emitido un certificado se agrega una lección nueva al curso, el % de avance de ese estudiante puede bajar de 100% — el certificado ya emitido **no se revoca**. La emisión es un evento puntual (una fila en `certificados` con su propio `codigo_verificacion`), no una condición que se re-evalúe en cada lectura; revocarlo retroactivamente invalidaría un diploma que el estudiante ya pudo haber presentado a un tercero por un cambio de contenido posterior a su esfuerzo real.  
+> 6. **Regla de integridad (Revf4):** Si el estudiante corrige su nombre en Perfiles o un administrador renombra el curso *después* de emitido un certificado, ese certificado ya emitido **no cambia** — es un documento oficial ya expedido. Solo un certificado emitido *después* del cambio refleja el nombre/título nuevo.  
+> 7. La emisión es asíncrona respecto a la navegación del estudiante (el trigger corre en el mismo INSERT/UPDATE de `progreso`, sin bloquear la interfaz) y dispara una notificación por correo ("tu certificado ya está listo") una vez procesada — ver `scripts/certificados-enviar-notificaciones.ts`.
 
 ### **Flujo 08: Backoffice — Creación y Estructuración de Cursos (CMS)**
 

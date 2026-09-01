@@ -57,21 +57,28 @@ export async function POST(request: NextRequest) {
   // P1-3 (AUDIT-2026-08-24.md) señala como el más caro: un correo que no
   // llegó y nadie se entera hasta que el usuario escribe a soporte.
   try {
-    if (email_data.email_action_type === "recovery") {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
-        to: user.email,
-        subject: "Recupera tu contraseña — U.V.A",
-        react: RecuperarPasswordEmail({ actionLink }),
+    const { error } =
+      email_data.email_action_type === "recovery"
+        ? await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL!,
+            to: user.email,
+            subject: "Recupera tu contraseña — U.V.A",
+            react: RecuperarPasswordEmail({ actionLink }),
+          })
+        : // Signup, invite, magic link, cambio de correo: sin plantilla dedicada aún.
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL!,
+            to: user.email,
+            subject: "Confirma tu acción en U.V.A",
+            text: `Confirma tu acción en U.V.A visitando este enlace: ${actionLink}`,
+          });
+
+    if (error) {
+      logError("webhook:supabase-auth", "resend.emails.send devolvió error", error, {
+        area: "email",
+        tipo: email_data.email_action_type,
       });
-    } else {
-      // Signup, invite, magic link, cambio de correo: sin plantilla dedicada aún.
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
-        to: user.email,
-        subject: "Confirma tu acción en U.V.A",
-        text: `Confirma tu acción en U.V.A visitando este enlace: ${actionLink}`,
-      });
+      return NextResponse.json({ error: "no se pudo enviar el correo" }, { status: 500 });
     }
   } catch (error) {
     logError("webhook:supabase-auth", "resend.emails.send falló", error, {

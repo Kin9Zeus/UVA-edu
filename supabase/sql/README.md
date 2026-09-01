@@ -531,6 +531,34 @@ terminara un estudiante.
   (`src/app/(public)/verificar-certificado/[codigo]/page.tsx`) la invoca
   con el admin client después de pasar el límite.
 
+### Actualización 2026-08-31 (Deteccion.md, requisitos de calidad senior de Fase 5)
+
+Auditoría de la emisión de certificados contra el checklist del ticket:
+faltaban datos congelados y notificación de "certificado listo". Dos
+cambios, sin script numerado nuevo (se edita en el sitio, mismo criterio
+que el resto de funciones `create or replace` de esta carpeta):
+
+- **047** ahora también congela `nombre_estudiante`/`nombre_curso` en el
+  INSERT del certificado (requiere las 2 columnas NOT NULL de
+  `prisma/migrations/20260831010000_certificados_datos_congelados_y_notificacion`,
+  que también agrega `certificados.notificado_en`, nullable, el campo de
+  outbox del punto siguiente).
+- **020** (la definición de `verificar_certificado()` que realmente queda
+  vigente — corre después de **015** en el orden de aplicación) pasa de
+  hacer JOIN en vivo contra `perfiles`/`cursos` a leer esas dos columnas
+  congeladas. **015** se deja con su JOIN original (documentado como
+  superado por 020) para no reescribir una versión de la función que de
+  todas formas nunca queda activa.
+
+La notificación por correo no se resuelve en SQL: el trigger 047 corre
+`SECURITY DEFINER` en la sesión del estudiante, sin acceso de red, así que
+`certificados.notificado_en` (NULL = pendiente) actúa como cola. La drena
+`scripts/certificados-enviar-notificaciones.ts` (`npm run
+certificados:notificar`), mismo patrón que
+`mux_assets_pendientes_eliminacion` / `mux-limpiar-assets.ts`: pensado
+para correr a mano o programado (cron de Railway, GitHub Actions), sin
+necesitar que el trigger y el envío del correo coincidan en el tiempo.
+
 ## Prueba de RLS con 3 sesiones
 
 `scripts/rls-test.ts` (`npm run test:rls`) llama la API de Supabase

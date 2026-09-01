@@ -27,6 +27,15 @@
 -- `certificados`. Sin SECURITY DEFINER, el INSERT de más abajo violaría RLS
 -- y reventaría el guardado de progreso del estudiante con un error ajeno a
 -- lo que estaba haciendo.
+--
+-- Actualización 2026-08-31 (Deteccion.md, requisitos de calidad senior):
+-- el INSERT ahora también congela `nombre_estudiante`/`nombre_curso` en el
+-- momento de la emisión (requiere las columnas de
+-- prisma/migrations/20260831010000_certificados_datos_congelados_y_notificacion).
+-- Antes de este cambio, verificar_certificado() (015) y el PDF leían el
+-- nombre/curso en vivo — un certificado ya emitido cambiaba si el
+-- estudiante corregía su nombre o el curso se renombraba, lo cual viola
+-- la integridad esperada de un documento ya expedido.
 -- ============================================================
 
 -- --------------------------------------------------------------
@@ -73,11 +82,13 @@ security definer
 set search_path = public
 as $$
 declare
-  v_id_curso     uuid;
-  v_total        int;
-  v_completadas  int;
-  v_codigo       text;
-  v_intentos     int := 0;
+  v_id_curso        uuid;
+  v_total           int;
+  v_completadas     int;
+  v_codigo          text;
+  v_intentos        int := 0;
+  v_nombre_estudiante text;
+  v_nombre_curso      text;
 begin
   select m.id_curso into v_id_curso
   from public.lecciones l
@@ -125,6 +136,16 @@ begin
     return new;
   end if;
 
+  -- Snapshot congelado (Deteccion.md — Fase 5): el nombre del estudiante y
+  -- el título del curso se leen una sola vez, aquí, en el momento exacto
+  -- de la emisión, y quedan escritos en la fila de `certificados`. Ni
+  -- verificar_certificado() (015) ni la generación del PDF vuelven a leer
+  -- `perfiles.nombre`/`cursos.titulo` — así un cambio de nombre o un
+  -- renombre del curso después de emitido no altera un certificado ya
+  -- expedido.
+  select nombre into v_nombre_estudiante from public.perfiles where id = new.id_usuario;
+  select titulo into v_nombre_curso from public.cursos where id = v_id_curso;
+
   -- Reintenta solo si choca el código (23505 en codigo_verificacion, ~1 en
   -- 31^10 — casi imposible pero no descartable, mismo criterio que
   -- crearLoteCodigosInvitacion). Si el choque es por (id_usuario, id_curso)
@@ -135,8 +156,10 @@ begin
     v_intentos := v_intentos + 1;
     v_codigo := private.generar_codigo_certificado();
     begin
-      insert into public.certificados (id_usuario, id_curso, codigo_verificacion)
-      values (new.id_usuario, v_id_curso, v_codigo);
+      insert into public.certificados
+        (id_usuario, id_curso, codigo_verificacion, nombre_estudiante, nombre_curso)
+      values
+        (new.id_usuario, v_id_curso, v_codigo, v_nombre_estudiante, v_nombre_curso);
       exit;
     exception when unique_violation then
       if exists (

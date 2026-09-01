@@ -42,7 +42,7 @@ export async function getDashboardData() {
       .limit(4),
     supabase
       .from("certificados")
-      .select("id, fecha_emision, usuario:perfiles(nombre), curso:cursos(titulo)")
+      .select("id, fecha_emision, nombre_estudiante, nombre_curso")
       .order("fecha_emision", { ascending: false })
       .limit(4),
   ]);
@@ -55,11 +55,9 @@ export async function getDashboardData() {
       tono: "accent" as const,
     })),
     ...(certificadosRecientes ?? []).map((cert) => {
-      const usuario = Array.isArray(cert.usuario) ? cert.usuario[0] : cert.usuario;
-      const curso = Array.isArray(cert.curso) ? cert.curso[0] : cert.curso;
       return {
         id: `cert-${cert.id}`,
-        texto: `${usuario?.nombre ?? "Un estudiante"} obtuvo el certificado de ${curso?.titulo ?? "un curso"}`,
+        texto: `${cert.nombre_estudiante} obtuvo el certificado de ${cert.nombre_curso}`,
         fecha: cert.fecha_emision,
         tono: "success" as const,
       };

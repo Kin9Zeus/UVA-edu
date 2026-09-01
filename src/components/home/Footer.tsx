@@ -8,6 +8,7 @@ import {
 } from "@/components/home/icons";
 import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
+import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 
 // La columna "Escuelas" sale de la tabla `categorias`; estas dos son
 // contenido editorial del sitio, sin fuente en base de datos.
@@ -116,6 +117,14 @@ export async function Footer() {
               </ul>
             </div>
           ))}
+
+          <div>
+            <p className={headingClass}>Verificar certificado</p>
+            <p className="mb-2.5 text-[13px] text-uva-text-muted">
+              ¿Tienes el código de un certificado UVA? Confirma su validez.
+            </p>
+            <VerificarCertificadoForm />
+          </div>
         </div>
 
         <div className="flex flex-col flex-wrap items-start justify-between gap-5 border-t border-uva-divider pt-7 min-[640px]:flex-row min-[640px]:items-center">

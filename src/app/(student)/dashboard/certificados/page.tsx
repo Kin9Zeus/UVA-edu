@@ -11,19 +11,19 @@ export default async function CertificadosPage() {
 
   const { data: rows } = await supabase
     .from("certificados")
-    .select("id, fecha_emision, codigo_verificacion, curso:cursos(titulo)")
+    .select("id, fecha_emision, codigo_verificacion, nombre_curso")
     .eq("id_usuario", user!.id)
     .order("fecha_emision", { ascending: false });
 
-  const certificados: CertificadoItem[] = (rows ?? []).map((fila) => {
-    const curso = Array.isArray(fila.curso) ? fila.curso[0] : fila.curso;
-    return {
-      id: fila.id,
-      cursoTitulo: curso?.titulo ?? "Curso",
-      fechaEmision: fila.fecha_emision,
-      codigoVerificacion: fila.codigo_verificacion,
-    };
-  });
+  // `nombre_curso` es el título congelado al momento de la emisión
+  // (Deteccion.md) — no el título vigente de `cursos`, que puede haber
+  // cambiado desde entonces.
+  const certificados: CertificadoItem[] = (rows ?? []).map((fila) => ({
+    id: fila.id,
+    cursoTitulo: fila.nombre_curso,
+    fechaEmision: fila.fecha_emision,
+    codigoVerificacion: fila.codigo_verificacion,
+  }));
 
   return <CertificadosContent certificados={certificados} />;
 }

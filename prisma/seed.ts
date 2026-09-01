@@ -1154,6 +1154,12 @@ async function sembrar(): Promise<void> {
       fecha_emision: enDias(-3),
       codigo_verificacion: "UVA-2026-REVIT-7F3A9C2E",
       archivo_pdf: null, // se genera on the fly con pdf-lib (Flujo 07)
+      // Snapshot congelado (Deteccion.md): en producción lo escribe el
+      // trigger de emisión (supabase/sql/047); el seed lo replica a mano
+      // porque inserta directo con Prisma, sin pasar por ese trigger.
+      nombre_estudiante: "Camilo Restrepo",
+      nombre_curso: "Revit desde Cero para Arquitectos",
+      notificado_en: enDias(-3), // dato sembrado: no debe disparar un correo real
     },
   });
   console.log("🏅 1 certificado (UVA-2026-REVIT-7F3A9C2E)");

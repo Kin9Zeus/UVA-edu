@@ -9,6 +9,16 @@
 -- coincidir exactamente o falla en tiempo de ejecución con "structure
 -- of query does not match function result type" (ya nos pasó una vez
 -- con el mismatch inverso, ver README).
+--
+-- Actualización 2026-08-31 (Deteccion.md, requisitos de calidad senior):
+-- pasa de hacer JOIN en vivo contra `perfiles`/`cursos` a leer
+-- `certificados.nombre_estudiante`/`nombre_curso`, el snapshot que
+-- congela el trigger de emisión (047, requiere
+-- prisma/migrations/20260831010000_certificados_datos_congelados_y_notificacion)
+-- en el momento exacto de expedir el certificado. Antes, corregir el
+-- nombre en el perfil o renombrar el curso cambiaba retroactivamente lo
+-- que mostraba esta página pública para un certificado ya emitido — un
+-- documento oficial no puede cambiar después de expedido.
 -- ============================================================
 
 drop function if exists public.verificar_certificado(text);
@@ -28,12 +38,10 @@ begin
   return query
     select
       true,
-      perfiles.nombre,
-      cursos.titulo,
+      certificados.nombre_estudiante,
+      certificados.nombre_curso,
       certificados.fecha_emision
     from public.certificados
-    join public.perfiles on perfiles.id = certificados.id_usuario
-    join public.cursos on cursos.id = certificados.id_curso
     where certificados.codigo_verificacion = p_codigo;
 
   if not found then
