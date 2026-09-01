@@ -23,8 +23,8 @@ Migración de Prisma + `npm run db:rls` ya aplicadas al entorno de desarrollo (`
 
 **Pendiente de acción del equipo (no es código):**
 - Repetir `npx prisma migrate deploy` + `npm run db:rls` en Staging/Production cuando corresponda (son proyectos de Supabase separados, `docs/technical-spec.md` §10).
-- Decidir cómo se programa `certificados:notificar` en producción (cron de Railway o GitHub Actions — el proyecto todavía no tiene un Railway Cron Service desplegado, mismo caso que `010_fk_perfiles_cascade_y_limpieza.sql`). Hasta entonces, correr `npm run certificados:notificar` a mano tras completar cursos de prueba.
-- Configurar un dominio propio verificado en Resend antes de producción — el remitente sigue siendo `onboarding@resend.dev` (mismo TODO ya pendiente en `src/lib/resend.ts` para el correo de bienvenida).
+- `certificados:notificar` se programará como **Railway Cron Service** (ya hay un entorno Railway desplegado — reutiliza sus variables de entorno, sin duplicar secretos aparte como habría hecho un workflow de GitHub Actions). Falta crearlo a mano en el dashboard de Railway: nuevo servicio de tipo Cron sobre este mismo repo, start command `npm run certificados:notificar`, schedule sugerido cada 15 min (`*/15 * * * *`). Hasta entonces, correr `npm run certificados:notificar` a mano tras completar cursos de prueba.
+- Remitente pendiente de `dms.md` (subdominio dedicado, sin `noreply@`) — hoy `RESEND_FROM_EMAIL` no está configurado con la dirección final, se usa como placeholder mientras se prueba (ver `dms.md`, pospuesto).
 - Confirmar `NEXT_PUBLIC_SITE_URL` en cada entorno (dev/staging/producción) — lo usa el script de notificación para armar el link del correo.
 
 ## Definición de "terminado"
