@@ -24,7 +24,11 @@
     "test:webhooks": "tsx scripts/webhook-test.ts",
     "test:canje": "tsx scripts/canje-codigo-test.ts",
     "mux:limpiar": "tsx scripts/mux-limpiar-assets.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:lighthouse": "tsx scripts/audit/lighthouse-audit.ts",
+    "audit:lighthouse:compare": "tsx scripts/audit/lighthouse-audit.ts --compare",
+    "audit:screenshots": "tsx scripts/audit/viewport-screenshots.ts",
+    "audit:overflow": "tsx scripts/audit/overflow-detector.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -54,6 +58,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.62.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@tailwindcss/postcss": "^4",

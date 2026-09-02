@@ -17,6 +17,10 @@
 /blob-report/
 /playwright/.cache/
 
+# auditorías de performance/responsive (scripts/audit) — locales, bajo demanda
+/lighthouse-baseline/
+/viewport-screenshots/
+
 # next.js
 /.next/
 /out/
