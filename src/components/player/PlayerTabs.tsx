@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Download, Loader2, BadgeCheck } from "lucide-react";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
@@ -148,6 +148,34 @@ export function contarComentarios(comentarios: ComentarioConRespuestas[]): numbe
   return comentarios.reduce((total, comentario) => total + 1 + comentario.respuestas.length, 0);
 }
 
+type OrdenComentarios = "relevantes" | "recientes" | "antiguos";
+
+const ORDEN_LABEL: Record<OrdenComentarios, string> = {
+  relevantes: "Más relevantes",
+  recientes: "Más recientes",
+  antiguos: "Más antiguos",
+};
+
+/**
+ * Ordena solo los comentarios raíz — las respuestas se quedan en su orden
+ * cronológico de siempre (son un hilo de conversación, no un ranking
+ * propio). El servidor ya entrega `comentarios` de más antiguo a más
+ * reciente (getComentariosDeLeccion, ORDER BY creado_en asc), así que
+ * "antiguos" es simplemente ese orden sin tocar y "recientes" es
+ * invertirlo. `Array.prototype.sort` es estable (ES2019): al ordenar por
+ * likes con ese mismo array de entrada, un empate en likes se desempata
+ * por el más antiguo primero, sin necesitar guardar el timestamp crudo.
+ */
+function ordenarComentarios(
+  comentarios: ComentarioConRespuestas[],
+  orden: OrdenComentarios,
+): ComentarioConRespuestas[] {
+  const copia = [...comentarios];
+  if (orden === "relevantes") return copia.sort((a, b) => b.likes - a.likes);
+  if (orden === "recientes") return copia.reverse();
+  return copia;
+}
+
 export function ComentariosTab({
   cursoId,
   leccionId,
@@ -168,6 +196,11 @@ export function ComentariosTab({
   onCambio: () => void;
 }) {
   const total = contarComentarios(comentarios);
+  const [orden, setOrden] = useState<OrdenComentarios>("recientes");
+  const comentariosOrdenados = useMemo(
+    () => ordenarComentarios(comentarios, orden),
+    [comentarios, orden],
+  );
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -177,6 +210,20 @@ export function ComentariosTab({
             ? "Sé el primero en comentar esta clase"
             : `${total} ${total === 1 ? "comentario" : "comentarios"} en esta clase`}
         </span>
+        {comentarios.length > 1 && (
+          <select
+            aria-label="Ordenar comentarios"
+            value={orden}
+            onChange={(event) => setOrden(event.target.value as OrdenComentarios)}
+            className="ml-auto cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2 py-1 text-[12px] text-uva-muted outline-none hover:text-uva-text focus-visible:border-uva-accent"
+          >
+            {(Object.keys(ORDEN_LABEL) as OrdenComentarios[]).map((valor) => (
+              <option key={valor} value={valor}>
+                {ORDEN_LABEL[valor]}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {puedeComentar ? (
@@ -190,7 +237,7 @@ export function ComentariosTab({
       <div className="h-px bg-uva-divider" />
 
       <div className="flex flex-col gap-[18px]">
-        {comentarios.map((comentario) => (
+        {comentariosOrdenados.map((comentario) => (
           <ComentarioItem
             key={comentario.id}
             cursoId={cursoId}

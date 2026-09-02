@@ -23,6 +23,11 @@ const ENTIDAD_INFO: Record<string, { etiqueta: string; ruta?: (id: string) => st
   inscripciones: { etiqueta: "Cortesía", ruta: (id) => `/admin/usuarios/${id}` },
   cursos: { etiqueta: "Curso", ruta: (id) => `/admin/cursos/${id}` },
   categorias: { etiqueta: "Categoría" },
+  // Se conserva solo para las filas HISTÓRICAS: la bitácora es append-only y
+  // sigue teniendo entradas de cuando `instructores` era una tabla propia con
+  // su CRUD. Ninguna acción nueva escribe esta entidad — un instructor es
+  // ahora una cuenta con rol PROFESOR, y sus cambios se registran como
+  // `perfiles`. Quitarla dejaría esas filas viejas sin etiqueta.
   instructores: { etiqueta: "Instructor" },
   codigos_invitacion: { etiqueta: "Código de invitación", ruta: () => "/admin/codigos" },
   lecciones: { etiqueta: "Lección" },

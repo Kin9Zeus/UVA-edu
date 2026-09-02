@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AdminCard } from "@/components/admin/AdminCard";
 import {
   Table,
@@ -19,7 +21,12 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { GrantMembershipDialog } from "@/components/admin/usuarios/GrantMembershipDialog";
 import { GrantCourtesyDialog } from "@/components/admin/usuarios/GrantCourtesyDialog";
 import { RevokeAccessDialog } from "@/components/admin/usuarios/RevokeAccessDialog";
-import { quitarCortesia, revocarMembresia, cambiarRolProfesor } from "@/actions/admin/usuarios";
+import {
+  quitarCortesia,
+  revocarMembresia,
+  cambiarRolProfesor,
+  actualizarEspecialidadProfesor,
+} from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
 import {
@@ -55,6 +62,11 @@ export function UsuarioDetalleView({
   const [quitando, setQuitando] = useState<{ inscripcionId: string; titulo: string } | null>(null);
   const [rol, setRol] = useState(usuario.rol);
   const [pendienteRol, setPendienteRol] = useState(false);
+  const [especialidad, setEspecialidad] = useState(usuario.especialidad ?? "");
+  // Lo último confirmado por el servidor, para saber si hay cambios sin
+  // guardar y no dejar el botón activo sobre un valor que ya está guardado.
+  const [especialidadGuardada, setEspecialidadGuardada] = useState(usuario.especialidad ?? "");
+  const [pendienteEspecialidad, setPendienteEspecialidad] = useState(false);
   const showToast = useAdminToast();
 
   async function handleToggleProfesor() {
@@ -68,6 +80,19 @@ export function UsuarioDetalleView({
     }
     setRol(esProfesor ? "PROFESOR" : "ESTUDIANTE");
     showToast(esProfesor ? "Ahora es profesor." : "Ya no es profesor.");
+  }
+
+  async function handleGuardarEspecialidad() {
+    setPendienteEspecialidad(true);
+    const resultado = await actualizarEspecialidadProfesor(usuario.id, especialidad);
+    setPendienteEspecialidad(false);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    setEspecialidadGuardada(especialidad.trim());
+    setEspecialidad(especialidad.trim());
+    showToast("Especialidad guardada.");
   }
 
   // Solo se puede revocar una membresía manual todavía activa (f4accesos.md
@@ -200,6 +225,39 @@ export function UsuarioDetalleView({
           </Button>
         )}
       </div>
+
+      {/* Solo para profesores: la especialidad es lo que se muestra bajo su
+          nombre en la tarjeta de "quién dicta el curso" del detalle público.
+          Antes vivía en la tabla `instructores`, que ya no existe como
+          entidad aparte. */}
+      {rol === "PROFESOR" && (
+        <AdminCard className="gap-2.5">
+          <div>
+            <Label htmlFor="usuario-especialidad">Especialidad</Label>
+            <Input
+              id="usuario-especialidad"
+              value={especialidad}
+              maxLength={200}
+              onChange={(event) => setEspecialidad(event.target.value)}
+              placeholder="Modelado BIM y coordinación de disciplinas"
+            />
+            <p className="mt-1.5 text-xs text-uva-text-faint">
+              Se muestra bajo su nombre en la ficha pública de los cursos que dicta.
+            </p>
+          </div>
+          <div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={pendienteEspecialidad || especialidad.trim() === especialidadGuardada}
+              onClick={handleGuardarEspecialidad}
+            >
+              {pendienteEspecialidad ? "Guardando…" : "Guardar especialidad"}
+            </Button>
+          </div>
+        </AdminCard>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <AdminCard className="gap-1">

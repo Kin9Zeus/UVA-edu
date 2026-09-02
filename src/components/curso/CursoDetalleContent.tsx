@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ChevronLeft, CircleCheck, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatFecha, formatHoras } from "@/lib/admin/format";
+import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
+import { SIN_INSTRUCTOR } from "@/lib/instructores";
 import type { CursoPublico } from "@/lib/curso";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -155,7 +156,7 @@ export function CursoDetalleContent({
                           </span>
                         )}
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
-                          {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
+                          {formatDuracion(leccion.duracion)}
                         </span>
                       </Link>
                     ) : (
@@ -173,7 +174,7 @@ export function CursoDetalleContent({
                         <Lock className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
                         <span className="min-w-0 flex-1 truncate">{leccion.titulo}</span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
-                          {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
+                          {formatDuracion(leccion.duracion)}
                         </span>
                       </div>
                     );
@@ -261,22 +262,32 @@ export function CursoDetalleContent({
           )}
         </div>
 
+        {/* Un bloque por profesor: `curso_instructores` es muchos-a-muchos y un
+            curso puede dictarlo más de una persona. Se repite el mismo patrón
+            visual (círculo con iniciales + nombre + especialidad) en vez de
+            inventar un diseño nuevo — la tarjeta ya traía `gap-3.5` entre
+            hijos, así que apilarlos no cambia el resto de la maqueta. */}
         <div className="order-4 lg:order-none flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
-              {curso.instructorNombre
-                .split(/\s+/)
-                .slice(0, 2)
-                .map((parte) => parte[0]?.toUpperCase())
-                .join("")}
+          {(curso.instructores.length > 0
+            ? curso.instructores
+            : [{ id: "sin-instructor", nombre: SIN_INSTRUCTOR, especialidad: null }]
+          ).map((instructor) => (
+            <div key={instructor.id} className="flex items-center gap-3">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
+                {instructor.nombre
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((parte) => parte[0]?.toUpperCase())
+                  .join("")}
+              </div>
+              <div className="min-w-0">
+                <p className="font-heading text-[15px] text-uva-text">{instructor.nombre}</p>
+                {instructor.especialidad && (
+                  <p className="text-[11.5px] text-uva-text-faint">{instructor.especialidad}</p>
+                )}
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-heading text-[15px] text-uva-text">{curso.instructorNombre}</p>
-              {curso.instructorEspecialidad && (
-                <p className="text-[11.5px] text-uva-text-faint">{curso.instructorEspecialidad}</p>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

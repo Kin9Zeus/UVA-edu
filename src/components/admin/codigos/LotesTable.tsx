@@ -158,12 +158,22 @@ export function LotesTable({
             {lotes.map((lote) => (
               <TableRow key={lote.id}>
                 <TableCell className="font-mono text-[13px] font-semibold text-uva-text">
-                  {lote.cantidad} código(s)
+                  {lote.totalActual} código(s)
+                  {/* `cantidad` es lo que se pidió generar al crear el lote,
+                      fijo para siempre (auditoría) — cuando ya no coincide
+                      con lo que queda es porque se eliminó alguno sin usar,
+                      y vale la pena que quede a la vista por qué el número
+                      no es "redondo". */}
+                  {lote.totalActual !== lote.cantidad && (
+                    <span className="ml-1 font-sans text-[11px] font-normal text-uva-muted-2">
+                      (de {lote.cantidad} originales)
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-uva-muted">{lote.duracionDias} días</TableCell>
                 <TableCell className="font-mono tabular-nums">
                   {lote.canjeados}
-                  <span className="text-uva-muted-2">/{lote.cantidad}</span>
+                  <span className="text-uva-muted-2">/{lote.totalActual}</span>
                 </TableCell>
                 <TableCell className="font-mono tabular-nums text-uva-muted">{lote.activos}</TableCell>
                 <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
@@ -208,7 +218,7 @@ export function LotesTable({
         <DialogContent className="w-[620px]">
           <DialogHeader>
             <DialogTitle>
-              Códigos del lote{loteAbierto ? ` (${loteAbierto.cantidad})` : ""}
+              Códigos del lote{loteAbierto ? ` (${codigosDelLoteAbierto.length})` : ""}
             </DialogTitle>
           </DialogHeader>
 

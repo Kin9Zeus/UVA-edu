@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { tiempoRelativo } from "@/lib/admin/format";
+import { logError } from "@/lib/log";
 
 export type ComentarioConRespuestas = {
   id: string;
@@ -40,15 +41,29 @@ export async function getComentariosDeLeccion(
 ): Promise<ComentarioConRespuestas[]> {
   const supabase = await createClient();
 
-  const { data: filas } = await supabase
+  // `perfiles!comentarios_id_usuario_fkey` desambigua el embed a propósito:
+  // sin el hint, PostgREST ve DOS caminos de "comentarios" hacia "perfiles"
+  // en la misma consulta —el directo (id_usuario) y el indirecto vía
+  // comentario_likes— y rechaza la query entera con PGRST201 ("more than
+  // one relationship was found"). Sin este fix la consulta fallaba siempre
+  // y `filas` quedaba `undefined`, así que ningún comentario aparecía
+  // nunca, aunque el INSERT sí hubiera funcionado.
+  const { data: filas, error } = await supabase
     .from("comentarios")
     .select(
       `id, id_comentario_padre, contenido, eliminado, creado_en, id_usuario,
-       usuario:perfiles(nombre, rol),
+       usuario:perfiles!comentarios_id_usuario_fkey(nombre, rol),
        comentario_likes(id_usuario)`,
     )
     .eq("id_leccion", leccionId)
     .order("creado_en", { ascending: true });
+
+  if (error) {
+    logError("comentarios:listar", "no se pudieron leer los comentarios de la lección", error, {
+      leccionId,
+    });
+    return [];
+  }
 
   const planas = (filas ?? []).map((fila) => {
     const usuario = Array.isArray(fila.usuario) ? fila.usuario[0] : fila.usuario;

@@ -85,7 +85,8 @@ export type CursoVistaPrevia = {
   descripcion: string;
   imagenPortada: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
-  instructorNombre: string;
+  /** 1 o más profesores; vacío si el curso todavía no tiene ninguno asignado. */
+  instructores: { id: string; nombre: string }[];
   mostrado: boolean;
   modulos: {
     id: string;
@@ -106,14 +107,36 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, imagen_portada, nivel, mostrado, instructor:instructores(nombre), modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))",
+      "id, titulo, descripcion, imagen_portada, nivel, mostrado, modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))",
     )
     .eq("id", idCurso)
     .maybeSingle();
 
   if (!curso) return null;
 
-  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
+  // Únicos instructores que NO se leen por `curso_instructores_publico`: esa
+  // vista solo deja pasar cursos publicados, de un administrador o con acceso
+  // vigente, y aquí quien mira es `anon` frente a un curso en borrador —
+  // exactamente el caso que esta puerta estrecha existe para cubrir (ver la
+  // cabecera del archivo). Va por service role, acotado por `idCurso`, que
+  // salió de la fila del token (regla 2).
+  //
+  // El hint `!curso_instructores_id_instructor_fkey` desambigua la relación:
+  // sin él, PostgREST puede responder PGRST201 en cuanto exista más de un
+  // camino entre estas tablas y la consulta falla en silencio. El nombre del
+  // constraint es el de la migración 20260903000000_multi_instructores.
+  const { data: filasInstructores } = await supabase
+    .from("curso_instructores")
+    .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre)")
+    .eq("id_curso", idCurso);
+
+  const instructores = (filasInstructores ?? [])
+    .map((fila) => {
+      const perfil = Array.isArray(fila.perfil) ? fila.perfil[0] : fila.perfil;
+      return perfil ? { id: perfil.id as string, nombre: perfil.nombre as string } : null;
+    })
+    .filter((perfil): perfil is { id: string; nombre: string } => perfil !== null)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const modulos = (curso.modulos ?? [])
     .sort((a, b) => a.orden - b.orden)
@@ -135,7 +158,7 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
     descripcion: curso.descripcion,
     imagenPortada: curso.imagen_portada,
     nivel: curso.nivel,
-    instructorNombre: instructor?.nombre ?? "Sin instructor",
+    instructores,
     mostrado: curso.mostrado,
     modulos,
   };

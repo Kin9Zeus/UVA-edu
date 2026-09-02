@@ -11,11 +11,20 @@ import { estadoCodigo } from "@/lib/codigoInvitacion";
  */
 export type LoteCodigosInvitacion = {
   id: string;
+  /** Cuántos se PIDIERON generar al crear el lote — un hecho fijo, nunca
+   * cambia (ver el comentario de esta columna en schema.prisma). No lo uses
+   * como denominador de nada que dependa de cuántas filas quedan hoy: para
+   * eso está `totalActual`. */
   cantidad: number;
   duracionDias: number;
   fechaVencimiento: string;
   creadoPor: string;
   creadoEn: string;
+  /** Códigos del lote que TODAVÍA EXISTEN (no se han eliminado). A
+   * diferencia de `cantidad`, baja cuando se borra un código sin usar
+   * (eliminarCodigoInvitacion) — es el número correcto para "cuántos hay"
+   * y para el denominador de `canjeados`. */
+  totalActual: number;
   /** Códigos del lote ya canjeados por alguien (cada uno, a lo sumo una vez). */
   canjeados: number;
   /** Códigos del lote que todavía se pueden canjear (ni usados, ni vencidos, ni desactivados). */
@@ -47,11 +56,12 @@ export async function getLotesCodigosInvitacion(): Promise<LoteCodigosInvitacion
       lotes.map((lote) => lote.id),
     );
 
-  const agregadosPorLote = new Map<string, { canjeados: number; activos: number }>();
+  const agregadosPorLote = new Map<string, { totalActual: number; canjeados: number; activos: number }>();
   for (const codigo of codigos ?? []) {
     const idLote = codigo.id_lote as string;
-    const actual = agregadosPorLote.get(idLote) ?? { canjeados: 0, activos: 0 };
+    const actual = agregadosPorLote.get(idLote) ?? { totalActual: 0, canjeados: 0, activos: 0 };
 
+    actual.totalActual += 1;
     if ((codigo.veces_usado as number) > 0) actual.canjeados += 1;
 
     const estado = estadoCodigo({
@@ -67,7 +77,8 @@ export async function getLotesCodigosInvitacion(): Promise<LoteCodigosInvitacion
 
   return lotes.map((lote) => {
     const adminCreador = Array.isArray(lote.admin_creador) ? lote.admin_creador[0] : lote.admin_creador;
-    const agregados = agregadosPorLote.get(lote.id as string) ?? { canjeados: 0, activos: 0 };
+    const agregados =
+      agregadosPorLote.get(lote.id as string) ?? { totalActual: 0, canjeados: 0, activos: 0 };
 
     return {
       id: lote.id as string,
@@ -76,6 +87,7 @@ export async function getLotesCodigosInvitacion(): Promise<LoteCodigosInvitacion
       fechaVencimiento: lote.fecha_vencimiento as string,
       creadoPor: adminCreador?.nombre ?? "—",
       creadoEn: lote.creado_en as string,
+      totalActual: agregados.totalActual,
       canjeados: agregados.canjeados,
       activos: agregados.activos,
     };

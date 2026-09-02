@@ -8,7 +8,6 @@ import {
   BookOpen,
   Users,
   FolderTree,
-  GraduationCap,
   Ticket,
   ScrollText,
   Settings,
@@ -19,13 +18,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/actions/auth/logout";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
-  { href: "/admin/instructores", label: "Instructores", icon: GraduationCap },
+  // Sin entrada "Instructores": un instructor es una cuenta con rol PROFESOR,
+  // así que se gestiona desde Usuarios ("Hacer profesor" + especialidad en la
+  // ficha). La sección propia y su tabla se eliminaron con la migración
+  // 20260903000000_multi_instructores.
   { href: "/admin/codigos", label: "Códigos de invitación", icon: Ticket },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings },
@@ -44,7 +47,7 @@ function NavLink({
   active: boolean;
   collapsed: boolean;
 }) {
-  return (
+  const link = (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
@@ -59,6 +62,17 @@ function NavLink({
       <Icon className="size-[18px] shrink-0" strokeWidth={1.9} />
       {!collapsed && <span className="flex-1 truncate">{label}</span>}
     </Link>
+  );
+
+  // Colapsado: el ícono solo no dice nada (estilo Platzi) — un tooltip al
+  // pasar el mouse muestra la etiqueta sin tener que expandir el menú.
+  if (!collapsed) return link;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={link} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -76,7 +90,17 @@ export function Sidebar() {
         collapsed ? "w-[76px]" : "w-[236px]",
       )}
     >
-      <div className="flex items-center gap-2 px-[18px] pt-[22px] pb-6">
+      <div
+        className={cn(
+          "flex items-center gap-2 pt-[22px] pb-6",
+          // Mismo padding horizontal que `nav` (px-2.5) cuando está
+          // colapsado, para que el botón de colapsar quede centrado sobre
+          // los íconos de abajo — con el px-[18px] de siempre (pensado para
+          // el logo + "ADMIN" expandidos) el botón quedaba corrido hacia la
+          // derecha respecto al centro real de esos íconos.
+          collapsed ? "justify-center px-2.5" : "px-[18px]",
+        )}
+      >
         {!collapsed && (
           <Link href="/admin" className="flex items-center whitespace-nowrap no-underline hover:no-underline">
             <span className="font-heading text-[18px] font-bold tracking-[.08em] text-uva-text">
@@ -92,7 +116,10 @@ export function Sidebar() {
           type="button"
           onClick={() => setCollapsed((current) => !current)}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="ml-auto flex shrink-0 items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover",
+            !collapsed && "ml-auto",
+          )}
         >
           {collapsed ? (
             <PanelLeft className="size-[17px]" strokeWidth={1.9} />
@@ -102,26 +129,43 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex flex-col gap-0.5 px-2.5" aria-label="Navegación del panel admin">
-        {nav.map((item) => (
-          <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
-        ))}
-      </nav>
+      <TooltipProvider delay={150}>
+        <nav className="flex flex-col gap-0.5 px-2.5" aria-label="Navegación del panel admin">
+          {nav.map((item) => (
+            <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
+          ))}
+        </nav>
 
-      <div className="mt-auto border-t border-uva-divider px-2.5 py-3.5">
-        <button
-          type="button"
-          onClick={() => logout()}
-          aria-label="Cerrar sesión"
-          className={cn(
-            "flex w-full items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm text-uva-muted hover:bg-uva-hover hover:text-uva-text",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          <LogOut className="size-[18px] shrink-0" strokeWidth={1.9} />
-          {!collapsed && <span>Cerrar sesión</span>}
-        </button>
-      </div>
+        <div className="mt-auto border-t border-uva-divider px-2.5 py-3.5">
+          <CerrarSesionButton collapsed={collapsed} />
+        </div>
+      </TooltipProvider>
     </aside>
+  );
+}
+
+function CerrarSesionButton({ collapsed }: { collapsed: boolean }) {
+  const boton = (
+    <button
+      type="button"
+      onClick={() => logout()}
+      aria-label="Cerrar sesión"
+      className={cn(
+        "flex w-full items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm text-uva-muted hover:bg-uva-hover hover:text-uva-text",
+        collapsed && "justify-center px-0",
+      )}
+    >
+      <LogOut className="size-[18px] shrink-0" strokeWidth={1.9} />
+      {!collapsed && <span>Cerrar sesión</span>}
+    </button>
+  );
+
+  if (!collapsed) return boton;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={boton} />
+      <TooltipContent>Cerrar sesión</TooltipContent>
+    </Tooltip>
   );
 }

@@ -46,6 +46,25 @@ export async function promoverAAdministrador(admin: ReturnType<typeof adminClien
 }
 
 /**
+ * Promueve un usuario a PROFESOR — el rol que hace falta para que aparezca en
+ * el selector de instructores de un curso. Desde la migración
+ * `20260903000000_multi_instructores`, instructor y profesor son la misma
+ * entidad: no hay forma de fabricar un instructor sin una cuenta real.
+ * Mismo bypass de service_role que promoverAAdministrador.
+ */
+export async function promoverAProfesor(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  especialidad?: string,
+) {
+  const { error } = await admin
+    .from("perfiles")
+    .update({ rol: "PROFESOR", especialidad: especialidad ?? null })
+    .eq("id", userId);
+  if (error) throw new Error(`No pude promover el usuario a PROFESOR: ${error.message}`);
+}
+
+/**
  * Genera el enlace de confirmación real que Supabase mandaría por correo,
  * sin depender de una bandeja de entrada.
  *

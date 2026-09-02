@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PlayCircle } from "lucide-react";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { esPortadaReal } from "@/lib/media";
+import { nombresDeInstructores } from "@/lib/instructores";
 import type { CursoVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
 
 const NIVEL_LABEL = {
@@ -60,7 +61,11 @@ export function ContenidoVistaPrevia({
             {curso.mostrado ? "Publicado" : "Borrador"}
           </StatusBadge>
           <StatusBadge tone="neutral">{NIVEL_LABEL[curso.nivel]}</StatusBadge>
-          <span className="text-[13px] text-uva-muted">{curso.instructorNombre}</span>
+          {/* Nombres separados por coma: esta línea de badges no tiene espacio
+              para una ficha por profesor, y la vista previa es un resumen. */}
+          <span className="text-[13px] text-uva-muted">
+            {nombresDeInstructores(curso.instructores)}
+          </span>
         </div>
 
         <h1 className="font-heading text-[28px] font-bold tracking-[-0.02em] text-uva-text">

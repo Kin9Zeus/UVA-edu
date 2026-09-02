@@ -559,6 +559,45 @@ certificados:notificar`), mismo patrón que
 para correr a mano o programado (cron de Railway, GitHub Actions), sin
 necesitar que el trigger y el envío del correo coincidan en el tiempo.
 
+### `053_curso_instructores.sql` — la ÚNICA vista sin `security_invoker`
+
+Instructor y Profesor pasaron a ser la misma entidad: quién dicta un curso son
+1 o más filas de `curso_instructores` apuntando a `perfiles` con rol `PROFESOR`.
+Sus policies son las de siempre (SELECT con el criterio de
+`030_acceso_curso_despublicado.sql`, escritura solo `private.es_administrador()`).
+
+Lo que **no** es de siempre es la vista `curso_instructores_publico`. Un
+visitante anónimo necesita ver el nombre y la especialidad de quien dicta un
+curso publicado, y esos datos viven ahora en `perfiles`, junto a `correo`,
+`celular`, `estado` y `rol`. RLS de Postgres es por FILA, no por columna: abrir
+esa fila a `anon` con una policy nueva expondría también los datos personales.
+La vista recorta la proyección a `nombre` y `especialidad`, y hace el control de
+acceso en su propio `WHERE` (copia literal del criterio de la policy).
+
+Por eso —y solo por eso— **no lleva `security_invoker = true`**, al revés que
+`033_vista_progreso_cursos.sql` y `036_vistas_metricas_panel.sql`. Aquellas
+agregan datos que RLS ya sabe acotar por usuario y ahí saltarse RLS *sería* la
+fuga; esta existe precisamente para dar a `anon` un dato que RLS le niega, con
+la proyección recortada. Es la misma figura que `verificar_certificado()` (015):
+acceso público a un dato puntual sin volver pública la tabla.
+
+Supabase Advisors la marcará como *security definer view*. **No la "arregles"
+poniéndole `security_invoker = true`**: devolvería cero filas a todo visitante
+sin sesión y el catálogo entero quedaría sin instructor. Lleva
+`security_barrier = true` para que ningún predicado de quien consulta pueda
+evaluarse antes que su `WHERE`.
+
+El mismo archivo redefine `buscar_catalogo()` (última versión: 034) para que
+haga el join contra esa vista en vez de `join instructores on
+cursos.id_instructor`, que a partir de la migración
+`20260903000000_multi_instructores` habría borrado del catálogo todo curso
+nuevo (esa columna ya no se escribe y quedó nullable). El tipo de retorno no
+cambia: `instructor_nombre` pasa a ser el `string_agg` de los nombres.
+
+`006_rls_instructores.sql` no se toca —nunca se edita una migración RLS ya
+aplicada—: sus policies dejan de usarse y se limpian junto con el `DROP` de la
+tabla `instructores`, en una migración posterior.
+
 ## Prueba de RLS con 3 sesiones
 
 `scripts/rls-test.ts` (`npm run test:rls`) llama la API de Supabase

@@ -61,7 +61,10 @@ export function CursosTable({
       const coincideTexto =
         !texto ||
         curso.titulo.toLowerCase().includes(texto) ||
-        curso.instructor.toLowerCase().includes(texto);
+        // `some`: basta con que coincida CUALQUIERA de los profesores del
+        // curso — buscar "Ana" tiene que encontrar un curso que dicta con
+        // alguien más, no solo los que dicta sola.
+        curso.instructores.some((instructor) => instructor.nombre.toLowerCase().includes(texto));
       // `some`: un curso aparece bajo el filtro de cualquiera de sus
       // categorías, no solo de la primera.
       const coincideCategoria =

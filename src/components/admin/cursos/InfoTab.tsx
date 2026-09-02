@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
+import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstructores";
 import { subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
 import {
@@ -48,6 +49,9 @@ export function InfoTab({
   nivel,
   onNivelChange,
   categorias,
+  idsInstructores,
+  onIdsInstructoresChange,
+  instructores,
   error,
 }: {
   cursoId: string;
@@ -62,6 +66,10 @@ export function InfoTab({
   nivel: NivelCurso;
   onNivelChange: (value: NivelCurso) => void;
   categorias: { id: string; nombre: string }[];
+  idsInstructores: string[];
+  onIdsInstructoresChange: (ids: string[]) => void;
+  /** Cuentas con rol PROFESOR (getPerfilesProfesor). Puede venir vacía. */
+  instructores: { id: string; nombre: string }[];
   error: string | null;
 }) {
   const [subiendoPortada, setSubiendoPortada] = useState(false);
@@ -272,6 +280,19 @@ export function InfoTab({
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div>
+        {/* Múltiple: `curso_instructores` es muchos-a-muchos. Editarlo aquí es
+            nuevo — antes el instructor solo se elegía al crear el curso y no
+            había forma de cambiarlo desde el panel. */}
+        <Label id="info-instructores-label">Instructores</Label>
+        <SelectorInstructores
+          id="info-instructores"
+          instructores={instructores}
+          seleccionados={idsInstructores}
+          onChange={onIdsInstructoresChange}
+        />
       </div>
     </div>
   );

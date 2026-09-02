@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
+import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 
 export type RecursoLeccion = {
   id: string;
@@ -18,6 +19,12 @@ export type LeccionPlayerItem = {
   completado: boolean;
   moduloId: string;
   moduloTitulo: string;
+  /** Frame real del video ya procesado, para el cuadro del Temario
+   * (Revcurso). `null`/ausente sin video listo, o si Mux no pudo firmar el
+   * token — TemarioDrawer cae de vuelta al cuadro oscuro de siempre.
+   * Opcional: la vista previa de admin (LeccionVistaPreviaContent) reusa
+   * el mismo Temario sin pedirle miniaturas todavía. */
+  miniaturaUrl?: string | null;
 };
 
 export type LeccionPlayer = {
@@ -93,15 +100,22 @@ export async function getLeccionPlayer(
       (modulo.lecciones ?? [])
         .slice()
         .sort((a, b) => a.orden - b.orden)
-        .map((leccion) => ({
-          id: leccion.id as string,
-          titulo: leccion.titulo as string,
-          duracion: (leccion.duracion ?? null) as number | null,
-          resumen: (leccion.resumen ?? null) as string | null,
-          videoListo: !!leccion.id_video_mux && leccion.estado_procesamiento === "LISTO",
-          moduloId: modulo.id as string,
-          moduloTitulo: modulo.titulo as string,
-        })),
+        .map((leccion) => {
+          const videoListo = !!leccion.id_video_mux && leccion.estado_procesamiento === "LISTO";
+          return {
+            id: leccion.id as string,
+            titulo: leccion.titulo as string,
+            // Sin video LISTO, `duracion` no corresponde a ningún video real
+            // (ver la misma regla en lib/curso.ts) — se oculta para no
+            // mostrar minutos que no salen de ningún video.
+            duracion: (videoListo ? (leccion.duracion ?? null) : null) as number | null,
+            resumen: (leccion.resumen ?? null) as string | null,
+            videoListo,
+            idVideoMux: leccion.id_video_mux as string | null,
+            moduloId: modulo.id as string,
+            moduloTitulo: modulo.titulo as string,
+          };
+        }),
     );
 
   const indice = plano.findIndex((leccion) => leccion.id === leccionId);
@@ -137,15 +151,22 @@ export async function getLeccionPlayer(
     }
   }
 
-  const lecciones: LeccionPlayerItem[] = plano.map((leccion, i) => ({
-    id: leccion.id,
-    numero: i + 1,
-    titulo: leccion.titulo,
-    duracion: leccion.duracion,
-    completado: !!progresoPorLeccion.get(leccion.id)?.completado,
-    moduloId: leccion.moduloId,
-    moduloTitulo: leccion.moduloTitulo,
-  }));
+  // Un signPlaybackId() por lección, en paralelo: es una firma JWT local
+  // (HMAC/RSA), no una llamada de red a Mux, así que no importa que un
+  // curso tenga muchas clases — nunca golpea un rate limit externo.
+  const lecciones: LeccionPlayerItem[] = await Promise.all(
+    plano.map(async (leccion, i) => ({
+      id: leccion.id,
+      numero: i + 1,
+      titulo: leccion.titulo,
+      duracion: leccion.duracion,
+      completado: !!progresoPorLeccion.get(leccion.id)?.completado,
+      moduloId: leccion.moduloId,
+      moduloTitulo: leccion.moduloTitulo,
+      miniaturaUrl:
+        leccion.videoListo && leccion.idVideoMux ? await getMiniaturaUrl(leccion.idVideoMux) : null,
+    })),
+  );
 
   // Sin url_archivo: es la ruta cruda del bucket privado, no una URL
   // usable, y no debe llegar al cliente. La descarga pasa por

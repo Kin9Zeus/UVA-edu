@@ -9,9 +9,14 @@ import { XIcon } from "lucide-react"
 
 /* Modales del mockup del panel admin: `.card` centrada sobre un velo
    `rgba(0,0,0,.6)` sin desenfoque, con el pie como una simple fila a la
-   derecha y sin botón de cerrar en la esquina. El ancho es fijo y distinto en
-   cada uno (360 confirmación, 400 formularios, 420-440 listas), así que cada
-   modal lo pasa por `className`. */
+   derecha. El ancho es fijo y distinto en cada uno (360 confirmación, 400
+   formularios, 420-440 listas), así que cada modal lo pasa por `className`.
+   El mockup no dibujaba una X en la esquina —de ahí que `showCloseButton`
+   empezara en `false`— pero ninguno de los modales reales del panel tiene
+   otra salida obvia que Esc o clic afuera: no todos traen un botón
+   "Cancelar" en el pie (RedimidoresButton, por ejemplo, solo lista datos).
+   Se cambia el default a `true` para que cerrar sea intuitivo en cualquier
+   modal nuevo sin tener que acordarse de pasar la prop. */
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -47,7 +52,7 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  showCloseButton = false,
+  showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean

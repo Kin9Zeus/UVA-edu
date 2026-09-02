@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCategoriasActivas } from "@/lib/admin/cursos";
-import { getInstructoresParaSelector } from "@/lib/admin/instructores";
+import { getPerfilesProfesor } from "@/lib/admin/profesores";
 import { CrearCursoForm } from "@/components/admin/cursos/CrearCursoForm";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function AdminCrearCursoPage() {
   const [categorias, instructores] = await Promise.all([
     getCategoriasActivas(),
-    getInstructoresParaSelector(),
+    getPerfilesProfesor(),
   ]);
 
   return (

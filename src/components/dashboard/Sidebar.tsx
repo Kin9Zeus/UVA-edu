@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GraciaCard } from "@/components/dashboard/GraciaCard";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Comunidad se oculta hasta después del MVP (la feature aún no está activa).
 const navPrincipal = [
@@ -45,7 +46,7 @@ function NavLink({
   collapsed: boolean;
   badge?: string;
 }) {
-  return (
+  const link = (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
@@ -65,6 +66,20 @@ function NavLink({
         </span>
       )}
     </Link>
+  );
+
+  // Colapsado: el ícono solo no dice nada (estilo Platzi) — un tooltip al
+  // pasar el mouse muestra la etiqueta sin tener que expandir el menú.
+  if (!collapsed) return link;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={link} />
+      <TooltipContent>
+        {label}
+        {badge && <span className="ml-1.5 text-uva-text-faint">{badge}</span>}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -88,7 +103,16 @@ export function Sidebar({
         collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
-      <div className="flex items-center justify-between px-4 py-5">
+      <div
+        className={cn(
+          "flex items-center py-5",
+          // Mismo esquema de padding que `nav` (px-2.5) para que el botón de
+          // colapsar quede centrado exactamente sobre los íconos de abajo —
+          // con `px-4` (el de antes) el botón quedaba 6px a la izquierda del
+          // centro real de los íconos colapsados.
+          collapsed ? "justify-center px-2.5" : "justify-between px-4",
+        )}
+      >
         {!collapsed && (
           <Link
             href="/dashboard"
@@ -111,37 +135,39 @@ export function Sidebar({
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5" aria-label="Navegación principal">
-        {navPrincipal.map((item) => (
-          <NavLink
-            key={item.href}
-            {...item}
-            active={isActive(item.href)}
-            collapsed={collapsed}
-          />
-        ))}
+      <TooltipProvider delay={150}>
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5" aria-label="Navegación principal">
+          {navPrincipal.map((item) => (
+            <NavLink
+              key={item.href}
+              {...item}
+              active={isActive(item.href)}
+              collapsed={collapsed}
+            />
+          ))}
 
-        {!collapsed && (
-          <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-[#52525B] uppercase">
-            Tu progreso
-          </p>
-        )}
-        {collapsed && <div className="my-3 border-t border-uva-divider" />}
+          {!collapsed && (
+            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-[#52525B] uppercase">
+              Tu progreso
+            </p>
+          )}
+          {collapsed && <div className="my-3 border-t border-uva-divider" />}
 
-        {navProgreso.map((item) => (
-          <NavLink
-            key={item.href}
-            {...item}
-            active={isActive(item.href)}
-            collapsed={collapsed}
-            badge={
-              item.href === "/dashboard/certificados"
-                ? String(certificadosCount).padStart(2, "0")
-                : undefined
-            }
-          />
-        ))}
-      </nav>
+          {navProgreso.map((item) => (
+            <NavLink
+              key={item.href}
+              {...item}
+              active={isActive(item.href)}
+              collapsed={collapsed}
+              badge={
+                item.href === "/dashboard/certificados"
+                  ? String(certificadosCount).padStart(2, "0")
+                  : undefined
+              }
+            />
+          ))}
+        </nav>
+      </TooltipProvider>
 
       {diasGracia !== null && !collapsed && (
         <div className="p-[19px]">

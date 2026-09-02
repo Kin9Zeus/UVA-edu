@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 import {
   adminClient,
+  borrarUsuarioPorEmail,
   crearUsuarioConfirmado,
   promoverAAdministrador,
+  promoverAProfesor,
 } from "./supabase-admin";
 
 // P2-7 Fase B (AUDIT-2026-08-24.md), recorrido 2 de 3: admin crea y
@@ -19,7 +21,13 @@ const emailAdmin = `e2e-admin-${sufijo}@uva.test`;
 const passwordAdmin = "Abcdefg1!x";
 const tituloCurso = `Curso E2E ${sufijo}`;
 const nombreCategoria = `Categoría E2E ${sufijo}`;
-const nombreInstructor = `Instructor E2E ${sufijo}`;
+// El instructor ya no es una ficha de catálogo: desde la migración
+// `20260903000000_multi_instructores` es una cuenta real con rol PROFESOR, así
+// que el spec crea un usuario desechable más en vez de una fila en
+// `instructores` (tabla vestigial que ninguna capa de la app lee ya).
+const emailProfesor = `e2e-profesor-${sufijo}@uva.test`;
+const passwordProfesor = "Abcdefg1!x";
+const nombreProfesor = `Instructor E2E ${sufijo}`;
 
 let categoriaId: string;
 let instructorId: string;
@@ -37,20 +45,23 @@ test.beforeAll(async () => {
   if (errCategoria || !categoria) throw new Error(`No pude crear la categoría de prueba: ${errCategoria?.message}`);
   categoriaId = categoria.id;
 
-  const { data: instructor, error: errInstructor } = await admin
-    .from("instructores")
-    .insert({ nombre: nombreInstructor })
-    .select("id")
-    .single();
-  if (errInstructor || !instructor) throw new Error(`No pude crear el instructor de prueba: ${errInstructor?.message}`);
-  instructorId = instructor.id;
+  const profesor = await crearUsuarioConfirmado(admin, {
+    email: emailProfesor,
+    password: passwordProfesor,
+    nombre: nombreProfesor,
+  });
+  await promoverAProfesor(admin, profesor.id, "Especialidad E2E");
+  instructorId = profesor.id;
 });
 
 test.afterAll(async () => {
   // Orden: hijo antes que padre, para no chocar con ninguna FK.
+  // Borrar el curso se lleva sus filas de `curso_instructores`
+  // (ON DELETE CASCADE), que es lo que deja borrar después al profesor: esa FK
+  // es ON DELETE RESTRICT a propósito.
   if (cursoId) await admin.from("cursos").delete().eq("id", cursoId);
   await admin.from("categorias").delete().eq("id", categoriaId);
-  await admin.from("instructores").delete().eq("id", instructorId);
+  await borrarUsuarioPorEmail(admin, emailProfesor);
 
   const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const user = data?.users.find((u) => u.email === emailAdmin);
@@ -88,8 +99,9 @@ test("admin crea y publica un curso", async ({ page }) => {
     await page.locator("#curso-categoria").click();
     await page.getByRole("option", { name: nombreCategoria }).click();
 
-    await page.locator("#curso-instructor").click();
-    await page.getByRole("option", { name: nombreInstructor }).click();
+    // Checkbox, no Select: el selector de instructores es múltiple desde que
+    // un curso puede tener más de uno.
+    await page.locator(`#curso-instructores-${instructorId}`).click();
 
     await page.getByRole("button", { name: "Publicar curso" }).click();
     await expect(page).toHaveURL(/\/admin\/cursos\/[0-9a-f-]{36}/, { timeout: 30_000 });
@@ -99,12 +111,20 @@ test("admin crea y publica un curso", async ({ page }) => {
   await test.step("el curso quedó publicado (mostrado = true) en la base real", async () => {
     const { data: curso, error } = await admin
       .from("cursos")
-      .select("titulo, mostrado, id_instructor")
+      .select("titulo, mostrado")
       .eq("id", cursoId)
       .single();
     expect(error).toBeNull();
     expect(curso?.titulo).toBe(tituloCurso);
     expect(curso?.mostrado).toBe(true);
-    expect(curso?.id_instructor).toBe(instructorId);
+
+    // El instructor vive en la puente, no en `cursos.id_instructor` (columna
+    // vestigial que crearCurso() ya no escribe).
+    const { data: puente, error: errorPuente } = await admin
+      .from("curso_instructores")
+      .select("id_instructor")
+      .eq("id_curso", cursoId);
+    expect(errorPuente).toBeNull();
+    expect(puente?.map((fila) => fila.id_instructor)).toEqual([instructorId]);
   });
 });

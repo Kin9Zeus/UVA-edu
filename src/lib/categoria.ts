@@ -1,9 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
+import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 
 export type CursoDeCategoria = {
   id: string;
   titulo: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  /**
+   * Los profesores del curso en una sola línea ("Ana Ruiz, Daniel Castaño").
+   * La tarjeta del catálogo tiene una línea truncada para esto, no una ficha
+   * por persona, así que se agrega en SQL (`string_agg` dentro de
+   * `buscar_catalogo`) y llega ya formateado: una fila por curso, sin una
+   * segunda consulta ni un fan-out que rompería la paginación.
+   */
   instructorNombre: string;
   categoriaNombre: string;
   totalClases: number;
@@ -92,7 +100,7 @@ export async function buscarCatalogo(opciones: {
     id: fila.curso_id,
     titulo: fila.titulo,
     nivel: fila.nivel,
-    instructorNombre: fila.instructor_nombre ?? "Sin instructor",
+    instructorNombre: fila.instructor_nombre ?? SIN_INSTRUCTOR,
     categoriaNombre: fila.categoria_nombre ?? "General",
     totalClases: Number(fila.total_clases),
     imagenPortada: fila.imagen_portada,
@@ -124,16 +132,22 @@ export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
 
   const { data } = await supabase
     .from("cursos")
-    .select("id, titulo, instructor:instructores(nombre)")
+    .select("id, titulo")
     .eq("mostrado", true)
     .order("titulo");
 
-  return (data ?? []).map((curso) => {
-    const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-    return {
-      id: curso.id,
-      titulo: curso.titulo,
-      instructorNombre: instructor?.nombre ?? "Sin instructor",
-    };
-  });
+  const cursos = data ?? [];
+  // Dos consultas fijas, no una por curso: el nombre del profesor ya no se
+  // puede embeber en el `.select()` de arriba porque vive en `perfiles`, que
+  // RLS no le abre a un visitante sin sesión (ver lib/instructores.ts).
+  const instructoresPorCurso = await getInstructoresDeCursos(
+    supabase,
+    cursos.map((curso) => curso.id as string),
+  );
+
+  return cursos.map((curso) => ({
+    id: curso.id,
+    titulo: curso.titulo,
+    instructorNombre: nombresDeInstructores(instructoresPorCurso.get(curso.id) ?? []),
+  }));
 }

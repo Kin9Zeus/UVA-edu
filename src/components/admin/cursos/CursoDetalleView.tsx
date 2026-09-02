@@ -29,14 +29,18 @@ const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Av
 export function CursoDetalleView({
   curso,
   categorias,
+  instructores,
 }: {
   curso: CursoDetalle;
   categorias: { id: string; nombre: string }[];
+  /** Cuentas con rol PROFESOR disponibles para asignar (getPerfilesProfesor). */
+  instructores: { id: string; nombre: string }[];
 }) {
   const [titulo, setTitulo] = useState(curso.titulo);
   const [imagenPortada, setImagenPortada] = useState(curso.imagenPortada);
   const [descripcion, setDescripcion] = useState(curso.descripcion);
   const [categoriaIds, setCategoriaIds] = useState(curso.categoriaIds);
+  const [idsInstructores, setIdsInstructores] = useState(curso.instructorIds);
   const [nivel, setNivel] = useState<NivelCurso>(curso.nivel);
   const [mostrado, setMostrado] = useState(curso.mostrado);
   const [destacado, setDestacado] = useState(curso.destacado);
@@ -57,6 +61,7 @@ export function CursoDetalleView({
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     categoriaIds: curso.categoriaIds,
+    idsInstructores: curso.instructorIds,
     nivel: curso.nivel,
     mostrado: curso.mostrado,
     destacado: curso.destacado,
@@ -71,7 +76,9 @@ export function CursoDetalleView({
     destacado !== guardadoComo.destacado ||
     orden !== guardadoComo.orden ||
     categoriaIds.length !== guardadoComo.categoriaIds.length ||
-    categoriaIds.some((id) => !guardadoComo.categoriaIds.includes(id));
+    categoriaIds.some((id) => !guardadoComo.categoriaIds.includes(id)) ||
+    idsInstructores.length !== guardadoComo.idsInstructores.length ||
+    idsInstructores.some((id) => !guardadoComo.idsInstructores.includes(id));
 
   const hayCambiosSinGuardar = sinGuardar || contenidoSinGuardar;
 
@@ -119,7 +126,7 @@ export function CursoDetalleView({
     setErrorConfig(null);
 
     const [resultadoInfo, resultadoConfig] = await Promise.all([
-      actualizarInfoCurso(curso.id, { titulo, descripcion, categoriaIds, nivel }),
+      actualizarInfoCurso(curso.id, { titulo, descripcion, categoriaIds, nivel, idsInstructores }),
       actualizarConfiguracionCurso(curso.id, { mostrado, destacado, ordenVisualizacion: orden }),
     ]);
     setPending(false);
@@ -135,7 +142,16 @@ export function CursoDetalleView({
     }
     if (huboError) return;
 
-    setGuardadoComo({ titulo, descripcion, categoriaIds, nivel, mostrado, destacado, orden });
+    setGuardadoComo({
+      titulo,
+      descripcion,
+      categoriaIds,
+      idsInstructores,
+      nivel,
+      mostrado,
+      destacado,
+      orden,
+    });
     showToast("Cambios guardados.");
   }
 
@@ -213,6 +229,9 @@ export function CursoDetalleView({
             nivel={nivel}
             onNivelChange={setNivel}
             categorias={categorias}
+            idsInstructores={idsInstructores}
+            onIdsInstructoresChange={setIdsInstructores}
+            instructores={instructores}
             error={errorInfo}
           />
         </TabsContent>

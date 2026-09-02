@@ -101,6 +101,14 @@ model Perfiles {
   correo         String       @unique
   celular        String?
   rol            RolPerfil    @default(ESTUDIANTE)
+  /// Área en la que dicta ("Modelado BIM y coordinación de disciplinas"), lo
+  /// que antes vivía en `Instructores.especialidad`. Solo tiene sentido para
+  /// cuentas con rol PROFESOR; en el resto queda null. Es el único dato de
+  /// esta tabla —junto a `nombre`— que se muestra a visitantes sin sesión, y
+  /// nunca leyendo `perfiles` directo: va por la vista
+  /// `curso_instructores_publico` (supabase/sql/053_curso_instructores.sql),
+  /// porque RLS es por fila y abrir la fila abriría también correo y celular.
+  especialidad   String?
   estado         EstadoPerfil @default(ACTIVO)
   creado_en      DateTime     @default(now()) @db.Timestamptz
   actualizado_en DateTime     @updatedAt @db.Timestamptz
@@ -123,6 +131,7 @@ model Perfiles {
   instructor_vinculado        Instructores?            @relation("InstructorEsPerfil")
   comentarios                 Comentarios[]
   comentario_likes            ComentarioLikes[]
+  cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
 
   @@map("perfiles")
 }
@@ -401,13 +410,28 @@ model CursoCategorias {
   @@map("curso_categorias")
 }
 
-/// Instructor del catálogo: nombre y especialidad que el admin gestiona para
-/// identificar quién dicta cada curso. Por defecto NO es una cuenta —no
-/// existe en auth.users ni inicia sesión— salvo que `id_perfil_profesor` la
-/// vincule a un `Perfiles` con rol PROFESOR (para que pueda comentar en el
-/// reproductor con el check de verificado). `nombre` es único porque el
-/// formulario de curso permite dar de alta uno nuevo sin salir, y sin esa
-/// restricción se duplicarían.
+/// ⚠️ TABLA VESTIGIAL — NINGUNA CAPA DE LA APLICACIÓN LA LEE NI LA ESCRIBE.
+///
+/// Instructor y Profesor eran dos entidades (esta tabla, sin cuenta, puenteada
+/// opcionalmente a `Perfiles` por `id_perfil_profesor`). Eso fue un error
+/// conceptual: son la misma persona. Desde la migración
+/// `20260903000000_multi_instructores`, quién dicta un curso vive en
+/// `CursoInstructores` (puente muchos-a-muchos hacia `Perfiles` con rol
+/// PROFESOR) y la especialidad en `Perfiles.especialidad`.
+///
+/// Por qué sigue aquí y no se borró en la misma migración: los 3 instructores
+/// reales con cursos publicados (Ana Ruiz, Daniel Castaño, Mauricio Gallego)
+/// todavía NO tienen cuenta. Y una fila de `Perfiles` solo puede nacer del
+/// trigger sobre `auth.users` (supabase/sql/000_trigger_perfiles.sql), así que
+/// no hay forma de migrarlos automáticamente: tienen que registrarse en
+/// /registro y un admin ascenderlos con "Hacer profesor". Borrar la tabla y la
+/// FK `cursos.id_instructor` antes de eso perdería el único registro de quién
+/// dicta esos 6 cursos.
+///
+/// LIMPIEZA PENDIENTE (migración futura, una vez reasignados esos cursos):
+/// DROP de `instructores`, de `cursos.id_instructor`, de las policies de
+/// `supabase/sql/006_rls_instructores.sql` y del índice
+/// `instructores_nombre_trgm_idx` (034). No agregues código nuevo contra ella.
 model Instructores {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre             String   @unique
@@ -433,7 +457,15 @@ model Cursos {
   titulo              String
   descripcion         String
   imagen_portada      String
-  id_instructor       String     @db.Uuid
+  /// ⚠️ COLUMNA VESTIGIAL — ninguna capa de la aplicación la lee ni la
+  /// escribe desde la migración `20260903000000_multi_instructores`. Quién
+  /// dicta el curso está en `instructores` (relación `CursoInstructores`),
+  /// que además admite varios. Pasó a NULLABLE en esa migración porque
+  /// `crearCurso()` ya no la rellena; las filas viejas conservan su valor
+  /// como único rastro de a quién pertenecen los 6 cursos reales hasta que
+  /// esos instructores tengan cuenta. Ver el comentario del modelo
+  /// `Instructores` para la limpieza pendiente.
+  id_instructor       String?    @db.Uuid
   nivel               NivelCurso @default(BASICO)
   destacado           Boolean    @default(false)
   orden_visualizacion Int        @default(0)
@@ -442,17 +474,45 @@ model Cursos {
   creado_en           DateTime   @default(now()) @db.Timestamptz
   actualizado_en      DateTime   @updatedAt @db.Timestamptz
 
-  instructor          Instructores        @relation(fields: [id_instructor], references: [id])
+  /// Vestigial junto con `id_instructor` — ver el comentario de esa columna.
+  instructor          Instructores?       @relation(fields: [id_instructor], references: [id])
   admin_creador       Perfiles            @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   modulos             Modulos[]
   certificados        Certificados[]
   inscripciones       Inscripciones[]
   categorias          CursoCategorias[]
+  /// Quién dicta el curso: 1 o más cuentas con rol PROFESOR.
+  instructores        CursoInstructores[]
   tokens_vista_previa TokensVistaPrevia[]
 
   @@index([id_instructor])
   @@index([id_admin_creador])
   @@map("cursos")
+}
+
+/// Tabla puente curso↔profesor (muchos-a-muchos): un curso puede dictarlo más
+/// de una persona y una persona puede dictar varios cursos.
+///
+/// `id_instructor` apunta a `Perfiles`, NO a `Instructores`: instructor y
+/// profesor son la misma entidad (una cuenta real con login y rol PROFESOR),
+/// no dos tablas puenteadas. Ver el comentario del modelo `Instructores`.
+///
+/// Solo `nombre` y `especialidad` de esas filas de `Perfiles` son públicos, y
+/// se leen por la vista `curso_instructores_publico`
+/// (supabase/sql/053_curso_instructores.sql) — nunca consultando `perfiles`
+/// directo desde una ruta pública, que expondría correo, celular y estado.
+model CursoInstructores {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso      String   @db.Uuid
+  id_instructor String   @db.Uuid
+  creado_en     DateTime @default(now()) @db.Timestamptz
+
+  curso      Cursos   @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  instructor Perfiles @relation("CursoInstructoresPerfil", fields: [id_instructor], references: [id])
+
+  @@unique([id_curso, id_instructor])
+  @@index([id_instructor])
+  @@map("curso_instructores")
 }
 
 model Modulos {

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import { tabsListVariants, tabTriggerVariants } from "@/components/ui/tabs";
 import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
+import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstructores";
 import { crearCurso, subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
-import { InstructorFormDialog } from "@/components/admin/instructores/InstructorFormDialog";
 import { useAvisoNavegacionSinGuardar } from "@/lib/admin/useAvisoNavegacionSinGuardar";
 import {
   ACCEPT_PORTADA,
@@ -33,9 +32,10 @@ const NIVEL_ITEMS = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Av
 
 export function CrearCursoForm({
   categorias,
-  instructores: instructoresIniciales,
+  instructores,
 }: {
   categorias: { id: string; nombre: string }[];
+  /** Cuentas con rol PROFESOR (getPerfilesProfesor). Puede venir vacía. */
   instructores: { id: string; nombre: string }[];
 }) {
   const [titulo, setTitulo] = useState("");
@@ -44,9 +44,7 @@ export function CrearCursoForm({
   const [errorPortada, setErrorPortada] = useState<string | null>(null);
   const [categoriaIds, setCategoriaIds] = useState<string[]>([]);
   const [nivel, setNivel] = useState<NivelCurso>("BASICO");
-  const [instructores, setInstructores] = useState(instructoresIniciales);
-  const [idInstructor, setIdInstructor] = useState("");
-  const [instructorDialogOpen, setInstructorDialogOpen] = useState(false);
+  const [idsInstructores, setIdsInstructores] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"borrador" | "publicar" | null>(null);
   // Se apaga en cuanto crearCurso() confirma el id: a partir de ahí ya no
@@ -65,7 +63,7 @@ export function CrearCursoForm({
       descripcion.trim() !== "" ||
       categoriaIds.length > 0 ||
       portadaArchivo !== null ||
-      idInstructor !== "");
+      idsInstructores.length > 0);
 
   useEffect(() => {
     function avisar(event: BeforeUnloadEvent) {
@@ -111,21 +109,6 @@ export function CrearCursoForm({
     setPortadaArchivo(archivo);
   }
 
-  const instructorItems = useMemo(
-    () => Object.fromEntries(instructores.map((i) => [i.id, i.nombre])),
-    [instructores],
-  );
-
-  // El instructor recién creado se añade a la lista local y queda
-  // seleccionado, para no perder lo que ya se llevaba escrito en el resto
-  // del formulario mientras el Server Component se revalida.
-  function handleInstructorCreado(id: string, nombre: string) {
-    setInstructores((actuales) =>
-      [...actuales, { id, nombre }].sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    );
-    setIdInstructor(id);
-  }
-
   async function handleGuardar() {
     setPending("borrador");
     setError(null);
@@ -135,7 +118,7 @@ export function CrearCursoForm({
       descripcion,
       categoriaIds,
       nivel,
-      idInstructor,
+      idsInstructores,
     });
 
     if (resultado.error || !resultado.id) {
@@ -281,39 +264,17 @@ export function CrearCursoForm({
         </div>
 
         <div>
-          <Label htmlFor="curso-instructor">Instructor</Label>
-          <div className="flex items-center gap-2">
-            <Select
-              items={instructorItems}
-              value={idInstructor}
-              onValueChange={(value) => setIdInstructor(value ?? "")}
-            >
-              <SelectTrigger id="curso-instructor" className="w-full">
-                <SelectValue placeholder="Selecciona un instructor" />
-              </SelectTrigger>
-              <SelectContent>
-                {instructores.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-auto shrink-0"
-              onClick={() => setInstructorDialogOpen(true)}
-            >
-              <Plus className="size-4" />
-              Nuevo
-            </Button>
-          </div>
-          {instructores.length === 0 && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">
-              Todavía no hay instructores. Crea el primero con el botón de al lado.
-            </p>
-          )}
+          {/* Múltiple: un curso puede dictarlo más de un profesor. El botón
+              "+ Nuevo instructor" desapareció con la migración
+              20260903000000_multi_instructores — un instructor es una cuenta
+              real, y no se crea desde un modal de dos campos. */}
+          <Label id="curso-instructores-label">Instructores</Label>
+          <SelectorInstructores
+            id="curso-instructores"
+            instructores={instructores}
+            seleccionados={idsInstructores}
+            onChange={setIdsInstructores}
+          />
         </div>
 
       </div>
@@ -337,12 +298,6 @@ export function CrearCursoForm({
           Cancelar
         </Button>
       </div>
-
-      <InstructorFormDialog
-        open={instructorDialogOpen}
-        onOpenChange={setInstructorDialogOpen}
-        onCreado={handleInstructorCreado}
-      />
     </div>
   );
 }

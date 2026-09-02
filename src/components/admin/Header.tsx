@@ -28,7 +28,6 @@ function tituloDeSeccion(pathname: string) {
   if (pathname === "/admin/usuarios") return "Usuarios";
   if (pathname.startsWith("/admin/usuarios/")) return "Detalle de usuario";
   if (pathname.startsWith("/admin/categorias")) return "Categorías";
-  if (pathname.startsWith("/admin/instructores")) return "Instructores";
   if (pathname.startsWith("/admin/configuracion")) return "Configuración";
   return "Panel";
 }

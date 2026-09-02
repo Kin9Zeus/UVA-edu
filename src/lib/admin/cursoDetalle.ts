@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 
 export type RecursoDetalle = {
   id: string;
@@ -76,8 +77,10 @@ export type CursoDetalle = {
   /** Todas las categorías del curso (curso_categorias es muchos-a-muchos). */
   categoriaIds: string[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
-  instructorId: string;
-  instructor: string;
+  /** Ids de las cuentas PROFESOR que dictan el curso, para el selector múltiple. */
+  instructorIds: string[];
+  /** Los mismos, con nombre, para la cabecera del detalle. */
+  instructores: InstructorPublico[];
   mostrado: boolean;
   destacado: boolean;
   ordenVisualizacion: number;
@@ -93,7 +96,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, imagen_portada, nivel, id_instructor, mostrado, destacado, orden_visualizacion, instructor:instructores(nombre)",
+      "id, titulo, descripcion, imagen_portada, nivel, mostrado, destacado, orden_visualizacion",
     )
     .eq("id", cursoId)
     .single();
@@ -104,6 +107,10 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     .from("curso_categorias")
     .select("id_categoria")
     .eq("id_curso", cursoId);
+
+  // Consulta aparte, no un embed: los datos del profesor viven en `perfiles` y
+  // se leen por `curso_instructores_publico` — ver lib/instructores.ts.
+  const instructores = await getInstructoresDeCurso(supabase, cursoId);
 
   // Solo los vigentes: los revocados y los caducados se filtran en la
   // consulta para que el panel no liste enlaces que ya no abren nada. Las
@@ -134,7 +141,12 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         id: leccion.id,
         titulo: leccion.titulo,
         orden: leccion.orden,
-        duracion: leccion.duracion,
+        // Sin video LISTO, `duracion` no corresponde a ningún video real —
+        // puede venir de datos de siembra o de un reemplazo de video que
+        // todavía no terminó de procesar. Se oculta para que el admin no
+        // vea minutos que no salen de ningún video (misma regla en
+        // lib/curso.ts y lib/leccion.ts).
+        duracion: leccion.estado_procesamiento === "LISTO" ? leccion.duracion : null,
         resumen: leccion.resumen,
         estadoProcesamiento: leccion.estado_procesamiento,
         errorProcesamiento: leccion.error_procesamiento,
@@ -248,8 +260,6 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     }
   }
 
-  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-
   return {
     id: curso.id,
     titulo: curso.titulo,
@@ -257,8 +267,8 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     imagenPortada: curso.imagen_portada,
     categoriaIds: (categoriasCurso ?? []).map((fila) => fila.id_categoria as string),
     nivel: curso.nivel,
-    instructorId: curso.id_instructor,
-    instructor: instructor?.nombre ?? "Sin instructor",
+    instructorIds: instructores.map((profesor) => profesor.id),
+    instructores,
     mostrado: curso.mostrado,
     destacado: curso.destacado,
     ordenVisualizacion: curso.orden_visualizacion,

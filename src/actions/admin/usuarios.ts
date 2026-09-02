@@ -95,7 +95,74 @@ export async function cambiarRolProfesor(
 
   revalidatePath("/admin/usuarios");
   revalidatePath(`/admin/usuarios/${usuarioId}`);
-  revalidatePath("/admin/instructores");
+  revalidatePath("/admin/cursos");
+  return { success: true };
+}
+
+/** Tope generoso; es una línea de texto, no una biografía. */
+const MAXIMO_ESPECIALIDAD = 200;
+
+/**
+ * Guarda la especialidad de un profesor ("Modelado BIM y coordinación de
+ * disciplinas"), el dato que antes vivía en `instructores.especialidad` y desde
+ * la migración `20260903000000_multi_instructores` es una columna de
+ * `perfiles`.
+ *
+ * Es el único campo de la ficha de usuario que se muestra a visitantes SIN
+ * sesión: sale en la tarjeta de "quién dicta el curso" del detalle público, a
+ * través de la vista `curso_instructores_publico`. Por eso se guarda solo
+ * sobre cuentas con rol PROFESOR — escribirlo en un estudiante no lo publicaría
+ * en ningún lado, pero dejaría un dato huérfano que sí se publicaría el día que
+ * a esa cuenta le den el rol.
+ *
+ * Cliente de sesión del admin (requireAdmin), nunca Service Role Key: el
+ * trigger `perfiles_bloquea_autopromocion`
+ * (013_perfiles_bloquea_autopromocion.sql) y la policy
+ * `perfiles_admin_escritura` (005) siguen aplicando, igual que en
+ * `cambiarRolProfesor`.
+ */
+export async function actualizarEspecialidadProfesor(
+  usuarioId: string,
+  especialidad: string,
+): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  const valor = especialidad.trim();
+  if (valor.length > MAXIMO_ESPECIALIDAD) {
+    return { error: `La especialidad no puede superar los ${MAXIMO_ESPECIALIDAD} caracteres.` };
+  }
+
+  const { data: usuario } = await admin.supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("id", usuarioId)
+    .single();
+
+  if (!usuario) return { error: "No encontramos ese usuario." };
+  if (usuario.rol !== "PROFESOR") {
+    return { error: "Solo una cuenta con rol de profesor puede tener especialidad." };
+  }
+
+  const { error } = await admin.supabase
+    .from("perfiles")
+    .update({ especialidad: valor || null })
+    .eq("id", usuarioId);
+
+  if (error) return { error: "No pudimos guardar la especialidad." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó la especialidad de un profesor",
+    entidadAfectada: "perfiles",
+    idEntidadAfectada: usuarioId,
+    detalles: valor || "(sin especialidad)",
+  });
+
+  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  // El nombre y la especialidad del profesor salen en el detalle público de
+  // cada curso que dicta.
+  revalidatePath("/catalogo");
   return { success: true };
 }
 

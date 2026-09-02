@@ -44,6 +44,16 @@ export type NivelCurso = "BASICO" | "INTERMEDIO" | "AVANZADO";
 const idSchema = z.string().uuid("Identificador inválido.");
 const nivelSchema = z.enum(["BASICO", "INTERMEDIO", "AVANZADO"], "Selecciona un nivel válido.");
 
+/**
+ * Al menos uno: un curso sin instructor no se puede mostrar en el catálogo con
+ * sentido. Varios, porque `curso_instructores` es muchos-a-muchos — un curso
+ * puede dictarlo más de un profesor.
+ */
+const idsInstructoresSchema = z
+  .array(idSchema)
+  .min(1, "Selecciona al menos un instructor.")
+  .max(20, "Demasiados instructores para un mismo curso.");
+
 const crearCursoSchema = z.object({
   titulo: z
     .string()
@@ -53,7 +63,7 @@ const crearCursoSchema = z.object({
   descripcion: z.string().trim().max(5000, "La descripción es demasiado larga."),
   categoriaIds: z.array(idSchema).min(1, "Selecciona al menos una categoría."),
   nivel: nivelSchema,
-  idInstructor: z.string().uuid("Selecciona un instructor."),
+  idsInstructores: idsInstructoresSchema,
 });
 
 const actualizarInfoCursoSchema = z.object({
@@ -65,6 +75,7 @@ const actualizarInfoCursoSchema = z.object({
   descripcion: z.string().trim().max(5000, "La descripción es demasiado larga."),
   categoriaIds: z.array(idSchema).min(1, "Selecciona al menos una categoría."),
   nivel: nivelSchema,
+  idsInstructores: idsInstructoresSchema,
 });
 
 const actualizarConfiguracionCursoSchema = z.object({
@@ -107,6 +118,84 @@ function primerError(resultado: { success: false; error: z.ZodError }): string {
 }
 
 /**
+ * Comprueba que cada id corresponda a una cuenta REAL con rol PROFESOR.
+ *
+ * Sin esto, un cliente que llame la Server Action directamente podría colgar de
+ * un curso el id de cualquier perfil —un estudiante, otro administrador— y su
+ * nombre aparecería como profesor en el catálogo público a través de
+ * `curso_instructores_publico`. La FK de la base solo garantiza que el perfil
+ * exista, no qué rol tiene: esa parte se valida acá.
+ *
+ * Devuelve el mensaje de error, o `null` si todos son válidos.
+ */
+async function validarInstructores(
+  supabase: SupabaseClient,
+  idsInstructores: string[],
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("id")
+    .eq("rol", "PROFESOR")
+    .in("id", idsInstructores);
+
+  if (error) return "No pudimos verificar los instructores.";
+
+  const validos = new Set((data ?? []).map((perfil) => perfil.id as string));
+  if (idsInstructores.some((id) => !validos.has(id))) {
+    return "Alguno de los instructores seleccionados ya no tiene rol de profesor.";
+  }
+  return null;
+}
+
+/**
+ * Deja `curso_instructores` con exactamente `idsInstructores` para ese curso.
+ *
+ * Reemplazo del set completo (borrar lo que sobra, insertar lo que falta) en
+ * vez de un diff fino: la puente no guarda nada más que la relación, así que
+ * no hay estado que preservar entre una fila borrada y una reinsertada.
+ *
+ * Primero inserta y después borra, igual que la sincronización de categorías:
+ * si el borrado corriera antes y el insert fallara, el curso quedaría sin
+ * ningún instructor visible en el catálogo. El UNIQUE
+ * (id_curso, id_instructor) hace que reinsertar uno que ya estaba no cree
+ * duplicados — por eso solo se insertan los que faltan.
+ */
+async function sincronizarInstructores(
+  supabase: SupabaseClient,
+  cursoId: string,
+  idsInstructores: string[],
+): Promise<string | null> {
+  const { data: actuales, error: errorLectura } = await supabase
+    .from("curso_instructores")
+    .select("id, id_instructor")
+    .eq("id_curso", cursoId);
+
+  if (errorLectura) return "No pudimos guardar los instructores.";
+
+  const yaAsignados = new Set((actuales ?? []).map((fila) => fila.id_instructor as string));
+  const porAgregar = idsInstructores.filter((id) => !yaAsignados.has(id));
+  // El borrado va por el id de la fila puente, no por `not.in` sobre ids que
+  // vienen del cliente — mismo criterio que la sincronización de categorías.
+  const porQuitar = (actuales ?? [])
+    .filter((fila) => !idsInstructores.includes(fila.id_instructor as string))
+    .map((fila) => fila.id as string);
+
+  if (porAgregar.length > 0) {
+    const { error } = await supabase
+      .from("curso_instructores")
+      .insert(porAgregar.map((id_instructor) => ({ id_curso: cursoId, id_instructor })));
+    if (error) return "No pudimos guardar los instructores.";
+  }
+
+  if (porQuitar.length > 0) {
+    const { error } = await supabase.from("curso_instructores").delete().in("id", porQuitar);
+    if (error) return "No pudimos guardar los instructores.";
+  }
+
+  return null;
+}
+
+/**
  * Crea el curso SIEMPRE como borrador.
  *
  * Antes aceptaba `publicar: boolean` y el formulario tenía un botón
@@ -121,7 +210,7 @@ export async function crearCurso(input: {
   descripcion: string;
   categoriaIds: string[];
   nivel: NivelCurso;
-  idInstructor: string;
+  idsInstructores: string[];
 }): Promise<AdminActionResult & { id?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
@@ -129,14 +218,23 @@ export async function crearCurso(input: {
   // Se deduplica ANTES de validar por si el cliente manda el mismo id
   // repetido: el UNIQUE (id_curso, id_categoria) de la puente rechazaría el
   // insert entero, y min(1) no debe fallar solo porque el duplicado infló
-  // el conteo.
+  // el conteo. Mismo motivo para los instructores, que tienen su propio
+  // UNIQUE (id_curso, id_instructor).
   const parseo = crearCursoSchema.safeParse({
     ...input,
     categoriaIds: [...new Set(input.categoriaIds)],
+    idsInstructores: [...new Set(input.idsInstructores)],
   });
   if (!parseo.success) return { error: primerError(parseo) };
-  const { titulo, descripcion, categoriaIds, nivel, idInstructor } = parseo.data;
+  const { titulo, descripcion, categoriaIds, nivel, idsInstructores } = parseo.data;
 
+  const errorInstructores = await validarInstructores(admin.supabase, idsInstructores);
+  if (errorInstructores) return { error: errorInstructores };
+
+  // `id_instructor` (la FK vieja hacia `instructores`) NO se escribe: es una
+  // columna vestigial desde la migración 20260903000000_multi_instructores,
+  // que la dejó nullable justamente para esto. Ver el comentario del modelo
+  // Instructores en prisma/schema.prisma.
   const { data, error } = await admin.supabase
     .from("cursos")
     .insert({
@@ -144,7 +242,6 @@ export async function crearCurso(input: {
       descripcion,
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
       nivel,
-      id_instructor: idInstructor,
       mostrado: false,
       id_admin_creador: admin.adminId,
     })
@@ -162,6 +259,17 @@ export async function crearCurso(input: {
     return { error: "No pudimos asignar las categorías." };
   }
 
+  const { error: errorInstructor } = await admin.supabase
+    .from("curso_instructores")
+    .insert(idsInstructores.map((id_instructor) => ({ id_curso: data.id, id_instructor })));
+
+  if (errorInstructor) {
+    // Las dos puentes son ON DELETE CASCADE, así que borrar el curso se lleva
+    // también las filas de categorías ya insertadas: no queda basura.
+    await admin.supabase.from("cursos").delete().eq("id", data.id);
+    return { error: "No pudimos asignar los instructores." };
+  }
+
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: "Creó un curso en borrador",
@@ -176,7 +284,13 @@ export async function crearCurso(input: {
 
 export async function actualizarInfoCurso(
   cursoId: string,
-  input: { titulo: string; descripcion: string; categoriaIds: string[]; nivel: NivelCurso },
+  input: {
+    titulo: string;
+    descripcion: string;
+    categoriaIds: string[];
+    nivel: NivelCurso;
+    idsInstructores: string[];
+  },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
@@ -184,9 +298,13 @@ export async function actualizarInfoCurso(
   const parseo = actualizarInfoCursoSchema.safeParse({
     ...input,
     categoriaIds: [...new Set(input.categoriaIds)],
+    idsInstructores: [...new Set(input.idsInstructores)],
   });
   if (!parseo.success) return { error: primerError(parseo) };
-  const { titulo, descripcion, categoriaIds, nivel } = parseo.data;
+  const { titulo, descripcion, categoriaIds, nivel, idsInstructores } = parseo.data;
+
+  const errorInstructores = await validarInstructores(admin.supabase, idsInstructores);
+  if (errorInstructores) return { error: errorInstructores };
 
   const { error } = await admin.supabase
     .from("cursos")
@@ -230,10 +348,18 @@ export async function actualizarInfoCurso(
     if (errorDelete) return { error: "No pudimos guardar las categorías." };
   }
 
+  const errorSincronizacion = await sincronizarInstructores(
+    admin.supabase,
+    cursoId,
+    idsInstructores,
+  );
+  if (errorSincronizacion) return { error: errorSincronizacion };
+
   revalidatePath(`/admin/cursos/${cursoId}`);
   revalidatePath("/admin/cursos");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
+  revalidatePath(`/cursos/${cursoId}`);
   return { success: true };
 }
 

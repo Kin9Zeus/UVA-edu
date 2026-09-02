@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
+import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 
 export type LeccionPublica = {
   id: string;
@@ -29,8 +30,12 @@ export type CursoPublico = {
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   /** Todas las categorías del curso — `curso_categorias` es muchos-a-muchos. */
   categorias: CategoriaDelCurso[];
-  instructorNombre: string;
-  instructorEspecialidad: string | null;
+  /**
+   * Uno o más: un curso puede dictarlo más de un profesor
+   * (`curso_instructores` es muchos-a-muchos). Puede venir vacío si el curso
+   * todavía no tiene profesor asignado.
+   */
+  instructores: InstructorPublico[];
   imagenPortada: string;
   fechaEdicion: string;
   modulos: ModuloPublico[];
@@ -80,9 +85,8 @@ export async function getCursoPublico(
     .from("cursos")
     .select(
       `id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
-      instructor:instructores(nombre, especialidad),
       curso_categorias(categoria:categorias(id, slug, nombre)),
-      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))`,
+      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion, estado_procesamiento))`,
     )
     .eq("id", cursoId)
     .single();
@@ -119,7 +123,13 @@ export async function getCursoPublico(
           id: leccion.id,
           titulo: leccion.titulo,
           orden: leccion.orden,
-          duracion: leccion.duracion,
+          // Sin video LISTO, cualquier valor guardado en `duracion` no
+          // corresponde a un video real (ej. datos de siembra con
+          // estado_procesamiento SUBIENDO/PROCESANDO/ERROR que nunca subió
+          // nada a Mux) — mostrarlo confunde al estudiante y al admin, que
+          // ven minutos que no salen de ningún video. Ver también
+          // lib/leccion.ts y lib/admin/cursoDetalle.ts, misma regla.
+          duracion: leccion.estado_procesamiento === "LISTO" ? leccion.duracion : null,
         })),
     }));
 
@@ -131,12 +141,17 @@ export async function getCursoPublico(
     0,
   );
 
-  // Recursos y acceso son independientes entre sí — se piden en paralelo en
-  // vez de uno tras otro. `obtenerAccesoAlCurso` (src/lib/accesoCurso.ts) es
-  // la única función que decide "cortesía O suscripción vigente" — misma
-  // regla que usan el reproductor y el reproductor de lección, no una copia
-  // paralela.
-  const [{ count: totalRecursos }, acceso] = await Promise.all([
+  // Recursos, acceso e instructores son independientes entre sí — se piden en
+  // paralelo en vez de uno tras otro. `obtenerAccesoAlCurso`
+  // (src/lib/accesoCurso.ts) es la única función que decide "cortesía O
+  // suscripción vigente" — misma regla que usan el reproductor y el
+  // reproductor de lección, no una copia paralela.
+  //
+  // Los instructores van en consulta aparte y no embebidos en el `.select()`
+  // de arriba: sus datos viven en `perfiles`, que RLS no le abre a un
+  // visitante sin sesión. Se leen por la vista `curso_instructores_publico`,
+  // que recorta la proyección a nombre y especialidad — ver lib/instructores.ts.
+  const [{ count: totalRecursos }, acceso, instructores] = await Promise.all([
     leccionIds.length > 0
       ? supabase
           .from("recursos_descargables")
@@ -144,6 +159,7 @@ export async function getCursoPublico(
           .in("id_leccion", leccionIds)
       : Promise.resolve({ count: 0 }),
     obtenerAccesoAlCurso(supabase, usuarioId, cursoId),
+    getInstructoresDeCurso(supabase, cursoId),
   ]);
 
   const tieneAcceso = acceso.tieneAcceso;
@@ -192,16 +208,13 @@ export async function getCursoPublico(
     ? leccionesPlanas.findIndex((leccion) => leccion.id === siguiente.id) + 1
     : null;
 
-  const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-
   return {
     id: curso.id,
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     nivel: curso.nivel,
     categorias,
-    instructorNombre: instructor?.nombre ?? "Sin instructor",
-    instructorEspecialidad: instructor?.especialidad ?? null,
+    instructores,
     imagenPortada: curso.imagen_portada,
     fechaEdicion: curso.fecha_edicion,
     modulos: modulosPublicos,

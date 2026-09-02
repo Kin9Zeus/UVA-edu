@@ -26,6 +26,13 @@ export type UsuarioDetalle = {
   nombre: string;
   correo: string;
   rol: "ESTUDIANTE" | "ADMINISTRADOR" | "PROFESOR";
+  /**
+   * Solo tiene sentido con rol PROFESOR. Es el dato que antes vivía en
+   * `instructores.especialidad` y que sale, junto al nombre, en la tarjeta de
+   * "quién dicta el curso" del detalle público — el único campo de esta ficha
+   * visible para alguien sin sesión (vía `curso_instructores_publico`).
+   */
+  especialidad: string | null;
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   suscripcionEstado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA" | null;
@@ -55,7 +62,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("id, nombre, correo, rol, estado, fecha_registro:creado_en")
+    .select("id, nombre, correo, rol, especialidad, estado, fecha_registro:creado_en")
     .eq("id", usuarioId)
     .single();
 
@@ -221,6 +228,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     nombre: perfil.nombre,
     correo: perfil.correo,
     rol: perfil.rol,
+    especialidad: perfil.especialidad ?? null,
     estado: perfil.estado,
     fechaRegistro: perfil.fecha_registro,
     suscripcionEstado: suscripcion?.estado ?? null,

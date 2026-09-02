@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { getInstructoresDeCursos, type InstructorPublico } from "@/lib/instructores";
 
 export type CursoListado = {
   id: string;
   titulo: string;
   /** Todas las categorías del curso: `curso_categorias` es muchos-a-muchos. */
   categorias: { id: string; nombre: string }[];
-  instructor: string;
+  /** Todos los profesores del curso: `curso_instructores` es muchos-a-muchos. */
+  instructores: InstructorPublico[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   estudiantes: number;
   mostrado: boolean;
@@ -18,7 +20,7 @@ export async function getCursosListado(): Promise<CursoListado[]> {
   const [{ data: cursos }, { data: inscripciones }, { data: categoriasDeCursos }] = await Promise.all([
     supabase
       .from("cursos")
-      .select("id, titulo, nivel, mostrado, fecha_creacion:creado_en, instructor:instructores(nombre)")
+      .select("id, titulo, nivel, mostrado, fecha_creacion:creado_en")
       .order("creado_en", { ascending: false }),
     supabase.from("inscripciones").select("id_curso"),
     supabase.from("curso_categorias").select("id_curso, id_categoria, categoria:categorias(nombre)"),
@@ -44,19 +46,25 @@ export async function getCursosListado(): Promise<CursoListado[]> {
     lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
   }
 
-  return (cursos ?? []).map((curso) => {
-    const instructor = Array.isArray(curso.instructor) ? curso.instructor[0] : curso.instructor;
-    return {
-      id: curso.id,
-      titulo: curso.titulo,
-      categorias: categoriasPorCurso.get(curso.id) ?? [],
-      instructor: instructor?.nombre ?? "Sin instructor",
-      nivel: curso.nivel,
-      estudiantes: conteo.get(curso.id) ?? 0,
-      mostrado: curso.mostrado,
-      fechaCreacion: curso.fecha_creacion,
-    };
-  });
+  // Una sola consulta para los profesores de todo el listado. La vista
+  // `curso_instructores_publico` también deja pasar los cursos en borrador
+  // cuando quien consulta es administrador (private.es_administrador() está en
+  // su WHERE), así que sirve igual acá que en el catálogo público.
+  const instructoresPorCurso = await getInstructoresDeCursos(
+    supabase,
+    (cursos ?? []).map((curso) => curso.id as string),
+  );
+
+  return (cursos ?? []).map((curso) => ({
+    id: curso.id,
+    titulo: curso.titulo,
+    categorias: categoriasPorCurso.get(curso.id) ?? [],
+    instructores: instructoresPorCurso.get(curso.id) ?? [],
+    nivel: curso.nivel,
+    estudiantes: conteo.get(curso.id) ?? 0,
+    mostrado: curso.mostrado,
+    fechaCreacion: curso.fecha_creacion,
+  }));
 }
 
 export async function getCategoriasActivas() {
@@ -65,6 +73,8 @@ export async function getCategoriasActivas() {
   return data ?? [];
 }
 
-// getInstructoresSugeridos() desapareció al pasar los instructores a tabla
-// propia: ya no hay que deducirlos de los cursos existentes. El formulario
-// usa getInstructoresParaSelector() de @/lib/admin/instructores.
+// El selector de instructores del formulario de curso usa
+// getPerfilesProfesor() de @/lib/admin/profesores: son cuentas reales con rol
+// PROFESOR, no fichas de una tabla de catálogo. `lib/admin/instructores.ts`
+// (y con él getInstructoresParaSelector) se eliminó en la migración
+// `20260903000000_multi_instructores`.
