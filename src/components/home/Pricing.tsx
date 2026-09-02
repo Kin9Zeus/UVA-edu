@@ -84,7 +84,7 @@ export async function Pricing({
           </p>
         </div>
       ) : (
-        <div className="mx-auto grid max-w-[1000px] grid-cols-[repeat(auto-fit,minmax(280px,1fr))] items-stretch gap-7">
+        <div className="mx-auto grid max-w-[1000px] grid-cols-[repeat(auto-fit,minmax(280px,1fr))] items-stretch gap-4 sm:gap-7">
           {planes.map((plan) => {
             const featured = plan.id === destacado?.id;
             const badge = referencia ? ahorroEnMeses(plan, referencia) : null;
@@ -103,21 +103,21 @@ export async function Pricing({
             return (
               <div
                 key={plan.id}
-                className={`flex flex-col rounded-uva-lg border px-7 py-9 ${
+                className={`flex flex-col rounded-uva-lg border px-5 py-5 sm:px-7 sm:py-9 ${
                   featured
                     ? "border-uva-accent bg-[color-mix(in_srgb,var(--uva-accent)_8%,var(--uva-surface))]"
                     : "border-uva-divider bg-uva-surface"
                 }`}
               >
                 {badge && (
-                  <span className="mb-3.5 self-start rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-uva-accent-2-text uppercase">
+                  <span className="mb-2 self-start rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-uva-accent-2-text uppercase sm:mb-3.5">
                     {badge}
                   </span>
                 )}
                 <h3 className="mb-1 font-heading text-xl font-bold text-uva-text">
                   {plan.nombre}
                 </h3>
-                <p className="mb-5 text-[12.5px] text-uva-text-faint">
+                <p className="mb-3 text-[12.5px] text-uva-text-faint sm:mb-5">
                   {meta(plan)}
                 </p>
                 <p className="mb-0.5 font-mono text-[28px] tabular-nums text-uva-text">
@@ -127,10 +127,10 @@ export async function Pricing({
                   </span>
                 </p>
                 {cuotas && (
-                  <p className="mb-7 text-xs text-uva-text-faint">{cuotas}</p>
+                  <p className="mb-3 text-xs text-uva-text-faint sm:mb-7">{cuotas}</p>
                 )}
 
-                <ul className="mb-9 flex flex-1 flex-col gap-2.5">
+                <ul className="mb-4 flex flex-1 flex-col gap-1.5 sm:mb-9 sm:gap-2.5">
                   {sharedBenefits.map((benefit, index) => {
                     const included = index < incluidos;
                     return (

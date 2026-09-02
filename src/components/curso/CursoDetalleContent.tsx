@@ -48,8 +48,15 @@ export function CursoDetalleContent({
 
   return (
     <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-8 px-[clamp(20px,4vw,56px)] py-[clamp(32px,5vw,56px)] lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex flex-col gap-8">
-        <div>
+      {/* `contents` en mobile aplana estos wrappers dentro del grid de arriba,
+          para que `order-N` en los bloques internos pueda intercalar portada
+          y CTA (columna derecha en desktop) justo después de la presentación,
+          en vez de que salgan hasta el final del temario. Los valores de
+          order ya quedan en orden ascendente por wrapper (1/5 acá, 2/3/4 en
+          el de al lado) para que en desktop —donde el wrapper vuelve a ser
+          flex-col real— el order no tenga ningún efecto y el DOM mande. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-8">
+        <div className="order-1 lg:order-none">
           {/* Vuelve al catálogo general (con su buscador y filtro de
               categoría), no a la subpágina de esta categoría: de ahí es de
               donde normalmente se llega a un curso, y es donde se puede
@@ -109,7 +116,7 @@ export function CursoDetalleContent({
           </div>
         </div>
 
-        <div>
+        <div className="order-5 lg:order-none">
           <h2 className="mb-3.5 text-base text-uva-text">Temario</h2>
           <div className="flex flex-col gap-4">
             {curso.modulos.map((modulo) => (
@@ -141,7 +148,7 @@ export function CursoDetalleContent({
                         ) : (
                           <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
                         )}
-                        <span className="flex-1 truncate">{leccion.titulo}</span>
+                        <span className="min-w-0 flex-1 truncate">{leccion.titulo}</span>
                         {esIntroduccion && (
                           <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-accent-text uppercase">
                             Introducción
@@ -164,7 +171,7 @@ export function CursoDetalleContent({
                           <CircleCheck className="size-4 shrink-0 text-uva-accent-2/60" strokeWidth={1.8} />
                         ) : null}
                         <Lock className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
-                        <span className="flex-1 truncate">{leccion.titulo}</span>
+                        <span className="min-w-0 flex-1 truncate">{leccion.titulo}</span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
                           {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
                         </span>
@@ -178,79 +185,83 @@ export function CursoDetalleContent({
         </div>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {esPortadaReal(curso.imagenPortada) ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-          <img
-            src={curso.imagenPortada}
-            alt=""
-            className="aspect-video w-full rounded-uva-md object-cover"
-          />
-        ) : (
-          <div className="aspect-video overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
-        )}
+      <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <div className="order-2 lg:order-none">
+          {esPortadaReal(curso.imagenPortada) ? (
+            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
+            <img
+              src={curso.imagenPortada}
+              alt=""
+              className="aspect-video w-full rounded-uva-md object-cover"
+            />
+          ) : (
+            <div className="aspect-video overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
+          )}
+        </div>
 
-        {curso.tieneAcceso ? (
-          leccionDestinoId ? (
+        <div className="order-3 lg:order-none">
+          {curso.tieneAcceso ? (
+            leccionDestinoId ? (
+              <Button
+                render={<Link href={`/cursos/${curso.id}/${leccionDestinoId}`} />}
+                nativeButton={false}
+                variant="uva-primary"
+                size="uva"
+                className="min-h-12 flex-col gap-0.5 py-2"
+              >
+                <span>
+                  {siguiendoProgreso ? "Seguir viendo" : cursoCompletado ? "Repasar curso" : "Comenzar curso"}
+                </span>
+                {siguiendoProgreso && curso.leccionContinuarTitulo && (
+                  <span className="truncate text-[11.5px] font-normal opacity-80">
+                    Clase {curso.leccionContinuarNumero} · {curso.leccionContinuarTitulo}
+                  </span>
+                )}
+              </Button>
+            ) : (
+              <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
+                El curso todavía no tiene clases
+              </Button>
+            )
+          ) : curso.accesoVencido ? (
+            // Ya estuvo dentro: se le habla de retomar, no de empezar. El
+            // progreso sigue guardado, así que al renovar vuelve a su clase.
             <Button
-              render={<Link href={`/cursos/${curso.id}/${leccionDestinoId}`} />}
+              render={<Link href="/dashboard/suscripcion" />}
               nativeButton={false}
               variant="uva-primary"
               size="uva"
               className="min-h-12 flex-col gap-0.5 py-2"
             >
-              <span>
-                {siguiendoProgreso ? "Seguir viendo" : cursoCompletado ? "Repasar curso" : "Comenzar curso"}
+              <span>Renueva tu acceso</span>
+              <span className="truncate text-[11.5px] font-normal opacity-80">
+                {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
               </span>
-              {siguiendoProgreso && curso.leccionContinuarTitulo && (
-                <span className="truncate text-[11.5px] font-normal opacity-80">
-                  Clase {curso.leccionContinuarNumero} · {curso.leccionContinuarTitulo}
-                </span>
-              )}
+            </Button>
+          ) : sesionActiva ? (
+            <Button
+              render={<Link href="/dashboard/suscripcion" />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-12"
+            >
+              Canjea tu código
             </Button>
           ) : (
-            <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
-              El curso todavía no tiene clases
+            <Button
+              render={<Link href={`/login?redirect=/cursos/${curso.id}`} />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-12"
+            >
+              Regístrate para canjear tu código
             </Button>
-          )
-        ) : curso.accesoVencido ? (
-          // Ya estuvo dentro: se le habla de retomar, no de empezar. El
-          // progreso sigue guardado, así que al renovar vuelve a su clase.
-          <Button
-            render={<Link href="/dashboard/suscripcion" />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="min-h-12 flex-col gap-0.5 py-2"
-          >
-            <span>Renueva tu acceso</span>
-            <span className="truncate text-[11.5px] font-normal opacity-80">
-              {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
-            </span>
-          </Button>
-        ) : sesionActiva ? (
-          <Button
-            render={<Link href="/dashboard/suscripcion" />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="min-h-12"
-          >
-            Canjea tu código
-          </Button>
-        ) : (
-          <Button
-            render={<Link href={`/login?redirect=/cursos/${curso.id}`} />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="min-h-12"
-          >
-            Regístrate para canjear tu código
-          </Button>
-        )}
+          )}
+        </div>
 
-        <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+        <div className="order-4 lg:order-none flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
           <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
               {curso.instructorNombre

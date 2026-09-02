@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
+import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
+import { NavMovilDialog } from "@/components/home/NavMovilDialog";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -31,12 +33,12 @@ export function Header() {
         U.V.A<span className="text-uva-accent">.</span>
       </Link>
 
-      <div className="hidden max-w-[400px] flex-1 min-[861px]:block">
+      <div className="hidden max-w-[400px] flex-1 sm:block">
         <BuscadorHeaderInput placeholder="¿Qué quieres aprender?" destino="/catalogo" />
       </div>
 
       <nav
-        className="flex shrink-0 items-center gap-7"
+        className="flex shrink-0 items-center gap-3 min-[861px]:gap-7"
         aria-label="Navegación principal"
       >
         <div className="hidden items-center gap-5 min-[861px]:flex">
@@ -55,10 +57,12 @@ export function Header() {
         </div>
         <Link
           href="/login"
-          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-3.5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
         >
           Acceder
         </Link>
+        <BuscadorMovilDialog destino="/catalogo" className="sm:hidden" />
+        <NavMovilDialog className="min-[861px]:hidden" />
       </nav>
     </header>
   );
