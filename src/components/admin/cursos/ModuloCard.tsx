@@ -44,6 +44,7 @@ const ESTADO_TONO = {
 export function ModuloCard({
   modulo,
   posicion,
+  totalLeccionesCurso,
   cursoId,
   draggable,
   leccionActivaId,
@@ -58,6 +59,10 @@ export function ModuloCard({
   modulo: ModuloDetalle;
   /** Posición 1..N en la lista; el mockup la pinta junto al nombre del módulo. */
   posicion: number;
+  /** Total de lecciones del curso completo (todos los módulos), no solo
+   * este — determina si la primera lección cuenta como vista previa
+   * pública (ver la etiqueta "Introducción" más abajo). */
+  totalLeccionesCurso: number;
   cursoId: string;
   draggable: boolean;
   leccionActivaId: string | null;
@@ -286,6 +291,15 @@ export function ModuloCard({
             >
               {leccion.titulo}
             </button>
+            {posicion === 1 && index === 0 && totalLeccionesCurso > 1 && (
+              // Vista previa pública del curso (Revcurso: "que la primera
+              // lección sea visible"): esta es la que ve cualquiera sin
+              // acceso, así que el profesor/admin que arma el curso necesita
+              // saber cuál es antes de subir el video.
+              <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.1em] text-uva-accent-text uppercase">
+                Introducción
+              </span>
+            )}
             <span className="shrink-0 font-mono text-[11.5px] text-uva-muted-2">
               {formatDuracion(leccion.duracion)}
             </span>

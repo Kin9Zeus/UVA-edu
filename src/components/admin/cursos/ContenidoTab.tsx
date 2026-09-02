@@ -205,6 +205,7 @@ export function ContenidoTab({
             key={modulo.id}
             modulo={modulo}
             posicion={index + 1}
+            totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
             cursoId={cursoId}
             draggable
             leccionActivaId={leccionActivaId}

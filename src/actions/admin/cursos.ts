@@ -92,13 +92,6 @@ const tituloLeccionSchema = z
 
 const actualizarLeccionSchema = z.object({
   titulo: tituloLeccionSchema,
-  duracion: z
-    .number()
-    .finite("La duración debe ser un número.")
-    .int("La duración debe ser un número entero de segundos.")
-    .min(0, "La duración no puede ser negativa.")
-    .max(86400, "La duración es demasiado alta.")
-    .nullable(),
   resumen: z.string().trim().max(2000, "El resumen es demasiado largo."),
 });
 
@@ -624,7 +617,7 @@ export async function crearLeccion(
 export async function actualizarLeccion(
   leccionId: string,
   cursoId: string,
-  input: { titulo: string; duracion: number | null; resumen: string },
+  input: { titulo: string; resumen: string },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
@@ -632,11 +625,15 @@ export async function actualizarLeccion(
 
   const parseo = actualizarLeccionSchema.safeParse(input);
   if (!parseo.success) return { error: primerError(parseo) };
-  const { titulo, duracion, resumen } = parseo.data;
+  const { titulo, resumen } = parseo.data;
 
+  // `duracion` no se escribe desde acá a propósito: es el webhook de Mux
+  // (video.asset.ready, src/app/api/webhooks/mux/route.ts) el único que la
+  // sincroniza con la duración real del video subido. Un input editable a
+  // mano permitía que quedara desincronizada del video después de procesar.
   const { error } = await admin.supabase
     .from("lecciones")
-    .update({ titulo, duracion, resumen: resumen || null })
+    .update({ titulo, resumen: resumen || null })
     .eq("id", leccionId);
 
   if (error) return { error: "No pudimos guardar la lección." };

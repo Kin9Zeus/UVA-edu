@@ -7,11 +7,29 @@ import { ChevronLeft } from "lucide-react";
 import { formatDuracion } from "@/lib/admin/format";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
+import type { ComentarioConRespuestas } from "@/lib/comentarios";
 import { VideoFrame } from "./VideoFrame";
-import { TabsHeader, RecursosTab, ResumenTab, ComentariosTab, type TabPlayer } from "./PlayerTabs";
+import {
+  TabsHeader,
+  RecursosTab,
+  ResumenTab,
+  ComentariosTab,
+  contarComentarios,
+  type TabPlayer,
+} from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
 
-export function PlayerContent({ data }: { data: LeccionPlayer }) {
+export function PlayerContent({
+  data,
+  comentariosIniciales,
+  usuarioActualId,
+  esAdmin,
+}: {
+  data: LeccionPlayer;
+  comentariosIniciales: ComentarioConRespuestas[];
+  usuarioActualId: string | null;
+  esAdmin: boolean;
+}) {
   const router = useRouter();
   const [tab, setTab] = useState<TabPlayer>("recursos");
   const [temarioOpen, setTemarioOpen] = useState(false);
@@ -116,11 +134,21 @@ export function PlayerContent({ data }: { data: LeccionPlayer }) {
               tab={tab}
               onTab={setTab}
               totalRecursos={data.recursos.length}
-              totalComentarios={0}
+              totalComentarios={contarComentarios(comentariosIniciales)}
             />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
             {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
-            {tab === "comentarios" && <ComentariosTab comentarios={[]} />}
+            {tab === "comentarios" && (
+              <ComentariosTab
+                cursoId={data.cursoId}
+                leccionId={data.leccionId}
+                comentarios={comentariosIniciales}
+                puedeComentar={data.puedeComentar}
+                usuarioActualId={usuarioActualId}
+                esAdmin={esAdmin}
+                onCambio={() => router.refresh()}
+              />
+            )}
           </div>
         </div>
 

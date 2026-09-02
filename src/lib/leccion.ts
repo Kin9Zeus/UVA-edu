@@ -41,12 +41,15 @@ export type LeccionPlayer = {
   siguienteId: string | null;
   /** Segundo en el que quedó el estudiante (tabla progreso). */
   segundoActual: number;
+  /** Con sesión iniciada: puede comentar (RLS exige `auth.uid()`, un
+   * visitante anónimo en la vista previa nunca puede, aunque sí lea). */
+  puedeComentar: boolean;
 };
 
 export async function getLeccionPlayer(
   cursoId: string,
   leccionId: string,
-  usuarioId: string,
+  usuarioId: string | null,
 ): Promise<LeccionPlayer | null> {
   const supabase = await createClient();
 
@@ -63,11 +66,6 @@ export async function getLeccionPlayer(
     .single();
 
   if (!curso) return null;
-  // Cortesía al curso, o suscripción VIGENTE por estado y fecha — misma
-  // regla que `getCursoPublico` (lib/curso.ts) y el firmado del token de
-  // Mux (lib/video/reproduccion.ts): el catálogo muestra el temario a
-  // cualquiera, con candado, pero el reproductor exige acceso vigente.
-  if (!(await obtenerAccesoAlCurso(supabase, usuarioId, cursoId)).tieneAcceso) return null;
 
   const { data: categoriaCurso } = await supabase
     .from("curso_categorias")
@@ -110,18 +108,34 @@ export async function getLeccionPlayer(
   if (indice === -1) return null;
   const actual = plano[indice];
 
-  const { data: progresoRows } = await supabase
-    .from("progreso")
-    .select("id_leccion, completado, segundo_actual")
-    .eq("id_usuario", usuarioId)
-    .in(
-      "id_leccion",
-      plano.map((leccion) => leccion.id),
-    );
+  // La primera lección del curso es vista previa pública (Revcurso: "que la
+  // primera lección sea visible", ver lib/video/reproduccion.ts para la
+  // misma regla aplicada al token de Mux). Cualquier otra exige cortesía o
+  // suscripción vigente — misma regla que `getCursoPublico` (lib/curso.ts).
+  // `plano.length > 1`: un curso de una sola lección no tiene introducción
+  // separada del contenido pagado — esa única lección ES el curso completo.
+  const esIntroduccion = indice === 0 && plano.length > 1;
+  if (!esIntroduccion) {
+    if (!(await obtenerAccesoAlCurso(supabase, usuarioId, cursoId)).tieneAcceso) return null;
+  }
 
-  const progresoPorLeccion = new Map(
-    (progresoRows ?? []).map((fila) => [fila.id_leccion as string, fila]),
-  );
+  const progresoPorLeccion = new Map<
+    string,
+    { id_leccion: string; completado: boolean; segundo_actual: number }
+  >();
+  if (usuarioId) {
+    const { data: progresoRows } = await supabase
+      .from("progreso")
+      .select("id_leccion, completado, segundo_actual")
+      .eq("id_usuario", usuarioId)
+      .in(
+        "id_leccion",
+        plano.map((leccion) => leccion.id),
+      );
+    for (const fila of progresoRows ?? []) {
+      progresoPorLeccion.set(fila.id_leccion as string, fila);
+    }
+  }
 
   const lecciones: LeccionPlayerItem[] = plano.map((leccion, i) => ({
     id: leccion.id,
@@ -170,5 +184,6 @@ export async function getLeccionPlayer(
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
     siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
     segundoActual: progresoPorLeccion.get(actual.id)?.segundo_actual ?? 0,
+    puedeComentar: !!usuarioId,
   };
 }

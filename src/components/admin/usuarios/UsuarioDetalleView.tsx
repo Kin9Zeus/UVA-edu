@@ -19,7 +19,7 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { GrantMembershipDialog } from "@/components/admin/usuarios/GrantMembershipDialog";
 import { GrantCourtesyDialog } from "@/components/admin/usuarios/GrantCourtesyDialog";
 import { RevokeAccessDialog } from "@/components/admin/usuarios/RevokeAccessDialog";
-import { quitarCortesia, revocarMembresia } from "@/actions/admin/usuarios";
+import { quitarCortesia, revocarMembresia, cambiarRolProfesor } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
 import {
@@ -53,7 +53,22 @@ export function UsuarioDetalleView({
   const [cortesiaOpen, setCortesiaOpen] = useState(false);
   const [revocandoMembresia, setRevocandoMembresia] = useState(false);
   const [quitando, setQuitando] = useState<{ inscripcionId: string; titulo: string } | null>(null);
+  const [rol, setRol] = useState(usuario.rol);
+  const [pendienteRol, setPendienteRol] = useState(false);
   const showToast = useAdminToast();
+
+  async function handleToggleProfesor() {
+    const esProfesor = rol !== "PROFESOR";
+    setPendienteRol(true);
+    const resultado = await cambiarRolProfesor(usuario.id, esProfesor);
+    setPendienteRol(false);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    setRol(esProfesor ? "PROFESOR" : "ESTUDIANTE");
+    showToast(esProfesor ? "Ahora es profesor." : "Ya no es profesor.");
+  }
 
   // Solo se puede revocar una membresía manual todavía activa (f4accesos.md
   // no diseña cancelación para las de Stripe/Wompi, y una ya CANCELADA/
@@ -98,7 +113,8 @@ export function UsuarioDetalleView({
             {usuario.nombre}
           </h1>
           <p className="text-[12.5px] text-uva-muted">
-            {usuario.correo} · {usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante"}
+            {usuario.correo} ·{" "}
+            {rol === "ADMINISTRADOR" ? "Administrador" : rol === "PROFESOR" ? "Profesor" : "Estudiante"}
           </p>
         </div>
         <div className="ml-2.5 flex items-center gap-[5px]">
@@ -176,6 +192,11 @@ export function UsuarioDetalleView({
         {puedeRevocarMembresia && (
           <Button type="button" variant="destructive" onClick={() => setRevocandoMembresia(true)}>
             Revocar membresía
+          </Button>
+        )}
+        {rol !== "ADMINISTRADOR" && (
+          <Button type="button" disabled={pendienteRol} onClick={handleToggleProfesor}>
+            {rol === "PROFESOR" ? "Quitar rol de profesor" : "Hacer profesor"}
           </Button>
         )}
       </div>

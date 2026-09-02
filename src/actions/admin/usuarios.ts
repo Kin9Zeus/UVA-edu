@@ -52,6 +52,54 @@ export async function suspenderActivarUsuario(
 }
 
 /**
+ * Da o quita el rol PROFESOR de una cuenta (Revcurso: comentarios con check
+ * de verificado). Nunca toca una cuenta ADMINISTRADOR — cambiar ESE rol no
+ * tiene UI todavía, y esta función no es el lugar para agregarla por
+ * accidente. El trigger `perfiles_bloquea_autopromocion`
+ * (013_perfiles_bloquea_autopromocion.sql) ya exige que quien ejecute el
+ * UPDATE sea administrador — `admin.supabase` es el cliente de sesión del
+ * propio admin logueado (requireAdmin), nunca Service Role Key, así que ese
+ * trigger sigue aplicando exactamente igual que en suspenderActivarUsuario.
+ */
+export async function cambiarRolProfesor(
+  usuarioId: string,
+  esProfesor: boolean,
+): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  const { data: usuario } = await admin.supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("id", usuarioId)
+    .single();
+
+  if (!usuario) return { error: "No encontramos ese usuario." };
+  if (usuario.rol === "ADMINISTRADOR") {
+    return { error: "No se puede cambiar el rol de una cuenta administradora desde aquí." };
+  }
+
+  const { error } = await admin.supabase
+    .from("perfiles")
+    .update({ rol: esProfesor ? "PROFESOR" : "ESTUDIANTE" })
+    .eq("id", usuarioId);
+
+  if (error) return { error: "No pudimos actualizar el rol del usuario." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: esProfesor ? "Dio rol de profesor" : "Quitó el rol de profesor",
+    entidadAfectada: "perfiles",
+    idEntidadAfectada: usuarioId,
+  });
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidatePath("/admin/instructores");
+  return { success: true };
+}
+
+/**
  * Otorga acceso manual a una membresía (docs/functional-spec.md Flujo 11):
  * crea una Suscripción con acceso_manual = true y otorgado_por = admin. No
  * pasa por Stripe/Wompi — es el equivalente a "otorgar membresía" del

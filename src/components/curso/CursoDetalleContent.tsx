@@ -32,6 +32,11 @@ export function CursoDetalleContent({
 }) {
   const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
     ?.id;
+  // Vista previa pública (Revcurso: "que la primera lección sea visible"):
+  // solo aplica si el curso tiene más de una lección — de una sola clase,
+  // esa clase ES el curso completo, no una introducción aparte. Misma
+  // guarda que lib/leccion.ts y lib/video/reproduccion.ts.
+  const leccionVistaPreviaId = curso.totalClases > 1 ? primeraLeccionId : undefined;
   // Si ya hay progreso guardado en alguna clase del curso, el botón retoma
   // ahí en vez de mandar de nuevo a la primera clase (ver Revcurso: "seguir
   // viendo" solo debe aparecer si el estudiante ya empezó).
@@ -70,9 +75,17 @@ export function CursoDetalleContent({
               {NIVEL_LABEL[curso.nivel]}
             </span>
           </div>
-          <h1 className="mb-3 text-[clamp(28px,3.4vw,40px)] leading-tight text-uva-text">
-            {curso.titulo}
-          </h1>
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight text-uva-text">
+              {curso.titulo}
+            </h1>
+            {cursoCompletado && (
+              <span className="flex items-center gap-1.5 rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 font-mono text-[10.5px] font-semibold tracking-[.1em] text-uva-accent-text uppercase">
+                <CircleCheck className="size-3.5" strokeWidth={2} />
+                Completado
+              </span>
+            )}
+          </div>
           <p className="max-w-[620px] text-[15px] text-uva-text-muted">{curso.descripcion}</p>
 
           <div className="mt-6 flex flex-wrap gap-6 rounded-uva-md bg-white/5 px-5 py-4">
@@ -109,8 +122,14 @@ export function CursoDetalleContent({
                   </span>
                 </div>
                 <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-white/5">
-                  {modulo.lecciones.map((leccion, index) =>
-                    curso.tieneAcceso ? (
+                  {modulo.lecciones.map((leccion, index) => {
+                    // La primera clase del curso es la vista previa pública
+                    // (Revcurso: "que la primera lección sea visible"):
+                    // queda clicable incluso sin acceso, sin candado.
+                    const esIntroduccion = leccion.id === leccionVistaPreviaId;
+                    const clicable = curso.tieneAcceso || esIntroduccion;
+
+                    return clicable ? (
                       <Link
                         key={leccion.id}
                         href={`/cursos/${curso.id}/${leccion.id}`}
@@ -123,6 +142,11 @@ export function CursoDetalleContent({
                           <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
                         )}
                         <span className="flex-1 truncate">{leccion.titulo}</span>
+                        {esIntroduccion && (
+                          <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-accent-text uppercase">
+                            Introducción
+                          </span>
+                        )}
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
                           {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
                         </span>
@@ -145,8 +169,8 @@ export function CursoDetalleContent({
                           {leccion.duracion ? formatHoras(leccion.duracion) : "—"}
                         </span>
                       </div>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             ))}

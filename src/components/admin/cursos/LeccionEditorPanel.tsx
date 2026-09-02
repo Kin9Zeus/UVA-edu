@@ -12,7 +12,7 @@ import {
   subirRecursoLeccion,
 } from "@/actions/admin/cursos";
 import { useAdminToast } from "@/components/admin/Toast";
-import { formatTamanoArchivo } from "@/lib/admin/format";
+import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
@@ -54,14 +54,16 @@ export function LeccionEditorPanel({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const [titulo, setTitulo] = useState(leccion.titulo);
-  const [duracion, setDuracion] = useState(leccion.duracion?.toString() ?? "");
+  // Solo lectura: la sincroniza el webhook de Mux (video.asset.ready), no
+  // este formulario. Se sigue actualizando en vivo cuando VideoUploader
+  // reporta un nuevo `duracion` tras terminar de procesar (ver más abajo).
+  const [duracion, setDuracion] = useState(leccion.duracion);
   const [resumen, setResumen] = useState(leccion.resumen ?? "");
   // Lo último que quedó guardado en el servidor. NO es `leccion` (esa prop
   // es la foto del momento en que este panel se montó): después de guardar
   // hay que comparar contra el guardado más reciente, no contra el original.
   const [guardadoComo, setGuardadoComo] = useState({
     titulo: leccion.titulo,
-    duracion: leccion.duracion?.toString() ?? "",
     resumen: leccion.resumen ?? "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +78,7 @@ export function LeccionEditorPanel({
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
 
-  const sinGuardar =
-    titulo !== guardadoComo.titulo || duracion !== guardadoComo.duracion || resumen !== guardadoComo.resumen;
+  const sinGuardar = titulo !== guardadoComo.titulo || resumen !== guardadoComo.resumen;
 
   useEffect(() => {
     onDirtyChange(sinGuardar);
@@ -100,11 +101,7 @@ export function LeccionEditorPanel({
   async function handleGuardar() {
     setPending(true);
     setError(null);
-    const cambios = {
-      titulo,
-      duracion: duracion ? Number(duracion) : null,
-      resumen,
-    };
+    const cambios = { titulo, resumen };
     const resultado = await actualizarLeccion(leccion.id, cursoId, cambios);
     setPending(false);
 
@@ -113,7 +110,7 @@ export function LeccionEditorPanel({
       return;
     }
     showToast("Lección guardada.");
-    setGuardadoComo({ titulo, duracion, resumen });
+    setGuardadoComo({ titulo, resumen });
     onGuardado(cambios);
   }
 
@@ -223,7 +220,7 @@ export function LeccionEditorPanel({
             idVideoMux={video.idVideoMux}
             onEstadoChange={(cambios) => {
               setVideo(cambios);
-              if (cambios.duracion != null) setDuracion(cambios.duracion.toString());
+              setDuracion(cambios.duracion);
               onGuardado(cambios);
             }}
           />
@@ -231,13 +228,17 @@ export function LeccionEditorPanel({
       </div>
 
       <div>
-        <Label htmlFor="leccion-duracion">Duración (segundos)</Label>
-        <Input
+        <Label htmlFor="leccion-duracion">Duración</Label>
+        <div
           id="leccion-duracion"
-          type="number"
-          value={duracion}
-          onChange={(event) => setDuracion(event.target.value)}
-        />
+          className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text-muted"
+        >
+          {duracion != null
+            ? formatHoras(duracion)
+            : video.estadoProcesamiento === "LISTO"
+              ? "—"
+              : "Se calcula al terminar de procesar el video"}
+        </div>
       </div>
 
       <div>

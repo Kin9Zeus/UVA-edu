@@ -25,7 +25,7 @@ export type UsuarioDetalle = {
   id: string;
   nombre: string;
   correo: string;
-  rol: "ESTUDIANTE" | "ADMINISTRADOR";
+  rol: "ESTUDIANTE" | "ADMINISTRADOR" | "PROFESOR";
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   suscripcionEstado: "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA" | null;

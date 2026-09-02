@@ -10,7 +10,7 @@ export type UsuarioListado = {
   id: string;
   nombre: string;
   correo: string;
-  rol: "ESTUDIANTE" | "ADMINISTRADOR";
+  rol: "ESTUDIANTE" | "ADMINISTRADOR" | "PROFESOR";
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   cursosInscritos: number;

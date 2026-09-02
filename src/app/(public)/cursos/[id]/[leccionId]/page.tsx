@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
+import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlayerContent } from "@/components/player/PlayerContent";
 
@@ -16,7 +17,7 @@ export async function generateMetadata({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const data = user ? await getLeccionPlayer(id, leccionId, user.id) : null;
+  const data = await getLeccionPlayer(id, leccionId, user?.id ?? null);
   return { title: data ? `U.V.A. — ${data.leccionTitulo}` : "U.V.A. — Clase" };
 }
 
@@ -33,13 +34,18 @@ export default async function LeccionPlayerPage({
   const perfilActual = await getPerfilActual();
   const { user } = perfilActual;
 
-  if (!user) {
-    redirect(`/login?redirect=/cursos/${id}/${leccionId}`);
-  }
-
-  const data = await getLeccionPlayer(id, leccionId, user.id);
+  // Sin sesión: `getLeccionPlayer` igual construye el resultado si esta es
+  // la lección introductoria del curso (vista previa pública, Revcurso "que
+  // la primera lección sea visible"). Para cualquier otra lección devuelve
+  // null, y el bloque de abajo manda a login en vez de a la ficha del
+  // curso — un visitante anónimo no tiene ficha de "candado" que mostrarle
+  // sin haber iniciado sesión primero.
+  const data = await getLeccionPlayer(id, leccionId, user?.id ?? null);
 
   if (!data) {
+    if (!user) {
+      redirect(`/login?redirect=/cursos/${id}/${leccionId}`);
+    }
     // Sin acceso vigente (o con la lección ya borrada). Si el curso todavía
     // se puede ver, se devuelve a su ficha —temario con candado y CTA de
     // renovación— en vez de a un 404: quien llega aquí suele ser alguien
@@ -52,11 +58,18 @@ export default async function LeccionPlayerPage({
     notFound();
   }
 
+  const comentarios = await getComentariosDeLeccion(leccionId, user?.id ?? null);
+
   return (
     <>
       <SiteHeader {...perfilActual} />
       <main>
-        <PlayerContent data={data} />
+        <PlayerContent
+          data={data}
+          comentariosIniciales={comentarios}
+          usuarioActualId={user?.id ?? null}
+          esAdmin={perfilActual.perfil?.rol === "ADMINISTRADOR"}
+        />
       </main>
     </>
   );

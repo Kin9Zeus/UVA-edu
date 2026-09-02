@@ -112,6 +112,7 @@ export function TemarioDrawer({
                         } ${esActual ? "text-uva-text opacity-60" : ""}`}
                       >
                         {formatDuracion(leccion.duracion)}
+                        {leccion.numero === 1 && total > 1 ? " · Introducción" : ""}
                         {esActual ? " · en curso" : leccion.completado ? " · clase completada" : ""}
                       </div>
                     </div>

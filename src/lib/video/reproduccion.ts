@@ -47,8 +47,6 @@ export async function resolverTokenReproduccion(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Debes iniciar sesión para ver este video." };
-
   const { data: leccion } = await supabase
     .from("lecciones")
     .select("id_video_mux, estado_procesamiento, modulo:modulos(id_curso)")
@@ -63,6 +61,16 @@ export async function resolverTokenReproduccion(
   const cursoId = modulo?.id_curso;
   if (!cursoId) return { error: "El video todavía no está disponible." };
 
+  // Vista previa pública (Revcurso: "primera lección visible"): la clase
+  // introductoria del curso —la de menor `orden` en el módulo de menor
+  // `orden`— se reproduce sin sesión ni acceso vigente. Cualquier otra
+  // lección sigue exigiendo ambos, exactamente como antes.
+  if (await esLeccionIntroductoria(supabase, leccionId, cursoId)) {
+    return firmarPlaybackToken(leccion.id_video_mux, leccionId);
+  }
+
+  if (!user) return { error: "Debes iniciar sesión para ver este video." };
+
   const [{ data: perfil }, acceso] = await Promise.all([
     supabase.from("perfiles").select("rol").eq("id", user.id).single(),
     obtenerAccesoAlCurso(supabase, user.id, cursoId),
@@ -73,12 +81,19 @@ export async function resolverTokenReproduccion(
     return { error: "No tienes acceso vigente a este curso." };
   }
 
+  return firmarPlaybackToken(leccion.id_video_mux, leccionId);
+}
+
+async function firmarPlaybackToken(
+  playbackId: string,
+  leccionId: string,
+): Promise<TokenReproduccionResultado> {
   try {
-    const token = await mux.jwt.signPlaybackId(leccion.id_video_mux, {
+    const token = await mux.jwt.signPlaybackId(playbackId, {
       type: "video",
       expiration: DURACION_TOKEN,
     });
-    return { playbackId: leccion.id_video_mux, token };
+    return { playbackId, token };
   } catch (error) {
     logError("video:reproduccion", "no se pudo firmar el playback token", error, {
       area: "webhook",
@@ -86,4 +101,38 @@ export async function resolverTokenReproduccion(
     });
     return { error: "No pudimos preparar la reproducción." };
   }
+}
+
+/**
+ * La lección introductoria es la de menor `orden` dentro del módulo de
+ * menor `orden` del curso — misma noción posicional que `primeraLeccionId`
+ * en CursoDetalleContent.tsx, no un flag guardado por lección.
+ *
+ * Exige AL MENOS DOS lecciones en el curso: un curso de una sola clase no
+ * tiene "introducción" separada del contenido pagado — esa única lección
+ * ES el curso completo, y tratarla como vista previa pública abriría el
+ * candado por completo (lo detectó test:rls: con esta guarda ausente, un
+ * curso de una sola lección quedaba reproducible por cualquiera, sin
+ * sesión ni acceso).
+ */
+async function esLeccionIntroductoria(
+  supabase: SupabaseClient,
+  leccionId: string,
+  cursoId: string,
+): Promise<boolean> {
+  const { data: modulos } = await supabase
+    .from("modulos")
+    .select("id, orden, lecciones(id, orden)")
+    .eq("id_curso", cursoId)
+    .order("orden");
+
+  const plano = (modulos ?? [])
+    .slice()
+    .sort((a, b) => a.orden - b.orden)
+    .flatMap((modulo) =>
+      (modulo.lecciones ?? []).slice().sort((a, b) => a.orden - b.orden),
+    );
+
+  if (plano.length < 2) return false;
+  return plano[0]?.id === leccionId;
 }

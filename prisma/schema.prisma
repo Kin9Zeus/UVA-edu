@@ -19,6 +19,12 @@ datasource db {
 enum RolPerfil {
   ESTUDIANTE
   ADMINISTRADOR
+  /// Cuenta real con login, distinta de `Instructores` (que es solo
+  /// catálogo, sin cuenta — ver el comentario en ese modelo). Un perfil
+  /// PROFESOR puede vincularse a una fila de `Instructores`
+  /// (`Instructores.id_perfil_profesor`) para que sus comentarios en el
+  /// reproductor muestren el check de verificado.
+  PROFESOR
 }
 
 enum EstadoPerfil {
@@ -114,6 +120,9 @@ model Perfiles {
   inscripciones_otorgadas     Inscripciones[]          @relation("InscripcionesOtorgadasPorAdmin")
   inscripciones_revocadas     Inscripciones[]          @relation("InscripcionesRevocadasPorAdmin")
   acciones_bitacora           BitacoraAdministrativa[]
+  instructor_vinculado        Instructores?            @relation("InstructorEsPerfil")
+  comentarios                 Comentarios[]
+  comentario_likes            ComentarioLikes[]
 
   @@map("perfiles")
 }
@@ -392,21 +401,29 @@ model CursoCategorias {
   @@map("curso_categorias")
 }
 
-/// Instructor del catálogo. NO es una cuenta: no existe en auth.users ni
-/// inicia sesión — es información que el administrador gestiona desde el
-/// panel para identificar quién dicta cada curso. `nombre` es único porque
-/// el formulario de curso permite dar de alta uno nuevo sin salir, y sin
-/// esa restricción se duplicarían.
+/// Instructor del catálogo: nombre y especialidad que el admin gestiona para
+/// identificar quién dicta cada curso. Por defecto NO es una cuenta —no
+/// existe en auth.users ni inicia sesión— salvo que `id_perfil_profesor` la
+/// vincule a un `Perfiles` con rol PROFESOR (para que pueda comentar en el
+/// reproductor con el check de verificado). `nombre` es único porque el
+/// formulario de curso permite dar de alta uno nuevo sin salir, y sin esa
+/// restricción se duplicarían.
 model Instructores {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre           String   @unique
-  especialidad     String?
-  id_admin_creador String?  @db.Uuid
-  creado_en        DateTime @default(now()) @db.Timestamptz
-  actualizado_en   DateTime @updatedAt @db.Timestamptz
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre             String   @unique
+  especialidad       String?
+  id_admin_creador   String?  @db.Uuid
+  /// Nullable: la mayoría de instructores son solo catálogo, sin cuenta (ver
+  /// el comentario de esta tabla más arriba). Cuando SÍ hay una cuenta con
+  /// rol PROFESOR detrás de este instructor, este campo la vincula — es lo
+  /// que permite mostrar el check de verificado en sus comentarios.
+  id_perfil_profesor String?  @unique @db.Uuid
+  creado_en          DateTime @default(now()) @db.Timestamptz
+  actualizado_en     DateTime @updatedAt @db.Timestamptz
 
-  admin_creador Perfiles? @relation("InstructoresCreadosPorAdmin", fields: [id_admin_creador], references: [id])
-  cursos        Cursos[]
+  admin_creador   Perfiles? @relation("InstructoresCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  perfil_profesor Perfiles? @relation("InstructorEsPerfil", fields: [id_perfil_profesor], references: [id])
+  cursos          Cursos[]
 
   @@map("instructores")
 }
@@ -484,6 +501,7 @@ model Lecciones {
   progreso            Progreso[]
   recursos            RecursosDescargables[]
   assetsMuxPendientes MuxAssetsPendientesEliminacion[]
+  comentarios         Comentarios[]
 
   @@index([id_modulo, orden])
   @@map("lecciones")
@@ -535,12 +553,12 @@ model Progreso {
 }
 
 model Certificados {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_usuario          String   @db.Uuid
-  id_curso            String   @db.Uuid
-  fecha_emision       DateTime @default(now()) @db.Timestamptz
-  actualizado_en      DateTime @updatedAt @db.Timestamptz
-  codigo_verificacion String   @unique
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario          String    @db.Uuid
+  id_curso            String    @db.Uuid
+  fecha_emision       DateTime  @default(now()) @db.Timestamptz
+  actualizado_en      DateTime  @updatedAt @db.Timestamptz
+  codigo_verificacion String    @unique
   archivo_pdf         String?
   /// Snapshot congelado al momento de la emisión (Deteccion.md, requisitos
   /// de calidad senior): un certificado ya expedido no debe cambiar si el
@@ -548,8 +566,8 @@ model Certificados {
   /// después. Los escribe el trigger de emisión (supabase/sql/047), nunca
   /// la aplicación — verificar_certificado() (015) y la generación del PDF
   /// (descargarCertificadoPdf) leen estas columnas, no perfiles/cursos.
-  nombre_estudiante String
-  nombre_curso      String
+  nombre_estudiante   String
+  nombre_curso        String
   /// NULL = correo de "certificado listo" pendiente de enviar; timestamp =
   /// ya enviado. Lo actualiza scripts/certificados-enviar-notificaciones.ts
   /// (outbox), nunca un Server Action ni el trigger de emisión — este
@@ -557,7 +575,7 @@ model Certificados {
   /// de hacer una llamada de red desde Postgres sin depender de
   /// extensiones adicionales (mismo criterio que
   /// mux_assets_pendientes_eliminacion / mux-limpiar-assets.ts).
-  notificado_en DateTime? @db.Timestamptz
+  notificado_en       DateTime? @db.Timestamptz
 
   usuario Perfiles @relation(fields: [id_usuario], references: [id])
   curso   Cursos   @relation(fields: [id_curso], references: [id])
@@ -612,8 +630,8 @@ model CodigosInvitacion {
   /// siempre.
   id_lote           String?  @db.Uuid
 
-  admin_creador Perfiles?                @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
-  lote          LotesCodigosInvitacion?  @relation(fields: [id_lote], references: [id])
+  admin_creador Perfiles?               @relation("CodigosInvitacionCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  lote          LotesCodigosInvitacion? @relation(fields: [id_lote], references: [id])
   suscripciones Suscripciones[]
 
   @@index([id_lote])
@@ -738,6 +756,48 @@ model EventosWebhook {
 
   @@unique([proveedor, id_evento_externo])
   @@map("eventos_webhook")
+}
+
+/// Comentario de un estudiante (o profesor) en el hilo de UNA lección — no
+/// de un curso completo (decisión de producto: cada clase tiene su propio
+/// hilo, estilo Udemy). Un solo nivel de respuestas: `id_comentario_padre`
+/// solo puede apuntar a un comentario raíz (se valida en el Server Action,
+/// no aquí — Prisma/Postgres no expresan "el padre de mi padre debe ser
+/// null").
+model Comentarios {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_leccion          String   @db.Uuid
+  id_usuario          String   @db.Uuid
+  id_comentario_padre String?  @db.Uuid
+  contenido           String
+  /// Borrado lógico, nunca DELETE: un comentario raíz puede tener
+  /// respuestas, y borrarlas junto con él las dejaría huérfanas de
+  /// contexto. La UI muestra "[comentario eliminado]" y conserva el hilo.
+  eliminado           Boolean  @default(false)
+  creado_en           DateTime @default(now()) @db.Timestamptz
+  actualizado_en      DateTime @updatedAt @db.Timestamptz
+
+  leccion    Lecciones         @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+  usuario    Perfiles          @relation(fields: [id_usuario], references: [id])
+  padre      Comentarios?      @relation("Respuestas", fields: [id_comentario_padre], references: [id], onDelete: Cascade)
+  respuestas Comentarios[]     @relation("Respuestas")
+  likes      ComentarioLikes[]
+
+  @@index([id_leccion, creado_en])
+  @@index([id_comentario_padre])
+  @@map("comentarios")
+}
+
+model ComentarioLikes {
+  id_comentario String   @db.Uuid
+  id_usuario    String   @db.Uuid
+  creado_en     DateTime @default(now()) @db.Timestamptz
+
+  comentario Comentarios @relation(fields: [id_comentario], references: [id], onDelete: Cascade)
+  usuario    Perfiles    @relation(fields: [id_usuario], references: [id])
+
+  @@id([id_comentario, id_usuario])
+  @@map("comentario_likes")
 }
 
 model RecursosDescargables {

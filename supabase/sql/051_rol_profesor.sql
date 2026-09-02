@@ -1,0 +1,26 @@
+-- ============================================================
+-- Rol PROFESOR (Revcurso: comentarios con check de verificado)
+--
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-050, y
+-- después de correr la migración de Prisma que agrega `PROFESOR` al enum
+-- `RolPerfil` y la columna `instructores.id_perfil_profesor`
+-- (prisma/migrations/*_rol_profesor).
+--
+-- Qué agrega
+-- ----------
+-- PROFESOR es una cuenta real con login (a diferencia de `instructores`,
+-- que sigue siendo solo catálogo sin cuenta salvo que se vincule). No
+-- hereda ningún permiso de ADMINISTRADOR: es un rol nuevo y distinto, no
+-- un alias. `private.es_administrador()` (001/002) sigue comparando
+-- `rol = 'ADMINISTRADOR'` exacto, así que un PROFESOR no pasa ese check —
+-- se deja así a propósito, sin tocar esa función.
+-- ============================================================
+
+-- `instructores_admin_escritura` (006) ya cubre id_perfil_profesor porque
+-- es `for all` sobre toda la fila — sin política nueva que agregar acá.
+-- Este archivo solo documenta la relación; no hay policy propia que crear.
+
+-- Verificación de que ningún CHECK/policy existente asuma un enum de solo
+-- dos valores. `private.es_administrador()` compara con '=', no con NOT IN,
+-- así que agregar un tercer valor al enum no lo afecta — se deja constancia
+-- acá en vez de tocar 001/002.

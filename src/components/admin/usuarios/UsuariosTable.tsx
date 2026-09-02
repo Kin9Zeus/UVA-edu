@@ -39,6 +39,7 @@ import {
 const ROL_LABEL: Record<UsuarioListado["rol"], string> = {
   ESTUDIANTE: "Estudiante",
   ADMINISTRADOR: "Administrador",
+  PROFESOR: "Profesor",
 };
 
 const SUSCRIPCION_LABEL = ETIQUETA_ESTADO_SUSCRIPCION;
