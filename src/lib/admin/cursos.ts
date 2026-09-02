@@ -17,18 +17,41 @@ export type CursoListado = {
 export async function getCursosListado(): Promise<CursoListado[]> {
   const supabase = await createClient();
 
-  const [{ data: cursos }, { data: inscripciones }, { data: categoriasDeCursos }] = await Promise.all([
-    supabase
-      .from("cursos")
-      .select("id, titulo, nivel, mostrado, fecha_creacion:creado_en")
-      .order("creado_en", { ascending: false }),
-    supabase.from("inscripciones").select("id_curso"),
-    supabase.from("curso_categorias").select("id_curso, id_categoria, categoria:categorias(nombre)"),
-  ]);
+  const [{ data: cursos }, { data: inscripciones }, { data: progreso }, { data: categoriasDeCursos }] =
+    await Promise.all([
+      supabase
+        .from("cursos")
+        .select("id, titulo, nivel, mostrado, fecha_creacion:creado_en")
+        .order("creado_en", { ascending: false }),
+      supabase.from("inscripciones").select("id_curso, id_usuario"),
+      // Un estudiante por MEMBRESÍA nunca tiene fila en `inscripciones` (la
+      // suscripción da acceso a todo el catálogo sin materializar una por
+      // curso — ver obtenerAccesoAlCurso, src/lib/accesoCurso.ts): solo
+      // `progreso` deja rastro de que entró. Contar nada más
+      // `inscripciones` —lo que hacía este archivo antes— dejaba a esos
+      // estudiantes fuera de "Estudiantes" en el listado, aunque la pestaña
+      // de un curso puntual (lib/admin/cursoDetalle.ts) ya los contaba bien
+      // desde antes: dos fuentes de verdad para el mismo número.
+      supabase
+        .from("progreso")
+        .select("id_usuario, leccion:lecciones!inner(modulo:modulos!inner(id_curso))"),
+      supabase.from("curso_categorias").select("id_curso, id_categoria, categoria:categorias(nombre)"),
+    ]);
 
-  const conteo = new Map<string, number>();
+  const estudiantesPorCurso = new Map<string, Set<string>>();
   for (const inscripcion of inscripciones ?? []) {
-    conteo.set(inscripcion.id_curso, (conteo.get(inscripcion.id_curso) ?? 0) + 1);
+    const usuarios = estudiantesPorCurso.get(inscripcion.id_curso) ?? new Set<string>();
+    usuarios.add(inscripcion.id_usuario);
+    estudiantesPorCurso.set(inscripcion.id_curso, usuarios);
+  }
+  for (const fila of progreso ?? []) {
+    const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
+    const modulo = leccion ? (Array.isArray(leccion.modulo) ? leccion.modulo[0] : leccion.modulo) : null;
+    const cursoId = modulo?.id_curso as string | undefined;
+    if (!cursoId) continue;
+    const usuarios = estudiantesPorCurso.get(cursoId) ?? new Set<string>();
+    usuarios.add(fila.id_usuario as string);
+    estudiantesPorCurso.set(cursoId, usuarios);
   }
 
   // Se agrupan TODAS las categorías de cada curso, no solo la primera: el
@@ -61,7 +84,7 @@ export async function getCursosListado(): Promise<CursoListado[]> {
     categorias: categoriasPorCurso.get(curso.id) ?? [],
     instructores: instructoresPorCurso.get(curso.id) ?? [],
     nivel: curso.nivel,
-    estudiantes: conteo.get(curso.id) ?? 0,
+    estudiantes: estudiantesPorCurso.get(curso.id)?.size ?? 0,
     mostrado: curso.mostrado,
     fechaCreacion: curso.fecha_creacion,
   }));

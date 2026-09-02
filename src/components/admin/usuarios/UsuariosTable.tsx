@@ -151,6 +151,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
           <SelectContent>
             <SelectItem value="todos">Todos los roles</SelectItem>
             <SelectItem value="ESTUDIANTE">Estudiante</SelectItem>
+            <SelectItem value="PROFESOR">Profesor</SelectItem>
             <SelectItem value="ADMINISTRADOR">Administrador</SelectItem>
           </SelectContent>
         </Select>
