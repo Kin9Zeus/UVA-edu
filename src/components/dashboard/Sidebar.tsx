@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Compass,
-  Users,
   TrendingUp,
   Award,
   User,
@@ -16,12 +15,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { GraciaCard } from "@/components/dashboard/GraciaCard";
 
+// Comunidad se oculta hasta después del MVP (la feature aún no está activa).
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
-  { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
 ];
 
 const navProgreso = [
@@ -85,7 +84,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150 md:flex",
         collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
@@ -146,24 +145,7 @@ export function Sidebar({
 
       {diasGracia !== null && !collapsed && (
         <div className="p-[19px]">
-          <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface-2 p-[18px]">
-            <span className="inline-flex w-fit items-center gap-2 rounded-uva-sm border border-uva-accent-2/40 bg-uva-accent-2-soft px-[11px] py-1.5 font-mono text-[10px] font-semibold tracking-[.16em] text-uva-accent-2-text uppercase">
-              <span className="size-1.5 bg-uva-accent-2" />
-              Período de gracia
-            </span>
-            <p className="text-[13px] text-uva-muted">
-              Quedan {diasGracia} {diasGracia === 1 ? "día" : "días"} de acceso.
-            </p>
-            <Button
-              render={<Link href="/dashboard/planes" />}
-              nativeButton={false}
-              variant="uva-primary"
-              size="sm"
-              className="text-[13.5px]"
-            >
-              Ver planes
-            </Button>
-          </div>
+          <GraciaCard diasGracia={diasGracia} />
         </div>
       )}
     </aside>
