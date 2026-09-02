@@ -235,7 +235,7 @@ export function VideoPlayer({
 
   if (estado.tipo === "cargando") {
     return (
-      <div className="flex aspect-video items-center justify-center rounded-uva-md bg-uva-surface-2 text-sm text-uva-muted-2">
+      <div className="flex aspect-video items-center justify-center bg-uva-surface-2 text-sm text-uva-muted-2">
         Cargando video…
       </div>
     );
@@ -245,7 +245,7 @@ export function VideoPlayer({
     return (
       <div
         role="alert"
-        className="flex aspect-video items-center justify-center rounded-uva-md bg-uva-badge-danger-bg px-4 text-center text-sm text-uva-badge-danger-fg"
+        className="flex aspect-video items-center justify-center bg-uva-badge-danger-bg px-4 text-center text-sm text-uva-badge-danger-fg"
       >
         {estado.mensaje}
       </div>
@@ -259,7 +259,7 @@ export function VideoPlayer({
       tokens={{ playback: estado.token }}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
-      className="aspect-video w-full rounded-uva-md overflow-hidden"
+      className="aspect-video w-full"
       startTime={segundoActual > 0 ? segundoActual : undefined}
       onTimeUpdate={handleTimeUpdate}
       onEnded={handleEnded}

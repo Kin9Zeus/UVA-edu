@@ -54,7 +54,11 @@ export default async function LeccionPlayerPage({
 
   return (
     <>
-      <SiteHeader {...perfilActual} />
+      {/* Mobile: sin header del sitio — el reproductor pone su propia barra
+          sticky (volver/temario/siguiente), ver PlayerContent.tsx. */}
+      <div className="hidden lg:block">
+        <SiteHeader {...perfilActual} />
+      </div>
       <main>
         <PlayerContent data={data} />
       </main>
