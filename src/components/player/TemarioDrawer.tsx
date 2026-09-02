@@ -46,7 +46,7 @@ export function TemarioDrawer({
       onClick={onCerrar}
     >
       <div
-        className="h-full w-[430px] overflow-auto border-l border-uva-divider bg-uva-surface p-[26px]"
+        className="h-full w-full overflow-auto border-l border-uva-divider bg-uva-surface p-[26px] sm:w-[430px]"
         onClick={(evento) => evento.stopPropagation()}
       >
         <div className="mb-1.5 flex items-center gap-2.5">

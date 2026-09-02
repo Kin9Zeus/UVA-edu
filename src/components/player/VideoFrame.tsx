@@ -2,6 +2,7 @@
 
 import { Play } from "lucide-react";
 import { VideoPlayer } from "@/components/features/VideoPlayer";
+import { cn } from "@/lib/utils";
 
 /**
  * El mockup dibuja el frame del video con sus propios controles falsos
@@ -24,6 +25,7 @@ export function VideoFrame({
   titulo,
   segundoActual,
   onTerminado,
+  className,
 }: {
   leccionId: string;
   videoListo: boolean;
@@ -32,10 +34,11 @@ export function VideoFrame({
   segundoActual?: number;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
+  className?: string;
 }) {
   if (videoListo) {
     return (
-      <div className="overflow-hidden rounded-uva-md bg-black">
+      <div className={cn("overflow-hidden rounded-uva-md bg-black", className)}>
         <VideoPlayer
           key={leccionId}
           leccionId={leccionId}
@@ -48,7 +51,7 @@ export function VideoFrame({
   }
 
   return (
-    <div className="relative h-[452px] overflow-hidden rounded-uva-md bg-black">
+    <div className={cn("relative h-[452px] overflow-hidden rounded-uva-md bg-black", className)}>
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div className="grid size-[74px] place-items-center rounded-full bg-uva-accent/90">
           <Play className="size-[26px] fill-uva-bg text-uva-bg" strokeWidth={0} />

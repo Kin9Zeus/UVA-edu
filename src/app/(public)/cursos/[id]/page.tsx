@@ -3,9 +3,13 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
+import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
+import { Sidebar } from "@/components/dashboard/Sidebar";
+import { Header } from "@/components/dashboard/Header";
+import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 
 export async function generateMetadata({
   params,
@@ -56,13 +60,44 @@ export default async function CursoDetallePage({
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
 
+  if (!user) {
+    return (
+      <>
+        <SiteHeader {...perfilActual} />
+        <main>
+          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva={false} />
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  // Con sesión activa se muestra el mismo chrome de navegación que el
+  // dashboard (Sidebar desktop / BottomTabBar mobile): a diferencia del
+  // reproductor (que sí se queda inmersivo, sin chrome), esta es una página
+  // de exploración de curso, igual que /dashboard/catalogo.
+  const { nombre, esAdmin, certificadosCount, diasGracia } = await getDashboardChromeData({
+    user,
+    perfil: perfilActual.perfil,
+  });
+
   return (
-    <>
-      <SiteHeader {...perfilActual} />
-      <main>
-        <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva={!!user} />
-      </main>
-      <Footer />
-    </>
+    <div className="flex min-h-screen">
+      <Sidebar certificadosCount={certificadosCount} diasGracia={diasGracia} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          nombre={nombre}
+          esAdmin={esAdmin}
+          mostrarLogo="solo-mobile"
+          ocultarAccionesEnMobile
+          diasGracia={diasGracia}
+        />
+        <main className="pb-20 md:pb-0">
+          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva />
+        </main>
+        <Footer />
+        <BottomTabBar />
+      </div>
+    </div>
   );
 }

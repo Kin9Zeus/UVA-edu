@@ -26,6 +26,7 @@ export function BuscadorInput({
   onTextoChange,
   mensajeVacio = "Sin resultados",
   className,
+  autoFocus = false,
 }: {
   placeholder?: string;
   valorInicial?: string;
@@ -37,6 +38,9 @@ export function BuscadorInput({
   onTextoChange?: (valor: string) => void;
   mensajeVacio?: string;
   className?: string;
+  /** Para cuando este input recién se monta dentro de un overlay ya abierto
+   * (buscador móvil): no usar en un input que vive siempre en la página. */
+  autoFocus?: boolean;
 }) {
   const [texto, setTexto] = useState(valorInicial);
 
@@ -77,7 +81,8 @@ export function BuscadorInput({
         </span>
         <Autocomplete.Input
           placeholder={placeholder}
-          className="h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-sm text-uva-text caret-uva-accent outline-none placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          autoFocus={autoFocus}
+          className="h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-base text-uva-text caret-uva-accent outline-none placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm"
         />
         {texto && (
           <button

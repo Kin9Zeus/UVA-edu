@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
-import { getSuscripcionActual } from "@/lib/suscripcion";
-import { calcularDiasGracia } from "@/lib/gracia";
+import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
+import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 
 export default async function DashboardLayout({
   children,
@@ -24,29 +23,24 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const supabase = await createClient();
-  const [{ count: certificadosCount }, suscripcion] = await Promise.all([
-    supabase
-      .from("certificados")
-      .select("id", { count: "exact", head: true })
-      .eq("id_usuario", user.id),
-    getSuscripcionActual(user.id),
-  ]);
-
-  const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
-  const esAdmin = perfil?.rol === "ADMINISTRADOR";
-
-  const diasGracia =
-    suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion
-      ? calcularDiasGracia(suscripcion.fechaRenovacion)
-      : null;
+  const { nombre, esAdmin, certificadosCount, diasGracia } = await getDashboardChromeData({
+    user,
+    perfil,
+  });
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar certificadosCount={certificadosCount ?? 0} diasGracia={diasGracia} />
+      <Sidebar certificadosCount={certificadosCount} diasGracia={diasGracia} />
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
-        <Header nombre={nombre} esAdmin={esAdmin} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <Header
+          nombre={nombre}
+          esAdmin={esAdmin}
+          mostrarLogo="solo-mobile"
+          ocultarAccionesEnMobile
+          diasGracia={diasGracia}
+        />
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+        <BottomTabBar />
       </div>
     </div>
   );

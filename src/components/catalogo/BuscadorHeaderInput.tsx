@@ -31,11 +31,16 @@ export function BuscadorHeaderInput({
   placeholder,
   destino,
   className,
+  onNavegar,
+  autoFocus,
 }: {
   placeholder: string;
   /** Ruta del catálogo a la que navegar: "/catalogo" o "/dashboard/catalogo". */
   destino: string;
   className?: string;
+  /** Se dispara justo después de navegar — para cerrar el overlay móvil que lo contiene. */
+  onNavegar?: () => void;
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
   const [opciones, setOpciones] = useState<CursoOpcion[]>([]);
@@ -60,10 +65,12 @@ export function BuscadorHeaderInput({
       placeholder={placeholder}
       opciones={opciones}
       mensajeVacio={cargando ? "Cargando…" : "Sin resultados"}
-      onBuscar={(valor) =>
-        router.push(valor ? `${destino}?q=${encodeURIComponent(valor)}` : destino)
-      }
+      onBuscar={(valor) => {
+        router.push(valor ? `${destino}?q=${encodeURIComponent(valor)}` : destino);
+        onNavegar?.();
+      }}
       className={className}
+      autoFocus={autoFocus}
     />
   );
 }

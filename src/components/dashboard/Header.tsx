@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
+import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,13 +26,23 @@ export function Header({
   nombre,
   esAdmin = false,
   mostrarLogo = false,
+  ocultarAccionesEnMobile = false,
+  diasGracia = null,
 }: {
   nombre: string;
   esAdmin?: boolean;
-  /** Solo se muestra fuera del layout del dashboard (ej. SiteHeader en /catalogo,
-   * /cursos), donde no hay Sidebar con su propio logo. Dentro del dashboard el
-   * layout ya lo pinta a la izquierda; mostrarlo aquí también duplicaría el logo. */
-  mostrarLogo?: boolean;
+  /** `true`: se muestra siempre (ej. SiteHeader en /catalogo, /cursos, donde
+   * no hay Sidebar con su propio logo en ningún ancho). `"solo-mobile"`: solo
+   * se muestra por debajo de `md`, para el layout del dashboard, cuyo Sidebar
+   * (con su propio logo) se oculta en mobile y reaparece desde `md`. */
+  mostrarLogo?: boolean | "solo-mobile";
+  /** El dashboard tiene su propia barra de navegación inferior en mobile
+   * (BottomTabBar) con acceso directo a Catálogo, así que el buscador y el
+   * link "Planes" del header sobran ahí por debajo de `md`. */
+  ocultarAccionesEnMobile?: boolean;
+  /** Si no es null, muestra el ícono de alerta de período de gracia (solo
+   * mobile; en desktop ese aviso vive en la tarjeta fija del Sidebar). */
+  diasGracia?: number | null;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
@@ -39,24 +51,36 @@ export function Header({
       {mostrarLogo && (
         <Link
           href="/dashboard"
-          className="shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline"
+          className={cn(
+            "shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline",
+            mostrarLogo === "solo-mobile" && "md:hidden",
+          )}
         >
           U.V.A<span className="text-uva-accent">.</span>
         </Link>
       )}
 
-      <div className="max-w-[420px] flex-1">
+      <div
+        className={cn(
+          "max-w-[420px] flex-1",
+          ocultarAccionesEnMobile && "hidden md:block",
+        )}
+      >
         <BuscadorHeaderInput placeholder="¿Qué quieres aprender hoy?" destino="/dashboard/catalogo" />
       </div>
 
       <Link
         href="/dashboard/planes"
-        className="ml-auto shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover"
+        className={cn(
+          "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
+          ocultarAccionesEnMobile && "hidden md:inline-block",
+        )}
       >
         Planes
       </Link>
 
-      <div className="flex items-center">
+      <div className="ml-auto flex items-center gap-1">
+        <GraciaAlerta diasGracia={diasGracia} />
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
