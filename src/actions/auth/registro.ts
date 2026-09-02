@@ -74,11 +74,29 @@ export async function registro(
 
   if (error) {
     logError("registro", "supabase.auth.signUp error", error);
-    return {
-      error: error.message.toLowerCase().includes("already registered")
-        ? "Ya existe una cuenta con ese correo."
-        : "No pudimos crear tu cuenta. Intenta de nuevo.",
-    };
+
+    if (error.message.toLowerCase().includes("already registered")) {
+      return { error: "Ya existe una cuenta con ese correo." };
+    }
+
+    // El Send Email Hook (src/app/api/webhooks/supabase-auth/route.ts) es
+    // síncrono y bloqueante por diseño de Supabase: si Resend falla ahí,
+    // signUp() completo devuelve error, aunque la fila en auth.users ya
+    // haya quedado creada (sin confirmar). Mostrar "no pudimos crear tu
+    // cuenta" en ese caso es falso — y si el usuario reintenta, checkEmail
+    // le va a decir "ya existe una cuenta", un callejón sin salida sin
+    // haber recibido nunca el correo. Heurística: los errores del propio
+    // signUp (contraseña débil, correo inválido, etc.) llegan con status
+    // 4xx; un fallo del Hook aterriza como 500 — no hay forma más precisa
+    // de distinguirlos desde acá sin que Supabase exponga un código de
+    // error dedicado para esto. Se trata como needsConfirmation (misma
+    // pantalla que el caso feliz, con el botón de "reenviar verificación",
+    // que sí es best-effort — ver reenviar-verificacion.ts).
+    if ((error.status ?? 0) >= 500) {
+      return { needsConfirmation: true, email };
+    }
+
+    return { error: "No pudimos crear tu cuenta. Intenta de nuevo." };
   }
 
   // Sin `session` significa que el proyecto de Supabase requiere confirmar

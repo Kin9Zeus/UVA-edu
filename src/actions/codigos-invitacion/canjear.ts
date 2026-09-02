@@ -1,8 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enviarCorreoBienvenida } from "@/lib/resend";
+import { logError } from "@/lib/log";
 
 export type CanjearCodigoResult = {
   error?: string;
@@ -98,6 +101,36 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
   }
 
   await admin.rpc("limpiar_intentos_canjear_codigo", { p_usuario_id: user.id });
+
+  // Best-effort (Correos.md: "un fallo de Resend nunca debe romper el
+  // registro del usuario") — el canje ya quedó aplicado arriba, un correo
+  // que no sale no debe deshacerlo ni mostrarse como error al estudiante.
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("nombre, correo")
+    .eq("id", user.id)
+    .single();
+
+  if (perfil) {
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const proto =
+      headersList.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+    const resultadoCorreo = await enviarCorreoBienvenida(
+      perfil.correo,
+      perfil.nombre,
+      `${proto}://${host}/dashboard`,
+    );
+    if (!resultadoCorreo.success) {
+      logError(
+        "canjearCodigoInvitacion",
+        "enviarCorreoBienvenida falló",
+        new Error(resultadoCorreo.error),
+        { area: "email" },
+      );
+    }
+  }
+
   revalidatePath("/dashboard", "layout");
   return { success: true };
 }

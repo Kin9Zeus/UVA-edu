@@ -29,8 +29,8 @@ export function WelcomeEmail({ nombre, urlAcceso }: WelcomeEmailProps) {
           <Section style={content}>
             <Text style={heading}>¡Hola, {nombre}!</Text>
             <Text style={paragraph}>
-              Bienvenido a U.V.A. Tu suscripción ya está activa y tienes
-              acceso completo a los cursos de la plataforma.
+              Ya canjeaste tu código de invitación y tienes acceso completo
+              a los cursos de la plataforma.
             </Text>
 
             {urlAcceso && (
