@@ -1,5 +1,6 @@
 import { Header } from "@/components/home/Header";
 import { Hero } from "@/components/home/Hero";
+import { CursoDestacado } from "@/components/home/CursoDestacado";
 import { ProductBand } from "@/components/home/ProductBand";
 import { Pricing } from "@/components/home/Pricing";
 import { FinalCta } from "@/components/home/FinalCta";
@@ -12,6 +13,7 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
+        <CursoDestacado />
         <ProductBand />
         <FinalCta />
         <Pricing />
