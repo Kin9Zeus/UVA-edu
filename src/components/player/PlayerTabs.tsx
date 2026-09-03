@@ -386,7 +386,14 @@ function ComentarioItem({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-[7px]">
-          <span className="text-[13px] font-bold text-uva-text">{comentario.autor}</span>
+          <span className="text-[13px] font-bold text-uva-text">
+            {comentario.autor}
+            {comentario.bandera && (
+              <span aria-hidden className="ml-1">
+                {comentario.bandera}
+              </span>
+            )}
+          </span>
           {comentario.esInstructor ? (
             <span className="inline-flex items-center gap-1 rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-accent-2-text">
               <BadgeCheck className="size-3" strokeWidth={2.4} />
