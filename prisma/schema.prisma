@@ -458,6 +458,13 @@ model Instructores {
 model Cursos {
   id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   titulo              String
+  /// Identificador legible para la URL pública del curso y sus lecciones
+  /// (/cursos/render-fotorrealista-con-v-ray en vez de /cursos/<uuid>). Lo
+  /// genera la app desde `titulo` con slugificar() (src/lib/slug.ts), mismo
+  /// patrón que `Categorias.slug`; único porque dos cursos no pueden
+  /// compartir URL. Las rutas públicas siguen aceptando el UUID además del
+  /// slug (mismo criterio que `resolverCategoria`, lib/categoria.ts).
+  slug                String     @unique
   descripcion         String
   imagen_portada      String
   /// ⚠️ COLUMNA VESTIGIAL — ninguna capa de la aplicación la lee ni la
@@ -537,6 +544,13 @@ model Lecciones {
   id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_modulo            String                     @db.Uuid
   titulo               String
+  /// Identificador legible para la URL pública de la lección, único dentro
+  /// del curso (no globalmente — dos cursos distintos sí pueden repetir,
+  /// p. ej., "introduccion"). Sin índice UNIQUE de Postgres porque esta
+  /// tabla no tiene `id_curso` directo (solo vía `modulo.id_curso`); la
+  /// unicidad por curso la garantiza la app al generarlo (mismo patrón que
+  /// `Cursos.slug`, ver src/lib/slug.ts).
+  slug                 String
   orden                Int                        @default(0)
   /// Playback ID de Mux (docs/technical-spec.md §4) — se escribe recién en
   /// video.asset.ready. No se toca al reemplazar el video hasta que el
