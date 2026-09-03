@@ -6,7 +6,7 @@ import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
 import { NavMovilDialog } from "@/components/home/NavMovilDialog";
 
-export function Header() {
+export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function Header() {
       </Link>
 
       <div className="hidden max-w-[400px] flex-1 sm:block">
-        <BuscadorHeaderInput placeholder="¿Qué quieres aprender?" destino="/catalogo" />
+        {!ocultarBuscador && <BuscadorHeaderInput placeholder="¿Qué quieres aprender?" destino="/catalogo" />}
       </div>
 
       <nav
@@ -61,7 +61,7 @@ export function Header() {
         >
           Acceder
         </Link>
-        <BuscadorMovilDialog destino="/catalogo" className="sm:hidden" />
+        {!ocultarBuscador && <BuscadorMovilDialog destino="/catalogo" className="sm:hidden" />}
         <NavMovilDialog className="min-[861px]:hidden" />
       </nav>
     </header>

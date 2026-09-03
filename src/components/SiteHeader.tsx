@@ -10,14 +10,19 @@ import type { getPerfilActual } from "@/lib/perfil";
 export function SiteHeader({
   user,
   perfil,
-}: Awaited<ReturnType<typeof getPerfilActual>>) {
-  if (!user) return <Header />;
+  ocultarBuscador = false,
+}: Awaited<ReturnType<typeof getPerfilActual>> & {
+  /** Ver Header (dashboard) — el reproductor de lección lo pasa en true. */
+  ocultarBuscador?: boolean;
+}) {
+  if (!user) return <Header ocultarBuscador={ocultarBuscador} />;
 
   return (
     <DashboardHeader
       nombre={perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante"}
       esAdmin={perfil?.rol === "ADMINISTRADOR"}
       mostrarLogo
+      ocultarBuscador={ocultarBuscador}
     />
   );
 }

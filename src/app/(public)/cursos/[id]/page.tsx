@@ -95,7 +95,6 @@ export default async function CursoDetallePage({
         <main className="pb-20 md:pb-0">
           <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva />
         </main>
-        <Footer />
         <BottomTabBar />
       </div>
     </div>

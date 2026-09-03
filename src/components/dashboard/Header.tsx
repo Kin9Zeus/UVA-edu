@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
 
+const MOSTRAR_PLANES = false;
+
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   const letras = partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "");
@@ -27,6 +29,7 @@ export function Header({
   esAdmin = false,
   mostrarLogo = false,
   ocultarAccionesEnMobile = false,
+  ocultarBuscador = false,
   diasGracia = null,
 }: {
   nombre: string;
@@ -40,6 +43,11 @@ export function Header({
    * (BottomTabBar) con acceso directo a Catálogo, así que el buscador y el
    * link "Planes" del header sobran ahí por debajo de `md`. */
   ocultarAccionesEnMobile?: boolean;
+  /** El reproductor de lección ya trae su propia barra (volver/temario/
+   * siguiente clase): el buscador genérico ahí es ruido, no navegación
+   * real — a diferencia del resto de páginas con este header, donde sí
+   * hace falta. */
+  ocultarBuscador?: boolean;
   /** Si no es null, muestra el ícono de alerta de período de gracia (solo
    * mobile; en desktop ese aviso vive en la tarjeta fija del Sidebar). */
   diasGracia?: number | null;
@@ -66,18 +74,23 @@ export function Header({
           ocultarAccionesEnMobile && "hidden md:block",
         )}
       >
-        <BuscadorHeaderInput placeholder="¿Qué quieres aprender hoy?" destino="/dashboard/catalogo" />
+        {!ocultarBuscador && (
+          <BuscadorHeaderInput placeholder="¿Qué quieres aprender hoy?" destino="/dashboard/catalogo" />
+        )}
       </div>
 
-      <Link
-        href="/dashboard/planes"
-        className={cn(
-          "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
-          ocultarAccionesEnMobile && "hidden md:inline-block",
-        )}
-      >
-        Planes
-      </Link>
+      {/* Oculto a pedido: "La opcion de Planes ocultala por el momento". */}
+      {MOSTRAR_PLANES && (
+        <Link
+          href="/dashboard/planes"
+          className={cn(
+            "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
+            ocultarAccionesEnMobile && "hidden md:inline-block",
+          )}
+        >
+          Planes
+        </Link>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         <GraciaAlerta diasGracia={diasGracia} />
