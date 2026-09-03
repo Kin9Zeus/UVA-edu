@@ -416,6 +416,54 @@ async function main() {
       clienteSinAcceso.from("inscripciones").insert({ id_usuario: userSinAcceso.user!.id, id_curso: cursoNoPublicado.id, tipo_acceso: "MEMBRESIA" }).select(),
     );
 
+    // Escritura directa de contenido (014_separa_politicas_for_all.sql):
+    // Revision.md — "Intentar crear, editar o borrar contenido desde una
+    // cuenta de estudiante. Debe fallar." — probado aquí contra el curso NO
+    // publicado (el update/delete no depende de que el curso sea visible:
+    // RLS de escritura y de lectura son policies independientes).
+    await esperarBloqueado(
+      "estudiante sin acceso no puede editar un curso",
+      clienteSinAcceso.from("cursos").update({ titulo: "hackeado" }).eq("id", cursoNoPublicado.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede publicar un curso ajeno (mostrado=true)",
+      clienteSinAcceso.from("cursos").update({ mostrado: true }).eq("id", cursoNoPublicado.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede borrar un curso",
+      clienteSinAcceso.from("cursos").delete().eq("id", cursoNoPublicado.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede crear un curso",
+      clienteSinAcceso
+        .from("cursos")
+        .insert({
+          titulo: "curso colado",
+          descripcion: "x",
+          imagen_portada: "x",
+          id_instructor: instructor.id,
+          mostrado: true,
+          id_admin_creador: adminPerfil.id,
+        })
+        .select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede editar un módulo",
+      clienteSinAcceso.from("modulos").update({ titulo: "hackeado" }).eq("id", moduloReproduccion.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede borrar un módulo",
+      clienteSinAcceso.from("modulos").delete().eq("id", moduloReproduccion.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede editar una lección (ej. cambiar el playback id de Mux)",
+      clienteSinAcceso.from("lecciones").update({ id_video_mux: "playback-robado" }).eq("id", idLeccionReproduccion).select(),
+    );
+    await esperarBloqueado(
+      "estudiante sin acceso no puede borrar una lección",
+      clienteSinAcceso.from("lecciones").delete().eq("id", idLeccionReproduccion).select(),
+    );
+
     await esperarPermitido("estudiante sin acceso SÍ puede leer su propio perfil", clienteSinAcceso.from("perfiles").select("*").eq("id", userSinAcceso.user!.id));
     await esperarPermitido(
       "estudiante sin acceso SÍ puede editar su propio nombre",
@@ -449,6 +497,22 @@ async function main() {
     await esperarBloqueado(
       "estudiante con acceso no puede escribir directamente en suscripciones (solo backend/webhooks)",
       clienteConAcceso.from("suscripciones").update({ estado: "CANCELADA" }).eq("id_usuario", userConAcceso.user!.id).select(),
+    );
+
+    // Misma prueba que arriba, pero con una suscripción ACTIVA real: pagar no
+    // otorga ningún permiso de escritura sobre el catálogo — solo lectura del
+    // contenido al que da acceso.
+    await esperarBloqueado(
+      "estudiante con acceso (pagando) no puede editar un curso publicado",
+      clienteConAcceso.from("cursos").update({ titulo: "hackeado" }).eq("id", cursoReproduccion.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante con acceso no puede borrar el curso al que está suscrito",
+      clienteConAcceso.from("cursos").delete().eq("id", cursoReproduccion.id).select(),
+    );
+    await esperarBloqueado(
+      "estudiante con acceso no puede editar la lección que está viendo (ej. cambiar el playback id de Mux)",
+      clienteConAcceso.from("lecciones").update({ id_video_mux: "playback-robado" }).eq("id", idLeccionReproduccion).select(),
     );
 
     await esperarPermitido("estudiante con acceso SÍ puede leer su propia suscripción", clienteConAcceso.from("suscripciones").select("*").eq("id_usuario", userConAcceso.user!.id));
