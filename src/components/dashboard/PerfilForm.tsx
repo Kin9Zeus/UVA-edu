@@ -7,11 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   actualizarPerfil,
   type ActualizarPerfilState,
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
+import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -53,7 +61,9 @@ export function PerfilForm({
     ActualizarPerfilState,
     FormData
   >(actualizarPerfil, null);
-  const [usuario, setUsuario] = useState(correo.split("@")[0] ?? "");
+  const usuario = correo.split("@")[0] ?? "";
+  const { pais: paisInicial, numero: numeroInicial } = partirCelular(celular);
+  const [paisCodigo, setPaisCodigo] = useState(paisInicial.codigo);
 
   return (
     <div
@@ -130,14 +140,57 @@ export function PerfilForm({
               </div>
               <div>
                 <Label htmlFor="perfil-celular">Celular</Label>
-                <Input
-                  id="perfil-celular"
-                  name="celular"
-                  type="tel"
-                  key={celular}
-                  defaultValue={celular ?? ""}
-                  placeholder="+57 300 123 4567"
-                />
+                <div className="flex gap-2">
+                  <Select
+                    name="pais"
+                    value={paisCodigo}
+                    onValueChange={(valor) => setPaisCodigo(valor as string)}
+                  >
+                    <SelectTrigger
+                      aria-label="Indicativo del país"
+                      className="h-10 w-[112px] shrink-0 bg-uva-surface"
+                    >
+                      <SelectValue>
+                        {(codigo: string) => {
+                          const pais = buscarPaisPorCodigo(codigo);
+                          return (
+                            <>
+                              <span
+                                aria-hidden
+                                className="rounded-uva-xs bg-uva-hover px-1 font-mono text-[10px] text-uva-text-faint"
+                              >
+                                {pais.codigo}
+                              </span>
+                              {pais.indicativo}
+                            </>
+                          );
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAISES.map((pais) => (
+                        <SelectItem key={pais.codigo} value={pais.codigo}>
+                          <span
+                            aria-hidden
+                            className="rounded-uva-xs bg-uva-hover px-1 font-mono text-[10px] text-uva-text-faint"
+                          >
+                            {pais.codigo}
+                          </span>
+                          {pais.indicativo}
+                          <span className="text-uva-text-faint">{pais.nombre}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="perfil-celular"
+                    name="celular"
+                    type="tel"
+                    key={celular}
+                    defaultValue={numeroInicial}
+                    placeholder="300 123 4567"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="perfil-rol-gremio">Rol en el gremio</Label>
@@ -145,19 +198,6 @@ export function PerfilForm({
                   id="perfil-rol-gremio"
                   name="rol_gremio"
                   placeholder="Arquitecto, residente, presupuestador…"
-                />
-              </div>
-              <div>
-                <Label htmlFor="perfil-pais">País</Label>
-                <Input id="perfil-pais" name="pais" placeholder="Colombia" />
-              </div>
-              <div>
-                <Label htmlFor="perfil-usuario">Usuario público</Label>
-                <Input
-                  id="perfil-usuario"
-                  name="usuario"
-                  value={usuario}
-                  onChange={(event) => setUsuario(event.target.value)}
                 />
               </div>
             </div>

@@ -100,6 +100,9 @@ model Perfiles {
   nombre         String
   correo         String       @unique
   celular        String?
+  /// Derivado del selector de indicativo telefónico en "Mi perfil"
+  /// (src/lib/paises.ts), no un campo libre.
+  pais           String?
   rol            RolPerfil    @default(ESTUDIANTE)
   /// Área en la que dicta ("Modelado BIM y coordinación de disciplinas"), lo
   /// que antes vivía en `Instructores.especialidad`. Solo tiene sentido para

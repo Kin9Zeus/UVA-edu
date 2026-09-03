@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { buscarPaisPorCodigo } from "@/lib/paises";
 
 export type ActualizarPerfilState = { error: string; success?: never } | { error?: never; success: true } | null;
 
@@ -10,14 +11,18 @@ export async function actualizarPerfil(
   formData: FormData,
 ): Promise<ActualizarPerfilState> {
   const nombre = String(formData.get("nombre") ?? "").trim();
-  const celular = String(formData.get("celular") ?? "").trim();
+  const numeroCelular = String(formData.get("celular") ?? "").trim();
+  // El indicativo viene del selector de país (src/lib/paises.ts), no de
+  // texto libre: siempre resuelve a un país conocido.
+  const pais = buscarPaisPorCodigo(String(formData.get("pais") ?? ""));
+  const celular = numeroCelular ? `${pais.indicativo} ${numeroCelular}` : "";
 
   if (!nombre) {
     return { error: "El nombre no puede estar vacío." };
   }
 
-  if (celular && !/^\+?[0-9\s-]{7,20}$/.test(celular)) {
-    return { error: "El celular no es válido. Usa solo dígitos, espacios, guiones y el indicativo (ej. +57)." };
+  if (numeroCelular && !/^[0-9\s-]{5,15}$/.test(numeroCelular)) {
+    return { error: "El celular no es válido. Usa solo dígitos, espacios y guiones." };
   }
 
   const supabase = await createClient();
@@ -31,7 +36,7 @@ export async function actualizarPerfil(
 
   const { error } = await supabase
     .from("perfiles")
-    .update({ nombre, celular: celular || null })
+    .update({ nombre, celular: celular || null, pais: numeroCelular ? pais.nombre : null })
     .eq("id", user.id);
 
   if (error) {
