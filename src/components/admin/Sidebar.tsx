@@ -10,7 +10,7 @@ import {
   FolderTree,
   Ticket,
   ScrollText,
-  Settings,
+  User,
   PanelLeftClose,
   PanelLeft,
   LogOut,
@@ -31,7 +31,7 @@ const nav = [
   // 20260903000000_multi_instructores.
   { href: "/admin/codigos", label: "Códigos de invitación", icon: Ticket },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
-  { href: "/admin/configuracion", label: "Configuración", icon: Settings },
+  { href: "/admin/configuracion", label: "Perfil", icon: User },
 ];
 
 function NavLink({
@@ -51,11 +51,12 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      /* El mockup no dibuja barra de acento en el item activo: solo cambia el
-         fondo a var(--surface) y el texto a var(--text). */
+      // Mismo criterio que el Sidebar del dashboard de estudiante: barra de
+      // acento magenta a la izquierda en el item activo, no solo cambio de
+      // fondo.
       className={cn(
-        "flex items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm font-medium text-uva-muted hover:bg-uva-hover",
-        active && "bg-uva-surface text-uva-text",
+        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3 py-2.5 text-sm font-medium text-uva-muted transition-colors hover:bg-uva-hover",
+        active && "border-uva-accent bg-uva-surface text-uva-text",
         collapsed && "justify-center px-0",
       )}
     >
