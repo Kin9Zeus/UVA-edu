@@ -42,9 +42,21 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                 <div className="flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm text-uva-text">{curso.titulo}</p>
-                    <p className="font-mono text-[10px] tracking-[.08em] text-uva-text-faint uppercase">
-                      {curso.categoriaNombre}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {curso.categorias.map((categoria) => (
+                        <span
+                          key={categoria.id}
+                          className="rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text"
+                        >
+                          {categoria.nombre}
+                        </span>
+                      ))}
+                      {curso.porcentaje === 100 && (
+                        <span className="rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-valid uppercase">
+                          Completado
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className="shrink-0 font-mono text-xs text-uva-text-faint tabular-nums">
                     {curso.leccionesCompletadas}/{curso.leccionesTotal}

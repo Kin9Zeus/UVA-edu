@@ -51,6 +51,17 @@ create index instructores_nombre_trgm_idx
 -- aplicando por debajo del filtro explícito `mostrado = true` — igual
 -- doble capa que ya usaba getCatalogo() antes de esta migración.
 -- --------------------------------------------------------------
+-- Idempotencia con 059_categorias_multiples_catalogo.sql: ese script
+-- cambia el tipo de la columna `categoria_nombre`/`categorias` del
+-- resultado, algo que `create or replace function` no permite sobre una
+-- función ya existente ("cannot change return type of existing
+-- function"). En un ambiente que ya corrió 059 antes, reejecutar la
+-- cadena completa (npm run db:rls/--check) llegaría acá con la firma
+-- nueva (jsonb) y esta definición vieja (text) fallaría. El drop deja que
+-- esta reconstruya la firma vieja sin problema; 059 la vuelve a
+-- reemplazar más adelante en la misma corrida, así que el resultado final
+-- de una corrida completa no cambia.
+drop function if exists public.buscar_catalogo(text, uuid, int, int);
 create or replace function public.buscar_catalogo(
   p_query text default null,
   p_categoria_id uuid default null,

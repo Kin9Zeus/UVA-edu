@@ -31,7 +31,12 @@ export default async function DashboardCategoriaPage({
   }
 
   const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogo({ query: q, categoriaId: categoria.id, pagina: page ? Number(page) : 1 }),
+    buscarCatalogo({
+      query: q,
+      categoriaId: categoria.id,
+      pagina: page ? Number(page) : 1,
+      incluirProgreso: true,
+    }),
     getCursosParaBuscador(),
   ]);
 

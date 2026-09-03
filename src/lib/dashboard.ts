@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
+import type { CategoriaChip } from "@/lib/categoria";
 
 export type ClaseEnProgreso = {
   leccionId: string;
@@ -6,7 +8,8 @@ export type ClaseEnProgreso = {
   cursoTitulo: string;
   imagenPortada: string;
   moduloTitulo: string;
-  categoriaNombre: string;
+  /** Todas las categorías del curso — mismo criterio que buscarCatalogo() (059). */
+  categorias: CategoriaChip[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   duracionTotalCursoSegundos: number;
   duracion: number | null;
@@ -57,14 +60,19 @@ export async function getInicioData() {
 
   const cursoIds = candidatos.map((curso) => curso.curso_id as string);
   const { data: categoriasPorCurso } = cursoIds.length
-    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(nombre)").in("id_curso", cursoIds)
+    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(id, nombre)").in("id_curso", cursoIds)
     : { data: [] };
 
-  const categoriaPorCurso = new Map<string, string>();
+  // Todas las categorías del curso, no solo la primera — mismo criterio que
+  // buscarCatalogo() (lib/categoria.ts, 059): `curso_categorias` es
+  // muchos-a-muchos.
+  const categoriasPorCursoMap = new Map<string, CategoriaChip[]>();
   for (const fila of categoriasPorCurso ?? []) {
-    if (categoriaPorCurso.has(fila.id_curso as string)) continue;
     const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
-    categoriaPorCurso.set(fila.id_curso as string, categoria?.nombre ?? "General");
+    if (!categoria) continue;
+    const lista = categoriasPorCursoMap.get(fila.id_curso as string) ?? [];
+    lista.push({ id: categoria.id as string, nombre: categoria.nombre as string });
+    categoriasPorCursoMap.set(fila.id_curso as string, lista);
   }
 
   const sigueAprendiendo: ClaseEnProgreso[] = [];
@@ -117,7 +125,7 @@ export async function getInicioData() {
       cursoTitulo: curso.titulo as string,
       imagenPortada: curso.imagen_portada as string,
       moduloTitulo: siguiente.moduloTitulo,
-      categoriaNombre: categoriaPorCurso.get(curso.curso_id as string) ?? "General",
+      categorias: categoriasPorCursoMap.get(curso.curso_id as string) ?? [{ id: "general", nombre: "General" }],
       nivel: curso.nivel as ClaseEnProgreso["nivel"],
       duracionTotalCursoSegundos,
       duracion: siguiente.duracion,
@@ -157,5 +165,11 @@ export async function getInicioData() {
     cursos: conteoPorCategoria.get(categoria.id) ?? 0,
   }));
 
-  return { sigueAprendiendo, categorias };
+  // Solo se consulta cuando hace falta: si ya hay cursos en progreso, "Curso
+  // recomendado para ti" no se muestra (ver InicioContent.tsx), así que no
+  // tiene sentido gastar la consulta.
+  const cursoDestacado: CursoDestacado | null =
+    sigueAprendiendo.length === 0 ? await getCursoDestacado() : null;
+
+  return { sigueAprendiendo, categorias, cursoDestacado };
 }

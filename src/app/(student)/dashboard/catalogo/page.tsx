@@ -14,7 +14,12 @@ export default async function DashboardCatalogoPage({
   const { q, categoria, page } = await searchParams;
   const [categorias, opcionesBusqueda] = await Promise.all([getCategoriasActivas(), getCursosParaBuscador()]);
   const categoriaId = categoria ? categorias.find((fila) => fila.slug === categoria)?.id : undefined;
-  const resultado = await buscarCatalogo({ query: q, categoriaId, pagina: page ? Number(page) : 1 });
+  const resultado = await buscarCatalogo({
+    query: q,
+    categoriaId,
+    pagina: page ? Number(page) : 1,
+    incluirProgreso: true,
+  });
 
   return (
     <CatalogoContent

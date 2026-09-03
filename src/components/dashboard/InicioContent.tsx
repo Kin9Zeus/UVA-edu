@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { formatHoras } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
+import type { CursoDestacado } from "@/lib/cursoDestacado";
 
 const PORTADA_TRAMA = {
   backgroundColor: "#141417",
@@ -22,10 +23,12 @@ export function InicioContent({
   nombre,
   sigueAprendiendo,
   categorias,
+  cursoDestacado,
 }: {
   nombre: string;
   sigueAprendiendo: ClaseEnProgreso[];
   categorias: CategoriaConConteo[];
+  cursoDestacado: CursoDestacado | null;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
@@ -69,10 +72,25 @@ export function InicioContent({
                 <div className="mt-2">
                   <Progress value={clase.progreso} />
                 </div>
-                <span className="mt-2 font-mono text-[10px] tracking-[.08em] text-uva-text-faint uppercase">
-                  {clase.categoriaNombre}
-                </span>
-                <h3 className="mt-0.5 truncate text-sm text-uva-text">{clase.cursoTitulo}</h3>
+                {/* Mismo patrón que CursoCard/ProgresoContent: categorías en
+                    chip (no texto plano) con altura mínima reservada para 2
+                    líneas, y título a altura fija — así "nivel · duración" y
+                    "clases" quedan a la misma posición en las 4 tarjetas de
+                    la fila, sin importar cuántas categorías o qué tan largo
+                    sea cada título. */}
+                <div className="mt-2 flex min-h-[38px] flex-wrap items-start gap-1">
+                  {clase.categorias.map((categoria) => (
+                    <span
+                      key={categoria.id}
+                      className="rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 text-[10px] whitespace-nowrap text-uva-accent-text"
+                    >
+                      {categoria.nombre}
+                    </span>
+                  ))}
+                </div>
+                <h3 className="mt-1 line-clamp-2 min-h-[2.75em] text-sm leading-snug text-uva-text">
+                  {clase.cursoTitulo}
+                </h3>
                 <p className="truncate text-xs text-uva-text-muted">{clase.moduloTitulo}</p>
                 <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] tracking-[.06em] text-uva-text-faint uppercase">
                   <span>{NIVEL_LABEL[clase.nivel]}</span>
@@ -85,6 +103,45 @@ export function InicioContent({
               </Link>
             ))}
           </div>
+        </section>
+      )}
+
+      {sigueAprendiendo.length === 0 && cursoDestacado && (
+        <section>
+          <h2 className="mb-4 text-base text-uva-text">Curso recomendado para ti</h2>
+          <Link
+            href={`/cursos/${cursoDestacado.id}`}
+            className="group flex max-w-[380px] flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
+          >
+            <div
+              className="relative aspect-video overflow-hidden rounded-uva-sm"
+              style={esPortadaReal(cursoDestacado.imagenPortada) ? undefined : PORTADA_TRAMA}
+            >
+              {esPortadaReal(cursoDestacado.imagenPortada) && (
+                // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
+                <img
+                  src={cursoDestacado.imagenPortada}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                />
+              )}
+              <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
+                Destacado
+              </span>
+            </div>
+            <span className="mt-2 font-mono text-[10px] tracking-[.08em] text-uva-text-faint uppercase">
+              {NIVEL_LABEL[cursoDestacado.nivel]}
+            </span>
+            <h3 className="mt-0.5 text-sm text-uva-text">{cursoDestacado.titulo}</h3>
+            <p className="mt-1 line-clamp-2 text-xs text-uva-text-muted">{cursoDestacado.descripcion}</p>
+            <div className="mt-2 flex items-center gap-2 font-mono text-[10px] tracking-[.06em] text-uva-text-faint uppercase">
+              <span>
+                {cursoDestacado.totalClases} {cursoDestacado.totalClases === 1 ? "clase" : "clases"}
+              </span>
+              <span aria-hidden>·</span>
+              <span>{formatHoras(cursoDestacado.duracionTotalSegundos)}</span>
+            </div>
+          </Link>
         </section>
       )}
 
@@ -145,7 +202,7 @@ export function InicioContent({
         </section>
       )}
 
-      {sigueAprendiendo.length === 0 && categorias.length > 0 && (
+      {sigueAprendiendo.length === 0 && !cursoDestacado && categorias.length > 0 && (
         <p className="-mt-6 text-sm text-uva-text-muted">
           Todavía no tienes cursos en progreso. Explora el catálogo abajo y arranca con el primero.
         </p>
