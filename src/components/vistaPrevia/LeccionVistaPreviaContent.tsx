@@ -82,12 +82,7 @@ export function LeccionVistaPreviaContent({
           </div>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-            <TabsHeader
-              tab={tab}
-              onTab={setTab}
-              totalRecursos={data.recursos.length}
-              totalComentarios={0}
-            />
+            <TabsHeader tab={tab} onTab={setTab} totalRecursos={data.recursos.length} />
             {tab === "recursos" && (
               <div className="flex flex-col gap-3">
                 {data.recursos.length === 0 ? (
@@ -120,11 +115,6 @@ export function LeccionVistaPreviaContent({
               </div>
             )}
             {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
-            {tab === "comentarios" && (
-              <div className="rounded-uva-md bg-[#27272A] px-[13px] py-[11px] text-[13px] text-uva-muted">
-                Los comentarios no están disponibles en la vista previa.
-              </div>
-            )}
           </div>
         </div>
 

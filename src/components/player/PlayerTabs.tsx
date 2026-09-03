@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Download, Loader2, BadgeCheck } from "lucide-react";
+import { Download, Loader2, BadgeCheck, User, Heart, Reply } from "lucide-react";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import { crearComentario } from "@/actions/comentarios/crear";
@@ -10,7 +10,7 @@ import { darLikeComentario, quitarLikeComentario } from "@/actions/comentarios/l
 import type { RecursoLeccion } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
 
-export type TabPlayer = "recursos" | "resumen" | "comentarios";
+export type TabPlayer = "recursos" | "resumen";
 
 const TAB_BASE =
   "flex cursor-pointer items-center gap-[7px] rounded-full border-0 px-4 py-[9px] text-[13px] font-semibold";
@@ -19,12 +19,10 @@ export function TabsHeader({
   tab,
   onTab,
   totalRecursos,
-  totalComentarios,
 }: {
   tab: TabPlayer;
   onTab: (tab: TabPlayer) => void;
   totalRecursos: number;
-  totalComentarios: number;
 }) {
   const clase = (activo: boolean) =>
     `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
@@ -38,14 +36,6 @@ export function TabsHeader({
       <button type="button" onClick={() => onTab("resumen")} className={clase(tab === "resumen")}>
         Resumen
         <span className="font-mono text-[11px] opacity-65" />
-      </button>
-      <button
-        type="button"
-        onClick={() => onTab("comentarios")}
-        className={clase(tab === "comentarios")}
-      >
-        Comentarios
-        <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
       </button>
     </div>
   );
@@ -205,11 +195,10 @@ export function ComentariosTab({
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center gap-2.5">
-        <span className="text-[12.5px] text-uva-muted">
-          {total === 0
-            ? "Sé el primero en comentar esta clase"
-            : `${total} ${total === 1 ? "comentario" : "comentarios"} en esta clase`}
-        </span>
+        <h4 className="m-0 flex items-baseline gap-1.5 font-heading text-[17px] font-bold text-uva-text">
+          Comentarios
+          <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
+        </h4>
         {comentarios.length > 1 && (
           <select
             aria-label="Ordenar comentarios"
@@ -225,6 +214,9 @@ export function ComentariosTab({
           </select>
         )}
       </div>
+      {total === 0 && (
+        <p className="m-0 -mt-2 text-[12px] text-uva-muted">Sé el primero en comentar esta clase</p>
+      )}
 
       {puedeComentar ? (
         <NuevoComentarioForm cursoId={cursoId} leccionId={leccionId} onPublicado={onCambio} />
@@ -236,18 +228,19 @@ export function ComentariosTab({
 
       <div className="h-px bg-uva-divider" />
 
-      <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-col divide-y divide-uva-divider">
         {comentariosOrdenados.map((comentario) => (
-          <ComentarioItem
-            key={comentario.id}
-            cursoId={cursoId}
-            leccionId={leccionId}
-            comentario={comentario}
-            puedeComentar={puedeComentar}
-            usuarioActualId={usuarioActualId}
-            esAdmin={esAdmin}
-            onCambio={onCambio}
-          />
+          <div key={comentario.id} className="py-4 first:pt-0 last:pb-0">
+            <ComentarioItem
+              cursoId={cursoId}
+              leccionId={leccionId}
+              comentario={comentario}
+              puedeComentar={puedeComentar}
+              usuarioActualId={usuarioActualId}
+              esAdmin={esAdmin}
+              onCambio={onCambio}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -379,14 +372,12 @@ function ComentarioItem({
 
   return (
     <div className="flex gap-[11px]">
-      <div className="size-8 shrink-0 overflow-hidden rounded-full">
-        <div className="grid size-full place-items-center bg-[#27272A] text-[12px] font-semibold tracking-[0.02em] text-uva-muted">
-          {comentario.iniciales}
-        </div>
+      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#27272A] text-uva-muted">
+        <User className="size-[18px]" strokeWidth={2} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-[7px]">
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-uva-text">
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-uva-text">
             {comentario.autor}
             {comentario.bandera && (
               <span
@@ -405,28 +396,32 @@ function ComentarioItem({
               Alumno
             </span>
           )}
-          <span className="text-[11px] text-uva-text opacity-45">{comentario.tiempo}</span>
+        </div>
+        <div className="mt-0.5 text-[12px] font-semibold text-uva-text opacity-45">
+          {comentario.tiempo}
         </div>
         <p
-          className={`mt-[5px] mb-[7px] text-[13px] ${comentario.eliminado ? "text-uva-text-faint italic" : "text-uva-text opacity-80"}`}
+          className={`mt-2 mb-2.5 text-sm leading-6 ${comentario.eliminado ? "text-uva-text-faint italic" : "text-uva-text opacity-90"}`}
         >
           {comentario.texto}
         </p>
-        <div className="flex flex-wrap gap-3.5 text-[12px] text-uva-text opacity-60">
+        <div className="flex flex-wrap items-center gap-4 text-[12px] font-semibold text-uva-text opacity-60">
           <button
             type="button"
             disabled={!usuarioActualId || pendienteLike}
             onClick={toggleLike}
-            className={`cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed ${meGusta ? "font-semibold text-uva-accent opacity-100" : ""}`}
+            className={`inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 disabled:cursor-not-allowed ${meGusta ? "text-uva-accent opacity-100" : ""}`}
           >
-            ♥ {likes}
+            <Heart className="size-3.5" strokeWidth={2.4} fill={meGusta ? "currentColor" : "none"} />
+            {likes}
           </button>
           {!esRespuesta && puedeComentar && !comentario.eliminado && (
             <button
               type="button"
               onClick={() => setRespondiendo((valor) => !valor)}
-              className="cursor-pointer border-0 bg-transparent p-0"
+              className="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0"
             >
+              <Reply className="size-3.5" strokeWidth={2.4} />
               Responder
             </button>
           )}

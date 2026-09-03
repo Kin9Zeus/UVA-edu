@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
-import { formatDuracion } from "@/lib/admin/format";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
@@ -14,37 +13,9 @@ import {
   RecursosTab,
   ResumenTab,
   ComentariosTab,
-  contarComentarios,
   type TabPlayer,
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
-
-function ProgresoBarra({
-  porcentaje,
-  completadas,
-  totalClases,
-}: {
-  porcentaje: number;
-  completadas: number;
-  totalClases: number;
-}) {
-  return (
-    <div>
-      <div className="mb-[7px] flex items-baseline gap-2">
-        <span className="font-mono text-xl font-bold text-uva-text">{porcentaje}%</span>
-        <span className="text-xs text-uva-muted">
-          completado · {completadas} de {totalClases} clases
-        </span>
-      </div>
-      <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
-        <div
-          className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
-          style={{ width: `${porcentaje}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function PlayerContent({
   data,
@@ -121,6 +92,16 @@ export function PlayerContent({
         >
           <ChevronDown className="size-5" strokeWidth={2.2} />
         </Link>
+        {data.anteriorId ? (
+          <button
+            type="button"
+            onClick={() => irALeccion(data.anteriorId!)}
+            aria-label="Clase anterior"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
+          >
+            <ChevronLeft className="size-5" strokeWidth={2.2} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setTemarioOpen(true)}
@@ -141,8 +122,8 @@ export function PlayerContent({
         ) : null}
       </div>
 
-      {/* Desktop: barra completa con título, contador, Reportar, Temario y
-          Siguiente clase. */}
+      {/* Desktop: barra completa con título, contador, clase anterior,
+          Temario y Siguiente clase. */}
       <div className="mb-[18px] hidden items-center gap-3.5 rounded-uva-md bg-uva-text/[0.06] px-[18px] py-3 lg:flex">
         <Link
           href={`/cursos/${data.cursoId}`}
@@ -155,12 +136,16 @@ export function PlayerContent({
           Clase {data.numero} de {data.totalClases}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center rounded-uva-md border-0 bg-transparent px-2 py-1.5 text-[12.5px] font-semibold text-uva-text opacity-60"
-          >
-            Reportar
-          </button>
+          {data.anteriorId ? (
+            <button
+              type="button"
+              onClick={() => irALeccion(data.anteriorId!)}
+              aria-label="Clase anterior"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+            >
+              <ChevronLeft className="size-4" strokeWidth={2.5} />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setTemarioOpen(true)}
@@ -208,71 +193,51 @@ export function PlayerContent({
           </h1>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-            <TabsHeader
-              tab={tab}
-              onTab={setTab}
-              totalRecursos={data.recursos.length}
-              totalComentarios={contarComentarios(comentariosIniciales)}
-            />
+            <TabsHeader tab={tab} onTab={setTab} totalRecursos={data.recursos.length} />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
             {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
-            {tab === "comentarios" && (
-              <ComentariosTab
-                cursoId={data.cursoId}
-                leccionId={data.leccionId}
-                comentarios={comentariosIniciales}
-                puedeComentar={data.puedeComentar}
-                usuarioActualId={usuarioActualId}
-                esAdmin={esAdmin}
-                onCambio={() => router.refresh()}
-              />
-            )}
+          </div>
+
+          {/* Mobile: el sidebar de la derecha (clases/progreso + comentarios)
+              está oculto (ver más abajo), así que los comentarios necesitan
+              su propio bloque acá para seguir siendo alcanzables. */}
+          <div className="mt-5 flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:hidden">
+            <ComentariosTab
+              cursoId={data.cursoId}
+              leccionId={data.leccionId}
+              comentarios={comentariosIniciales}
+              puedeComentar={data.puedeComentar}
+              usuarioActualId={usuarioActualId}
+              esAdmin={esAdmin}
+              onCambio={() => router.refresh()}
+            />
           </div>
         </div>
 
-        <div className="top-[88px] hidden max-h-[calc(100vh-112px)] flex-col gap-3.5 overflow-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky lg:flex">
-          <div className="flex items-center gap-2">
-            <h4 className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text">
-              Clases y progreso
-            </h4>
-          </div>
-
-          <ProgresoBarra porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
-
-          <div className="flex max-h-[420px] flex-col gap-[5px] overflow-auto">
-            {data.lecciones.map((leccion) => {
-              const estaCompletada = completadoPorLeccion.get(leccion.id) ?? false;
-              const esActual = leccion.id === data.leccionId;
-              const ring = estaCompletada
-                ? "border-uva-accent-2"
-                : esActual
-                  ? "border-uva-accent"
-                  : "border-[#3F3F46]";
-              const fill = estaCompletada ? "bg-uva-accent-2" : "bg-transparent";
-              return (
-                <button
-                  key={leccion.id}
-                  type="button"
-                  onClick={() => irALeccion(leccion.id)}
-                  className={`flex cursor-pointer items-center gap-[11px] rounded-uva-md border-0 px-[11px] py-[9px] text-left ${
-                    esActual ? "bg-uva-accent/14" : "bg-transparent hover:bg-uva-text/5"
-                  }`}
-                >
-                  <div
-                    className={`grid size-5 shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] font-bold text-uva-bg ${ring} ${fill}`}
-                  >
-                    {estaCompletada ? "✓" : ""}
-                  </div>
-                  <div className="min-w-0 flex-1 text-[12.5px] leading-[1.3] text-uva-text">
-                    {leccion.numero} · {leccion.titulo}
-                  </div>
-                  <div className="font-mono text-[11px] text-uva-muted">
-                    {formatDuracion(leccion.duracion)}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        {/* Desktop: sidebar dedicado solo a Comentarios, como en Platzi — el
+            temario/progreso NO vive acá (ver TemarioDrawer, abierto desde el
+            botón "Temario" de la barra de arriba). `sticky` es seguro acá
+            porque es la ÚNICA tarjeta de la columna — nada con lo que
+            solaparse (el bug anterior era por tener dos tarjetas hermanas,
+            una sticky y otra en flujo normal, en el mismo contenedor). Si la
+            lista de comentarios no cabe, scrollea puertas adentro
+            (`overflow-y-auto`); el resto de la tarjeta no se mueve.
+            `h-[...]` fija (no `max-h-`) a propósito: con pocos comentarios
+            la tarjeta mide solo lo que ocupa su contenido, se queda corta y
+            se "despega" del `sticky` antes de llegar al fondo de la página
+            (se ve moverse). Con alto fijo siempre reserva ese espacio
+            completo, así el `sticky` no se suelta hasta el final real de la
+            columna. */}
+        <div className="top-[88px] hidden h-[calc(100vh-112px)] flex-col gap-3.5 overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky lg:flex">
+          <ComentariosTab
+            cursoId={data.cursoId}
+            leccionId={data.leccionId}
+            comentarios={comentariosIniciales}
+            puedeComentar={data.puedeComentar}
+            usuarioActualId={usuarioActualId}
+            esAdmin={esAdmin}
+            onCambio={() => router.refresh()}
+          />
         </div>
       </div>
 
