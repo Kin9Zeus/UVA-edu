@@ -1,13 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { tiempoRelativo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
-import { banderaDePais } from "@/lib/paises";
+import { codigoBanderaDePais } from "@/lib/paises";
 
 export type ComentarioConRespuestas = {
   id: string;
   autor: string;
   iniciales: string;
-  /** null si el autor no tiene país guardado en su perfil. */
+  /** Código ISO en minúscula para la clase `fi-{codigo}` de flag-icons,
+   * null si el autor no tiene país guardado en su perfil. */
   bandera: string | null;
   /** Check de verificado: el autor tiene rol PROFESOR — no un snapshot, se
    * deriva del rol actual (ver comentario en el modelo `Comentarios`). */
@@ -79,7 +80,7 @@ export async function getComentariosDeLeccion(
       idPadre: fila.id_comentario_padre as string | null,
       autor: autor?.nombre ?? "Usuario",
       iniciales: iniciales(autor?.nombre ?? "?"),
-      bandera: banderaDePais((autor?.pais as string | null) ?? null),
+      bandera: codigoBanderaDePais((autor?.pais as string | null) ?? null),
       esInstructor: autor?.rol === "PROFESOR",
       tiempo: tiempoRelativo(fila.creado_en as string),
       texto: fila.eliminado ? "[comentario eliminado]" : (fila.contenido as string),

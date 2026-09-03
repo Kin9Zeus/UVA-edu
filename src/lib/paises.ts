@@ -38,19 +38,17 @@ export function buscarPaisPorCodigo(codigo: string): Pais {
 }
 
 /**
- * Emoji de bandera a partir del `pais` guardado en `perfiles`
- * (texto libre igual al `nombre` de un `Pais` de esta lista, ver
- * actualizarPerfil). Se compone de los dos "Regional Indicator Symbols"
- * del código ISO — no es una imagen ni depende de una librería, así que
- * cualquier país fuera de esta lista corta también renderizaría bien si
- * algún día se agrega. Devuelve null si no hay país guardado.
+ * Código ISO en minúscula para la clase `fi-{codigo}` de `flag-icons`
+ * (SVG, importado una vez en app/layout.tsx), a partir del `pais`
+ * guardado en `perfiles` (texto libre igual al `nombre` de un `Pais` de
+ * esta lista, ver actualizarPerfil). Se usó emoji de bandera antes
+ * (Regional Indicator Symbols) pero Chrome/Windows no trae los glifos y
+ * lo renderiza como texto plano ("CO") en vez de la bandera. Devuelve
+ * null si no hay país guardado.
  */
-export function banderaDePais(nombre: string | null): string | null {
+export function codigoBanderaDePais(nombre: string | null): string | null {
   const pais = PAISES.find((pais) => pais.nombre === nombre);
-  if (!pais) return null;
-  return [...pais.codigo]
-    .map((letra) => String.fromCodePoint(127397 + letra.charCodeAt(0)))
-    .join("");
+  return pais ? pais.codigo.toLowerCase() : null;
 }
 
 /**

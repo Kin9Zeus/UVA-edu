@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+// SVG, no depende de fuente de emoji del SO — sin esto, "🇨🇴" cae en texto
+// plano ("CO") en Chrome/Windows por falta de glifos de bandera.
+import "flag-icons/css/flag-icons.min.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",

@@ -386,12 +386,13 @@ function ComentarioItem({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-[7px]">
-          <span className="text-[13px] font-bold text-uva-text">
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-uva-text">
             {comentario.autor}
             {comentario.bandera && (
-              <span aria-hidden className="ml-1">
-                {comentario.bandera}
-              </span>
+              <span
+                aria-hidden
+                className={`fi fi-${comentario.bandera} rounded-[2px]`}
+              />
             )}
           </span>
           {comentario.esInstructor ? (
