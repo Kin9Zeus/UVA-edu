@@ -93,6 +93,136 @@ export async function generarEnlaceConfirmacion(
   return `${params.origin}/auth/confirm?token_hash=${hashed_token}&type=${verification_type}&next=${encodeURIComponent(params.next)}`;
 }
 
+/**
+ * Curso semilla real usado como fixture de reproducción/progreso/certificado
+ * (e2e/recorrido-critico.spec.ts): "Render Fotorrealista con V-Ray", único
+ * módulo, 3 lecciones ya procesadas en Mux con video real y corto (9s, 31s,
+ * 9s — ver el propio video de cada una). Se reusa este curso en vez de subir
+ * un video nuevo en cada corrida para no tocar la cuenta real de Mux (ni su
+ * costo) solo para pruebas: el ID es determinístico porque viene de datos
+ * semilla, no de un registro random.
+ */
+export const CURSO_FIXTURE = {
+  id: "0c000000-0000-4000-8000-000000000003",
+  titulo: "Render Fotorrealista con V-Ray",
+  categoriaSlug: "visualizacion-arquitectonica",
+  // Orden real (columna `orden`), no el orden de inserción en la tabla.
+  lecciones: [
+    { id: "0e000000-0000-4000-8000-000000007595", titulo: "Sol, cielo y HDRI: cuándo usar cada uno", duracionSeg: 9 },
+    { id: "b5211deb-0619-476d-bfa6-e6550bf140bd", titulo: "ANDRES", duracionSeg: 31 },
+    { id: "0e000000-0000-4000-8000-000000007596", titulo: "Iluminación de interiores sin ruido", duracionSeg: 9 },
+  ],
+} as const;
+
+/**
+ * Falla rápido y con un mensaje claro si el fixture de arriba dejó de
+ * existir o de estar LISTO (alguien borró/editó el curso semilla) — mejor
+ * eso que specs que fallan más adelante con "el reproductor no carga" sin
+ * decir por qué.
+ */
+export async function verificarCursoFixture(admin: ReturnType<typeof adminClient>) {
+  const { data, error } = await admin
+    .from("lecciones")
+    .select("id, estado_procesamiento, id_video_mux")
+    .in("id", CURSO_FIXTURE.lecciones.map((l) => l.id));
+
+  if (error || !data || data.length !== CURSO_FIXTURE.lecciones.length) {
+    throw new Error(
+      `CURSO_FIXTURE (${CURSO_FIXTURE.titulo}) no tiene las ${CURSO_FIXTURE.lecciones.length} lecciones esperadas — ¿se borró o cambió el curso semilla? ${error?.message ?? ""}`,
+    );
+  }
+  const noListas = data.filter((l) => l.estado_procesamiento !== "LISTO" || !l.id_video_mux);
+  if (noListas.length > 0) {
+    throw new Error(
+      `CURSO_FIXTURE tiene lecciones sin video LISTO: ${noListas.map((l) => l.id).join(", ")}`,
+    );
+  }
+}
+
+/**
+ * Formatea un código de prueba con los mismos guiones que
+ * formatearCodigoMientrasEscribe (src/lib/codigoInvitacion.ts) produce en el
+ * input real: 3-4-4. `normalizarCodigo()` no toca los guiones al enviar el
+ * formulario, así que el código guardado en la base y lo que el formulario
+ * termina mandando deben traer los guiones en las mismas posiciones, o el
+ * canje da "no existe" aunque la fila sí exista.
+ */
+export function formatearCodigoDePrueba(alfanumerico: string): string {
+  const limpio = alfanumerico.toUpperCase().slice(0, 11);
+  let resultado = limpio.slice(0, 3);
+  if (limpio.length > 3) resultado += `-${limpio.slice(3, 7)}`;
+  if (limpio.length > 7) resultado += `-${limpio.slice(7, 11)}`;
+  return resultado;
+}
+
+/** Crea un código de invitación desechable — mismo patrón que scripts/canje-codigo-test.ts. */
+export async function crearCodigoInvitacion(
+  admin: ReturnType<typeof adminClient>,
+  params: {
+    codigo: string;
+    duracionDias?: number;
+    activo?: boolean;
+    fechaVencimiento?: string;
+    limiteUsos?: number;
+    vecesUsado?: number;
+  },
+) {
+  const ahora = Date.now();
+  const { data, error } = await admin
+    .from("codigos_invitacion")
+    .insert({
+      codigo: params.codigo,
+      duracion_dias: params.duracionDias ?? 30,
+      activo: params.activo ?? true,
+      fecha_vencimiento: params.fechaVencimiento ?? new Date(ahora + 30 * 86_400_000).toISOString(),
+      limite_usos: params.limiteUsos ?? 1,
+      veces_usado: params.vecesUsado ?? 0,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`No pude crear el código de prueba "${params.codigo}": ${error?.message}`);
+  return data;
+}
+
+export async function borrarCodigoInvitacion(admin: ReturnType<typeof adminClient>, id: string) {
+  const { error } = await admin.from("codigos_invitacion").delete().eq("id", id);
+  if (error) console.error(`No pude borrar el código de prueba ${id}: ${error.message}`);
+}
+
+/**
+ * Borra todo lo que un usuario de prueba pudo haber generado por su cuenta
+ * (progreso, suscripciones, certificados) ANTES de borrar al usuario. No se
+ * asume cascada desde `perfiles`: schema.prisma no la declara para estas tres
+ * tablas (a diferencia de `progreso.leccion`, que sí es `onDelete: Cascade`
+ * hacia `lecciones`), y confiar en una cascada que no existe dejaría filas
+ * huérfanas ensuciando el proyecto real (no hay staging separado).
+ */
+export async function limpiarDatosDeUsuario(admin: ReturnType<typeof adminClient>, usuarioId: string) {
+  await admin.from("certificados").delete().eq("id_usuario", usuarioId);
+  await admin.from("progreso").delete().eq("id_usuario", usuarioId);
+  await admin.from("suscripciones").delete().eq("id_usuario", usuarioId);
+}
+
+/**
+ * Genera un enlace real de recuperación de contraseña (mismo mecanismo que
+ * generarEnlaceConfirmacion, pero `type: "recovery"`), sin depender de una
+ * bandeja de entrada real.
+ */
+export async function generarEnlaceRecuperacion(
+  admin: ReturnType<typeof adminClient>,
+  params: { email: string; origin: string; next: string },
+) {
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: params.email,
+  });
+  if (error || !data.properties?.hashed_token) {
+    throw new Error(`No pude generar el enlace de recuperación: ${error?.message}`);
+  }
+  const { hashed_token, verification_type } = data.properties;
+  return `${params.origin}/auth/confirm?token_hash=${hashed_token}&type=${verification_type}&next=${encodeURIComponent(params.next)}`;
+}
+
 export async function borrarUsuarioPorEmail(admin: ReturnType<typeof adminClient>, email: string) {
   // listUsers no tiene filtro por email en este SDK; se pagina hasta
   // encontrarlo. El volumen de usuarios reales es bajo hoy, así que una
