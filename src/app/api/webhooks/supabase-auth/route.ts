@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
   }
 
   const { user, email_data } = data;
+
+  // Notificación de seguridad nativa de Supabase (no una acción por
+  // confirmar: no trae un token_hash real, así que armarle un enlace de
+  // /auth/confirm solo produce uno roto). La app ya manda su propio aviso,
+  // bien formado, apenas se guarda la contraseña nueva
+  // (enviarCorreoPasswordActualizada, src/actions/auth/actualizar-password.ts)
+  // — reenviar esta acá sería un correo duplicado y encima roto.
+  if (email_data.email_action_type === "password_changed_notification") {
+    return NextResponse.json({});
+  }
+
   // redirect_to (el redirectTo pasado a resetPasswordForEmail/signUp/etc.)
   // ya puede apuntar a /auth/confirm (ver src/actions/auth/recuperar.ts,
   // que lo usa como respaldo por si este hook no llegara a dispararse). Si
