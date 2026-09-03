@@ -40,10 +40,17 @@ export default async function AdminConfiguracionPage() {
             tiene una tabla de configuración global donde guardarlos. */}
         <div>
           <Label htmlFor="plataforma-nombre">Nombre de la plataforma</Label>
+          {/* `truncate`: a `text-base` (16px, el tamaño que usan los inputs
+              por debajo de `sm` para que iOS no haga zoom al enfocar) este
+              nombre no cabe en un teléfono angosto. Al estar deshabilitado
+              nadie puede enfocarlo para desplazarse y ver el resto, así que
+              sin esto la cola del texto queda invisible en vez de solo
+              recortada con puntos suspensivos. */}
           <Input
             id="plataforma-nombre"
             defaultValue="U.V.A — Unidad Vectorial de Arquitectura"
             disabled
+            className="truncate"
           />
         </div>
         <div>

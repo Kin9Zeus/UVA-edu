@@ -284,14 +284,19 @@ export function CrearCursoForm({
           así que nunca pasaría las validaciones de publicación — el botón
           solo podía dar error. Se publica desde el detalle, con el contenido
           ya cargado. */}
-      <div className="flex gap-2.5 border-t border-uva-divider pt-1.5">
+      {/* Apiladas a todo el ancho en mobile: lado a lado, "Crear curso" queda
+          chico a la izquierda y "Cancelar" empujado al extremo derecho con
+          un hueco vacío en medio — dos targets pequeños en esquinas
+          opuestas, nada pensado para el pulgar. Desde `sm` vuelven a su
+          fila original. */}
+      <div className="flex flex-col gap-2.5 border-t border-uva-divider pt-1.5 sm:flex-row">
         <Button type="button" variant="primary" disabled={pending !== null} onClick={handleGuardar}>
           {pending === "borrador" ? "Creando…" : "Crear curso"}
         </Button>
         <Button
           type="button"
           variant="ghost"
-          className="ml-auto text-uva-muted"
+          className="text-uva-muted sm:ml-auto"
           render={<Link href="/admin/cursos" />}
           nativeButton={false}
         >

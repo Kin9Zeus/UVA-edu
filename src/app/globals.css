@@ -252,6 +252,33 @@
     font-size: 15px;
     line-height: 1.55;
   }
+  /* Scrollbar del tema, no la gris de sistema por defecto — aplica a
+     cualquier contenedor con overflow (tablas a sangre, sidebars, diálogos),
+     no solo a `body`. Firefox usa `scrollbar-color`; el resto, los
+     pseudo-elementos `::-webkit-scrollbar-*`. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--uva-divider) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--uva-divider);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--uva-muted-2);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
   html {
     @apply font-sans;
   }

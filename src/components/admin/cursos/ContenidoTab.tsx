@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
@@ -35,13 +45,25 @@ export function ContenidoTab({
   const [agregando, setAgregando] = useState(false);
   const [nombreModulo, setNombreModulo] = useState("");
   const [pending, setPending] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // PointerSensor cubre mouse (mismo gesto de siempre: clic y arrastra desde
+  // el grip). TouchSensor exige mantener presionado 200ms antes de activar
+  // el arrastre — sin ese delay, el primer roce con el dedo se interpretaría
+  // como el inicio de un drag en vez de scroll de la página.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
   // Reportado por LeccionEditorPanel (onDirtyChange): si hay título/duración/
   // resumen sin guardar, cambiar de lección o cerrar el editor los pierde en
   // silencio. Con esto se confirma antes en vez de después.
   const [edicionSinGuardar, setEdicionSinGuardar] = useState(false);
   const showToast = useAdminToast();
   const router = useRouter();
+  // En desktop el editor es una columna sticky siempre visible; por debajo de
+  // `lg` es una tarjeta más abajo en el documento, así que elegir una lección
+  // ahí no da ninguna señal si el editor ya quedó fuera de la vista — este
+  // scroll es esa señal.
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const leccionActiva =
     modulos.flatMap((modulo) => modulo.lecciones).find((leccion) => leccion.id === leccionActivaId) ??
@@ -76,6 +98,16 @@ export function ContenidoTab({
     setEdicionSinGuardar(false);
     onDirtyChange(false);
     setLeccionActivaId(leccion.id);
+
+    // Por debajo de `lg` (el corte de `AdminCard.lg:sticky` en el JSX de
+    // abajo) el editor no es sticky: sin este scroll, tocar una lección
+    // mientras se sigue viendo la lista de módulos no da ninguna señal de
+    // que sí se seleccionó.
+    if (window.innerWidth < 1024) {
+      requestAnimationFrame(() => {
+        editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   function cerrarEditor() {
@@ -142,20 +174,23 @@ export function ContenidoTab({
     router.refresh();
   }
 
-  function handleDrop(targetIndex: number) {
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
+  function handleModuloDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!confirmarSalirSinGuardar()) return;
 
     const anteriores = modulos;
-    const reordenados = [...modulos];
-    const [movido] = reordenados.splice(draggedIndex, 1);
-    reordenados.splice(targetIndex, 0, movido);
+    const origenIndex = modulos.findIndex((modulo) => modulo.id === active.id);
+    const targetIndex = modulos.findIndex((modulo) => modulo.id === over.id);
+    if (origenIndex === -1 || targetIndex === -1) return;
+
+    const reordenados = arrayMove(modulos, origenIndex, targetIndex);
     setModulos(reordenados);
-    setDraggedIndex(null);
 
     const idAnterior = reordenados[targetIndex - 1]?.id ?? null;
     const idSiguiente = reordenados[targetIndex + 1]?.id ?? null;
 
-    moverModulo(cursoId, movido.id, idAnterior, idSiguiente).then((resultado) => {
+    moverModulo(cursoId, String(active.id), idAnterior, idSiguiente).then((resultado) => {
       if (resultado.error) {
         showToast(resultado.error, "error");
         // Reversión visible: sin esto el orden en pantalla queda mintiendo
@@ -168,29 +203,31 @@ export function ContenidoTab({
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <h4 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
             Módulos y lecciones
           </h4>
           {agregando ? (
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
               <Input
                 autoFocus
                 placeholder="Nombre del módulo"
                 value={nombreModulo}
                 onChange={(event) => setNombreModulo(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && handleAgregarModulo()}
-                className="h-8 max-w-[240px] text-sm"
+                className="h-8 text-sm sm:max-w-[240px]"
               />
-              <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
-                Agregar
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setAgregando(false)}>
-                Cancelar
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
+                  Agregar
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setAgregando(false)}>
+                  Cancelar
+                </Button>
+              </div>
             </div>
           ) : (
-            <Button type="button" size="sm" className="ml-auto" onClick={() => setAgregando(true)}>
+            <Button type="button" size="sm" className="sm:ml-auto" onClick={() => setAgregando(true)}>
               + Módulo
             </Button>
           )}
@@ -200,28 +237,28 @@ export function ContenidoTab({
           <p className="text-sm text-uva-muted-2">Este curso todavía no tiene módulos.</p>
         )}
 
-        {modulos.map((modulo, index) => (
-          <ModuloCard
-            key={modulo.id}
-            modulo={modulo}
-            posicion={index + 1}
-            totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
-            cursoId={cursoId}
-            draggable
-            leccionActivaId={leccionActivaId}
-            onSeleccionarLeccion={seleccionarLeccion}
-            onLeccionesChange={handleLeccionesChange}
-            onTituloChange={handleTituloModuloChange}
-            confirmarSalirSinGuardar={confirmarSalirSinGuardar}
-            onDragStart={() => setDraggedIndex(index)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => handleDrop(index)}
-          />
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuloDragEnd}>
+          <SortableContext items={modulos.map((modulo) => modulo.id)} strategy={verticalListSortingStrategy}>
+            {modulos.map((modulo, index) => (
+              <ModuloCard
+                key={modulo.id}
+                modulo={modulo}
+                posicion={index + 1}
+                totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
+                cursoId={cursoId}
+                leccionActivaId={leccionActivaId}
+                onSeleccionarLeccion={seleccionarLeccion}
+                onLeccionesChange={handleLeccionesChange}
+                onTituloChange={handleTituloModuloChange}
+                confirmarSalirSinGuardar={confirmarSalirSinGuardar}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
 
       {/* Columna derecha fija: `position:sticky;top:88px` en el mockup */}
-      <AdminCard className="lg:sticky lg:top-[88px]">
+      <AdminCard ref={editorRef} className="lg:sticky lg:top-[88px]">
         {leccionActiva ? (
           <LeccionEditorPanel
             key={leccionActiva.id}

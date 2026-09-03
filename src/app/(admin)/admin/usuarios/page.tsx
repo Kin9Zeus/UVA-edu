@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Ticket, TicketCheck, UserCheck, Activity, AlertTriangle } from "lucide-react";
+import { Ticket, TicketCheck, UserCheck, Activity } from "lucide-react";
 import { getUsuarios } from "@/lib/admin/usuarios";
 import { getMetricasPanel, getAvanceCursos, getAbandonoLecciones } from "@/lib/admin/metricas";
 import { MetricaCard } from "@/components/admin/MetricaCard";
@@ -50,9 +49,6 @@ export default async function AdminUsuariosPage({
   // lugar de mezclarse en la aritmética de emitidas.
   const personasQueEntraron = metricas.cuposCanjeados + metricas.accesosOtorgadosAdmin;
 
-  const hayDemasiadasCaducadas =
-    metricas.cuposCaducados > 0 && metricas.cuposCaducados > metricas.cuposDisponibles;
-
   return (
     <div className="flex flex-col gap-6">
       <p className="-mt-3.5 text-sm text-uva-muted">
@@ -66,7 +62,7 @@ export default async function AdminUsuariosPage({
           Solo cifras accionables. Las de cuadre contable (emitidas y
           caducadas) van en la línea de abajo: sirven para auditar la resta,
           no para decidir nada. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricaCard
           label="Invitaciones sin usar"
           valor={metricas.cuposDisponibles}
@@ -99,33 +95,23 @@ export default async function AdminUsuariosPage({
 
       {/* La resta tiene que poder auditarse: emitidas = usadas + sin usar +
           caducadas. Sin esta línea, 70 invitaciones caducadas simplemente
-          desaparecerían del total y parecería un error de cálculo. */}
+          desaparecerían del total y parecería un error de cálculo.
+
+          Caducadas destaca en fucsia de marca (uva-accent-text) — visible sin
+          ser una alerta aparte. Antes había un banner con umbral (caducadas >
+          disponibles), pero ese acumulado solo crece con el tiempo (un código
+          ya canjeado no se puede borrar, solo desactivar) y el banner
+          terminaba prendido para siempre sin ninguna acción real que lo
+          apagara. */}
       <p className="-mt-2 text-[12.5px] text-uva-muted-2">
         {metricas.cuposTotales} invitaciones emitidas en total:{" "}
         <span className="font-mono tabular-nums">{metricas.cuposCanjeados}</span> usadas,{" "}
         <span className="font-mono tabular-nums">{metricas.cuposDisponibles}</span> sin usar,{" "}
-        <span className="font-mono tabular-nums">{metricas.cuposCaducados}</span> caducadas.
+        <span className="font-mono font-semibold text-uva-accent-text tabular-nums">
+          {metricas.cuposCaducados}
+        </span>{" "}
+        caducadas.
       </p>
-
-      {/* Una invitación caducada es una persona que se quiso invitar y no
-          entró. Cuando pesan más que las disponibles deja de ser un dato
-          contable y pasa a ser algo que corregir, así que se dice en voz
-          alta en vez de dejarlo enterrado en la línea de arriba. */}
-      {hayDemasiadasCaducadas && (
-        <AdminCard className="flex-row items-start gap-3 border-uva-accent/40 bg-uva-accent-soft/30">
-          <AlertTriangle className="mt-px size-[18px] shrink-0 text-uva-accent-text" strokeWidth={1.9} />
-          <p className="text-[13px]">
-            <strong className="font-semibold">
-              {metricas.cuposCaducados} invitaciones caducaron sin usarse.
-            </strong>{" "}
-            Son códigos vencidos o desactivados: nadie puede canjearlas ya. Revísalos en{" "}
-            <Link href="/admin/codigos" className="text-uva-accent-text underline underline-offset-2">
-              Códigos de invitación
-            </Link>{" "}
-            para ampliar su vigencia o emitir unos nuevos.
-          </p>
-        </AdminCard>
-      )}
 
       <UsuariosTable resultado={resultado} />
 

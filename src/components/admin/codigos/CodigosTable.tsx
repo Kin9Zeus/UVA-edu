@@ -100,7 +100,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
-        <Button type="button" variant="primary" onClick={abrirCrear}>
+        <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={abrirCrear}>
           + Nuevo código
         </Button>
       </div>
@@ -110,7 +110,10 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
           <p className="text-xs font-semibold text-uva-accent-text">
             Código generado. Compártelo con quien va a recibir el acceso:
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          {/* `flex-wrap` es el fix real: sin él, código + Copiar + Listo en
+              una sola fila rígida se salía del ancho en un teléfono angosto
+              en vez de solo verse apretado. */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-mono text-[15px] font-semibold tracking-[0.08em] text-uva-text">
               {recienCreado}
             </code>
@@ -146,7 +149,97 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       </p>
 
       <AdminCard flush>
-        <Table>
+        {codigos.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+            No hay códigos de invitación todavía.
+          </p>
+        )}
+
+        {/* Mismo criterio que el resto del panel: 8 columnas (una un switch
+            funcional, otra un menú de acciones) no caben sin scroll
+            horizontal en un touch. */}
+        {codigos.length > 0 && (
+          <div className="flex flex-col pointer-fine:md:hidden">
+            {codigos.map((codigo) => (
+              <div
+                key={codigo.id}
+                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopiar(codigo.codigo)}
+                    title="Copiar código"
+                    className="flex items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                  >
+                    {codigo.codigo}
+                    {copiado === codigo.codigo ? (
+                      <Check className="size-3.5 text-uva-accent" />
+                    ) : (
+                      <Copy className="size-3.5 text-uva-muted-2" />
+                    )}
+                  </button>
+                  <StatusBadge tone={TONO_ESTADO[codigo.estado]} className="shrink-0">
+                    {ETIQUETA_ESTADO[codigo.estado]}
+                  </StatusBadge>
+                </div>
+                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {codigo.duracionDias} días de acceso · {codigo.vecesUsado}/{codigo.limiteUsos} usos
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <RedimidoresButton
+                    codigoId={codigo.id}
+                    codigo={codigo.codigo}
+                    vecesUsado={codigo.vecesUsado}
+                  />
+                  <span className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                    Vence {formatFecha(codigo.fechaVencimiento)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-uva-muted-2">Creado por {codigo.creadoPor}</span>
+                  <div className="grid grid-cols-[auto_auto_28px] items-center gap-1.5">
+                    <SwitchEstado
+                      checked={codigo.activo}
+                      onCheckedChange={(checked) => handleToggle(codigo, checked)}
+                      etiquetas={["", ""]}
+                      acciones={["Activar código", "Desactivar código "]}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Editar código"
+                      title="Editar vencimiento y límite de usos"
+                      className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                      onClick={() => abrirEditar(codigo)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    {codigo.vecesUsado === 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Eliminar código"
+                        title="Eliminar código"
+                        className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                        onClick={() => setBorrando(codigo)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : (
+                      <span aria-hidden="true" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {codigos.length > 0 && (
+        <Table className="hidden pointer-fine:md:table">
           <TableHeader>
             <TableRow>
               <TableHead>Código</TableHead>
@@ -160,13 +253,6 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {codigos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center text-uva-muted-2">
-                  No hay códigos de invitación todavía.
-                </TableCell>
-              </TableRow>
-            )}
             {codigos.map((codigo) => (
               <TableRow key={codigo.id}>
                 <TableCell>
@@ -256,6 +342,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
             ))}
           </TableBody>
         </Table>
+        )}
       </AdminCard>
 
       <CodigoFormDialog
