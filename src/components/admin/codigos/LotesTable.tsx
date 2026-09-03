@@ -129,13 +129,73 @@ export function LotesTable({
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
-        <Button type="button" variant="primary" onClick={() => setFormOpen(true)}>
+        <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={() => setFormOpen(true)}>
           + Nuevo lote
         </Button>
       </div>
 
       <AdminCard flush>
-        <Table>
+        {lotes.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+            No hay lotes de códigos todavía.
+          </p>
+        )}
+
+        {/* Mismo criterio que CodigosTable: 7 columnas no caben sin scroll
+            horizontal en un touch. */}
+        {lotes.length > 0 && (
+          <div className="flex flex-col pointer-fine:md:hidden">
+            {lotes.map((lote) => (
+              <div
+                key={lote.id}
+                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[13px] font-semibold text-uva-text">
+                    {lote.cantidad} código(s)
+                  </span>
+                  <span className="shrink-0 font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                    Vence {formatFecha(lote.fechaVencimiento)}
+                  </span>
+                </div>
+                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {lote.duracionDias} días de acceso · {lote.canjeados}/{lote.cantidad} canjeados ·{" "}
+                  {lote.activos} activos
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-uva-muted-2">Creado por {lote.creadoPor}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent"
+                      onClick={() => setLoteAbierto(lote)}
+                    >
+                      <ListChecks className="size-4" />
+                      Ver códigos
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Exportar CSV de este lote"
+                      title="Exportar CSV de este lote"
+                      className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                      onClick={() => handleExportarLote(lote.id)}
+                      disabled={exportandoLote === lote.id}
+                    >
+                      <Download className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {lotes.length > 0 && (
+        <Table className="hidden pointer-fine:md:table">
           <TableHeader>
             <TableRow>
               <TableHead>Lote</TableHead>
@@ -148,13 +208,6 @@ export function LotesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lotes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-uva-muted-2">
-                  No hay lotes de códigos todavía.
-                </TableCell>
-              </TableRow>
-            )}
             {lotes.map((lote) => (
               <TableRow key={lote.id}>
                 <TableCell className="font-mono text-[13px] font-semibold text-uva-text">
@@ -200,6 +253,7 @@ export function LotesTable({
             ))}
           </TableBody>
         </Table>
+        )}
       </AdminCard>
 
       <LoteFormDialog open={formOpen} onOpenChange={setFormOpen} />
@@ -213,7 +267,69 @@ export function LotesTable({
           </DialogHeader>
 
           <div className="max-h-[420px] overflow-y-auto">
-            <Table>
+            {/* El diálogo se clampa a `calc(100%-2rem)` en mobile (~320-350px)
+                y este contenedor solo tenía scroll vertical: la tabla de 4
+                columnas se salía del propio modal en vez de solo verse
+                apretada. */}
+            <div className="flex flex-col pointer-fine:md:hidden">
+              {codigosDelLoteAbierto.map((codigo) => (
+                <div
+                  key={codigo.id}
+                  className="flex flex-col gap-2 border-b border-uva-divider py-2.5 last:border-b-0"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopiar(codigo.codigo)}
+                      title="Copiar código"
+                      className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                    >
+                      {codigo.codigo}
+                      {copiado === codigo.codigo ? (
+                        <Check className="size-3.5 text-uva-accent" />
+                      ) : (
+                        <Copy className="size-3.5 text-uva-muted-2" />
+                      )}
+                    </button>
+                    <StatusBadge tone={TONO_ESTADO[codigo.estado]} className="shrink-0">
+                      {ETIQUETA_ESTADO[codigo.estado]}
+                    </StatusBadge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <RedimidoresButton
+                      codigoId={codigo.id}
+                      codigo={codigo.codigo}
+                      vecesUsado={codigo.vecesUsado}
+                    />
+                    <div className="grid grid-cols-[auto_28px] items-center gap-1.5">
+                      <SwitchEstado
+                        checked={codigo.activo}
+                        onCheckedChange={(checked) => handleToggle(codigo, checked)}
+                        etiquetas={["", ""]}
+                        acciones={["Activar código", "Desactivar código"]}
+                      />
+                      {codigo.vecesUsado === 0 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Eliminar código"
+                          title="Eliminar código"
+                          className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                          onClick={() => setBorrando(codigo)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : (
+                        <span aria-hidden="true" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Table className="hidden pointer-fine:md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>

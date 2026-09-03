@@ -249,7 +249,7 @@ export function LeccionEditorPanel({
             size="icon-xs"
             aria-label="Agregar material adicional"
             title="Agregar material adicional"
-            className="ml-auto text-uva-muted-2 hover:text-uva-accent"
+            className="ml-auto text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3.5"
             disabled={subiendoRecurso}
             onClick={() => inputArchivoRef.current?.click()}
           >
@@ -284,7 +284,7 @@ export function LeccionEditorPanel({
                   size="icon-xs"
                   aria-label={`Eliminar ${recurso.nombre}`}
                   title="Eliminar material"
-                  className="shrink-0 text-uva-muted-2 hover:text-uva-accent"
+                  className="shrink-0 text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3.5"
                   onClick={() => handleEliminarRecurso(recurso)}
                 >
                   <Trash2 className="size-3.5" />

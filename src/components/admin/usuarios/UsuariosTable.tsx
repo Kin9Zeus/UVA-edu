@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
@@ -64,6 +64,28 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
   const showToast = useAdminToast();
   const [pendiente, startTransition] = useTransition();
   const [exportando, setExportando] = useState(false);
+
+  // Mismo degradado que CursosTable: avisa que hay más filtros a la derecha
+  // en la franja con scroll horizontal de mobile, y solo cuando de verdad
+  // sobra contenido.
+  const filtrosRef = useRef<HTMLDivElement>(null);
+  const [hayMasFiltros, setHayMasFiltros] = useState(false);
+
+  useEffect(() => {
+    const el = filtrosRef.current;
+    if (!el) return;
+    function actualizar() {
+      if (!el) return;
+      setHayMasFiltros(el.scrollWidth - el.scrollLeft - el.clientWidth > 4);
+    }
+    actualizar();
+    el.addEventListener("scroll", actualizar);
+    window.addEventListener("resize", actualizar);
+    return () => {
+      el.removeEventListener("scroll", actualizar);
+      window.removeEventListener("resize", actualizar);
+    };
+  }, []);
 
   /**
    * Los filtros viven en la URL, no en `useState`, porque el filtrado ocurre
@@ -140,53 +162,69 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center gap-3">
-        <Select
-          items={ROL_ITEMS}
-          value={valorFiltro("rol")}
-          onValueChange={(value) => actualizarUrl({ rol: value ?? "todos" })}
-        >
-          <SelectTrigger><SelectValue placeholder="Rol" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos los roles</SelectItem>
-            <SelectItem value="ESTUDIANTE">Estudiante</SelectItem>
-            <SelectItem value="ADMINISTRADOR">Administrador</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          items={ESTADO_CUENTA_ITEMS}
-          value={valorFiltro("estado")}
-          onValueChange={(value) => actualizarUrl({ estado: value ?? "todos" })}
-        >
-          <SelectTrigger><SelectValue placeholder="Estado de cuenta" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos los estados</SelectItem>
-            <SelectItem value="ACTIVO">Activo</SelectItem>
-            <SelectItem value="SUSPENDIDO">Suspendido</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          items={SUSCRIPCION_ITEMS}
-          value={valorFiltro("suscripcion")}
-          onValueChange={(value) => actualizarUrl({ suscripcion: value ?? "todos" })}
-        >
-          <SelectTrigger><SelectValue placeholder="Suscripción" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Toda suscripción</SelectItem>
-            <SelectItem value="ACTIVA">Activa</SelectItem>
-            <SelectItem value="PAST_DUE">Pago pendiente</SelectItem>
-            <SelectItem value="VENCIDA">Vencida</SelectItem>
-            <SelectItem value="CANCELADA">Cancelada</SelectItem>
-            <SelectItem value="SIN_SUSCRIPCION">Sin suscripción</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+        {/* Mismo criterio que CursosTable: los 3 selects no caben en una fila
+            en mobile sin envolver feo, así que deslizan en horizontal en vez
+            de partirse en varias líneas. */}
+        <div className="relative">
+          <div
+            ref={filtrosRef}
+            className="flex gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0"
+          >
+            <Select
+              items={ROL_ITEMS}
+              value={valorFiltro("rol")}
+              onValueChange={(value) => actualizarUrl({ rol: value ?? "todos" })}
+            >
+              <SelectTrigger className="shrink-0"><SelectValue placeholder="Rol" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los roles</SelectItem>
+                <SelectItem value="ESTUDIANTE">Estudiante</SelectItem>
+                <SelectItem value="ADMINISTRADOR">Administrador</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              items={ESTADO_CUENTA_ITEMS}
+              value={valorFiltro("estado")}
+              onValueChange={(value) => actualizarUrl({ estado: value ?? "todos" })}
+            >
+              <SelectTrigger className="shrink-0"><SelectValue placeholder="Estado de cuenta" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                <SelectItem value="ACTIVO">Activo</SelectItem>
+                <SelectItem value="SUSPENDIDO">Suspendido</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              items={SUSCRIPCION_ITEMS}
+              value={valorFiltro("suscripcion")}
+              onValueChange={(value) => actualizarUrl({ suscripcion: value ?? "todos" })}
+            >
+              <SelectTrigger className="shrink-0"><SelectValue placeholder="Suscripción" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Toda suscripción</SelectItem>
+                <SelectItem value="ACTIVA">Activa</SelectItem>
+                <SelectItem value="PAST_DUE">Pago pendiente</SelectItem>
+                <SelectItem value="VENCIDA">Vencida</SelectItem>
+                <SelectItem value="CANCELADA">Cancelada</SelectItem>
+                <SelectItem value="SIN_SUSCRIPCION">Sin suscripción</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hayMasFiltros && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent md:hidden"
+            />
+          )}
+        </div>
 
         {/* Rango sobre la fecha de registro. Solo filtra la tabla: los KPIs
             de arriba siempre muestran el acumulado, porque "cupos
             disponibles" es un saldo y acotarlo a un periodo no significa
             nada. */}
         <div className="flex items-center gap-2">
-          <label className="text-[12.5px] text-uva-muted" htmlFor="filtro-desde">
+          <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="filtro-desde">
             Registro
           </label>
           <input
@@ -194,15 +232,15 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("desde") ?? ""}
             onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-            className="rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text"
+            className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
             aria-label="Registrados desde"
           />
-          <span className="text-[12.5px] text-uva-muted-2">a</span>
+          <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
           <input
             type="date"
             value={searchParams.get("hasta") ?? ""}
             onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-            className="rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text"
+            className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
             aria-label="Registrados hasta"
           />
         </div>
@@ -211,7 +249,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
           type="button"
           onClick={handleExportar}
           disabled={exportando || total === 0}
-          className="ml-auto flex items-center gap-2 rounded-uva-md border border-uva-divider px-3.5 py-2 text-[13px] text-uva-text hover:border-uva-accent hover:text-uva-accent-text disabled:opacity-40"
+          className="flex w-full items-center justify-center gap-2 rounded-uva-md border border-uva-divider px-3.5 py-2 text-[13px] text-uva-text hover:border-uva-accent hover:text-uva-accent-text disabled:opacity-40 md:ml-auto md:w-auto"
         >
           <Download className="size-4" strokeWidth={1.9} />
           {exportando ? "Preparando..." : "Exportar CSV"}
@@ -219,93 +257,152 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
       </div>
 
       <AdminCard flush>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead />
-              <TableHead>Nombre</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Cursos</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Suscripción</TableHead>
-              <TableHead>Registro</TableHead>
-              {/* "en contenido" no es un adorno: la columna sale del progreso
-                  de reproducción, así que alguien que entró pero no abrió
-                  ningún video aparece vacío. */}
-              <TableHead>Actividad en contenido</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usuarios.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center text-uva-muted-2">
-                  No hay usuarios que coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
+        {usuarios.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+            No hay usuarios que coincidan con los filtros.
+          </p>
+        )}
+
+        {/* Mismo criterio que CursosTable/EstudiantesTab: 9 columnas (una un
+            switch funcional) no caben sin scroll horizontal en un touch, así
+            que por debajo de `pointer-fine:md` se ve una lista de tarjetas
+            en vez de la tabla. */}
+        {usuarios.length > 0 && (
+          <div className={`flex flex-col pointer-fine:md:hidden ${pendiente ? "opacity-60" : ""}`}>
             {usuarios.map((usuario) => (
-              <TableRow key={usuario.id} className={pendiente ? "opacity-60" : undefined}>
-                <TableCell className="w-px pr-0">
-                  <Avatar className="size-[30px] bg-uva-divider after:hidden">
-                    <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
-                      {iniciales(usuario.nombre)}
-                    </AvatarFallback>
-                  </Avatar>
-                </TableCell>
-                <TableCell className="font-semibold">
+              <div
+                key={usuario.id}
+                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-3">
                   <Link
                     href={`/admin/usuarios/${usuario.id}`}
-                    className="text-uva-text hover:text-uva-accent-text"
+                    className="flex min-w-0 items-center gap-2.5"
                   >
-                    {usuario.nombre}
+                    <Avatar className="size-[30px] shrink-0 bg-uva-divider after:hidden">
+                      <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
+                        {iniciales(usuario.nombre)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate text-sm font-semibold text-uva-text">{usuario.nombre}</span>
                   </Link>
-                </TableCell>
-                <TableCell className="text-uva-muted">{usuario.correo}</TableCell>
-                <TableCell className="text-uva-muted">{ROL_LABEL[usuario.rol]}</TableCell>
-                <TableCell className="font-mono tabular-nums">{usuario.cursosInscritos}</TableCell>
-                <TableCell>
-                  {/* `estado` es binario (ACTIVO/SUSPENDIDO) y ya se alternaba
-                      con un clic: se muestra con el mismo switch que `activo`
-                      en Categorias. Encendido = cuenta activa. */}
                   <SwitchEstado
                     checked={usuario.estado === "ACTIVO"}
                     onCheckedChange={() => handleToggleEstado(usuario)}
                     etiquetas={["Activo", "Suspendido"]}
                     acciones={["Activar usuario", "Suspender usuario"]}
                   />
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {usuario.suscripcionEstado ? (
-                      <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
-                        {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
-                      </StatusBadge>
-                    ) : (
-                      <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
-                    )}
-                    {/* Solo mientras la suscripción siga dando acceso: una
-                        CANCELADA o VENCIDA no debería seguir luciendo
-                        "Acceso otorgado" junto a su propio estado — leía
-                        como si el acceso siguiera en pie después de
-                        revocarlo. */}
-                    {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
-                      <StatusBadge tone="accent">
-                        {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
-                      </StatusBadge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
-                  {formatFecha(usuario.fechaRegistro)}
-                </TableCell>
-                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
-                  {usuario.ultimaActividad ? formatFecha(usuario.ultimaActividad) : "—"}
-                </TableCell>
-              </TableRow>
+                </div>
+                <p className="truncate text-xs text-uva-muted">{usuario.correo}</p>
+                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {ROL_LABEL[usuario.rol]} · {usuario.cursosInscritos} curso
+                  {usuario.cursosInscritos === 1 ? "" : "s"}
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {usuario.suscripcionEstado ? (
+                    <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
+                      {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
+                  )}
+                  {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
+                    <StatusBadge tone="accent">
+                      {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
+                    </StatusBadge>
+                  )}
+                </div>
+                <p className="font-mono text-[11.5px] text-uva-muted-2 tabular-nums">
+                  Registro {formatFecha(usuario.fechaRegistro)}
+                  {usuario.ultimaActividad && ` · Actividad ${formatFecha(usuario.ultimaActividad)}`}
+                </p>
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        )}
+
+        {usuarios.length > 0 && (
+          <Table className="hidden pointer-fine:md:table">
+            <TableHeader>
+              <TableRow>
+                <TableHead />
+                <TableHead>Nombre</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Cursos</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Suscripción</TableHead>
+                <TableHead>Registro</TableHead>
+                {/* "en contenido" no es un adorno: la columna sale del progreso
+                    de reproducción, así que alguien que entró pero no abrió
+                    ningún video aparece vacío. */}
+                <TableHead>Actividad en contenido</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {usuarios.map((usuario) => (
+                <TableRow key={usuario.id} className={pendiente ? "opacity-60" : undefined}>
+                  <TableCell className="w-px pr-0">
+                    <Avatar className="size-[30px] bg-uva-divider after:hidden">
+                      <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
+                        {iniciales(usuario.nombre)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    <Link
+                      href={`/admin/usuarios/${usuario.id}`}
+                      className="text-uva-text hover:text-uva-accent-text"
+                    >
+                      {usuario.nombre}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-uva-muted">{usuario.correo}</TableCell>
+                  <TableCell className="text-uva-muted">{ROL_LABEL[usuario.rol]}</TableCell>
+                  <TableCell className="font-mono tabular-nums">{usuario.cursosInscritos}</TableCell>
+                  <TableCell>
+                    {/* `estado` es binario (ACTIVO/SUSPENDIDO) y ya se alternaba
+                        con un clic: se muestra con el mismo switch que `activo`
+                        en Categorias. Encendido = cuenta activa. */}
+                    <SwitchEstado
+                      checked={usuario.estado === "ACTIVO"}
+                      onCheckedChange={() => handleToggleEstado(usuario)}
+                      etiquetas={["Activo", "Suspendido"]}
+                      acciones={["Activar usuario", "Suspender usuario"]}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {usuario.suscripcionEstado ? (
+                        <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
+                          {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
+                        </StatusBadge>
+                      ) : (
+                        <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
+                      )}
+                      {/* Solo mientras la suscripción siga dando acceso: una
+                          CANCELADA o VENCIDA no debería seguir luciendo
+                          "Acceso otorgado" junto a su propio estado — leía
+                          como si el acceso siguiera en pie después de
+                          revocarlo. */}
+                      {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
+                        <StatusBadge tone="accent">
+                          {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
+                        </StatusBadge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                    {formatFecha(usuario.fechaRegistro)}
+                  </TableCell>
+                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                    {usuario.ultimaActividad ? formatFecha(usuario.ultimaActividad) : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </AdminCard>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

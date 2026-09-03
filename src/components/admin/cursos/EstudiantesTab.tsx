@@ -86,63 +86,113 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
       </div>
 
       <AdminCard flush>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Estudiante</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Obtenido por</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtrados.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-uva-text-faint">
-                  No hay estudiantes inscritos que coincidan.
-                </TableCell>
-              </TableRow>
-            )}
+        {filtrados.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-uva-text-faint">
+            No hay estudiantes inscritos que coincidan.
+          </p>
+        )}
+
+        {/* Misma regla que CursosTable y el dashboard: 4 columnas no caben sin
+            scroll horizontal (la peor interacción táctil, sin ninguna señal
+            de que hay más a la derecha), así que touch/tablet ve una lista de
+            tarjetas y solo mouse ve la tabla. */}
+        {filtrados.length > 0 && (
+          <div className="flex flex-col pointer-fine:md:hidden">
             {filtrados.map((estudiante) => (
-              <TableRow key={estudiante.inscripcionId ?? estudiante.usuarioId}>
-                <TableCell>
-                  <Link href={`/admin/usuarios/${estudiante.usuarioId}`} className="flex items-center gap-2.5">
-                    <Avatar size="sm" className="bg-uva-divider">
+              <div
+                key={estudiante.inscripcionId ?? estudiante.usuarioId}
+                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <Link
+                    href={`/admin/usuarios/${estudiante.usuarioId}`}
+                    className="flex min-w-0 items-center gap-2.5"
+                  >
+                    <Avatar size="sm" className="shrink-0 bg-uva-divider">
                       <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
                         {iniciales(estudiante.nombre)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-uva-text">{estudiante.nombre}</span>
+                    <span className="truncate text-sm text-uva-text">{estudiante.nombre}</span>
                   </Link>
-                </TableCell>
-                <TableCell className="min-w-[140px]">
-                  <div className="flex items-center gap-2">
-                    <Progress value={estudiante.progreso} className="w-24" />
-                    <span className="font-mono text-xs tabular-nums">{estudiante.progreso}%</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge tone={estudiante.estado === "COMPLETADO" ? "success" : "accent"}>
+                  <StatusBadge
+                    tone={estudiante.estado === "COMPLETADO" ? "success" : "accent"}
+                    className="shrink-0"
+                  >
                     {estudiante.estado === "COMPLETADO" ? "Completado" : "En progreso"}
                   </StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <StatusBadge tone={estudiante.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                      {estudiante.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                    </StatusBadge>
-                    {/* Se mantiene en la lista (no desaparece al revocar):
-                        el progreso que dejó sigue siendo real, ver
-                        lib/admin/cursoDetalle.ts. */}
-                    {estudiante.tipoAcceso === "CORTESIA" && !estudiante.activo && (
-                      <StatusBadge tone="error">Revocada</StatusBadge>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={estudiante.progreso} className="flex-1" />
+                  <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
+                    {estudiante.progreso}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge tone={estudiante.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                    {estudiante.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                  </StatusBadge>
+                  {estudiante.tipoAcceso === "CORTESIA" && !estudiante.activo && (
+                    <StatusBadge tone="error">Revocada</StatusBadge>
+                  )}
+                </div>
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        )}
+
+        {filtrados.length > 0 && (
+          <Table className="hidden pointer-fine:md:table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Estudiante</TableHead>
+                <TableHead>Progreso</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Obtenido por</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtrados.map((estudiante) => (
+                <TableRow key={estudiante.inscripcionId ?? estudiante.usuarioId}>
+                  <TableCell>
+                    <Link href={`/admin/usuarios/${estudiante.usuarioId}`} className="flex items-center gap-2.5">
+                      <Avatar size="sm" className="bg-uva-divider">
+                        <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
+                          {iniciales(estudiante.nombre)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-uva-text">{estudiante.nombre}</span>
+                    </Link>
+                  </TableCell>
+                  <TableCell className="min-w-[140px]">
+                    <div className="flex items-center gap-2">
+                      <Progress value={estudiante.progreso} className="w-24" />
+                      <span className="font-mono text-xs tabular-nums">{estudiante.progreso}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={estudiante.estado === "COMPLETADO" ? "success" : "accent"}>
+                      {estudiante.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <StatusBadge tone={estudiante.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                        {estudiante.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                      </StatusBadge>
+                      {/* Se mantiene en la lista (no desaparece al revocar):
+                          el progreso que dejó sigue siendo real, ver
+                          lib/admin/cursoDetalle.ts. */}
+                      {estudiante.tipoAcceso === "CORTESIA" && !estudiante.activo && (
+                        <StatusBadge tone="error">Revocada</StatusBadge>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </AdminCard>
     </div>
   );

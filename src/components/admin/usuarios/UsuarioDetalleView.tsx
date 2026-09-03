@@ -86,57 +86,66 @@ export function UsuarioDetalleView({
         Volver a usuarios
       </Link>
 
-      {/* Cabecera: el mockup la dibuja suelta sobre el fondo, sin tarjeta. */}
-      <div className="flex flex-wrap items-center gap-3.5">
-        <Avatar className="size-[52px] shrink-0 bg-uva-divider after:hidden">
-          <AvatarFallback className="bg-uva-divider font-heading text-base font-bold text-uva-muted">
-            {iniciales(usuario.nombre)}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
-            {usuario.nombre}
-          </h1>
-          <p className="text-[12.5px] text-uva-muted">
-            {usuario.correo} · {usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante"}
-          </p>
+      {/* Cabecera: el mockup la dibuja suelta sobre el fondo, sin tarjeta.
+          Nombre y badges van en filas separadas — juntos en una sola
+          `flex-wrap` (hasta 5 piezas: 4 pares etiqueta+badge más la fecha)
+          envolvían en cualquier orden en mobile, igual que le pasaba a la
+          cabecera de CursoDetalleView antes de agruparla. */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3.5">
+          <Avatar className="size-[52px] shrink-0 bg-uva-divider after:hidden">
+            <AvatarFallback className="bg-uva-divider font-heading text-base font-bold text-uva-muted">
+              {iniciales(usuario.nombre)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+              {usuario.nombre}
+            </h1>
+            <p className="text-[12.5px] text-uva-muted">
+              {usuario.correo} · {usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante"}
+            </p>
+          </div>
         </div>
-        <div className="ml-2.5 flex items-center gap-[5px]">
-          <EtiquetaBadge>Cuenta:</EtiquetaBadge>
-          <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
-            {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
-          </StatusBadge>
-        </div>
-        <div className="flex items-center gap-[5px]">
-          <EtiquetaBadge>Plan:</EtiquetaBadge>
-          {/* Antes siempre gris, sin importar si seguía vigente — mismo plan
-              se veía igual de "activo" que uno ya cancelado hace meses. */}
-          <StatusBadge tone={usuario.planActual && suscripcionVigente ? "accent" : "neutral"}>
-            {usuario.planActual ?? "—"}
-          </StatusBadge>
-        </div>
-        {/* El listado de usuarios ya mostraba este estado; la ficha no lo
-            traía, así que revocar una membresía manual (revocarMembresia,
-            deja CANCELADA) no se notaba aquí — solo desaparecía el botón
-            "Revocar membresía", sin ninguna confirmación visual. */}
-        {usuario.suscripcionEstado && (
+
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
           <div className="flex items-center gap-[5px]">
-            <EtiquetaBadge>Estado:</EtiquetaBadge>
-            <StatusBadge tone={TONO_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}>
-              {ETIQUETA_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}
+            <EtiquetaBadge>Cuenta:</EtiquetaBadge>
+            <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
+              {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
             </StatusBadge>
           </div>
-        )}
-        {/* Solo mientras siga vigente: "Acceso otorgado" junto a "Cancelada"
-            leía como si el acceso siguiera en pie después de revocarlo. */}
-        {usuario.tipoAccesoSuscripcion && suscripcionVigente && (
           <div className="flex items-center gap-[5px]">
-            <EtiquetaBadge>Acceso:</EtiquetaBadge>
-            <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
+            <EtiquetaBadge>Plan:</EtiquetaBadge>
+            {/* Antes siempre gris, sin importar si seguía vigente — mismo plan
+                se veía igual de "activo" que uno ya cancelado hace meses. */}
+            <StatusBadge tone={usuario.planActual && suscripcionVigente ? "accent" : "neutral"}>
+              {usuario.planActual ?? "—"}
+            </StatusBadge>
           </div>
-        )}
-        <div className="ml-auto text-[12px] text-uva-muted-2">
-          Registrado {formatFecha(usuario.fechaRegistro)}
+          {/* El listado de usuarios ya mostraba este estado; la ficha no lo
+              traía, así que revocar una membresía manual (revocarMembresia,
+              deja CANCELADA) no se notaba aquí — solo desaparecía el botón
+              "Revocar membresía", sin ninguna confirmación visual. */}
+          {usuario.suscripcionEstado && (
+            <div className="flex items-center gap-[5px]">
+              <EtiquetaBadge>Estado:</EtiquetaBadge>
+              <StatusBadge tone={TONO_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}>
+                {ETIQUETA_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}
+              </StatusBadge>
+            </div>
+          )}
+          {/* Solo mientras siga vigente: "Acceso otorgado" junto a "Cancelada"
+              leía como si el acceso siguiera en pie después de revocarlo. */}
+          {usuario.tipoAccesoSuscripcion && suscripcionVigente && (
+            <div className="flex items-center gap-[5px]">
+              <EtiquetaBadge>Acceso:</EtiquetaBadge>
+              <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
+            </div>
+          )}
+          <div className="text-[12px] text-uva-muted-2 sm:ml-auto">
+            Registrado {formatFecha(usuario.fechaRegistro)}
+          </div>
         </div>
       </div>
 
@@ -166,15 +175,25 @@ export function UsuarioDetalleView({
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2.5">
-        <Button type="button" variant="primary" onClick={() => setMembresiaOpen(true)}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full sm:w-auto"
+          onClick={() => setMembresiaOpen(true)}
+        >
           Otorgar membresía
         </Button>
-        <Button type="button" onClick={() => setCortesiaOpen(true)}>
+        <Button type="button" className="w-full sm:w-auto" onClick={() => setCortesiaOpen(true)}>
           Ofrecer curso de cortesía
         </Button>
         {puedeRevocarMembresia && (
-          <Button type="button" variant="destructive" onClick={() => setRevocandoMembresia(true)}>
+          <Button
+            type="button"
+            variant="destructive"
+            className="w-full sm:w-auto"
+            onClick={() => setRevocandoMembresia(true)}
+          >
             Revocar membresía
           </Button>
         )}
@@ -210,12 +229,90 @@ export function UsuarioDetalleView({
       </div>
 
       <AdminCard flush className="gap-0">
-        <div className="px-[18px] pt-4">
+        <div className="px-[18px] pt-4 pb-1">
           <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
             Cursos del usuario
           </h2>
         </div>
-        <Table>
+
+        {usuario.cursos.length === 0 && (
+          <p className="px-[18px] py-4 text-center text-sm text-uva-muted-2">
+            Este usuario no está inscrito en ningún curso.
+          </p>
+        )}
+
+        {/* Mismo criterio que las demás tablas del panel: 6 columnas (una un
+            botón de acción) no caben sin scroll horizontal en un touch. */}
+        {usuario.cursos.length > 0 && (
+          <div className="flex flex-col pointer-fine:md:hidden">
+            {usuario.cursos.map((curso) => (
+              <div
+                key={curso.inscripcionId ?? curso.cursoId}
+                className="flex flex-col gap-2 border-t border-uva-divider px-[18px] py-3.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Link
+                    href={`/admin/cursos/${curso.cursoId}`}
+                    className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                  >
+                    {curso.titulo}
+                  </Link>
+                  <StatusBadge
+                    tone={curso.estado === "COMPLETADO" ? "success" : "neutral"}
+                    className="shrink-0"
+                  >
+                    {curso.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                  </StatusBadge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={curso.progreso}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Progreso de ${curso.titulo}`}
+                    className="h-1.5 w-full rounded-full bg-uva-divider"
+                  >
+                    <div className="h-full rounded-full bg-uva-accent" style={{ width: `${curso.progreso}%` }} />
+                  </div>
+                  <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
+                    {curso.progreso}%
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+                    {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
+                  </StatusBadge>
+                  {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
+                    <span title={curso.motivoRevocacion ?? undefined}>
+                      <StatusBadge tone="error">Revocada</StatusBadge>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-uva-muted-2">
+                    {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "Sin actividad"}
+                  </span>
+                  {curso.tipoAcceso === "CORTESIA" && curso.activo && curso.inscripcionId && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setQuitando({ inscripcionId: curso.inscripcionId!, titulo: curso.titulo })
+                      }
+                    >
+                      Quitar cortesía
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {usuario.cursos.length > 0 && (
+        <Table className="hidden pointer-fine:md:table">
           <TableHeader>
             <TableRow>
               <TableHead>Curso</TableHead>
@@ -227,13 +324,6 @@ export function UsuarioDetalleView({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {usuario.cursos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-uva-muted-2">
-                  Este usuario no está inscrito en ningún curso.
-                </TableCell>
-              </TableRow>
-            )}
             {usuario.cursos.map((curso) => (
               <TableRow key={curso.inscripcionId ?? curso.cursoId}>
                 <TableCell className="font-semibold">
@@ -303,6 +393,7 @@ export function UsuarioDetalleView({
             ))}
           </TableBody>
         </Table>
+        )}
       </AdminCard>
 
       <GrantMembershipDialog

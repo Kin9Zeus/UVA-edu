@@ -120,13 +120,80 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex justify-end">
-        <Button type="button" variant="primary" onClick={abrirCrear}>
+        <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={abrirCrear}>
           + Nueva categoría
         </Button>
       </div>
 
       <AdminCard flush>
-        <Table>
+        {categorias.length === 0 && (
+          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+            No hay categorías todavía.
+          </p>
+        )}
+
+        {/* Mismo criterio que el resto del panel: 6 columnas (una un switch
+            funcional) no caben sin scroll horizontal en un touch. */}
+        {categorias.length > 0 && (
+          <div className="flex flex-col pointer-fine:md:hidden">
+            {categorias.map((categoria) => (
+              <div
+                key={categoria.id}
+                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerCursosDe(categoria)}
+                    className="text-left text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                  >
+                    {categoria.nombre}
+                  </button>
+                  <SwitchEstado
+                    checked={categoria.activo}
+                    onCheckedChange={(checked) => handleToggle(categoria, checked)}
+                    etiquetas={["Activa", "Inactiva"]}
+                    acciones={["Activar categoría", "Desactivar categoría"]}
+                  />
+                </div>
+                {categoria.descripcion && (
+                  <p className="text-xs text-uva-muted">{categoria.descripcion}</p>
+                )}
+                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  {categoria.numeroCursos} curso{categoria.numeroCursos === 1 ? "" : "s"} · Creado por{" "}
+                  {categoria.creadoPor}
+                </p>
+                <div className="flex justify-end gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Editar categoría"
+                    title="Editar categoría"
+                    className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                    onClick={() => abrirEditar(categoria)}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Eliminar categoría"
+                    title="Eliminar categoría"
+                    className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                    onClick={() => pedirEliminar(categoria)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {categorias.length > 0 && (
+        <Table className="hidden pointer-fine:md:table">
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
@@ -138,13 +205,6 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categorias.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-uva-muted-2">
-                  No hay categorías todavía.
-                </TableCell>
-              </TableRow>
-            )}
             {categorias.map((categoria) => (
               <TableRow key={categoria.id}>
                 <TableCell>
@@ -210,6 +270,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             ))}
           </TableBody>
         </Table>
+        )}
       </AdminCard>
 
       <CategoriaFormDialog
@@ -323,10 +384,10 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
               <Link
                 key={curso.id}
                 href={`/admin/cursos/${curso.id}`}
-                className="flex items-center justify-between rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
+                className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
               >
-                {curso.titulo}
-                <StatusBadge tone={curso.mostrado ? "success" : "neutral"}>
+                <span className="min-w-0 truncate">{curso.titulo}</span>
+                <StatusBadge tone={curso.mostrado ? "success" : "neutral"} className="shrink-0">
                   {curso.mostrado ? "Publicado" : "Borrador"}
                 </StatusBadge>
               </Link>

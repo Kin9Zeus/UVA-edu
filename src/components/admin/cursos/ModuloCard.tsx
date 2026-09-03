@@ -3,6 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
@@ -45,28 +56,20 @@ export function ModuloCard({
   modulo,
   posicion,
   cursoId,
-  draggable,
   leccionActivaId,
   onSeleccionarLeccion,
   onLeccionesChange,
   onTituloChange,
-  onDragStart,
-  onDragOver,
-  onDrop,
   confirmarSalirSinGuardar,
 }: {
   modulo: ModuloDetalle;
   /** Posición 1..N en la lista; el mockup la pinta junto al nombre del módulo. */
   posicion: number;
   cursoId: string;
-  draggable: boolean;
   leccionActivaId: string | null;
   onSeleccionarLeccion: (leccion: LeccionDetalle) => void;
   onLeccionesChange: (moduloId: string, lecciones: LeccionDetalle[]) => void;
   onTituloChange: (moduloId: string, titulo: string) => void;
-  onDragStart: () => void;
-  onDragOver: (event: React.DragEvent) => void;
-  onDrop: () => void;
   /** true si se puede seguir (no había cambios sin guardar, o el usuario
    * confirmó descartarlos). Toda mutación de acá abajo termina en
    * router.refresh(), que remonta el editor de lección — hay que preguntar
@@ -77,12 +80,35 @@ export function ModuloCard({
   const [nombreLeccion, setNombreLeccion] = useState("");
   const [borrandoModulo, setBorrandoModulo] = useState(false);
   const [borrandoLeccion, setBorrandoLeccion] = useState<LeccionDetalle | null>(null);
-  const [draggedLeccionIndex, setDraggedLeccionIndex] = useState<number | null>(null);
   const [editandoTitulo, setEditandoTitulo] = useState(false);
   const [tituloEditado, setTituloEditado] = useState(modulo.titulo);
   const [guardandoTitulo, setGuardandoTitulo] = useState(false);
   const showToast = useAdminToast();
   const router = useRouter();
+
+  // Mismos sensores que ContenidoTab (mouse via PointerSensor, dedo con
+  // long-press via TouchSensor) — cada módulo tiene su propia lista de
+  // lecciones, así que cada uno arma su propio DndContext en vez de
+  // compartir el de módulos.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+
+  const {
+    attributes: moduloAttributes,
+    listeners: moduloListeners,
+    setNodeRef: setModuloNodeRef,
+    transform: moduloTransform,
+    transition: moduloTransition,
+    isDragging: moduloIsDragging,
+  } = useSortable({ id: modulo.id });
+
+  const moduloStyle = {
+    transform: CSS.Transform.toString(moduloTransform),
+    transition: moduloTransition,
+    opacity: moduloIsDragging ? 0.5 : 1,
+  };
 
   const lecciones = modulo.lecciones;
 
@@ -176,20 +202,23 @@ export function ModuloCard({
     router.refresh();
   }
 
-  function handleDropLeccion(targetIndex: number) {
-    if (draggedLeccionIndex === null || draggedLeccionIndex === targetIndex) return;
+  function handleLeccionDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!confirmarSalirSinGuardar()) return;
 
     const anteriores = lecciones;
-    const reordenadas = [...lecciones];
-    const [movida] = reordenadas.splice(draggedLeccionIndex, 1);
-    reordenadas.splice(targetIndex, 0, movida);
+    const origenIndex = lecciones.findIndex((leccion) => leccion.id === active.id);
+    const targetIndex = lecciones.findIndex((leccion) => leccion.id === over.id);
+    if (origenIndex === -1 || targetIndex === -1) return;
+
+    const reordenadas = arrayMove(lecciones, origenIndex, targetIndex);
     onLeccionesChange(modulo.id, reordenadas);
-    setDraggedLeccionIndex(null);
 
     const idAnterior = reordenadas[targetIndex - 1]?.id ?? null;
     const idSiguiente = reordenadas[targetIndex + 1]?.id ?? null;
 
-    moverLeccion(cursoId, modulo.id, movida.id, idAnterior, idSiguiente).then((resultado) => {
+    moverLeccion(cursoId, modulo.id, String(active.id), idAnterior, idSiguiente).then((resultado) => {
       if (resultado.error) {
         showToast(resultado.error, "error");
         // Reversión visible: el servidor no guardó el nuevo orden, así que
@@ -200,17 +229,24 @@ export function ModuloCard({
   }
 
   return (
-    <AdminCard
-      flush
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      className="cursor-grab"
-    >
+    <AdminCard flush ref={setModuloNodeRef} style={moduloStyle}>
       {/* Franja de cabecera del módulo: `background:var(--surface-2)` */}
       <div className="flex items-center gap-2.5 bg-uva-surface-2 px-4 py-[13px]">
-        <GripVertical className="size-[15px] shrink-0 text-uva-muted-2" strokeWidth={2} />
+        {/* El grip es el único punto de arrastre (no la tarjeta entera): así
+            el resto de la cabecera — renombrar, eliminar — sigue siendo
+            tocable/cliqueable sin competir con el gesto de reordenar.
+            `touch-action:none` evita que el navegador interprete el primer
+            roce como scroll de la página antes de que el long-press active
+            el drag. */}
+        <button
+          type="button"
+          {...moduloAttributes}
+          {...moduloListeners}
+          aria-label={`Reordenar el módulo ${modulo.titulo}`}
+          className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing pointer-coarse:-m-3 pointer-coarse:p-3"
+        >
+          <GripVertical className="size-[15px] shrink-0" strokeWidth={2} />
+        </button>
         {editandoTitulo ? (
           <Input
             autoFocus
@@ -230,7 +266,9 @@ export function ModuloCard({
         ) : (
           <span className="text-[13.5px] font-bold text-uva-text">{modulo.titulo}</span>
         )}
-        <span className="font-mono text-[11.5px] text-uva-muted-2">{posicion}</span>
+        {/* Índice decorativo (1..N): en mobile se quita para darle más
+            espacio al título, que ya lo dice todo lo que hace falta. */}
+        <span className="hidden font-mono text-[11.5px] text-uva-muted-2 sm:inline">{posicion}</span>
         <div className="ml-auto flex items-center gap-1">
           {!editandoTitulo && (
             <Button
@@ -239,7 +277,7 @@ export function ModuloCard({
               size="icon-sm"
               aria-label={`Renombrar el modulo ${modulo.titulo}`}
               title="Renombrar módulo"
-              className="text-uva-muted-2 hover:text-uva-accent"
+              className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
               onClick={() => {
                 setTituloEditado(modulo.titulo);
                 setEditandoTitulo(true);
@@ -254,7 +292,7 @@ export function ModuloCard({
             size="icon-sm"
             aria-label={`Eliminar el modulo ${modulo.titulo}`}
             title="Eliminar modulo"
-            className="text-uva-muted-2 hover:text-uva-accent"
+            className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
             onClick={() => confirmarSalirSinGuardar() && setBorrandoModulo(true)}
           >
             <Trash2 className="size-4" />
@@ -263,65 +301,38 @@ export function ModuloCard({
       </div>
 
       <div>
-        {lecciones.map((leccion, index) => (
-          <div
-            key={leccion.id}
-            draggable
-            onDragStart={() => setDraggedLeccionIndex(index)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => handleDropLeccion(index)}
-            className={cn(
-              "flex cursor-grab items-center gap-[11px] border-t border-uva-divider px-4 py-[11px] hover:bg-uva-hover",
-              leccion.id === leccionActivaId && "bg-uva-hover",
-            )}
-          >
-            <GripVertical className="size-[14px] shrink-0 text-uva-muted-2" strokeWidth={2} />
-            {/* El esquema no distingue tipos de lección todavía: toda lección
-                es un video de Mux (id_video_mux / duracion / estado). */}
-            <span className="w-[14px] shrink-0 font-mono text-xs text-uva-muted">&#9654;</span>
-            <button
-              type="button"
-              onClick={() => onSeleccionarLeccion(leccion)}
-              className="flex-1 truncate text-left text-[13px] text-uva-text"
-            >
-              {leccion.titulo}
-            </button>
-            <span className="shrink-0 font-mono text-[11.5px] text-uva-muted-2">
-              {formatDuracion(leccion.duracion)}
-            </span>
-            <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]} className="shrink-0 text-[10px]">
-              {ESTADO_LABEL[leccion.estadoProcesamiento]}
-            </StatusBadge>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Eliminar la lección ${leccion.titulo}`}
-              title="Eliminar lección"
-              className="shrink-0 text-uva-muted-2 hover:text-uva-accent"
-              onClick={() => confirmarSalirSinGuardar() && setBorrandoLeccion(leccion)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLeccionDragEnd}>
+          <SortableContext items={lecciones.map((leccion) => leccion.id)} strategy={verticalListSortingStrategy}>
+            {lecciones.map((leccion) => (
+              <LeccionRow
+                key={leccion.id}
+                leccion={leccion}
+                activa={leccion.id === leccionActivaId}
+                onSeleccionar={() => onSeleccionarLeccion(leccion)}
+                onEliminar={() => confirmarSalirSinGuardar() && setBorrandoLeccion(leccion)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         {agregandoLeccion ? (
-          <div className="flex items-center gap-2 border-t border-uva-divider px-4 py-2.5">
+          <div className="flex flex-col gap-2 border-t border-uva-divider px-4 py-2.5 sm:flex-row sm:items-center">
             <Input
               autoFocus
               placeholder="Nombre de la lección"
               value={nombreLeccion}
               onChange={(event) => setNombreLeccion(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAgregarLeccion()}
-              className="h-8 max-w-[280px] text-sm"
+              className="h-8 text-sm sm:max-w-[280px]"
             />
-            <Button type="button" size="sm" onClick={handleAgregarLeccion}>
-              Agregar
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setAgregandoLeccion(false)}>
-              Cancelar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" onClick={handleAgregarLeccion}>
+                Agregar
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAgregandoLeccion(false)}>
+                Cancelar
+              </Button>
+            </div>
           </div>
         ) : (
           <button
@@ -382,5 +393,86 @@ export function ModuloCard({
         onConfirm={handleEliminarLeccion}
       />
     </AdminCard>
+  );
+}
+
+/**
+ * Fila de lección, ordenable por separado del módulo (dnd-kit necesita un
+ * `useSortable` por elemento, y los hooks no se pueden llamar dentro de un
+ * `.map`). Mismo criterio que el grip del módulo: solo el ícono de arrastre
+ * dispara el drag, el resto de la fila sigue siendo tocable normalmente.
+ */
+function LeccionRow({
+  leccion,
+  activa,
+  onSeleccionar,
+  onEliminar,
+}: {
+  leccion: LeccionDetalle;
+  activa: boolean;
+  onSeleccionar: () => void;
+  onEliminar: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: leccion.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-[11px] border-t border-uva-divider px-4 py-[11px] hover:bg-uva-hover",
+        activa && "bg-uva-hover",
+      )}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`Reordenar la lección ${leccion.titulo}`}
+        className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing pointer-coarse:-m-3 pointer-coarse:p-3"
+      >
+        <GripVertical className="size-[14px] shrink-0" strokeWidth={2} />
+      </button>
+      {/* El esquema no distingue tipos de lección todavía: toda lección es un
+          video de Mux (id_video_mux / duracion / estado). Puramente
+          decorativo — se quita en mobile junto con la duración para darle
+          más aire al título, que es lo único que hace falta para elegir la
+          lección; ambos siguen visibles en el editor de la derecha. */}
+      <span className="hidden w-[14px] shrink-0 font-mono text-xs text-uva-muted sm:inline">
+        &#9654;
+      </span>
+      <button
+        type="button"
+        onClick={onSeleccionar}
+        className="flex-1 truncate text-left text-[13px] text-uva-text"
+      >
+        {leccion.titulo}
+      </button>
+      <span className="hidden shrink-0 font-mono text-[11.5px] text-uva-muted-2 sm:inline">
+        {formatDuracion(leccion.duracion)}
+      </span>
+      <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]} className="shrink-0 text-[10px]">
+        {ESTADO_LABEL[leccion.estadoProcesamiento]}
+      </StatusBadge>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Eliminar la lección ${leccion.titulo}`}
+        title="Eliminar lección"
+        className="shrink-0 text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+        onClick={onEliminar}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </div>
   );
 }

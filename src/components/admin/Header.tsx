@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, LayoutDashboard, LogOut, Search, Settings, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAdminSearch } from "@/components/admin/SearchContext";
+import { BuscadorMovilDialog } from "@/components/admin/BuscadorMovilDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,6 +30,8 @@ function tituloDeSeccion(pathname: string) {
   if (pathname.startsWith("/admin/usuarios/")) return "Detalle de usuario";
   if (pathname.startsWith("/admin/categorias")) return "Categorías";
   if (pathname.startsWith("/admin/instructores")) return "Instructores";
+  if (pathname.startsWith("/admin/codigos")) return "Códigos de invitación";
+  if (pathname.startsWith("/admin/bitacora")) return "Bitácora";
   if (pathname.startsWith("/admin/configuracion")) return "Configuración";
   return "Panel";
 }
@@ -53,12 +56,21 @@ export function Header({ nombre }: { nombre: string }) {
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-uva-divider bg-[color-mix(in_srgb,var(--uva-bg)_82%,transparent)] px-[clamp(20px,3vw,36px)] py-4 backdrop-blur-[12px]">
+      {/* El Sidebar (con su propio logo) se oculta por debajo de `md`; sin
+          esto el mobile se queda sin ninguna marca U.V.A visible. */}
+      <Link
+        href="/admin"
+        className="shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline md:hidden"
+      >
+        U.V.A<span className="text-uva-accent">.</span>
+      </Link>
+
       <h2 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
         {tituloDeSeccion(pathname)}
       </h2>
 
       {placeholder && (
-        <div className="relative max-w-[320px] flex-1">
+        <div className="relative hidden max-w-[320px] flex-1 md:block">
           <Search
             className="pointer-events-none absolute top-[11px] left-[13px] size-[15px] text-uva-muted-2"
             strokeWidth={2.4}
@@ -75,6 +87,7 @@ export function Header({ nombre }: { nombre: string }) {
       )}
 
       <div className="ml-auto flex items-center gap-3.5">
+        {placeholder && <BuscadorMovilDialog placeholder={placeholder} className="md:hidden" />}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]">
             {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,6 +49,28 @@ export function CursoDetalleView({
   // de lección dentro de la pestaña.
   const [contenidoSinGuardar, setContenidoSinGuardar] = useState(false);
   const showToast = useAdminToast();
+
+  // Las 4 etiquetas de pestaña casi llenan el ancho de un teléfono angosto,
+  // sin ningún margen — este scroll + degradado es la red de seguridad
+  // (mismo patrón que los filtros de /admin/cursos) para cuando no alcanzan.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [hayMasTabs, setHayMasTabs] = useState(false);
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    function actualizar() {
+      if (!el) return;
+      setHayMasTabs(el.scrollWidth - el.scrollLeft - el.clientWidth > 4);
+    }
+    actualizar();
+    el.addEventListener("scroll", actualizar);
+    window.addEventListener("resize", actualizar);
+    return () => {
+      el.removeEventListener("scroll", actualizar);
+      window.removeEventListener("resize", actualizar);
+    };
+  }, []);
 
   // Lo último guardado en el servidor, para saber si "Guardar cambios" está
   // pendiente. La portada no entra acá: se guarda sola al confirmarla en
@@ -154,50 +176,70 @@ export function CursoDetalleView({
       {/* Cabecera del curso: miniatura, título con categoría · nivel, badge de
           estado, el botón de guardar (compartido entre Información y
           Configuración) y el conteo de estudiantes alineado a la derecha. */}
-      <div className="flex flex-wrap items-center gap-4">
-        {esPortadaReal(imagenPortada) ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage, no un asset local optimizable por next/image
-          <img
-            src={imagenPortada}
-            alt=""
-            className="aspect-video h-11 shrink-0 rounded-lg object-cover"
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="aspect-video h-11 shrink-0 rounded-lg bg-uva-surface-2"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(135deg, rgba(250,250,250,.05) 0 2px, transparent 2px 9px)",
-            }}
-          />
-        )}
-        <div>
-          <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
-            {titulo}
-          </h1>
-          <p className="mt-0.5 text-[12.5px] text-uva-muted">
-            {categoria} · {NIVEL_LABEL[nivel]}
-          </p>
+      {/* Dos grupos en vez de un solo `flex-wrap`: portada+título por un
+          lado, badge+botón+contador por el otro. Un `flex-wrap` plano dejaba
+          "Guardar cambios" solo en su línea y el contador de estudiantes
+          huérfano pegado al borde derecho por el `ml-auto` — agrupados así,
+          en mobile quedan juntos y en `sm+` el segundo grupo se estira
+          (`sm:flex-1`) para que el `ml-auto` interno siga empujando el
+          contador al borde derecho, igual que antes. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex items-center gap-4">
+          {esPortadaReal(imagenPortada) ? (
+            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage, no un asset local optimizable por next/image
+            <img
+              src={imagenPortada}
+              alt=""
+              className="aspect-video h-11 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              aria-hidden
+              className="aspect-video h-11 shrink-0 rounded-lg bg-uva-surface-2"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(135deg, rgba(250,250,250,.05) 0 2px, transparent 2px 9px)",
+              }}
+            />
+          )}
+          <div>
+            <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+              {titulo}
+            </h1>
+            <p className="mt-0.5 text-[12.5px] text-uva-muted">
+              {categoria} · {NIVEL_LABEL[nivel]}
+            </p>
+          </div>
         </div>
-        <StatusBadge tone={mostrado ? "success" : "neutral"}>
-          {mostrado ? "Publicado" : "Borrador"}
-        </StatusBadge>
-        <Button type="button" variant="primary" size="sm" disabled={pending} onClick={handleGuardar}>
-          {pending ? "Guardando…" : "Guardar cambios"}
-        </Button>
-        <div className="ml-auto text-[13px] text-uva-muted">
-          {curso.estudiantes.length} {curso.estudiantes.length === 1 ? "estudiante" : "estudiantes"}
+
+        <div className="flex flex-wrap items-center gap-3 sm:flex-1">
+          <StatusBadge tone={mostrado ? "success" : "neutral"}>
+            {mostrado ? "Publicado" : "Borrador"}
+          </StatusBadge>
+          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={handleGuardar}>
+            {pending ? "Guardando…" : "Guardar cambios"}
+          </Button>
+          <div className="text-[13px] text-uva-muted sm:ml-auto">
+            {curso.estudiantes.length} {curso.estudiantes.length === 1 ? "estudiante" : "estudiantes"}
+          </div>
         </div>
       </div>
 
       <Tabs defaultValue="informacion">
-        <TabsList>
-          <TabsTrigger value="informacion">Información</TabsTrigger>
-          <TabsTrigger value="contenido">Contenido</TabsTrigger>
-          <TabsTrigger value="estudiantes">Estudiantes</TabsTrigger>
-          <TabsTrigger value="configuracion">Configuración</TabsTrigger>
-        </TabsList>
+        <div className="relative">
+          <TabsList ref={tabsRef} className="overflow-x-auto">
+            <TabsTrigger value="informacion">Información</TabsTrigger>
+            <TabsTrigger value="contenido">Contenido</TabsTrigger>
+            <TabsTrigger value="estudiantes">Estudiantes</TabsTrigger>
+            <TabsTrigger value="configuracion">Configuración</TabsTrigger>
+          </TabsList>
+          {hayMasTabs && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent"
+            />
+          )}
+        </div>
 
         <TabsContent value="informacion" className="pt-[18px]">
           <InfoTab
