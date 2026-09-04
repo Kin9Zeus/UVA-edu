@@ -8,6 +8,7 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import type { DocumentoContenido } from "@/lib/editor/tipos";
 import { esUrlSegura } from "@/lib/editor/seguridad";
+import { cn } from "@/lib/utils";
 import { RichTextToolbar } from "./RichTextToolbar";
 
 const DOC_VACIO: DocumentoContenido = { type: "doc", content: [{ type: "paragraph" }] };
@@ -51,12 +52,30 @@ export function RichTextEditor({
   editable = true,
   placeholder = "Escribe el contenido de la clase…",
   disabled = false,
+  contentClassName,
+  onReady,
 }: {
   initialContent: DocumentoContenido | null;
   onChange?: (contenido: DocumentoContenido) => void;
   editable?: boolean;
   placeholder?: string;
   disabled?: boolean;
+  /** Sobreescribe el alto (min/max) del área editable de CLASES_CONTENIDO
+   * — p. ej. LeccionEditorPanel la usa para que el resumen ocupe el alto
+   * disponible del panel ancho en vez del bloque bajo de 160-420px pensado
+   * para la columna angosta original. */
+  contentClassName?: string;
+  /**
+   * Se llama una única vez, apenas Tiptap termina de montar, con el JSON que
+   * normalizó a partir de `initialContent` (ProseMirror completa `attrs` por
+   * defecto en cada nodo aunque el documento guardado no los traiga, así que
+   * el JSON recién montado no siempre es idéntico byte a byte al que se le
+   * pasó). Quien compara "¿hay cambios sin guardar?" debe usar este valor
+   * como referencia en vez de `initialContent` crudo — si no, esa
+   * normalización del montaje se lee como una edición que el usuario nunca
+   * hizo.
+   */
+  onReady?: (contenido: DocumentoContenido) => void;
 }) {
   const editor = useEditor({
     extensions: [
@@ -83,7 +102,8 @@ export function RichTextEditor({
     // antes de guardarlo en estado garantiza que lo que llega al server
     // action sea siempre serializable.
     onUpdate: ({ editor }) => onChange?.(JSON.parse(JSON.stringify(editor.getJSON())) as DocumentoContenido),
-    editorProps: { attributes: { class: CLASES_CONTENIDO } },
+    onCreate: ({ editor }) => onReady?.(JSON.parse(JSON.stringify(editor.getJSON())) as DocumentoContenido),
+    editorProps: { attributes: { class: cn(CLASES_CONTENIDO, contentClassName) } },
   });
 
   useEffect(() => {

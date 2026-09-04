@@ -29,7 +29,8 @@ import {
   moverLeccion,
 } from "@/actions/admin/cursos";
 import { cn } from "@/lib/utils";
-import type { ModuloDetalle, LeccionDetalle } from "@/lib/admin/cursoDetalle";
+import { LeccionEditorPanel } from "@/components/admin/cursos/LeccionEditorPanel";
+import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
 const ESTADO_LABEL = {
   SUBIENDO: "Subiendo",
@@ -62,6 +63,10 @@ export function ModuloCard({
   onLeccionesChange,
   onTituloChange,
   confirmarSalirSinGuardar,
+  onCerrarEditor,
+  onLeccionGuardada,
+  onRecursosChange,
+  onDirtyChangeLeccion,
 }: {
   modulo: ModuloDetalle;
   /** Posición 1..N en la lista; el mockup la pinta junto al nombre del módulo. */
@@ -76,10 +81,17 @@ export function ModuloCard({
   onLeccionesChange: (moduloId: string, lecciones: LeccionDetalle[]) => void;
   onTituloChange: (moduloId: string, titulo: string) => void;
   /** true si se puede seguir (no había cambios sin guardar, o el usuario
-   * confirmó descartarlos). Toda mutación de acá abajo termina en
-   * router.refresh(), que remonta el editor de lección — hay que preguntar
-   * antes, igual que al cambiar de lección o salir de la pantalla. */
-  confirmarSalirSinGuardar: () => boolean;
+   * confirmó descartarlos en el diálogo de ContenidoTab). Toda mutación de
+   * acá abajo termina en router.refresh(), que remonta el editor de lección
+   * — hay que preguntar antes, igual que al cambiar de lección o salir de
+   * la pantalla. */
+  confirmarSalirSinGuardar: () => Promise<boolean>;
+  /** Props que se reenvían tal cual a LeccionEditorPanel cuando una de las
+   * lecciones de este módulo es la activa (ver el render en línea, abajo). */
+  onCerrarEditor: () => void;
+  onLeccionGuardada: (cambios: Partial<LeccionDetalle>) => void;
+  onRecursosChange: (recursos: RecursoDetalle[]) => void;
+  onDirtyChangeLeccion: (dirty: boolean) => void;
 }) {
   const [agregandoLeccion, setAgregandoLeccion] = useState(false);
   const [nombreLeccion, setNombreLeccion] = useState("");
@@ -132,7 +144,7 @@ export function ModuloCard({
     // Se pregunta ANTES de guardar (no se descarta el título escrito): si
     // cancela, el input se queda como estaba para reintentar después de
     // resolver la lección abierta.
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
 
     setGuardandoTitulo(true);
     const resultado = await actualizarModulo(modulo.id, cursoId, nombre);
@@ -161,7 +173,7 @@ export function ModuloCard({
   async function handleAgregarLeccion() {
     const nombre = nombreLeccion.trim();
     if (!nombre) return;
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
 
     const resultado = await crearLeccion(modulo.id, cursoId, nombre);
     if (resultado.error) {
@@ -207,10 +219,10 @@ export function ModuloCard({
     router.refresh();
   }
 
-  function handleLeccionDragEnd(event: DragEndEvent) {
+  async function handleLeccionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
 
     const anteriores = lecciones;
     const origenIndex = lecciones.findIndex((leccion) => leccion.id === active.id);
@@ -298,7 +310,9 @@ export function ModuloCard({
             aria-label={`Eliminar el modulo ${modulo.titulo}`}
             title="Eliminar modulo"
             className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
-            onClick={() => confirmarSalirSinGuardar() && setBorrandoModulo(true)}
+            onClick={async () => {
+              if (await confirmarSalirSinGuardar()) setBorrandoModulo(true);
+            }}
           >
             <Trash2 className="size-4" />
           </Button>
@@ -308,20 +322,48 @@ export function ModuloCard({
       <div>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLeccionDragEnd}>
           <SortableContext items={lecciones.map((leccion) => leccion.id)} strategy={verticalListSortingStrategy}>
-            {lecciones.map((leccion, index) => (
-              <LeccionRow
-                key={leccion.id}
-                leccion={leccion}
-                activa={leccion.id === leccionActivaId}
-                // Vista previa pública del curso (Revcurso: "que la primera
-                // lección sea visible"): esta es la que ve cualquiera sin
-                // acceso, así que el profesor/admin que arma el curso
-                // necesita saber cuál es antes de subir el video.
-                esIntroduccion={posicion === 1 && index === 0 && totalLeccionesCurso > 1}
-                onSeleccionar={() => onSeleccionarLeccion(leccion)}
-                onEliminar={() => confirmarSalirSinGuardar() && setBorrandoLeccion(leccion)}
-              />
-            ))}
+            {lecciones.map((leccion, index) => {
+              const activa = leccion.id === leccionActivaId;
+              return (
+                <div key={leccion.id}>
+                  <LeccionRow
+                    leccion={leccion}
+                    activa={activa}
+                    // Vista previa pública del curso (Revcurso: "que la
+                    // primera lección sea visible"): esta es la que ve
+                    // cualquiera sin acceso, así que el profesor/admin que
+                    // arma el curso necesita saber cuál es antes de subir
+                    // el video.
+                    esIntroduccion={posicion === 1 && index === 0 && totalLeccionesCurso > 1}
+                    onSeleccionar={() => onSeleccionarLeccion(leccion)}
+                    onEliminar={async () => {
+                      if (await confirmarSalirSinGuardar()) setBorrandoLeccion(leccion);
+                    }}
+                  />
+                  {/* Editor en línea: se despliega justo debajo de la fila de
+                      la lección elegida, dentro de este mismo módulo, y las
+                      lecciones que siguen quedan debajo — ver el comentario
+                      de ContenidoTab.tsx sobre la deviación del mockup. El
+                      id es el punto de scroll que usa seleccionarLeccion(). */}
+                  {activa && (
+                    <div
+                      id={`leccion-editor-${leccion.id}`}
+                      className="border-t border-uva-divider bg-uva-surface-2/40 px-4 py-4"
+                    >
+                      <LeccionEditorPanel
+                        key={leccion.id}
+                        leccion={leccion}
+                        cursoId={cursoId}
+                        onCerrar={onCerrarEditor}
+                        onGuardado={onLeccionGuardada}
+                        onRecursosChange={onRecursosChange}
+                        onDirtyChange={onDirtyChangeLeccion}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </SortableContext>
         </DndContext>
 
