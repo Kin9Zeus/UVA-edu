@@ -12,6 +12,7 @@ import {
   CreditCard,
   PanelLeftClose,
   PanelLeft,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -169,8 +170,23 @@ export function Sidebar({
         </nav>
       </TooltipProvider>
 
+      {/* Fuera del `nav` que scrollea: Soporte y la tarjeta de gracia deben
+          quedarse siempre visibles al fondo del sidebar, no desplazarse con
+          la lista de arriba. */}
+      <div className="shrink-0 border-t border-uva-divider px-2.5 py-2.5">
+        <TooltipProvider delay={150}>
+          <NavLink
+            href="/dashboard/soporte"
+            label="Soporte"
+            icon={HelpCircle}
+            active={isActive("/dashboard/soporte")}
+            collapsed={collapsed}
+          />
+        </TooltipProvider>
+      </div>
+
       {diasGracia !== null && !collapsed && (
-        <div className="p-[19px]">
+        <div className="px-[19px] pb-[19px]">
           <GraciaCard diasGracia={diasGracia} />
         </div>
       )}
