@@ -170,9 +170,17 @@ export function Sidebar({
         </nav>
       </TooltipProvider>
 
-      {/* Fuera del `nav` que scrollea: Soporte y la tarjeta de gracia deben
+      {/* Fuera del `nav` que scrollea: la tarjeta de gracia y Soporte deben
           quedarse siempre visibles al fondo del sidebar, no desplazarse con
-          la lista de arriba. */}
+          la lista de arriba. Cuando hay período de gracia, Soporte se corre
+          debajo de esa tarjeta (no encima) — mismo lugar de siempre, solo
+          empujado por el módulo que aparece arriba. */}
+      {diasGracia !== null && !collapsed && (
+        <div className="shrink-0 px-[19px] pt-[19px]">
+          <GraciaCard diasGracia={diasGracia} />
+        </div>
+      )}
+
       <div className="shrink-0 border-t border-uva-divider px-2.5 py-2.5">
         <TooltipProvider delay={150}>
           <NavLink
@@ -184,12 +192,6 @@ export function Sidebar({
           />
         </TooltipProvider>
       </div>
-
-      {diasGracia !== null && !collapsed && (
-        <div className="px-[19px] pb-[19px]">
-          <GraciaCard diasGracia={diasGracia} />
-        </div>
-      )}
     </aside>
   );
 }
