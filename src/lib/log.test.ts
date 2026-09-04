@@ -41,4 +41,22 @@ describe("logError", () => {
 
     spy.mockRestore();
   });
+
+  it("conserva el PostgrestError original (no Error) en vez de perderlo como [object Object]", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const postgrestError = {
+      message: "permission denied for table categorias",
+      code: "42501",
+      details: null,
+      hint: null,
+    };
+    logError("Home/Footer", "No se pudieron cargar las categorías", postgrestError);
+
+    const logueado = JSON.parse(spy.mock.calls[0][0] as string);
+    expect(logueado.message).toBe("No se pudieron cargar las categorías");
+    expect(logueado.causaOriginal).toEqual(postgrestError);
+
+    spy.mockRestore();
+  });
 });

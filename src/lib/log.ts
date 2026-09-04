@@ -51,17 +51,20 @@ export function logError(
   error?: unknown,
   context?: Record<string, unknown> & { area?: string },
 ): string {
-  const err =
-    error instanceof Error
-      ? error
-      : new Error(error != null ? `${message}: ${String(error)}` : message);
+  const err = error instanceof Error ? error : new Error(message);
 
   const { area, ...extraCrudo } = context ?? {};
   const extra = redactar(extraCrudo) as Record<string, unknown>;
+  // `error` casi siempre es un Error (auth de Supabase, Mux, Resend), pero
+  // un PostgrestError (`.from().select()`) es un objeto plano — sin esto,
+  // `err` de arriba no lo contiene y el código/hint/details reales de
+  // Postgres desaparecían por completo, tanto de consola como de Sentry.
+  const causaOriginal =
+    error !== undefined && !(error instanceof Error) ? redactar(error) : undefined;
 
   const eventId = Sentry.captureException(err, {
     tags: { scope, ...(area ? { area } : {}) },
-    extra: { message, ...extra },
+    extra: { message, ...(causaOriginal !== undefined ? { causaOriginal } : {}), ...extra },
   });
 
   console.error(
@@ -73,6 +76,7 @@ export function logError(
       ...(area ? { area } : {}),
       message,
       error: { nombre: err.name, mensaje: err.message },
+      ...(causaOriginal !== undefined ? { causaOriginal } : {}),
       ...extra,
     }),
   );
