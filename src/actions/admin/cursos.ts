@@ -24,12 +24,31 @@ import {
 // único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
 // id del curso al lado). Es la misma normalización que genera el slug de
 // las categorías — ver lib/slug.ts.
-import { slugificar as slugificarTexto } from "@/lib/slug";
+import { slugificar as slugificarTexto, slugDisponible } from "@/lib/slug";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
 
 const slugificar = (texto: string) => slugificarTexto(texto, "curso");
+
+/**
+ * Slug libre para `titulo`, ignorando el propio curso al editar (`exceptoId`)
+ * para que reguardar sin cambiar el título no le agregue un sufijo contra sí
+ * mismo. Mismo criterio que generarSlug() en actions/admin/categorias.ts.
+ */
+async function generarSlugCurso(
+  supabase: SupabaseClient,
+  titulo: string,
+  exceptoId?: string,
+): Promise<string> {
+  const base = slugificar(titulo);
+
+  let consulta = supabase.from("cursos").select("slug").like("slug", `${base}%`);
+  if (exceptoId) consulta = consulta.neq("id", exceptoId);
+  const { data } = await consulta;
+
+  return slugDisponible(base, (data ?? []).map((fila) => fila.slug as string));
+}
 
 /** Ruta dentro del bucket a partir de una public URL de Storage, o null si
  * `url` no viene de `BUCKET_PORTADAS` (el placeholder, u otro valor). */
@@ -245,6 +264,7 @@ export async function crearCurso(input: {
     .from("cursos")
     .insert({
       titulo,
+      slug: await generarSlugCurso(admin.supabase, titulo),
       descripcion,
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
       nivel,
@@ -314,7 +334,12 @@ export async function actualizarInfoCurso(
 
   const { error } = await admin.supabase
     .from("cursos")
-    .update({ titulo, descripcion, nivel })
+    .update({
+      titulo,
+      slug: await generarSlugCurso(admin.supabase, titulo, cursoId),
+      descripcion,
+      nivel,
+    })
     .eq("id", cursoId);
 
   if (error) return { error: "No pudimos guardar los cambios." };
