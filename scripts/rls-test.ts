@@ -211,6 +211,12 @@ async function main() {
     .from("cursos")
     .insert({
       titulo: `Curso RLS test (borrador) ${sufijo}`,
+      // `cursos.slug` es NOT NULL y UNIQUE desde la migración
+      // 20260903010000_agrega_slug_a_cursos_y_lecciones. La app lo genera con
+      // slugificar() al crear el curso; acá se escribe a mano con el mismo
+      // sufijo aleatorio que el título, para que dos corridas simultáneas
+      // (p. ej. dos jobs de CI) no choquen contra el índice único.
+      slug: `curso-rls-test-borrador-${sufijo}`,
       descripcion: "x",
       imagen_portada: "x",
       id_instructor: instructor.id,
@@ -244,6 +250,7 @@ async function main() {
     .from("cursos")
     .insert({
       titulo: `Curso RLS test (reproducción) ${sufijo}`,
+      slug: `curso-rls-test-reproduccion-${sufijo}`,
       descripcion: "x",
       imagen_portada: "x",
       id_instructor: instructor.id,
@@ -274,6 +281,10 @@ async function main() {
     .insert({
       id_modulo: moduloReproduccion.id,
       titulo: "Lección reproducción RLS test",
+      // `lecciones.slug` también es NOT NULL (misma migración). No es UNIQUE
+      // global —se particiona por curso vía el módulo—, pero el sufijo no
+      // estorba.
+      slug: `leccion-reproduccion-rls-test-${sufijo}`,
       orden: 10,
       id_video_mux: `rls-test-playback-${sufijo}`,
       estado_procesamiento: "LISTO",
@@ -439,6 +450,11 @@ async function main() {
         .from("cursos")
         .insert({
           titulo: "curso colado",
+          // Con `slug` NOT NULL, omitirlo hacía que este INSERT fallara por la
+          // restricción de columna y no por RLS — la aserción pasaba por el
+          // motivo equivocado, que es peor que fallar. Se manda completo para
+          // que lo único que pueda rechazarlo sea `cursos_admin_insert` (014).
+          slug: `curso-colado-${sufijo}`,
           descripcion: "x",
           imagen_portada: "x",
           id_instructor: instructor.id,
@@ -593,7 +609,12 @@ async function main() {
 
     const { data: leccionDespublicada, error: errLeccion } = await admin
       .from("lecciones")
-      .insert({ id_modulo: moduloDespublicado.id, titulo: "Lección RLS test", orden: 10 })
+      .insert({
+        id_modulo: moduloDespublicado.id,
+        titulo: "Lección RLS test",
+        slug: `leccion-rls-test-${sufijo}`,
+        orden: 10,
+      })
       .select("id")
       .single();
     if (errLeccion || !leccionDespublicada) throw new Error(`No pude crear la lección de prueba: ${errLeccion?.message}`);
