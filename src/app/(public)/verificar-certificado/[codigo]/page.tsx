@@ -1,27 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { ShieldCheck, ShieldX } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { clientIp } from "@/lib/clientIp";
 import { formatFecha } from "@/lib/admin/format";
 
 export const metadata: Metadata = { title: "U.V.A. — Verificar certificado" };
-
-/**
- * Página pública de verificación (Certificado.md): sin sesión, solo
- * confirma nombre/curso/fecha — nunca correo ni id interno. El límite es
- * por IP (mismo motivo que check_email_provider, 023): quien enumera
- * códigos no repite el mismo, así que limitar por código no frena nada.
- *
- * `verificar_certificado` (endurecida en 050) ya no es invocable por
- * `anon`/`authenticated` — solo por `service_role`, así que esta página usa
- * el admin client DESPUÉS de pasar el límite, nunca antes.
- */
-async function getClientIp(): Promise<string> {
-  const headersList = await headers();
-  const forwardedFor = headersList.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0].trim();
-  return headersList.get("x-real-ip") ?? "unknown";
-}
 
 type ResultadoVerificacion =
   | { estado: "bloqueado"; segundosEspera: number }
@@ -29,9 +12,24 @@ type ResultadoVerificacion =
   | { estado: "valido"; nombreEstudiante: string; nombreCurso: string; fechaEmision: string }
   | { estado: "error" };
 
+/**
+ * Página pública de verificación (Certificado.md): sin sesión, solo
+ * confirma nombre/curso/fecha — nunca correo ni id interno. El límite es
+ * por IP (mismo motivo que check_email_provider, 023): quien enumera
+ * códigos no repite el mismo, así que limitar por código no frena nada.
+ *
+ * La IP sale de `clientIp()` (src/lib/clientIp.ts), que lee la cadena de
+ * `x-forwarded-for` desde la derecha. Tomar el primer valor —lo que hacía
+ * esta página antes— dejaba la clave del límite en manos de quien enumera:
+ * rotándola nunca alcanzaba el umbral (AUDIT-2026-09-04.md, P1-2).
+ *
+ * `verificar_certificado` (endurecida en 050) ya no es invocable por
+ * `anon`/`authenticated` — solo por `service_role`, así que esta página usa
+ * el admin client DESPUÉS de pasar el límite, nunca antes.
+ */
 async function verificar(codigo: string): Promise<ResultadoVerificacion> {
   const admin = createAdminClient();
-  const ip = await getClientIp();
+  const ip = await clientIp();
 
   const { data: limite, error: errorLimite } = await admin
     .rpc("verificar_limite_certificado", { p_ip: ip })

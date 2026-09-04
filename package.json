@@ -27,6 +27,7 @@
     "mux:verificar-atascados": "tsx scripts/mux-verificar-atascados.ts",
     "verificar:migraciones-reversibles": "tsx scripts/verificar-migraciones-reversibles.ts",
     "certificados:notificar": "tsx scripts/certificados-enviar-notificaciones.ts",
+    "rate-limit:limpiar": "tsx scripts/limpiar-intentos-rate-limit.ts",
     "test:e2e": "playwright test",
     "audit:lighthouse": "tsx scripts/audit/lighthouse-audit.ts",
     "audit:lighthouse:compare": "tsx scripts/audit/lighthouse-audit.ts --compare",

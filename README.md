@@ -39,6 +39,15 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    solo son necesarias para probar esos flujos puntuales — el resto de la
    app funciona sin ellas.
 
+   **Opcional — `TRUSTED_PROXY_HOPS`** (por defecto `1`): cuántos proxies de
+   confianza hay delante de la aplicación. Es lo que usa `src/lib/clientIp.ts`
+   para saber qué entrada de `x-forwarded-for` no pudo escribir el cliente, y
+   de ahí sale la clave de los límites por IP. En Railway sin CDN propio es
+   `1` y no hay que tocarla. **Subirla por encima del número real
+   reintroduce la vulnerabilidad P1-2** (se acaba leyendo justo el valor que
+   puso el atacante), así que si algún día se añade un proxy delante, medir
+   la cadena real antes de cambiarla — nunca suponerla.
+
 3. **Esquema (Prisma)** — crea las tablas:
 
    ```bash
