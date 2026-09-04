@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
+import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 
 export type RecursoDetalle = {
   id: string;
@@ -13,7 +14,10 @@ export type LeccionDetalle = {
   titulo: string;
   orden: number;
   duracion: number | null;
-  resumen: string | null;
+  /** Contenido enriquecido a editar (RichTextEditor). Ya incluye, resuelto,
+   * el `resumen` legado convertido si la lección todavía no tiene JSON
+   * propio — ver resolverContenidoLeccion. */
+  contenido: DocumentoContenido | null;
   estadoProcesamiento: "SUBIENDO" | "PROCESANDO" | "LISTO" | "ERROR";
   errorProcesamiento: string | null;
   idMuxUploadId: string | null;
@@ -126,7 +130,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: modulos } = await supabase
     .from("modulos")
     .select(
-      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, estado_procesamiento, error_procesamiento, id_mux_upload_id, id_video_mux, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
+      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, contenido, estado_procesamiento, error_procesamiento, id_mux_upload_id, id_video_mux, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
     )
     .eq("id_curso", cursoId)
     .order("orden");
@@ -147,7 +151,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         // vea minutos que no salen de ningún video (misma regla en
         // lib/curso.ts y lib/leccion.ts).
         duracion: leccion.estado_procesamiento === "LISTO" ? leccion.duracion : null,
-        resumen: leccion.resumen,
+        contenido: resolverContenidoLeccion(leccion.contenido, leccion.resumen),
         estadoProcesamiento: leccion.estado_procesamiento,
         errorProcesamiento: leccion.error_procesamiento,
         idMuxUploadId: leccion.id_mux_upload_id,

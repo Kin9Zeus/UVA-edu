@@ -570,7 +570,18 @@ model Lecciones {
   /// Mensaje de Mux cuando estado_procesamiento = ERROR (video.asset.errored
   /// o video.upload.cancelled). Null en cualquier otro estado.
   error_procesamiento  String?
+  /// Legado: resumen en texto plano, reemplazado por `contenido` (editor
+  /// enriquecido). Ya no se escribe desde la app — se conserva solo como
+  /// respaldo de lecciones sembradas antes de este campo; getCursoDetalle,
+  /// getLeccionPlayer y getLeccionVistaPrevia lo usan como valor inicial de
+  /// `contenido` (un único párrafo) cuando la lección todavía no tiene JSON
+  /// propio, para no perder texto ya publicado.
   resumen              String?
+  /// Documento JSON de Tiptap/ProseMirror con el contenido enriquecido de la
+  /// lección (texto con formato, listas, citas, bloques de código, etc.).
+  /// Fuente de verdad del contenido — nunca se guarda HTML. Validado contra
+  /// contenidoLeccionSchema (src/lib/editor/tipos.ts) antes de escribir.
+  contenido            Json?
   creado_en            DateTime                   @default(now()) @db.Timestamptz
   actualizado_en       DateTime                   @updatedAt @db.Timestamptz
 

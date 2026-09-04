@@ -179,7 +179,7 @@ export function ModuloCard({
         titulo: nombre,
         orden: lecciones.length,
         duracion: null,
-        resumen: null,
+        contenido: null,
         estadoProcesamiento: "SUBIENDO",
         errorProcesamiento: null,
         idMuxUploadId: null,

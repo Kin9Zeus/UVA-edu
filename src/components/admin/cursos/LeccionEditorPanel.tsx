@@ -5,7 +5,6 @@ import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   actualizarLeccion,
   eliminarRecursoLeccion,
@@ -15,10 +14,12 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import type { DocumentoContenido } from "@/lib/editor/tipos";
 
 type CambiosLeccion = Pick<
   LeccionDetalle,
-  "titulo" | "duracion" | "resumen" | "estadoProcesamiento" | "errorProcesamiento" | "idVideoMux"
+  "titulo" | "duracion" | "contenido" | "estadoProcesamiento" | "errorProcesamiento" | "idVideoMux"
 >;
 
 // Mismo valor que TAMANO_MAXIMO_RECURSO en actions/admin/cursos.ts. No se
@@ -58,13 +59,13 @@ export function LeccionEditorPanel({
   // este formulario. Se sigue actualizando en vivo cuando VideoUploader
   // reporta un nuevo `duracion` tras terminar de procesar (ver más abajo).
   const [duracion, setDuracion] = useState(leccion.duracion);
-  const [resumen, setResumen] = useState(leccion.resumen ?? "");
+  const [contenido, setContenido] = useState<DocumentoContenido | null>(leccion.contenido);
   // Lo último que quedó guardado en el servidor. NO es `leccion` (esa prop
   // es la foto del momento en que este panel se montó): después de guardar
   // hay que comparar contra el guardado más reciente, no contra el original.
   const [guardadoComo, setGuardadoComo] = useState({
     titulo: leccion.titulo,
-    resumen: leccion.resumen ?? "",
+    contenido: leccion.contenido,
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -78,7 +79,9 @@ export function LeccionEditorPanel({
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
 
-  const sinGuardar = titulo !== guardadoComo.titulo || resumen !== guardadoComo.resumen;
+  const sinGuardar =
+    titulo !== guardadoComo.titulo ||
+    JSON.stringify(contenido) !== JSON.stringify(guardadoComo.contenido);
 
   useEffect(() => {
     onDirtyChange(sinGuardar);
@@ -101,7 +104,7 @@ export function LeccionEditorPanel({
   async function handleGuardar() {
     setPending(true);
     setError(null);
-    const cambios = { titulo, resumen };
+    const cambios = { titulo, contenido };
     const resultado = await actualizarLeccion(leccion.id, cursoId, cambios);
     setPending(false);
 
@@ -110,7 +113,7 @@ export function LeccionEditorPanel({
       return;
     }
     showToast("Lección guardada.");
-    setGuardadoComo({ titulo, resumen });
+    setGuardadoComo({ titulo, contenido });
     onGuardado(cambios);
   }
 
@@ -299,12 +302,11 @@ export function LeccionEditorPanel({
       </div>
 
       <div>
-        <Label htmlFor="leccion-resumen">Resumen</Label>
-        <Textarea
-          id="leccion-resumen"
-          value={resumen}
-          onChange={(event) => setResumen(event.target.value)}
-          rows={3}
+        <Label>Contenido de la clase</Label>
+        <RichTextEditor
+          initialContent={leccion.contenido}
+          onChange={setContenido}
+          placeholder="Escribe el resumen/teoría de esta clase…"
         />
       </div>
 

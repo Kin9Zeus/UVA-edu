@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
+import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 
 export type RecursoLeccion = {
   id: string;
@@ -42,7 +43,7 @@ export type LeccionPlayer = {
   leccionTitulo: string;
   numero: number;
   totalClases: number;
-  resumen: string | null;
+  contenido: DocumentoContenido | null;
   duracion: number | null;
   /** Si el video ya terminó de procesarse en Mux; VideoPlayer pide su propio token firmado. */
   videoListo: boolean;
@@ -101,7 +102,7 @@ export async function getLeccionPlayer(
   const { data: modulos } = await supabase
     .from("modulos")
     .select(
-      "id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, resumen, id_video_mux, estado_procesamiento)",
+      "id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, resumen, contenido, id_video_mux, estado_procesamiento)",
     )
     .eq("id_curso", cursoId)
     .order("orden");
@@ -126,6 +127,7 @@ export async function getLeccionPlayer(
             // mostrar minutos que no salen de ningún video.
             duracion: (videoListo ? (leccion.duracion ?? null) : null) as number | null,
             resumen: (leccion.resumen ?? null) as string | null,
+            contenido: leccion.contenido as unknown | null,
             videoListo,
             idVideoMux: leccion.id_video_mux as string | null,
             moduloId: modulo.id as string,
@@ -213,7 +215,7 @@ export async function getLeccionPlayer(
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases,
-    resumen: actual.resumen,
+    contenido: resolverContenidoLeccion(actual.contenido, actual.resumen),
     duracion: actual.duracion,
     videoListo: actual.videoListo,
     recursos: (recursos ?? []).map((recurso) => ({

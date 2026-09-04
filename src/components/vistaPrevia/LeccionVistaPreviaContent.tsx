@@ -114,7 +114,7 @@ export function LeccionVistaPreviaContent({
                 </p>
               </div>
             )}
-            {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
+            {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
           </div>
         </div>
 

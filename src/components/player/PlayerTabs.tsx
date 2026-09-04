@@ -1,7 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Download, Loader2, BadgeCheck, User, Heart, Reply } from "lucide-react";
+import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import {
+  Download,
+  Loader2,
+  BadgeCheck,
+  User,
+  Heart,
+  Reply,
+  Send,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+} from "lucide-react";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import { crearComentario } from "@/actions/comentarios/crear";
@@ -9,6 +22,8 @@ import { eliminarComentario } from "@/actions/comentarios/eliminar";
 import { darLikeComentario, quitarLikeComentario } from "@/actions/comentarios/like";
 import type { RecursoLeccion } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
+import type { DocumentoContenido } from "@/lib/editor/tipos";
+import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 
 export type TabPlayer = "recursos" | "resumen" | "comentarios";
 
@@ -123,13 +138,8 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
   );
 }
 
-export function ResumenTab({ resumen }: { resumen: string | null }) {
-  const parrafos = (resumen ?? "")
-    .split(/\n{2,}/)
-    .map((parrafo) => parrafo.trim())
-    .filter(Boolean);
-
-  if (parrafos.length === 0) {
+export function ResumenTab({ contenido }: { contenido: DocumentoContenido | null }) {
+  if (!contenido) {
     return (
       <div className="flex flex-col gap-3">
         <p className="m-0 max-w-[640px] text-[13.5px] text-uva-muted">
@@ -139,20 +149,273 @@ export function ResumenTab({ resumen }: { resumen: string | null }) {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {parrafos.map((parrafo, i) => (
-        <p key={i} className="m-0 max-w-[640px] text-[13.5px] leading-relaxed text-uva-muted">
-          {parrafo}
-        </p>
-      ))}
-    </div>
+  return <RichTextRenderer contenido={contenido} />;
+}
+
+/**
+ * Filtra los comentarios eliminados que ya no aportan nada a la vista: una
+ * respuesta borrada desaparece siempre (es una hoja), pero un comentario
+ * raíz borrado se conserva como placeholder "[comentario eliminado]" si
+ * todavía tiene alguna respuesta viva — quitarlo del todo dejaría esa
+ * respuesta huérfana de contexto (ver el comentario en
+ * actions/comentarios/eliminar.ts sobre por qué el borrado es lógico).
+ */
+export function comentariosVisibles(
+  comentarios: ComentarioConRespuestas[],
+): ComentarioConRespuestas[] {
+  return comentarios
+    .filter((comentario) => !comentario.eliminado || comentario.respuestas.some((r) => !r.eliminado))
+    .map((comentario) =>
+      comentario.respuestas.some((r) => r.eliminado)
+        ? { ...comentario, respuestas: comentario.respuestas.filter((r) => !r.eliminado) }
+        : comentario,
+    );
+}
+
+/** Cuenta raíces + respuestas visibles, para el número junto a la pestaña "Comentarios". */
+export function contarComentarios(comentarios: ComentarioConRespuestas[]): number {
+  return comentariosVisibles(comentarios).reduce(
+    (total, comentario) => total + 1 + comentario.respuestas.length,
+    0,
   );
 }
 
-/** Cuenta raíces + respuestas, para el número junto a la pestaña "Comentarios". */
-export function contarComentarios(comentarios: ComentarioConRespuestas[]): number {
-  return comentarios.reduce((total, comentario) => total + 1 + comentario.respuestas.length, 0);
+type FormatoId = "bold" | "italic" | "underline" | "list" | "list-ordered";
+
+const BOTONES_FORMATO: { tipo: FormatoId; icono: typeof Bold; etiqueta: string }[] = [
+  { tipo: "bold", icono: Bold, etiqueta: "Negrita" },
+  { tipo: "italic", icono: Italic, etiqueta: "Cursiva" },
+  { tipo: "underline", icono: Underline, etiqueta: "Subrayado" },
+  { tipo: "list", icono: List, etiqueta: "Lista con viñetas" },
+  { tipo: "list-ordered", icono: ListOrdered, etiqueta: "Lista numerada" },
+];
+
+/** Comando nativo de `execCommand` detrás de cada botón — el editor es un
+ * `contenteditable`, así que negrita/cursiva/listas se aplican en vivo sobre
+ * la selección, en vez de insertar marcadores de texto que el usuario
+ * tendría que ver. La numeración/viñeta la sigue pintando el navegador
+ * (por eso alcanza con CSS `list-decimal`/`list-disc` en el editor); la
+ * continuación al dar Enter, en cambio, la controlamos a mano en
+ * `manejarEnterEnLista` — el comportamiento nativo de Chrome para "Enter al
+ * final de un `<li>`" resultó inconsistente en pruebas manuales (a veces
+ * degradaba un `<ol>` de un solo item a un `<ul>` en vez de continuar la
+ * numeración). */
+const COMANDO_FORMATO: Record<FormatoId, string> = {
+  bold: "bold",
+  italic: "italic",
+  underline: "underline",
+  list: "insertUnorderedList",
+  "list-ordered": "insertOrderedList",
+};
+
+function alternarFormato(editor: HTMLDivElement, tipo: FormatoId) {
+  editor.focus();
+  document.execCommand(COMANDO_FORMATO[tipo]);
+}
+
+function ubicarCursorAlInicio(nodo: Node) {
+  const rango = document.createRange();
+  rango.selectNodeContents(nodo);
+  rango.collapse(true);
+  const seleccion = window.getSelection();
+  seleccion?.removeAllRanges();
+  seleccion?.addRange(rango);
+}
+
+/**
+ * Reemplaza el Enter nativo dentro de un `<li>`: en un item con contenido,
+ * crea el siguiente `<li>` (el navegador solo se encarga de pintar el
+ * número/viñeta vía CSS); en un item vacío, sale de la lista y vuelve a un
+ * párrafo normal — el patrón estándar de "Enter, Enter para salir".
+ */
+function manejarEnterEnLista(evento: KeyboardEvent, editor: HTMLDivElement) {
+  if (evento.key !== "Enter" || evento.shiftKey) return;
+  const seleccion = window.getSelection();
+  if (!seleccion || seleccion.rangeCount === 0) return;
+  let nodo: Node | null = seleccion.anchorNode;
+  let li: HTMLLIElement | null = null;
+  while (nodo && nodo !== editor) {
+    if (nodo instanceof HTMLLIElement) {
+      li = nodo;
+      break;
+    }
+    nodo = nodo.parentNode;
+  }
+  if (!li) return;
+
+  evento.preventDefault();
+  const lista = li.parentElement;
+  if (!lista) return;
+
+  if (li.textContent?.trim() === "") {
+    const parrafo = document.createElement("div");
+    parrafo.appendChild(document.createElement("br"));
+    lista.after(parrafo);
+    li.remove();
+    if (lista.children.length === 0) lista.remove();
+    ubicarCursorAlInicio(parrafo);
+    return;
+  }
+
+  const nuevoLi = document.createElement("li");
+  nuevoLi.appendChild(document.createElement("br"));
+  li.after(nuevoLi);
+  ubicarCursorAlInicio(nuevoLi);
+}
+
+/**
+ * Convierte el HTML del editor `contenteditable` al texto plano que se
+ * guarda en la base de datos, usando los mismos marcadores que interpreta
+ * `renderizarComentario` más abajo (**negrita**, *cursiva*, ++subrayado++,
+ * "- item" y "1. item"). Mantener ambas funciones en sincronía.
+ */
+function serializarEditor(raiz: HTMLElement): string {
+  const lineas: string[] = [];
+
+  function textoConEstilos(nodo: ChildNode): string {
+    if (nodo.nodeType === Node.TEXT_NODE) return nodo.textContent ?? "";
+    if (nodo.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = nodo as HTMLElement;
+    const contenido = Array.from(el.childNodes).map(textoConEstilos).join("");
+    switch (el.tagName) {
+      case "B":
+      case "STRONG":
+        return `**${contenido}**`;
+      case "I":
+      case "EM":
+        return `*${contenido}*`;
+      case "U":
+        return `++${contenido}++`;
+      case "BR":
+        return "\n";
+      default:
+        return contenido;
+    }
+  }
+
+  function procesarBloque(nodo: ChildNode) {
+    if (nodo.nodeType === Node.TEXT_NODE) {
+      const texto = nodo.textContent ?? "";
+      if (texto) lineas.push(texto);
+      return;
+    }
+    if (nodo.nodeType !== Node.ELEMENT_NODE) return;
+    const el = nodo as HTMLElement;
+    if (el.tagName === "UL" || el.tagName === "OL") {
+      Array.from(el.children).forEach((item, i) => {
+        const contenido = Array.from(item.childNodes).map(textoConEstilos).join("");
+        lineas.push(el.tagName === "UL" ? `- ${contenido}` : `${i + 1}. ${contenido}`);
+      });
+      return;
+    }
+    if (el.tagName === "BR") {
+      lineas.push("");
+      return;
+    }
+    if (el.tagName === "DIV" || el.tagName === "P") {
+      lineas.push(Array.from(el.childNodes).map(textoConEstilos).join(""));
+      return;
+    }
+    lineas.push(textoConEstilos(el));
+  }
+
+  Array.from(raiz.childNodes).forEach(procesarBloque);
+  return lineas.join("\n").trim();
+}
+
+/** Interpreta negrita/cursiva/subrayado/código dentro de una línea. Formatos no anidables. */
+function analizarLinea(linea: string): ReactNode[] {
+  const patron = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|\+\+([^+]+)\+\+/g;
+  const partes: ReactNode[] = [];
+  let ultimo = 0;
+  let clave = 0;
+  let match: RegExpExecArray | null;
+  while ((match = patron.exec(linea))) {
+    if (match.index > ultimo) partes.push(linea.slice(ultimo, match.index));
+    if (match[1] !== undefined) {
+      partes.push(
+        <code key={clave++} className="rounded-uva-xs bg-[#27272A] px-1.5 py-0.5 font-mono text-[12px]">
+          {match[1]}
+        </code>,
+      );
+    } else if (match[2] !== undefined) {
+      partes.push(<strong key={clave++}>{match[2]}</strong>);
+    } else if (match[3] !== undefined) {
+      partes.push(<em key={clave++}>{match[3]}</em>);
+    } else {
+      partes.push(
+        <u key={clave++}>{match[4]}</u>,
+      );
+    }
+    ultimo = patron.lastIndex;
+  }
+  if (ultimo < linea.length) partes.push(linea.slice(ultimo));
+  return partes;
+}
+
+/** Convierte el texto plano guardado (con los marcadores de `aplicarFormato`) en JSX. */
+function renderizarComentario(texto: string): ReactNode {
+  const segmentos = texto.split(/```([\s\S]*?)```/);
+  const bloques: ReactNode[] = [];
+
+  segmentos.forEach((segmento, indiceSegmento) => {
+    if (indiceSegmento % 2 === 1) {
+      bloques.push(
+        <pre
+          key={`c${indiceSegmento}`}
+          className="my-1.5 overflow-x-auto rounded-uva-md bg-[#27272A] p-2.5 font-mono text-[12px] text-uva-text"
+        >
+          <code>{segmento.trim()}</code>
+        </pre>,
+      );
+      return;
+    }
+
+    const lineas = segmento.split("\n").filter((linea) => linea.trim() !== "");
+    let i = 0;
+    let clave = 0;
+    while (i < lineas.length) {
+      const linea = lineas[i];
+      if (linea.startsWith("- ")) {
+        const items: string[] = [];
+        while (i < lineas.length && lineas[i].startsWith("- ")) {
+          items.push(lineas[i].slice(2));
+          i++;
+        }
+        bloques.push(
+          <ul key={`u${indiceSegmento}-${clave++}`} className="my-1 list-disc space-y-0.5 pl-5">
+            {items.map((item, j) => (
+              <li key={j}>{analizarLinea(item)}</li>
+            ))}
+          </ul>,
+        );
+        continue;
+      }
+      if (/^\d+\.\s/.test(linea)) {
+        const items: string[] = [];
+        while (i < lineas.length && /^\d+\.\s/.test(lineas[i])) {
+          items.push(lineas[i].replace(/^\d+\.\s/, ""));
+          i++;
+        }
+        bloques.push(
+          <ol key={`o${indiceSegmento}-${clave++}`} className="my-1 list-decimal space-y-0.5 pl-5">
+            {items.map((item, j) => (
+              <li key={j}>{analizarLinea(item)}</li>
+            ))}
+          </ol>,
+        );
+        continue;
+      }
+      bloques.push(
+        <p key={`p${indiceSegmento}-${clave++}`} className="my-0.5">
+          {analizarLinea(linea)}
+        </p>,
+      );
+      i++;
+    }
+  });
+
+  return bloques;
 }
 
 type OrdenComentarios = "relevantes" | "recientes" | "antiguos";
@@ -206,11 +469,12 @@ export function ComentariosTab({
    * refresca con `router.refresh()`, avisado acá en vez de duplicar estado. */
   onCambio: () => void;
 }) {
-  const total = contarComentarios(comentarios);
+  const visibles = useMemo(() => comentariosVisibles(comentarios), [comentarios]);
+  const total = visibles.reduce((acc, comentario) => acc + 1 + comentario.respuestas.length, 0);
   const [orden, setOrden] = useState<OrdenComentarios>("recientes");
   const comentariosOrdenados = useMemo(
-    () => ordenarComentarios(comentarios, orden),
-    [comentarios, orden],
+    () => ordenarComentarios(visibles, orden),
+    [visibles, orden],
   );
 
   return (
@@ -220,7 +484,7 @@ export function ComentariosTab({
           Comentarios
           <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
         </h4>
-        {comentarios.length > 1 && (
+        {visibles.length > 1 && (
           <select
             aria-label="Ordenar comentarios"
             value={orden}
@@ -249,7 +513,7 @@ export function ComentariosTab({
 
       <div className="h-px bg-uva-divider" />
 
-      <div className="flex flex-col divide-y divide-uva-divider">
+      <div className="-mr-2 flex max-h-[620px] flex-col divide-y divide-uva-divider overflow-y-auto pr-2">
         {comentariosOrdenados.map((comentario) => (
           <div key={comentario.id} className="py-4 first:pt-0 last:pb-0">
             <ComentarioItem
@@ -283,12 +547,68 @@ function NuevoComentarioForm({
   onCancelar?: () => void;
   autoFocus?: boolean;
 }) {
-  const [texto, setTexto] = useState("");
+  const [vacio, setVacio] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
+  // Colapsado = la píldora de una línea (como Platzi en reposo); se expande
+  // a la caja con toolbar recién al enfocar. Una respuesta nace ya expandida
+  // porque `onCancelar` la desmonta del todo — no tiene un estado "píldora"
+  // propio al que volver.
+  const [expandido, setExpandido] = useState(autoFocus);
+  // Qué botones de la toolbar están "encendidos" para el cursor actual —
+  // se refresca en cada click/tecla/selección dentro del editor, para que
+  // negrita/cursiva/etc. se vean activos igual que en cualquier editor de
+  // texto (antes no había ninguna señal visual de qué formato estaba
+  // aplicado en la posición del cursor).
+  const [activos, setActivos] = useState<Record<FormatoId, boolean>>({
+    bold: false,
+    italic: false,
+    underline: false,
+    list: false,
+    "list-ordered": false,
+  });
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  function actualizarActivos() {
+    const estado = (comando: string) => {
+      try {
+        return document.queryCommandState(comando);
+      } catch {
+        return false;
+      }
+    };
+    setActivos({
+      bold: estado(COMANDO_FORMATO.bold),
+      italic: estado(COMANDO_FORMATO.italic),
+      underline: estado(COMANDO_FORMATO.underline),
+      list: estado(COMANDO_FORMATO.list),
+      "list-ordered": estado(COMANDO_FORMATO["list-ordered"]),
+    });
+  }
+
+  function expandir() {
+    setExpandido(true);
+    requestAnimationFrame(() => editorRef.current?.focus());
+  }
+
+  function limpiar() {
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    setVacio(true);
+    setError(null);
+  }
+
+  function cancelar() {
+    limpiar();
+    if (onCancelar) {
+      onCancelar();
+      return;
+    }
+    setExpandido(false);
+  }
 
   function enviar() {
-    if (!texto.trim()) return;
+    const texto = editorRef.current ? serializarEditor(editorRef.current) : "";
+    if (!texto) return;
     setError(null);
     startTransition(async () => {
       const resultado = await crearComentario(leccionId, texto, idComentarioPadre, ruta);
@@ -296,43 +616,123 @@ function NuevoComentarioForm({
         setError(resultado.error);
         return;
       }
-      setTexto("");
+      limpiar();
+      // Colapsar/desmontar ANTES de onPublicado (que dispara router.refresh):
+      // ese refresco reemplaza el árbol de Server Components y, si corre
+      // primero, se traga el setExpandido(false) programado en la misma
+      // transición — el formulario quedaba expandido tras publicar.
+      if (onCancelar) onCancelar();
+      else setExpandido(false);
       onPublicado();
-      onCancelar?.();
     });
   }
 
+  const placeholder = idComentarioPadre ? "Escribe tu respuesta…" : "Escribe tu comentario o aporte…";
+
   return (
-    <div className="flex flex-col gap-2">
-      {error && <p className="m-0 text-[12px] text-uva-error-text">{error}</p>}
-      <textarea
-        autoFocus={autoFocus}
-        value={texto}
-        onChange={(event) => setTexto(event.target.value)}
-        placeholder={
-          idComentarioPadre ? "Escribe tu respuesta…" : "Escribe tu duda o aporta a la clase…"
-        }
-        className="min-h-[74px] w-full resize-y rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-sm text-uva-text caret-uva-accent outline-none placeholder:text-uva-text-faint hover:border-uva-text/45 focus-visible:border-uva-accent"
-      />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={pendiente || !texto.trim()}
-          onClick={enviar}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-[15.84px] py-[8.8px] text-[12px] font-semibold text-white hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {pendiente ? "Publicando…" : idComentarioPadre ? "Responder" : "Comentar"}
-        </button>
-        {onCancelar && (
-          <button
-            type="button"
-            onClick={onCancelar}
-            className="inline-flex cursor-pointer items-center rounded-uva-md border border-uva-divider bg-transparent px-[15.84px] py-[8.8px] text-[12px] font-semibold text-uva-text hover:bg-[#27272A]"
-          >
-            Cancelar
-          </button>
+    <div className="flex flex-col gap-1.5">
+      <div
+        onClick={!expandido ? expandir : undefined}
+        className={`flex flex-col bg-uva-surface transition-[border-radius] ${
+          expandido
+            ? "rounded-uva-md border border-uva-divider focus-within:border-uva-accent"
+            : "cursor-text rounded-full border border-uva-divider hover:border-uva-text/45"
+        }`}
+      >
+        {expandido && (
+          <div className="flex items-center gap-0.5 border-b border-uva-divider px-2 py-1.5">
+            {BOTONES_FORMATO.map(({ tipo, icono: Icono, etiqueta }) => (
+              <button
+                key={tipo}
+                type="button"
+                title={etiqueta}
+                aria-label={etiqueta}
+                aria-pressed={activos[tipo]}
+                // onMouseDown con preventDefault: si el click llegara a
+                // disparar primero un blur del editor, se pierde la
+                // selección de texto sobre la que debe actuar el comando.
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (!editorRef.current) return;
+                  alternarFormato(editorRef.current, tipo);
+                  actualizarActivos();
+                }}
+                className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 ${
+                  activos[tipo]
+                    ? "bg-uva-accent text-white"
+                    : "bg-transparent text-uva-muted hover:bg-[#27272A] hover:text-uva-text"
+                }`}
+              >
+                <Icono className="size-[15px]" strokeWidth={2.2} />
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={`flex items-end gap-2 ${expandido ? "px-2.5 py-2" : "px-4 py-2.5"}`}>
+          {expandido && (
+            <div className="mb-0.5 grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#27272A] text-uva-muted">
+              <User className="size-3.5" strokeWidth={2} />
+            </div>
+          )}
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            autoFocus={autoFocus}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={placeholder}
+            data-placeholder={placeholder}
+            // No se refresca `activos` acá: recién enfocado y vacío, Chrome
+            // a veces contesta `queryCommandState("bold")` en `true` sin que
+            // haya ningún formato real todavía — se queda con el estado
+            // inicial (todo apagado) hasta el primer click/tecla real.
+            onFocus={expandir}
+            onKeyDown={(event) => editorRef.current && manejarEnterEnLista(event.nativeEvent, editorRef.current)}
+            onKeyUp={actualizarActivos}
+            onMouseUp={actualizarActivos}
+            onInput={() => {
+              setVacio(!editorRef.current || editorRef.current.textContent?.trim() === "");
+              actualizarActivos();
+            }}
+            className={
+              (expandido
+                ? "min-h-[96px] max-h-40 overflow-y-auto py-0.5"
+                : "max-h-[22px] overflow-hidden whitespace-nowrap") +
+              " flex-1 bg-transparent text-sm text-uva-text caret-uva-accent outline-none empty:before:text-uva-text-faint empty:before:content-[attr(data-placeholder)]" +
+              " [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_li]:my-0.5"
+            }
+          />
+          {!expandido && (
+            <Send className="size-4 shrink-0 text-uva-muted" strokeWidth={2.2} aria-hidden />
+          )}
+        </div>
+        {expandido && (
+          <div className="flex items-center justify-end gap-3 px-2.5 pb-2 pt-1">
+            <button
+              type="button"
+              onClick={cancelar}
+              className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-semibold text-uva-muted hover:text-uva-text"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={pendiente || vacio}
+              onClick={enviar}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent px-4 py-1.5 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+            >
+              {pendiente ? "Publicando…" : idComentarioPadre ? "Responder" : "Publicar"}
+              {pendiente ? (
+                <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />
+              ) : (
+                <Send className="size-3.5" strokeWidth={2.4} />
+              )}
+            </button>
+          </div>
         )}
       </div>
+      {error && <p className="m-0 text-[12px] text-uva-error-text">{error}</p>}
     </div>
   );
 }
@@ -423,11 +823,11 @@ function ComentarioItem({
         <div className="mt-0.5 text-[12px] font-semibold text-uva-text opacity-45">
           {comentario.tiempo}
         </div>
-        <p
+        <div
           className={`mt-2 mb-2.5 text-sm leading-6 ${comentario.eliminado ? "text-uva-text-faint italic" : "text-uva-text opacity-90"}`}
         >
-          {comentario.texto}
-        </p>
+          {comentario.eliminado ? comentario.texto : renderizarComentario(comentario.texto)}
+        </div>
         <div className="flex flex-wrap items-center gap-4 text-[12px] font-semibold text-uva-text opacity-60">
           <button
             type="button"

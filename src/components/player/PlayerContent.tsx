@@ -176,7 +176,7 @@ export function PlayerContent({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-[clamp(14px,2vw,24px)] lg:grid-cols-[minmax(0,1fr)_clamp(272px,25vw,352px)]">
+      <div className="grid grid-cols-1 items-start gap-[clamp(14px,2vw,24px)] lg:grid-cols-[minmax(0,1fr)_clamp(360px,32vw,480px)]">
         <div>
           {/* Mobile: el video llega a los bordes de la pantalla (margen
               negativo cancelando el padding del contenedor de la página);
@@ -207,7 +207,7 @@ export function PlayerContent({
               totalComentarios={contarComentarios(comentariosIniciales)}
             />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
-            {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
+            {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
             {tab === "comentarios" && (
               <div className="lg:hidden">
                 <ComentariosTab

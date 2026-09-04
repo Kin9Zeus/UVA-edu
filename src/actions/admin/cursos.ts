@@ -14,6 +14,12 @@ import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
 import { ordenEntre, siguienteOrden } from "@/lib/orden";
+import {
+  contenidoLeccionSchema,
+  contenidoEstaVacio,
+  TAMANO_MAXIMO_CONTENIDO,
+  type DocumentoContenido,
+} from "@/lib/editor/tipos";
 // Nombre de carpeta legible para Storage (solo eso: no es un identificador
 // único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
 // id del curso al lado). Es la misma normalización que genera el slug de
@@ -103,7 +109,7 @@ const tituloLeccionSchema = z
 
 const actualizarLeccionSchema = z.object({
   titulo: tituloLeccionSchema,
-  resumen: z.string().trim().max(2000, "El resumen es demasiado largo."),
+  contenido: contenidoLeccionSchema.nullable(),
 });
 
 const moverSchema = z.object({
@@ -743,23 +749,31 @@ export async function crearLeccion(
 export async function actualizarLeccion(
   leccionId: string,
   cursoId: string,
-  input: { titulo: string; resumen: string },
+  input: { titulo: string; contenido: DocumentoContenido | null },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
+  if (input.contenido && JSON.stringify(input.contenido).length > TAMANO_MAXIMO_CONTENIDO) {
+    return { error: "El contenido de la lección es demasiado largo." };
+  }
+
   const parseo = actualizarLeccionSchema.safeParse(input);
   if (!parseo.success) return { error: primerError(parseo) };
-  const { titulo, resumen } = parseo.data;
+  const { titulo, contenido } = parseo.data;
 
   // `duracion` no se escribe desde acá a propósito: es el webhook de Mux
   // (video.asset.ready, src/app/api/webhooks/mux/route.ts) el único que la
   // sincroniza con la duración real del video subido. Un input editable a
   // mano permitía que quedara desincronizada del video después de procesar.
+  //
+  // `resumen` (texto plano legado) no se escribe más — `contenido` es la
+  // única fuente de verdad desde aquí en adelante. Ver comentario en
+  // schema.prisma y resolverContenidoLeccion.
   const { error } = await admin.supabase
     .from("lecciones")
-    .update({ titulo, resumen: resumen || null })
+    .update({ titulo, contenido: contenido && !contenidoEstaVacio(contenido) ? contenido : null })
     .eq("id", leccionId);
 
   if (error) return { error: "No pudimos guardar la lección." };
