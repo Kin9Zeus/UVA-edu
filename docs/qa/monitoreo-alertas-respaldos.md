@@ -27,21 +27,30 @@ compila.
 ### Respaldos
 
 - [ ] Confirmar respaldos automáticos de Supabase y su frecuencia real —
-  pendiente, requiere el dashboard de Supabase (Módulo 4).
-- [ ] Probar una restauración en un proyecto aparte — pendiente (Módulo 4).
+  procedimiento listo en `docs/ops/respaldos-y-restauracion.md` (Parte A),
+  falta que alguien con acceso al dashboard lo llene (Módulo 4).
+- [ ] Probar una restauración en un proyecto aparte — procedimiento listo
+  (Parte B), falta ejecutarlo (Módulo 4). No se puede hacer desde esta
+  sesión: se ofreció conectar el MCP de Supabase para intentarlo con
+  acceso real y se decidió no hacerlo por ahora.
 - [ ] Documentar tiempo de restauración y pérdida de datos en el peor caso —
-  pendiente (Módulo 4).
+  plantilla de resultados y análisis del peor caso listos (Parte B/C),
+  falta llenar los números reales tras correr el simulacro (Módulo 4).
 
 ### Plan de reversión
 
-- [ ] Todo pendiente (Módulo 5): pasos de rollback en Railway, criterios de
-  reversión, política de migraciones hacia atrás, quién decide.
+- [x] Pasos de rollback en Railway, criterios de reversión, política de
+  migraciones hacia atrás (con chequeo automático en CI) y quién decide —
+  `docs/ops/plan-de-reversion.md` (Módulo 5, ver detalle abajo).
 
 ### Requisitos de calidad
 
-- [ ] Alertas a un canal que el equipo mira (Slack/WhatsApp) — pendiente,
-  vive en el dashboard de Sentry (Módulo 6).
-- [ ] Umbral de ruido definido — pendiente (Módulo 6).
+- [ ] Alertas a un canal que el equipo mira (Slack/WhatsApp) — especificación
+  lista en `docs/ops/canal-alertas.md`, falta que alguien la aplique en el
+  dashboard de Sentry (Módulo 6).
+- [ ] Umbral de ruido definido — definido en `docs/ops/canal-alertas.md`
+  (Módulo 6): infraestructura (`webhook`/`mux-atascado`/`health`) avisa
+  siempre, todo lo demás solo si se repite 5 veces en 10 min.
 
 ### Definición de "terminado"
 
@@ -199,3 +208,120 @@ del alcance de este módulo.
 - `npm test` completo: **170/170** (168 preexistentes + 2 nuevos), nada
   se rompió.
 - `npx tsc --noEmit`: sin errores en `log.ts` ni `log.test.ts`.
+
+## Módulo 4 — Runbook de respaldos y simulacro de restauración
+
+**Por qué no se ejecutó, no solo se documentó:** confirmar el plan de
+respaldos y correr un simulacro de restauración requiere acceso al
+dashboard/organización de Supabase (crear un proyecto nuevo, restaurar un
+respaldo sobre él) — nada de eso es alcanzable desde el código ni desde
+consultas de solo lectura con la Service Role Key del proyecto actual. Se
+le ofreció al usuario conectar el MCP de Supabase (OAuth) para intentar
+esto con acceso real a la API de gestión, y se decidió explícitamente no
+hacerlo por ahora — queda como runbook para ejecutar a mano.
+
+**Qué se agregó:** `docs/ops/respaldos-y-restauracion.md`, con tres partes:
+- **Parte A** — qué anotar del dashboard (plan, tipo de respaldo,
+  retención real, hora del último respaldo). Deliberadamente no incluye
+  cifras de retención por plan de Supabase: cambian con el tiempo, y lo
+  único que vale es lo que el panel muestre para este proyecto en el
+  momento en que alguien lo revise.
+- **Parte B** — el simulacro paso a paso (crear proyecto nuevo → restaurar
+  → `npm run prisma:deploy` → `npm run db:rls` → `npm run test:rls`),
+  con una tabla para llenar con los resultados reales (RTO, RPO, si
+  `test:rls` pasó). El paso que de verdad importa no es que los datos
+  vuelvan — es que `test:rls` pase, porque una base restaurada vuelve
+  con sus tablas pero sin ninguna de las ~69 políticas de RLS (viven en
+  `supabase/sql/`, no en el respaldo de datos).
+- **Parte C** — qué se pierde en el peor caso con respaldos diarios sin
+  PITR (progreso de video, códigos canjeados y cuentas creadas ese día,
+  comentarios, certificados, eventos de webhook sin reflejar).
+
+**Estado:** documento listo y consistente con los scripts reales del repo
+(`prisma:deploy`, `db:rls`, `test:rls` verificados contra `package.json`).
+Los tres checkboxes de "Respaldos" siguen sin marcar hasta que alguien con
+acceso al dashboard de Supabase corra el procedimiento y llene la tabla de
+resultados — esto es trabajo pendiente fuera del repo, no una tarea que
+este módulo pueda cerrar por sí solo.
+
+**Actualización:** el usuario confirmó que todavía no hay un plan de
+Supabase con respaldos automáticos reales configurado — este módulo queda
+explícitamente en espera hasta que eso exista, no es un olvido.
+
+## Módulo 5 — Plan de reversión (Railway) + migraciones reversibles
+
+**Limitación de partida, igual que en el Módulo 4:** no existe todavía
+ningún proyecto de Railway ni archivo de configuración en el repo (sin
+`railway.json`, sin `Procfile`) — los pasos exactos del dashboard de
+Railway se documentan de forma genérica (Railway revierte redesplegando un
+build anterior desde *Deployments*) y quedan marcados para confirmar la
+primera vez que exista un despliegue real.
+
+**Qué sí se pudo cerrar del todo, con dientes en CI:**
+- `docs/ops/plan-de-reversion.md` — cómo revertir en Railway y tiempo
+  estimado, criterios concretos de "revertir ya" vs. "arreglar en
+  caliente" (la pregunta que decide: ¿alguien no puede completar el
+  recorrido crítico ahora mismo?), la regla de migraciones hacia atrás, y
+  quién decide (Aleck, tal como especifica la tarea).
+- `scripts/verificar-migraciones-reversibles.ts` + `npm run
+  verificar:migraciones-reversibles` — compara las migraciones nuevas de
+  la rama contra `origin/master` y falla si alguna agrega un `DROP
+  COLUMN`/`DROP TABLE`/`RENAME COLUMN`/`RENAME TABLE`. Solo mira líneas
+  **agregadas** del diff, para no reventar por un DROP que ya existía de
+  antes de esta regla.
+- Enganchado en el job `checks` de `ci.yml` (corre en cada PR, sin
+  secretos) — se agregó `fetch-depth: 0` al checkout de ese job, necesario
+  para que el diff de tres puntos contra `origin/master` tenga la historia
+  común disponible.
+
+**Verificado, no solo escrito:**
+1. `npm run verificar:migraciones-reversibles -- origin/master` contra el
+   estado real de la rama → pasa limpio (ninguna migración existente viola
+   la regla).
+2. **Caso positivo probado de verdad:** se creó una migración de prueba
+   con `DROP COLUMN`, se comiteó temporalmente, se corrió el chequeo →
+   detectó el `DROP COLUMN` exacto y salió con código 1. Se deshizo el
+   commit (`git reset --soft` + borrar el archivo) antes de continuar —no
+   quedó rastro en el historial.
+3. `npm test` completo tras el cambio: **170/170**. `tsc --noEmit`: sin
+   errores.
+
+**Limitación conocida:** el chequeo de CI depende de que `fetch-depth: 0`
+realmente traiga `origin/master` al runner — es el comportamiento
+documentado de `actions/checkout`, pero no se pudo observar una corrida
+real en GitHub Actions todavía (mismo tipo de brecha que ya quedó anotada
+para el job `e2e` del Módulo 1: probado localmente y razonado contra la
+documentación, no contra una ejecución real del workflow).
+
+## Módulo 6 — Canal de alertas y umbral de ruido
+
+**Confirmado que esto no se puede hacer desde el código ni desde esta
+sesión, no solo asumido:** se intentó usar el MCP de Sentry para leer/crear
+reglas de alerta de verdad (`find_alert_rules`/`get_alert_rule` vía
+`execute_sentry_tool`) — la API devuelve `410 Gone` para esta organización
+(la misma limitación ya encontrada en el Módulo 1). Sí se confirmó que el
+MCP puede crear un **monitor de uptime nativo de Sentry**
+(`create_uptime_monitor`) — una alternativa a UptimeRobot/BetterUptime del
+Módulo 2 que viviría en el mismo dashboard que ya usan — pero no tiene
+sentido crearlo todavía: no hay ninguna URL de producción real (sin
+Railway desplegado, Módulo 5). Queda anotado para cuando exista.
+
+**Decisión consultada, no asumida:** se le preguntó al usuario si el
+equipo ya usa Slack o WhatsApp — ninguno de los dos todavía. Se recomienda
+Slack (integración nativa de Sentry, gratis, sin pasos intermedios) sobre
+WhatsApp (necesitaría un puente tipo Zapier/Make, con costo y pasos
+extra), dejando WhatsApp documentado como alternativa si el equipo prefiere
+eso después.
+
+**Qué se agregó:** `docs/ops/canal-alertas.md` — el umbral de ruido
+concreto, no una idea abstracta: usa el tag `area` que Módulos 1-3 ya
+escriben en cada `logError`/alerta (`webhook`, `mux-atascado`, `health`,
+`email`, `rate-limit`, `certificados`) para separar dos reglas — fallos de
+infraestructura (`webhook`/`mux-atascado`/`health`) avisan siempre y de
+inmediato, cualquier otro error solo avisa si se repite 5 veces en 10
+minutos. Incluye los pasos exactos de Sentry → Alerts para aplicarlas.
+
+**Estado:** especificación lista y accionable; falta que alguien con
+acceso al dashboard de Sentry la aplique (conectar Slack, crear las 2
+reglas) y falta el monitor de uptime nativo hasta que haya una URL de
+producción real.

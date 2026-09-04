@@ -47,6 +47,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # fetch-depth: 0 (historial completo) para que
+          # verificar-migraciones-reversibles.ts pueda calcular el merge-base
+          # contra origin/master — un clon superficial (depth 1, el default)
+          # no tiene la historia común y el diff de tres puntos falla.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -55,6 +61,14 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Verificar que las migraciones nuevas sean reversibles
+        # Plan de reversión (docs/ops/plan-de-reversion.md): Railway
+        # revierte el código al hacer rollback, nunca la base de datos —
+        # un DROP/RENAME en una migración ya aplicada deja el rollback
+        # sirviendo un build viejo contra un esquema que ya no tiene lo
+        # que ese build espera.
+        run: npm run verificar:migraciones-reversibles -- origin/master
 
       - name: Generar tipos de rutas de Next.js
         # LayoutProps/PageProps/RouteContext (src/app/layout.tsx y otros) son
