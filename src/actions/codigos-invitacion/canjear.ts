@@ -1,10 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enviarCorreoBienvenida } from "@/lib/resend";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 export type CanjearCodigoResult = {
@@ -112,14 +112,10 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
     .single();
 
   if (perfil) {
-    const headersList = await headers();
-    const host = headersList.get("host");
-    const proto =
-      headersList.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
     const resultadoCorreo = await enviarCorreoBienvenida(
       perfil.correo,
       perfil.nombre,
-      `${proto}://${host}/dashboard`,
+      `${siteUrl()}/dashboard`,
     );
     if (!resultadoCorreo.success) {
       logError(

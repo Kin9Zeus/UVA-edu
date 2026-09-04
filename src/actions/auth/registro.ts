@@ -1,10 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
 import { checkEmail } from "@/actions/auth/check-email";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 export type RegistroState =
@@ -15,15 +15,6 @@ export type RegistroState =
 function safeRedirectTarget(value: FormDataEntryValue | null): string {
   const target = String(value ?? "");
   return target.startsWith("/") ? target : "/dashboard";
-}
-
-async function getOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const proto =
-    headersList.get("x-forwarded-proto") ??
-    (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
 }
 
 export async function registro(
@@ -53,7 +44,7 @@ export async function registro(
     return { error: "Ya existe una cuenta con ese correo. Inicia sesión en su lugar." };
   }
 
-  const origin = await getOrigin();
+  const origin = siteUrl();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,

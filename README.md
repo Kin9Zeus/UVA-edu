@@ -31,13 +31,30 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    STRIPE_WEBHOOK_SECRET=
    WOMPI_PRV_KEY=
    RESEND_API_KEY=
+   RESEND_FROM_EMAIL=
    SEND_EMAIL_HOOK_SECRET=
+   NEXT_PUBLIC_SITE_URL=
    ```
 
    `DATABASE_URL` y las claves de Supabase salen del panel del proyecto
    (Project Settings → API / Database). Las de Mux, Stripe, Wompi y Resend
    solo son necesarias para probar esos flujos puntuales — el resto de la
    app funciona sin ellas.
+
+   **`NEXT_PUBLIC_SITE_URL` es obligatoria en producción** (en local puede
+   omitirse: `siteUrl()` cae a `http://localhost:3000`). Es el origen con el
+   que se arman los enlaces de los correos de autenticación —recuperar
+   contraseña, confirmar cuenta, bienvenida al canjear— y el QR que se imprime
+   en el PDF de los certificados. Antes se derivaba del header `Host` de la
+   petición, que lo escribe quien llama: ver P1-1 en `AUDIT-2026-09-04.md` y
+   `src/lib/site-url.ts`. Sin barra final y con protocolo, p. ej.
+   `https://uva.co`.
+
+   El valor tiene que estar además en la lista de **Authentication → URL
+   Configuration → Redirect URLs** de Supabase, junto con el de staging y
+   `http://localhost:3000`. Esa lista es la segunda capa del mismo control: la
+   app ya no depende de ella, pero conviene dejarla cerrada a esos tres
+   orígenes en lugar de a un comodín.
 
    **Opcional — `TRUSTED_PROXY_HOPS`** (por defecto `1`): cuántos proxies de
    confianza hay delante de la aplicación. Es lo que usa `src/lib/clientIp.ts`

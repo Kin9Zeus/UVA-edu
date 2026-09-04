@@ -1,19 +1,10 @@
 "use server";
 
 import { type EmailOtpType } from "@supabase/supabase-js";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
-
-async function getOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const proto =
-    headersList.get("x-forwarded-proto") ??
-    (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 /**
  * Antes esta lógica corría directo en el GET de /auth/confirm (auto-verificar
@@ -33,7 +24,12 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
   // `next` puede llegar como URL absoluta (redirect_to ya resuelto, ver
   // src/app/api/webhooks/supabase-auth/route.ts) o como ruta relativa
   // simple — new URL(...) normaliza ambos casos contra el origin actual.
-  const nextUrl = new URL(nextParam || "/", await getOrigin());
+  // Solo se conservan `pathname` y `search` (ver abajo), así que el origen
+  // que se pasa como base nunca sale de aquí — es únicamente lo que `new URL`
+  // necesita para aceptar una ruta relativa. Aun así usa la constante y no el
+  // header: dejar la versión hecha a mano mantendría viva la plantilla de la
+  // que salió P1-1 (AUDIT-2026-09-04.md), que ya se había copiado seis veces.
+  const nextUrl = new URL(nextParam || "/", siteUrl());
   const signOutAlConfirmar = nextUrl.searchParams.get("signout") === "1";
   nextUrl.searchParams.delete("signout");
   const next = `${nextUrl.pathname}${nextUrl.search}`;

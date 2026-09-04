@@ -1,22 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type RecuperarState = { error: string; success?: never } | { error?: never; success: true } | null;
-
-async function getOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const proto =
-    headersList.get("x-forwarded-proto") ??
-    (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 export async function recuperar(
   _prevState: RecuperarState,
@@ -47,7 +38,7 @@ export async function recuperar(
   // igual): un error transitorio en la función no debería bloquear un
   // flujo de recuperación de contraseña legítimo.
   if (errorRateLimit || permitido) {
-    const origin = await getOrigin();
+    const origin = siteUrl();
     const supabase = await createClient();
     // Va a /auth/confirm (no directo a /actualizar-password): mientras el
     // "Send Email" hook (src/app/api/webhooks/supabase-auth/route.ts) no esté
