@@ -31,18 +31,17 @@ export function CursoDetalleContent({
    */
   sesionActiva: boolean;
 }) {
-  const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
-    ?.id;
+  const primeraLeccion = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0];
   // Vista previa pública (Revcurso: "que la primera lección sea visible"):
   // solo aplica si el curso tiene más de una lección — de una sola clase,
   // esa clase ES el curso completo, no una introducción aparte. Misma
   // guarda que lib/leccion.ts y lib/video/reproduccion.ts.
-  const leccionVistaPreviaId = curso.totalClases > 1 ? primeraLeccionId : undefined;
+  const leccionVistaPreviaId = curso.totalClases > 1 ? primeraLeccion?.id : undefined;
   // Si ya hay progreso guardado en alguna clase del curso, el botón retoma
   // ahí en vez de mandar de nuevo a la primera clase (ver Revcurso: "seguir
   // viendo" solo debe aparecer si el estudiante ya empezó).
   const siguiendoProgreso = curso.progresoIniciado && curso.leccionContinuarId !== null;
-  const leccionDestinoId = siguiendoProgreso ? curso.leccionContinuarId! : primeraLeccionId;
+  const leccionDestinoSlug = siguiendoProgreso ? curso.leccionContinuarSlug! : primeraLeccion?.slug;
   // Si ya completó todo el curso no hay "siguiente" a la que volver: se
   // ofrece repasar desde la primera clase en vez de un botón sin destino.
   const cursoCompletado = curso.progresoIniciado && curso.leccionContinuarId === null;
@@ -140,7 +139,7 @@ export function CursoDetalleContent({
                     return clicable ? (
                       <Link
                         key={leccion.id}
-                        href={`/cursos/${curso.id}/${leccion.id}`}
+                        href={`/cursos/${curso.slug}/${leccion.slug}`}
                         className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
@@ -202,9 +201,9 @@ export function CursoDetalleContent({
 
         <div className="order-3 lg:order-none">
           {curso.tieneAcceso ? (
-            leccionDestinoId ? (
+            leccionDestinoSlug ? (
               <Button
-                render={<Link href={`/cursos/${curso.id}/${leccionDestinoId}`} />}
+                render={<Link href={`/cursos/${curso.slug}/${leccionDestinoSlug}`} />}
                 nativeButton={false}
                 variant="uva-primary"
                 size="uva"
@@ -251,7 +250,7 @@ export function CursoDetalleContent({
             </Button>
           ) : (
             <Button
-              render={<Link href={`/login?redirect=/cursos/${curso.id}`} />}
+              render={<Link href={`/login?redirect=/cursos/${curso.slug}`} />}
               nativeButton={false}
               variant="uva-primary"
               size="uva"

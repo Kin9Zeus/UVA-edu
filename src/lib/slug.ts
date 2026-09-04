@@ -9,6 +9,18 @@
  * relleno inicial en la migración 20260825010000_agrega_slug_a_categorias. */
 const LARGO_MAXIMO = 60;
 
+const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Distingue un UUID de un slug en un identificador de ruta. Compartido por
+ * todos los `resolverX(identificador)` (categoría, curso, lección) que
+ * aceptan ambos formatos — enlaces con el slug nuevo y enlaces viejos que
+ * todavía circulan con el UUID crudo.
+ */
+export function esUuid(identificador: string): boolean {
+  return PATRON_UUID.test(identificador);
+}
+
 /**
  * "Diseño Paramétrico  2" -> "diseno-parametrico-2".
  *

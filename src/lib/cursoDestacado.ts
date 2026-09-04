@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export type CursoDestacado = {
   id: string;
+  slug: string;
   titulo: string;
   descripcion: string;
   imagenPortada: string;
@@ -29,7 +30,7 @@ export async function getCursoDestacado(): Promise<CursoDestacado | null> {
 
   const { data: curso } = await supabase
     .from("cursos")
-    .select("id, titulo, descripcion, imagen_portada, nivel")
+    .select("id, slug, titulo, descripcion, imagen_portada, nivel")
     .eq("destacado", true)
     .eq("mostrado", true)
     .order("orden_visualizacion", { ascending: true })
@@ -48,6 +49,7 @@ export async function getCursoDestacado(): Promise<CursoDestacado | null> {
 
   return {
     id: curso.id as string,
+    slug: curso.slug as string,
     titulo: curso.titulo as string,
     descripcion: curso.descripcion as string,
     imagenPortada: curso.imagen_portada as string,

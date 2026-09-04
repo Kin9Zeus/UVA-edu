@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { esUuid } from "@/lib/slug";
 
 export type RecursoLeccion = {
   id: string;
@@ -12,6 +13,10 @@ export type RecursoLeccion = {
 /** Una clase dentro de la lista lateral "Clases y progreso" del reproductor. */
 export type LeccionPlayerItem = {
   id: string;
+  /** Ausente en LeccionEnListaVistaPrevia (lib/admin/resolverVistaPrevia.ts),
+   * que reusa este mismo tipo para TemarioDrawer sin tener slug — esa vista
+   * previa por token sigue navegando por id, no por slug. */
+  slug?: string;
   /** Posición 1..N dentro del curso completo, no dentro del módulo. */
   numero: number;
   titulo: string;
@@ -29,9 +34,11 @@ export type LeccionPlayerItem = {
 
 export type LeccionPlayer = {
   cursoId: string;
+  cursoSlug: string;
   cursoTitulo: string;
   categoriaSlug: string;
   leccionId: string;
+  leccionSlug: string;
   leccionTitulo: string;
   numero: number;
   totalClases: number;
@@ -45,7 +52,9 @@ export type LeccionPlayer = {
   porcentaje: number;
   completada: boolean;
   anteriorId: string | null;
+  anteriorSlug: string | null;
   siguienteId: string | null;
+  siguienteSlug: string | null;
   /** Segundo en el que quedó el estudiante (tabla progreso). */
   segundoActual: number;
   /** Con sesión iniciada: puede comentar (RLS exige `auth.uid()`, un
@@ -53,9 +62,14 @@ export type LeccionPlayer = {
   puedeComentar: boolean;
 };
 
+/**
+ * Resuelve curso y lección por slug o UUID (enlaces anteriores al cambio de
+ * rutas siguen resolviendo por UUID) — mismo patrón que `resolverCategoria`
+ * (lib/categoria.ts) y `getCursoPublico` (lib/curso.ts).
+ */
 export async function getLeccionPlayer(
-  cursoId: string,
-  leccionId: string,
+  identificadorCurso: string,
+  identificadorLeccion: string,
   usuarioId: string | null,
 ): Promise<LeccionPlayer | null> {
   const supabase = await createClient();
@@ -68,11 +82,12 @@ export async function getLeccionPlayer(
   // que RLS sí autoriza.
   const { data: curso } = await supabase
     .from("cursos")
-    .select("id, titulo, mostrado")
-    .eq("id", cursoId)
+    .select("id, slug, titulo, mostrado")
+    .eq(esUuid(identificadorCurso) ? "id" : "slug", identificadorCurso)
     .single();
 
   if (!curso) return null;
+  const cursoId = curso.id;
 
   const { data: categoriaCurso } = await supabase
     .from("curso_categorias")
@@ -86,7 +101,7 @@ export async function getLeccionPlayer(
   const { data: modulos } = await supabase
     .from("modulos")
     .select(
-      "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, id_video_mux, estado_procesamiento)",
+      "id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, resumen, id_video_mux, estado_procesamiento)",
     )
     .eq("id_curso", cursoId)
     .order("orden");
@@ -104,6 +119,7 @@ export async function getLeccionPlayer(
           const videoListo = !!leccion.id_video_mux && leccion.estado_procesamiento === "LISTO";
           return {
             id: leccion.id as string,
+            slug: leccion.slug as string,
             titulo: leccion.titulo as string,
             // Sin video LISTO, `duracion` no corresponde a ningún video real
             // (ver la misma regla en lib/curso.ts) — se oculta para no
@@ -118,9 +134,14 @@ export async function getLeccionPlayer(
         }),
     );
 
-  const indice = plano.findIndex((leccion) => leccion.id === leccionId);
+  const indice = plano.findIndex((leccion) =>
+    esUuid(identificadorLeccion)
+      ? leccion.id === identificadorLeccion
+      : leccion.slug === identificadorLeccion,
+  );
   if (indice === -1) return null;
   const actual = plano[indice];
+  const leccionId = actual.id;
 
   // La primera lección del curso es vista previa pública (Revcurso: "que la
   // primera lección sea visible", ver lib/video/reproduccion.ts para la
@@ -157,6 +178,7 @@ export async function getLeccionPlayer(
   const lecciones: LeccionPlayerItem[] = await Promise.all(
     plano.map(async (leccion, i) => ({
       id: leccion.id,
+      slug: leccion.slug,
       numero: i + 1,
       titulo: leccion.titulo,
       duracion: leccion.duracion,
@@ -183,9 +205,11 @@ export async function getLeccionPlayer(
 
   return {
     cursoId: curso.id,
+    cursoSlug: curso.slug,
     cursoTitulo: curso.titulo,
     categoriaSlug: categoria?.slug ?? "",
     leccionId: actual.id,
+    leccionSlug: actual.slug,
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases,
@@ -203,7 +227,9 @@ export async function getLeccionPlayer(
     porcentaje: totalClases > 0 ? Math.round((completadas / totalClases) * 100) : 0,
     completada: !!progresoPorLeccion.get(actual.id)?.completado,
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
+    anteriorSlug: indice > 0 ? plano[indice - 1].slug : null,
     siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
+    siguienteSlug: indice < plano.length - 1 ? plano[indice + 1].slug : null,
     segundoActual: progresoPorLeccion.get(actual.id)?.segundo_actual ?? 0,
     puedeComentar: !!usuarioId,
   };

@@ -4,33 +4,35 @@ import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
 import { getComentariosDeLeccion } from "@/lib/comentarios";
+import { esUuid } from "@/lib/slug";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlayerContent } from "@/components/player/PlayerContent";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string; leccionId: string }>;
+  params: Promise<{ cursoSlug: string; leccionSlug: string }>;
 }): Promise<Metadata> {
-  const { id, leccionId } = await params;
+  const { cursoSlug, leccionSlug } = await params;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const data = await getLeccionPlayer(id, leccionId, user?.id ?? null);
+  const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
   return { title: data ? `U.V.A. — ${data.leccionTitulo}` : "U.V.A. — Clase" };
 }
 
-// Vive junto a /cursos/[id] (no bajo (student)/dashboard) a propósito: el
-// reproductor debe usar el mismo header sin barra lateral que la ficha del
-// curso, no el chrome del dashboard con Sidebar. /cursos ya es público en
-// el middleware (ver proxy.ts), así que la exigencia de sesión se hace acá.
+// Vive junto a /cursos/[cursoSlug] (no bajo (student)/dashboard) a
+// propósito: el reproductor debe usar el mismo header sin barra lateral que
+// la ficha del curso, no el chrome del dashboard con Sidebar. /cursos ya es
+// público en el middleware (ver proxy.ts), así que la exigencia de sesión
+// se hace acá.
 export default async function LeccionPlayerPage({
   params,
 }: {
-  params: Promise<{ id: string; leccionId: string }>;
+  params: Promise<{ cursoSlug: string; leccionSlug: string }>;
 }) {
-  const { id, leccionId } = await params;
+  const { cursoSlug, leccionSlug } = await params;
   const perfilActual = await getPerfilActual();
   const { user } = perfilActual;
 
@@ -40,25 +42,31 @@ export default async function LeccionPlayerPage({
   // null, y el bloque de abajo manda a login en vez de a la ficha del
   // curso — un visitante anónimo no tiene ficha de "candado" que mostrarle
   // sin haber iniciado sesión primero.
-  const data = await getLeccionPlayer(id, leccionId, user?.id ?? null);
+  const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
 
   if (!data) {
     if (!user) {
-      redirect(`/login?redirect=/cursos/${id}/${leccionId}`);
+      redirect(`/login?redirect=/cursos/${cursoSlug}/${leccionSlug}`);
     }
     // Sin acceso vigente (o con la lección ya borrada). Si el curso todavía
     // se puede ver, se devuelve a su ficha —temario con candado y CTA de
     // renovación— en vez de a un 404: quien llega aquí suele ser alguien
-    // con el enlace guardado a quien se le terminó el periodo.
+    // con el enlace guardado a quien se le terminó el periodo. `cursoSlug`
+    // puede ser slug o UUID (enlaces viejos) — mismo criterio que
+    // getCursoPublico (lib/curso.ts).
     const supabase = await createClient();
-    const { data: curso } = await supabase.from("cursos").select("id").eq("id", id).maybeSingle();
+    const { data: curso } = await supabase
+      .from("cursos")
+      .select("id")
+      .eq(esUuid(cursoSlug) ? "id" : "slug", cursoSlug)
+      .maybeSingle();
     if (curso) {
-      redirect(`/cursos/${id}`);
+      redirect(`/cursos/${cursoSlug}`);
     }
     notFound();
   }
 
-  const comentarios = await getComentariosDeLeccion(leccionId, user?.id ?? null);
+  const comentarios = await getComentariosDeLeccion(data.leccionId, user?.id ?? null);
 
   return (
     <>

@@ -14,11 +14,11 @@ import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ cursoSlug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { cursoSlug } = await params;
   const { user } = await getPerfilActual();
-  const curso = await getCursoPublico(id, user?.id ?? null);
+  const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
   if (!curso) return { title: "U.V.A. — Curso" };
 
@@ -47,12 +47,12 @@ export async function generateMetadata({
 export default async function CursoDetallePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ cursoSlug: string }>;
 }) {
-  const { id } = await params;
+  const { cursoSlug } = await params;
   const perfilActual = await getPerfilActual();
   const { user } = perfilActual;
-  const curso = await getCursoPublico(id, user?.id ?? null);
+  const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
   if (!curso) {
     notFound();

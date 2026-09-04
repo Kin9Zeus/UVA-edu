@@ -48,7 +48,13 @@ export function PlayerContent({
     void iniciarProgresoLeccion(data.leccionId);
   }, [data.leccionId]);
 
-  const irALeccion = (leccionId: string) => router.push(`/cursos/${data.cursoId}/${leccionId}`);
+  // `data.anteriorId`/`data.siguienteId` y el Temario (TemarioDrawer, también
+  // usado por LeccionVistaPreviaContent con lecciones que no tienen slug)
+  // siguen navegando por id — esta tabla los traduce al slug real de la
+  // lección justo antes de construir la URL.
+  const slugPorLeccionId = new Map(data.lecciones.map((leccion) => [leccion.id, leccion.slug]));
+  const irALeccion = (leccionId: string) =>
+    router.push(`/cursos/${data.cursoSlug}/${slugPorLeccionId.get(leccionId) ?? leccionId}`);
 
   const completadas = [...completadoPorLeccion.values()].filter(Boolean).length;
   const porcentaje =
@@ -87,7 +93,7 @@ export function PlayerContent({
           y siguiente clase, nada más. */}
       <div className="sticky top-0 z-40 -mx-[clamp(20px,3vw,44px)] mb-[18px] flex items-center gap-2 border-b border-uva-divider bg-uva-bg/95 px-[18px] py-3 backdrop-blur lg:hidden">
         <Link
-          href={`/cursos/${data.cursoId}`}
+          href={`/cursos/${data.cursoSlug}`}
           aria-label="Volver al curso"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
         >
@@ -127,7 +133,7 @@ export function PlayerContent({
           Temario y Siguiente clase. */}
       <div className="mb-[18px] hidden items-center gap-3.5 rounded-uva-md bg-uva-text/[0.06] px-[18px] py-3 lg:flex">
         <Link
-          href={`/cursos/${data.cursoId}`}
+          href={`/cursos/${data.cursoSlug}`}
           className="inline-flex min-w-0 items-center gap-[7px] rounded-uva-md border-0 bg-transparent px-2 py-1.5 text-sm font-semibold text-uva-text no-underline"
         >
           <ChevronLeft className="size-[15px] shrink-0" strokeWidth={2.75} />
@@ -205,7 +211,7 @@ export function PlayerContent({
             {tab === "comentarios" && (
               <div className="lg:hidden">
                 <ComentariosTab
-                  cursoId={data.cursoId}
+                  ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
                   leccionId={data.leccionId}
                   comentarios={comentariosIniciales}
                   puedeComentar={data.puedeComentar}
@@ -229,7 +235,7 @@ export function PlayerContent({
             video, sin ese salto. */}
         <div className="hidden flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:flex">
           <ComentariosTab
-            cursoId={data.cursoId}
+            ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
             leccionId={data.leccionId}
             comentarios={comentariosIniciales}
             puedeComentar={data.puedeComentar}

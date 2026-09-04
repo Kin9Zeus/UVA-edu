@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
+import { esUuid } from "@/lib/slug";
 
 export type LeccionPublica = {
   id: string;
+  slug: string;
   titulo: string;
   orden: number;
   duracion: number | null;
@@ -25,6 +27,7 @@ export type CategoriaDelCurso = {
 
 export type CursoPublico = {
   id: string;
+  slug: string;
   titulo: string;
   descripcion: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
@@ -57,16 +60,23 @@ export type CursoPublico = {
    * `null` si no hay progreso o si ya se completaron todas las clases.
    */
   leccionContinuarId: string | null;
+  leccionContinuarSlug: string | null;
   leccionContinuarTitulo: string | null;
   /** Posición 1..N de `leccionContinuarId` dentro del curso completo. */
   leccionContinuarNumero: number | null;
 };
 
+/**
+ * Resuelve un curso por slug o UUID (enlaces anteriores al cambio de rutas
+ * siguen resolviendo por UUID) — mismo patrón que `resolverCategoria`
+ * (lib/categoria.ts).
+ */
 export async function getCursoPublico(
-  cursoId: string,
+  identificadorCurso: string,
   usuarioId: string | null,
 ): Promise<CursoPublico | null> {
   const supabase = await createClient();
+  const columnaCurso = esUuid(identificadorCurso) ? "id" : "slug";
 
   // Curso + categorías + módulos + lecciones en una sola consulta (embedding
   // de PostgREST, resuelto con joins del lado de Postgres): nunca una
@@ -84,14 +94,16 @@ export async function getCursoPublico(
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      `id, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
+      `id, slug, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
       curso_categorias(categoria:categorias(id, slug, nombre)),
-      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion, estado_procesamiento))`,
+      modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, estado_procesamiento))`,
     )
-    .eq("id", cursoId)
+    .eq(columnaCurso, identificadorCurso)
     .single();
 
   if (!curso) return null;
+
+  const cursoId = curso.id;
 
   // Todas las categorías del curso, no solo la primera: `curso_categorias`
   // es muchos-a-muchos y el CMS ya permite asignar varias (mismo criterio
@@ -121,6 +133,7 @@ export async function getCursoPublico(
         .sort((a, b) => a.orden - b.orden)
         .map((leccion) => ({
           id: leccion.id,
+          slug: leccion.slug,
           titulo: leccion.titulo,
           orden: leccion.orden,
           // Sin video LISTO, cualquier valor guardado en `duracion` no
@@ -203,6 +216,7 @@ export async function getCursoPublico(
     ? leccionesPlanas.find((leccion) => !leccion.completado)
     : undefined;
   const leccionContinuarId = siguiente?.id ?? null;
+  const leccionContinuarSlug = siguiente?.slug ?? null;
   const leccionContinuarTitulo = siguiente?.titulo ?? null;
   const leccionContinuarNumero = siguiente
     ? leccionesPlanas.findIndex((leccion) => leccion.id === siguiente.id) + 1
@@ -210,6 +224,7 @@ export async function getCursoPublico(
 
   return {
     id: curso.id,
+    slug: curso.slug,
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     nivel: curso.nivel,
@@ -225,6 +240,7 @@ export async function getCursoPublico(
     accesoVencido,
     progresoIniciado,
     leccionContinuarId,
+    leccionContinuarSlug,
     leccionContinuarTitulo,
     leccionContinuarNumero,
   };

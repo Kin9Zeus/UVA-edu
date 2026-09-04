@@ -103,7 +103,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
             {cursosVisibles.map((curso) => (
               <Link
                 key={curso.cursoId}
-                href={`/cursos/${curso.cursoId}`}
+                href={`/cursos/${curso.cursoSlug}`}
                 className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-bg hover:border-uva-text-faint"
               >
                 <div

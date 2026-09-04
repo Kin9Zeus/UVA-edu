@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
+import { esUuid } from "@/lib/slug";
 
 /** Chip de categoría reutilizado por el catálogo y por "Tu progreso" (lib/progreso.ts). */
 export type CategoriaChip = { id: string; nombre: string };
 
 export type CursoDeCategoria = {
   id: string;
+  slug: string;
   titulo: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   /**
@@ -40,7 +42,6 @@ export type ResultadoCatalogo = {
   totalPaginas: number;
 };
 
-const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const CURSOS_POR_PAGINA = 12;
 
 /** Categorías activas para el selector de filtro del catálogo. */
@@ -60,7 +61,7 @@ export async function resolverCategoria(identificador: string): Promise<Categori
   const { data } = await supabase
     .from("categorias")
     .select("id, slug, nombre, descripcion")
-    .eq(PATRON_UUID.test(identificador) ? "id" : "slug", identificador)
+    .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .eq("activo", true)
     .maybeSingle();
   return data as CategoriaInfo | null;
@@ -102,6 +103,7 @@ export async function buscarCatalogo(opciones: {
 
   type FilaBusqueda = {
     curso_id: string;
+    curso_slug: string;
     titulo: string;
     nivel: CursoDeCategoria["nivel"];
     imagen_portada: string;
@@ -123,6 +125,7 @@ export async function buscarCatalogo(opciones: {
 
   const cursos: CursoDeCategoria[] = filas.map((fila) => ({
     id: fila.curso_id,
+    slug: fila.curso_slug,
     titulo: fila.titulo,
     nivel: fila.nivel,
     instructorNombre: fila.instructor_nombre ?? SIN_INSTRUCTOR,

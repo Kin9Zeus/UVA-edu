@@ -3,6 +3,7 @@ import type { CategoriaChip } from "@/lib/categoria";
 
 export type CursoConProgreso = {
   cursoId: string;
+  cursoSlug: string;
   titulo: string;
   imagenPortada: string;
   /** Todas las categorías del curso — ver CategoriaChip en lib/categoria.ts. */
@@ -29,7 +30,7 @@ export async function getProgresoData(): Promise<ProgresoData> {
 
   const { data: filas } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, titulo, imagen_portada, lecciones_completadas, lecciones_total")
+    .select("curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total")
     .order("ultima_actividad", { ascending: false });
 
   const cursoIds = (filas ?? []).map((fila) => fila.curso_id as string);
@@ -58,6 +59,7 @@ export async function getProgresoData(): Promise<ProgresoData> {
     const completadas = fila.lecciones_completadas as number;
     return {
       cursoId: fila.curso_id as string,
+      cursoSlug: fila.curso_slug as string,
       titulo: fila.titulo as string,
       imagenPortada: fila.imagen_portada as string,
       categorias: categoriasPorCursoMap.get(fila.curso_id as string) ?? [{ id: "general", nombre: "General" }],

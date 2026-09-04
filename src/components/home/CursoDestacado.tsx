@@ -76,7 +76,7 @@ export async function CursoDestacado() {
           </div>
 
           <Button
-            render={<Link href={`/cursos/${curso.id}`} />}
+            render={<Link href={`/cursos/${curso.slug}`} />}
             nativeButton={false}
             variant="uva-primary"
             size="uva"

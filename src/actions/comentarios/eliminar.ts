@@ -15,9 +15,10 @@ export type EliminarComentarioResultado = { error: string } | { success: true };
  * afectadas, sin excepción).
  */
 export async function eliminarComentario(
-  cursoId: string,
-  leccionId: string,
   comentarioId: string,
+  /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
+   * revalidar exactamente el path que Next.js cacheó — no el UUID interno. */
+  ruta: string,
 ): Promise<EliminarComentarioResultado> {
   const supabase = await createClient();
   const {
@@ -35,6 +36,6 @@ export async function eliminarComentario(
   if (error) return { error: "No pudimos eliminar el comentario." };
   if (!data) return { error: "No tienes permiso para eliminar este comentario." };
 
-  revalidatePath(`/cursos/${cursoId}/${leccionId}`);
+  revalidatePath(ruta);
   return { success: true };
 }

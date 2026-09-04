@@ -184,7 +184,7 @@ function ordenarComentarios(
 }
 
 export function ComentariosTab({
-  cursoId,
+  ruta,
   leccionId,
   comentarios,
   puedeComentar,
@@ -192,7 +192,11 @@ export function ComentariosTab({
   esAdmin,
   onCambio,
 }: {
-  cursoId: string;
+  /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
+   * que las acciones de comentarios (crear/eliminar/like) revaliden la
+   * página real que Next.js cacheó — no sirve un path armado con los UUID
+   * internos si la ruta pública ya vive en slugs (ver actions/comentarios). */
+  ruta: string;
   leccionId: string;
   comentarios: ComentarioConRespuestas[];
   puedeComentar: boolean;
@@ -236,7 +240,7 @@ export function ComentariosTab({
       )}
 
       {puedeComentar ? (
-        <NuevoComentarioForm cursoId={cursoId} leccionId={leccionId} onPublicado={onCambio} />
+        <NuevoComentarioForm ruta={ruta} leccionId={leccionId} onPublicado={onCambio} />
       ) : (
         <p className="m-0 text-[12.5px] text-uva-muted">
           Inicia sesión para comentar en esta clase.
@@ -249,7 +253,7 @@ export function ComentariosTab({
         {comentariosOrdenados.map((comentario) => (
           <div key={comentario.id} className="py-4 first:pt-0 last:pb-0">
             <ComentarioItem
-              cursoId={cursoId}
+              ruta={ruta}
               leccionId={leccionId}
               comentario={comentario}
               puedeComentar={puedeComentar}
@@ -265,14 +269,14 @@ export function ComentariosTab({
 }
 
 function NuevoComentarioForm({
-  cursoId,
+  ruta,
   leccionId,
   idComentarioPadre = null,
   onPublicado,
   onCancelar,
   autoFocus = false,
 }: {
-  cursoId: string;
+  ruta: string;
   leccionId: string;
   idComentarioPadre?: string | null;
   onPublicado: () => void;
@@ -287,7 +291,7 @@ function NuevoComentarioForm({
     if (!texto.trim()) return;
     setError(null);
     startTransition(async () => {
-      const resultado = await crearComentario(cursoId, leccionId, texto, idComentarioPadre);
+      const resultado = await crearComentario(leccionId, texto, idComentarioPadre, ruta);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -334,7 +338,7 @@ function NuevoComentarioForm({
 }
 
 function ComentarioItem({
-  cursoId,
+  ruta,
   leccionId,
   comentario,
   puedeComentar,
@@ -343,7 +347,9 @@ function ComentarioItem({
   onCambio,
   esRespuesta = false,
 }: {
-  cursoId: string;
+  ruta: string;
+  /** Solo para reenviarlo a NuevoComentarioForm al responder — el like/borrar
+   * de este comentario no lo necesita (van por comentarioId). */
   leccionId: string;
   comentario: ComentarioConRespuestas;
   puedeComentar: boolean;
@@ -370,8 +376,8 @@ function ComentarioItem({
     setLikeOptimista(siguiente);
     startTransitionLike(async () => {
       const resultado = siguiente.meGusta
-        ? await darLikeComentario(cursoId, leccionId, comentario.id)
-        : await quitarLikeComentario(cursoId, leccionId, comentario.id);
+        ? await darLikeComentario(comentario.id, ruta)
+        : await quitarLikeComentario(comentario.id, ruta);
       if ("error" in resultado) {
         setLikeOptimista({ meGusta, likes });
         return;
@@ -382,7 +388,7 @@ function ComentarioItem({
 
   function borrar() {
     startTransitionBorrar(async () => {
-      await eliminarComentario(cursoId, leccionId, comentario.id);
+      await eliminarComentario(comentario.id, ruta);
       onCambio();
     });
   }
@@ -467,7 +473,7 @@ function ComentarioItem({
         {respondiendo && (
           <div className="mt-2.5">
             <NuevoComentarioForm
-              cursoId={cursoId}
+              ruta={ruta}
               leccionId={leccionId}
               idComentarioPadre={comentario.id}
               onPublicado={() => setVerRespuestas(true)}
@@ -482,7 +488,7 @@ function ComentarioItem({
             {comentario.respuestas.map((respuesta) => (
               <ComentarioItem
                 key={respuesta.id}
-                cursoId={cursoId}
+                ruta={ruta}
                 leccionId={leccionId}
                 comentario={respuesta}
                 puedeComentar={puedeComentar}

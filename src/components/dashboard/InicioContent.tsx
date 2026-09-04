@@ -50,7 +50,7 @@ export function InicioContent({
             {sigueAprendiendo.map((clase) => (
               <Link
                 key={clase.leccionId}
-                href={`/cursos/${clase.cursoId}/${clase.leccionId}`}
+                href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
                 className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
               >
                 <div
@@ -110,7 +110,7 @@ export function InicioContent({
         <section>
           <h2 className="mb-4 text-base text-uva-text">Curso recomendado para ti</h2>
           <Link
-            href={`/cursos/${cursoDestacado.id}`}
+            href={`/cursos/${cursoDestacado.slug}`}
             className="group flex max-w-[380px] flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
           >
             <div

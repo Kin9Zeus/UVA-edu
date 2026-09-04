@@ -13,7 +13,7 @@ const PORTADA_TRAMA = {
 export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
   return (
     <Link
-      href={`/cursos/${curso.id}`}
+      href={`/cursos/${curso.slug}`}
       className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface hover:border-uva-text-faint"
     >
       <div className="relative aspect-video" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
