@@ -10,8 +10,10 @@ export type ComentarioConRespuestas = {
   /** Código ISO en minúscula para la clase `fi-{codigo}` de flag-icons,
    * null si el autor no tiene país guardado en su perfil. */
   bandera: string | null;
-  /** Check de verificado: el autor tiene rol PROFESOR — no un snapshot, se
-   * deriva del rol actual (ver comentario en el modelo `Comentarios`). */
+  /** Check de verificado: el autor tiene rol PROFESOR Y dicta ESTE curso
+   * (fila propia en `curso_instructores`) — no un snapshot, se deriva en
+   * cada carga. Un profesor comentando en un curso que no dicta se ve como
+   * alumno normal, igual que cualquier otro estudiante. */
   esInstructor: boolean;
   tiempo: string;
   texto: string;
@@ -46,6 +48,7 @@ function iniciales(nombre: string) {
  */
 export async function getComentariosDeLeccion(
   leccionId: string,
+  cursoId: string,
   usuarioId: string | null,
 ): Promise<ComentarioConRespuestas[]> {
   const supabase = await createClient();
@@ -67,10 +70,18 @@ export async function getComentariosDeLeccion(
   }
 
   const autorIds = [...new Set((filas ?? []).map((fila) => fila.id_usuario as string))];
-  const { data: autores } = autorIds.length
-    ? await supabase.from("comentarios_autor_publico").select("id, nombre, rol, pais").in("id", autorIds)
-    : { data: [] };
+  const [{ data: autores }, { data: instructoresDelCurso }] = await Promise.all([
+    autorIds.length
+      ? supabase.from("comentarios_autor_publico").select("id, nombre, rol, pais").in("id", autorIds)
+      : Promise.resolve({ data: [] }),
+    // Quién dicta ESTE curso, no solo quién tiene rol PROFESOR en general —
+    // ver el comentario de `esInstructor` arriba.
+    supabase.from("curso_instructores_publico").select("id_instructor").eq("id_curso", cursoId),
+  ]);
   const autoresPorId = new Map((autores ?? []).map((autor) => [autor.id as string, autor]));
+  const idsInstructoresDelCurso = new Set(
+    (instructoresDelCurso ?? []).map((fila) => fila.id_instructor as string),
+  );
 
   const planas = (filas ?? []).map((fila) => {
     const autor = autoresPorId.get(fila.id_usuario as string);
@@ -81,7 +92,7 @@ export async function getComentariosDeLeccion(
       autor: autor?.nombre ?? "Usuario",
       iniciales: iniciales(autor?.nombre ?? "?"),
       bandera: codigoBanderaDePais((autor?.pais as string | null) ?? null),
-      esInstructor: autor?.rol === "PROFESOR",
+      esInstructor: autor?.rol === "PROFESOR" && idsInstructoresDelCurso.has(fila.id_usuario as string),
       tiempo: tiempoRelativo(fila.creado_en as string),
       texto: fila.eliminado ? "[comentario eliminado]" : (fila.contenido as string),
       eliminado: fila.eliminado as boolean,

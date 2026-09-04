@@ -66,7 +66,7 @@ export default async function LeccionPlayerPage({
     notFound();
   }
 
-  const comentarios = await getComentariosDeLeccion(data.leccionId, user?.id ?? null);
+  const comentarios = await getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null);
 
   return (
     <>
