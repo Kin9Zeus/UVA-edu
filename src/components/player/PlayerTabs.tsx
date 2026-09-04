@@ -10,7 +10,7 @@ import { darLikeComentario, quitarLikeComentario } from "@/actions/comentarios/l
 import type { RecursoLeccion } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
 
-export type TabPlayer = "recursos" | "resumen";
+export type TabPlayer = "recursos" | "resumen" | "comentarios";
 
 const TAB_BASE =
   "flex cursor-pointer items-center gap-[7px] rounded-full border-0 px-4 py-[9px] text-[13px] font-semibold";
@@ -19,10 +19,14 @@ export function TabsHeader({
   tab,
   onTab,
   totalRecursos,
+  totalComentarios,
 }: {
   tab: TabPlayer;
   onTab: (tab: TabPlayer) => void;
   totalRecursos: number;
+  /** Omitido en la vista previa sin sesión (LeccionVistaPreviaContent), que
+   * no tiene comentarios: sin este dato la pestaña no se muestra. */
+  totalComentarios?: number;
 }) {
   const clase = (activo: boolean) =>
     `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
@@ -37,6 +41,19 @@ export function TabsHeader({
         Resumen
         <span className="font-mono text-[11px] opacity-65" />
       </button>
+      {/* Solo en mobile: desktop ya muestra los comentarios en su propio
+          panel fijo junto al video (PlayerContent.tsx), así que ahí esta
+          pestaña sobraría. */}
+      {totalComentarios !== undefined && (
+        <button
+          type="button"
+          onClick={() => onTab("comentarios")}
+          className={`${clase(tab === "comentarios")} lg:hidden`}
+        >
+          Comentarios
+          <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+        </button>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   RecursosTab,
   ResumenTab,
   ComentariosTab,
+  contarComentarios,
   type TabPlayer,
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
@@ -193,42 +194,40 @@ export function PlayerContent({
           </h1>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-            <TabsHeader tab={tab} onTab={setTab} totalRecursos={data.recursos.length} />
+            <TabsHeader
+              tab={tab}
+              onTab={setTab}
+              totalRecursos={data.recursos.length}
+              totalComentarios={contarComentarios(comentariosIniciales)}
+            />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
             {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
-          </div>
-
-          {/* Mobile: el sidebar de la derecha (clases/progreso + comentarios)
-              está oculto (ver más abajo), así que los comentarios necesitan
-              su propio bloque acá para seguir siendo alcanzables. */}
-          <div className="mt-5 flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:hidden">
-            <ComentariosTab
-              cursoId={data.cursoId}
-              leccionId={data.leccionId}
-              comentarios={comentariosIniciales}
-              puedeComentar={data.puedeComentar}
-              usuarioActualId={usuarioActualId}
-              esAdmin={esAdmin}
-              onCambio={() => router.refresh()}
-            />
+            {tab === "comentarios" && (
+              <div className="lg:hidden">
+                <ComentariosTab
+                  cursoId={data.cursoId}
+                  leccionId={data.leccionId}
+                  comentarios={comentariosIniciales}
+                  puedeComentar={data.puedeComentar}
+                  usuarioActualId={usuarioActualId}
+                  esAdmin={esAdmin}
+                  onCambio={() => router.refresh()}
+                />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Desktop: sidebar dedicado solo a Comentarios, como en Platzi — el
             temario/progreso NO vive acá (ver TemarioDrawer, abierto desde el
-            botón "Temario" de la barra de arriba). `sticky` es seguro acá
-            porque es la ÚNICA tarjeta de la columna — nada con lo que
-            solaparse (el bug anterior era por tener dos tarjetas hermanas,
-            una sticky y otra en flujo normal, en el mismo contenedor). Si la
-            lista de comentarios no cabe, scrollea puertas adentro
-            (`overflow-y-auto`); el resto de la tarjeta no se mueve.
-            `h-[...]` fija (no `max-h-`) a propósito: con pocos comentarios
-            la tarjeta mide solo lo que ocupa su contenido, se queda corta y
-            se "despega" del `sticky` antes de llegar al fondo de la página
-            (se ve moverse). Con alto fijo siempre reserva ese espacio
-            completo, así el `sticky` no se suelta hasta el final real de la
-            columna. */}
-        <div className="top-[88px] hidden h-[calc(100vh-112px)] flex-col gap-3.5 overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky lg:flex">
+            botón "Temario" de la barra de arriba). Deliberadamente NO
+            `sticky`: los dos intentos anteriores con `position: sticky`
+            producían un deslizamiento visible al hacer scroll (primero se
+            despegaba antes de tiempo por tener alto variable, y ajustar el
+            alto a `100vh` para evitarlo dejaba un "alcance" notorio hasta
+            engancharse) — vive en flujo normal, igual que la columna del
+            video, sin ese salto. */}
+        <div className="hidden flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:flex">
           <ComentariosTab
             cursoId={data.cursoId}
             leccionId={data.leccionId}
