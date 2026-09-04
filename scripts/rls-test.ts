@@ -888,6 +888,71 @@ async function main() {
       .eq("id_usuario", userConAcceso.user!.id);
     if (errRestaurar) throw new Error(`No pude restaurar la suscripción de prueba: ${errRestaurar.message}`);
 
+    // ------------------------------------------------------------------
+    // Comentarios: qué columnas puede tocar el autor de su propia fila
+    // (064_comentarios_columnas_y_moderacion.sql — P2-1, AUDIT-2026-09-04.md)
+    //
+    // La policy `comentarios_update_propio_o_admin` (052, redefinida por 056)
+    // autoriza la FILA, no las columnas: sin 064, el autor podía deshacer la
+    // moderación de un administrador devolviendo `eliminado` a false, y mover
+    // su comentario a otra lección con un PATCH directo a PostgREST. Se prueba
+    // acá, con la suscripción ya restaurada, porque comentar exige acceso
+    // vigente al curso.
+    // ------------------------------------------------------------------
+    const { data: comentario, error: errComentario } = await clienteConAcceso
+      .from("comentarios")
+      .insert({
+        id_leccion: idLeccionReproduccion,
+        id_usuario: userConAcceso.user!.id,
+        contenido: "Comentario de prueba RLS",
+      })
+      .select("id")
+      .single();
+    if (errComentario || !comentario) {
+      throw new Error(`No pude crear el comentario de prueba: ${errComentario?.message}`);
+    }
+
+    await esperarBloqueado(
+      "el autor NO puede mover su comentario a otra lección",
+      clienteConAcceso
+        .from("comentarios")
+        // Una lección del curso despublicado: destino al que el autor no
+        // debería poder empujar contenido suyo.
+        .update({ id_leccion: leccionDespublicada.id })
+        .eq("id", comentario.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "el autor NO puede reescribir el contenido de su comentario publicado",
+      clienteConAcceso
+        .from("comentarios")
+        .update({ contenido: "reescrito" })
+        .eq("id", comentario.id)
+        .select(),
+    );
+
+    // No-regresión: borrar lo propio tiene que seguir funcionando. Es la única
+    // escritura sobre `comentarios` que hace la app
+    // (src/actions/comentarios/eliminar.ts), y 064 la deja intacta.
+    await esperarPermitido(
+      "el autor SÍ puede eliminar (lógicamente) su propio comentario",
+      clienteConAcceso
+        .from("comentarios")
+        .update({ eliminado: true })
+        .eq("id", comentario.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "el autor NO puede revivir un comentario eliminado (moderación irreversible para él)",
+      clienteConAcceso
+        .from("comentarios")
+        .update({ eliminado: false })
+        .eq("id", comentario.id)
+        .select(),
+    );
+
     // Revocar una membresía manual (f4accesos.md, revocarMembresia): pone
     // estado = 'CANCELADA'. No hace falta ninguna regla nueva de RLS para
     // esto — private.suscripcion_da_acceso() (038) ya solo da acceso a
@@ -965,6 +1030,17 @@ async function main() {
     await esperarPermitido(
       "administrador SÍ puede listar usuarios por el RPC",
       clienteAdmin.rpc("admin_listar_usuarios", { p_limite: 5, p_offset: 0 }),
+    );
+
+    // La otra mitad de 064 (P2-1): el trigger prohíbe revivir un comentario
+    // eliminado, pero deja hacerlo a un administrador a propósito — puede
+    // haber moderado por error y no debería necesitar SQL a mano. El
+    // comentario sigue con `eliminado = true` desde la sesión de más arriba;
+    // nada intermedio lo toca. Sin esta prueba, "el admin sí puede" sería una
+    // afirmación del comentario del SQL y de nadie más.
+    await esperarPermitido(
+      "administrador SÍ puede restaurar un comentario eliminado",
+      clienteAdmin.from("comentarios").update({ eliminado: false }).eq("id", comentario.id).select(),
     );
 
     const { data: metricasAdmin } = await clienteAdmin
@@ -1527,6 +1603,13 @@ async function main() {
       await admin.from("progreso").delete().eq("id_usuario", usuario.id);
       await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);
       await admin.from("suscripciones").delete().eq("id_usuario", usuario.id);
+      // Explícito aunque `comentarios` cascadee desde `lecciones`: la FK a
+      // `perfiles` NO lleva onDelete, así que un comentario superviviente
+      // haría fallar el deleteUser de más abajo con una violación de FK, y la
+      // corrida dejaría un usuario de prueba colgado — exactamente el problema
+      // que este `finally` existe para evitar. No se depende del orden en que
+      // caen las cascadas.
+      await admin.from("comentarios").delete().eq("id_usuario", usuario.id);
     }
 
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
