@@ -18,6 +18,40 @@ import {
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
 
+// Tarjeta de refuerzo psicológico: solo el % y cuántas clases faltan, sin la
+// lista de clases (esa vive en TemarioDrawer, no hay que duplicarla).
+function ProgresoCard({
+  porcentaje,
+  completadas,
+  totalClases,
+}: {
+  porcentaje: number;
+  completadas: number;
+  totalClases: number;
+}) {
+  return (
+    <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+      <h4 className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text">
+        Progreso
+      </h4>
+      <div>
+        <div className="mb-[7px] flex items-baseline gap-2">
+          <span className="font-mono text-xl font-bold text-uva-text">{porcentaje}%</span>
+          <span className="text-xs text-uva-muted">
+            completado · {completadas} de {totalClases} clases
+          </span>
+        </div>
+        <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
+          <div
+            className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
+            style={{ width: `${porcentaje}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlayerContent({
   data,
   comentariosIniciales,
@@ -199,6 +233,12 @@ export function PlayerContent({
             {data.leccionTitulo}
           </h1>
 
+          {/* Mobile: la tarjeta de progreso vive acá, en la columna única;
+              en desktop se muestra en el sidebar (ver más abajo). */}
+          <div className="mt-4 lg:hidden">
+            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+          </div>
+
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
             <TabsHeader
               tab={tab}
@@ -224,25 +264,32 @@ export function PlayerContent({
           </div>
         </div>
 
-        {/* Desktop: sidebar dedicado solo a Comentarios, como en Platzi — el
-            temario/progreso NO vive acá (ver TemarioDrawer, abierto desde el
-            botón "Temario" de la barra de arriba). Deliberadamente NO
-            `sticky`: los dos intentos anteriores con `position: sticky`
-            producían un deslizamiento visible al hacer scroll (primero se
-            despegaba antes de tiempo por tener alto variable, y ajustar el
-            alto a `100vh` para evitarlo dejaba un "alcance" notorio hasta
-            engancharse) — vive en flujo normal, igual que la columna del
-            video, sin ese salto. */}
-        <div className="hidden flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:flex">
-          <ComentariosTab
-            ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
-            leccionId={data.leccionId}
-            comentarios={comentariosIniciales}
-            puedeComentar={data.puedeComentar}
-            usuarioActualId={usuarioActualId}
-            esAdmin={esAdmin}
-            onCambio={() => router.refresh()}
-          />
+        {/* Desktop: columna derecha con Progreso arriba y Comentarios abajo.
+            Un solo hijo grid acá (este wrapper) para no romper las 2
+            columnas del grid de arriba — si Progreso y Comentarios fueran
+            hijos grid directos, el tercer elemento caería en una fila nueva
+            bajo la columna del video en vez de quedarse a la derecha.
+            La tarjeta de Comentarios sigue deliberadamente NO `sticky`: los
+            dos intentos anteriores con `position: sticky` producían un
+            deslizamiento visible al hacer scroll (primero se despegaba antes
+            de tiempo por tener alto variable, y ajustar el alto a `100vh`
+            para evitarlo dejaba un "alcance" notorio hasta engancharse) —
+            vive en flujo normal, igual que la columna del video, sin ese
+            salto. */}
+        <div className="hidden flex-col gap-[clamp(14px,2vw,24px)] lg:flex">
+          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+
+          <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+            <ComentariosTab
+              ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
+              leccionId={data.leccionId}
+              comentarios={comentariosIniciales}
+              puedeComentar={data.puedeComentar}
+              usuarioActualId={usuarioActualId}
+              esAdmin={esAdmin}
+              onCambio={() => router.refresh()}
+            />
+          </div>
         </div>
       </div>
 
