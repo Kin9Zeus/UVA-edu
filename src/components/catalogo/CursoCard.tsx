@@ -66,7 +66,12 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
         </h3>
         <p className="mt-1.5 truncate text-xs text-uva-muted-2">{curso.instructorNombre}</p>
       </div>
-      <div className="flex items-center gap-2.5 px-4 pt-2.5 pb-3.5 font-mono text-[10px] font-medium tracking-[.12em] text-uva-muted uppercase">
+      {/* mt-auto: la tarjeta (Link) es un flex-col que el grid estira a la
+          altura de la fila (align-items: stretch por defecto); esto empuja
+          la fila de nivel/clases al fondo sin importar cuántas categorías o
+          líneas de título tenga arriba, así queda alineada con sus vecinas
+          de la misma fila. */}
+      <div className="mt-auto flex items-center gap-2.5 px-4 pt-2.5 pb-3.5 font-mono text-[10px] font-medium tracking-[.12em] text-uva-muted uppercase">
         <span>{NIVEL_LABEL[curso.nivel]}</span>
         <span className="ml-auto">
           {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
