@@ -123,6 +123,20 @@ sobre el enunciado original, confirmadas con quien la pidió:
   la automatización con Playwright no es "deseable", es la única forma de
   correr este recorrido en cada despliegue.
 
+### CI
+
+`.github/workflows/ci.yml` corre `test:e2e` (Playwright) y `test:canje` en
+un job `e2e` propio, después de `rls` — así que el recorrido crítico y sus
+casos límite se verifican en cada despliegue de verdad, no solo a mano.
+Corre SOLO en push a `master` (o disparo manual), nunca en pull requests
+—ni siquiera del propio repo, a diferencia de `rls`—: estos specs llaman
+`signUp()`/`resetPasswordForEmail()` de verdad contra el proyecto
+compartido con producción, y BUG-002 de abajo ya mostró qué tan rápido se
+agota ese límite. `playwright.config.ts` y `scripts/canje-codigo-test.ts`
+protegen su `process.loadEnvFile(".env.local")` con `try/catch` (mismo
+patrón que `scripts/rls-test.ts`) para no reventar en CI, donde ese archivo
+no existe y las variables llegan del entorno.
+
 ### Recorrido crítico
 
 | Paso | Cubierto por |
@@ -159,10 +173,11 @@ solo alargaría el spec.
 | Canje concurrente del último cupo | `scripts/canje-codigo-test.ts` (`npm run test:canje`) — 8 canjes simultáneos reales (`Promise.all`) contra un cupo de 5, ya en el repo antes de esta tarea. No se duplicó en Playwright: la concurrencia real se prueba mejor con peticiones simultáneas de verdad contra el RPC que con dos `BrowserContext`, que solo agregarían la latencia del navegador sin tocar nada nuevo del `for update` que se quiere probar. |
 | Registro con un correo que ya existe | `e2e/registro-correo-existente.spec.ts` |
 | Mismo correo, password y después Google | **No automatizado** — ver abajo |
-| Reproducción en móvil: red que se cae a mitad de video | Pendiente de agregar con `context.setOffline()` sobre `e2e/recorrido-critico.spec.ts` (no incluido en esta primera pasada) |
+| Reproducción en móvil: red que se cae a mitad de video | `e2e/red-cae-video.spec.ts` — `context.setOffline()`; verifica que el listener de `online` en `VideoPlayer.tsx` reintenta el guardado de inmediato, vía `actualizado_en` |
 | Reproducción en móvil: pantalla bloqueada, cambio de app | **No automatizable de verdad** — ver abajo |
 | Usuario sin acceso por URL directa a una lección | `e2e/acceso-directo-sin-permiso.spec.ts` |
 | Recuperación con enlace ya usado o vencido | `e2e/recuperar-password.spec.ts` (encontró BUG-001 de arriba) |
+| Probar con una conexión lenta simulada (requisito de calidad) | `e2e/conexion-lenta.spec.ts` — throttling real vía CDP (`Network.emulateNetworkConditions`, perfil tipo Slow 3G) sobre login, catálogo, ficha del curso y arranque del reproductor |
 
 ### Lo que necesita un dispositivo real (no es automatizable con Playwright)
 

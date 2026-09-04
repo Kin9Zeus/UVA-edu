@@ -1,6 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-process.loadEnvFile(".env.local");
+// .env.local no existe en CI, donde las variables llegan del entorno
+// (mismo patrón que scripts/rls-test.ts).
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // Sin archivo: se usan las variables ya presentes en process.env.
+}
 
 // P2-7 Fase B (AUDIT-2026-08-24.md): corre contra el proyecto real de
 // Supabase — no hay staging separado (Ground Truth del audit). Cada spec

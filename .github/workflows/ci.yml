@@ -1,7 +1,7 @@
 name: CI
 
 # P1-2 (AUDIT-2026-08-26.md): antes de esto, nada impedía mergear código que
-# ni siquiera compila. Dos jobs:
+# ni siquiera compila. Tres jobs:
 #   - checks: tsc, lint, vitest — puro, sin secretos, corre en cualquier PR
 #     (incluidas las de forks, que no reciben secretos de todas formas).
 #   - rls: aplica las migraciones de Prisma y los 32 scripts de RLS contra
@@ -9,17 +9,27 @@ name: CI
 #     que solo corre en push a master y en PRs del propio repo (GitHub no
 #     expone secretos a PRs de forks, así que esto es automático, no una
 #     condición que haya que mantener).
+#   - e2e: recorrido crítico y casos límite de canje/acceso (Playwright) +
+#     canje concurrente (test:canje) — tarea "Pruebas E2E del flujo de canje
+#     de código y acceso" (docs/qa/bugs-e2e.md). SOLO en push a master (ni
+#     siquiera en PRs del propio repo, a diferencia de `rls`): estos specs sí
+#     llaman signUp()/resetPasswordForEmail() de verdad contra el proyecto
+#     compartido con producción, y BUG-002 (docs/qa/bugs-e2e.md) ya mostró
+#     que el Rate Limit de Auth de Supabase se agota con pocos intentos
+#     seguidos — correrlo en cada PR multiplicaría cuánto se golpea ese
+#     límite sin necesidad. `workflow_dispatch` queda como válvula manual.
 #
-# Por qué el job de RLS NO usa una base efímera (el plan original de la
-# auditoría decía "prisma migrate deploy contra una base efímera"): los 32
-# scripts de supabase/sql/ dependen del schema `auth` de Supabase en toda su
-# extensión (auth.uid(), el trigger sobre auth.users, auth.identities) — el
-# mismo motivo, documentado en scripts/apply-rls.ts, por el que estos
-# scripts no pueden vivir en prisma/migrations/. Un contenedor de Postgres
-# en el runner no tiene ese schema. Sin un stack local de Supabase CLI
-# (`supabase start`) configurado en el repo, la única base que sí lo tiene
-# es el proyecto real — el mismo que ya usan db:rls/test:rls en local. Es
-# una desviación consciente del texto original, no un descuido.
+# Por qué el job de RLS (ni el de e2e) NO usa una base efímera (el plan
+# original de la auditoría decía "prisma migrate deploy contra una base
+# efímera"): los 32 scripts de supabase/sql/ dependen del schema `auth` de
+# Supabase en toda su extensión (auth.uid(), el trigger sobre auth.users,
+# auth.identities) — el mismo motivo, documentado en scripts/apply-rls.ts,
+# por el que estos scripts no pueden vivir en prisma/migrations/. Un
+# contenedor de Postgres en el runner no tiene ese schema. Sin un stack
+# local de Supabase CLI (`supabase start`) configurado en el repo, la única
+# base que sí lo tiene es el proyecto real — el mismo que ya usan
+# db:rls/test:rls/test:e2e/test:canje en local. Es una desviación consciente
+# del texto original, no un descuido.
 
 on:
   pull_request:
@@ -120,3 +130,51 @@ jobs:
           # supabase-test`), separado del de Railway.
           MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+  e2e:
+    name: E2E — canje/acceso (Playwright) y canje concurrente
+    needs: rls
+    runs-on: ubuntu-latest
+    # Solo push a master (ver comentario de arriba) o disparo manual — nunca
+    # en PRs, ni siquiera del propio repo.
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
+    environment: supabase-test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Recorrido crítico y casos límite (Playwright)
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Firman el playback token de Mux (resolverTokenReproduccion) —
+          # sin esto, cualquier spec que reproduzca video falla con "Signing
+          # key required", no por un bug real (mismo motivo que en `rls`).
+          MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+      - name: Canje concurrente del último cupo (test:canje)
+        run: npm run test:canje
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Subir trazas de Playwright si algo falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
