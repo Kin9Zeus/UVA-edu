@@ -24,6 +24,7 @@
     "test:webhooks": "tsx scripts/webhook-test.ts",
     "test:canje": "tsx scripts/canje-codigo-test.ts",
     "mux:limpiar": "tsx scripts/mux-limpiar-assets.ts",
+    "mux:verificar-atascados": "tsx scripts/mux-verificar-atascados.ts",
     "certificados:notificar": "tsx scripts/certificados-enviar-notificaciones.ts",
     "test:e2e": "playwright test",
     "audit:lighthouse": "tsx scripts/audit/lighthouse-audit.ts",

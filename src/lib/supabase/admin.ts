@@ -2,8 +2,9 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Cliente con Service Role Key: se salta RLS por diseño.
- * Uso exclusivo en Route Handlers de webhooks (Stripe/Wompi/Mux) y Server
- * Actions de administrador que ya validaron el rol ADMINISTRADOR.
+ * Uso exclusivo en Route Handlers de webhooks (Stripe/Wompi/Mux), el
+ * healthcheck (src/app/api/health/route.ts, solo lectura) y Server Actions
+ * de administrador que ya validaron el rol ADMINISTRADOR.
  * Nunca exponer ni importar desde código que corra en el cliente.
  */
 export function createAdminClient() {
