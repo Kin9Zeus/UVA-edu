@@ -86,6 +86,10 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
       next: `/login?signout=1&email=${encodeURIComponent(email)}`,
     });
     await page.goto(enlace);
+    // /auth/confirm ya no verifica solo por visitar la URL (evita que un
+    // escáner de enlaces de correo consuma el token antes que la persona
+    // real, ver Sentry UVA-EDU-10/13/14) — hace falta el clic.
+    await page.getByRole("button", { name: "Confirmar" }).click();
     await expect(page).toHaveURL(/\/login\?email=/);
     await page.fill("#login-pass", password);
     await page.getByRole("button", { name: "Entrar" }).click();

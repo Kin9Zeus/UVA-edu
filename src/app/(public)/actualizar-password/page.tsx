@@ -16,7 +16,7 @@ export default async function ActualizarPasswordPage({
 }) {
   // Camino normal: el enlace del correo pasa por /auth/confirm, que ya
   // canjea el token_hash y llega aquí con la sesión de recuperación puesta
-  // en cookies (ver src/app/auth/confirm/route.ts).
+  // en cookies (ver src/actions/auth/confirmar-enlace.ts).
   //
   // Camino de respaldo: si Supabase envía el correo con su plantilla propia
   // (p. ej. el "Send Email" hook no está configurado o no es alcanzable,

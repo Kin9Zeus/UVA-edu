@@ -9,8 +9,9 @@ import {
 /**
  * Caso límite obligatorio: "Recuperación de contraseña con enlace ya usado o
  * vencido." Un token_hash de recuperación ya consumido, uno alterado y uno
- * realmente vencido llegan al mismo `catch` en /auth/confirm/route.ts
- * (verifyOtp falla -> redirect a /login?error=enlace_invalido): no hay forma
+ * realmente vencido llegan al mismo camino en confirmarEnlace()
+ * (src/actions/auth/confirmar-enlace.ts) — verifyOtp falla -> redirect a
+ * /login?error=enlace_invalido: no hay forma
  * de adelantar el reloj del servidor de Supabase Auth para forzar un vencido
  * de verdad en un test, así que "alterado" es el sustituto fiel del mismo
  * camino de código — ambos son, para la app, "verifyOtp devolvió error".
@@ -43,6 +44,10 @@ test("enlace de recuperación ya usado no deja volver a entrar con él", async (
 
   await test.step("primer uso: cambia la contraseña con éxito", async () => {
     await page.goto(enlace);
+    // /auth/confirm ya no verifica solo por visitar la URL (evita que un
+    // escáner de enlaces de correo consuma el token antes que la persona
+    // real, ver Sentry UVA-EDU-10/13/14) — hace falta el clic.
+    await page.getByRole("button", { name: "Confirmar" }).click();
     await expect(page).toHaveURL("/actualizar-password");
     await page.fill("#nueva-pass", passwordNueva);
     await page.fill("#nueva-pass2", passwordNueva);
@@ -53,6 +58,7 @@ test("enlace de recuperación ya usado no deja volver a entrar con él", async (
 
   await test.step("segundo uso del MISMO enlace: no entra, y /login explica por qué", async () => {
     await page.goto(enlace);
+    await page.getByRole("button", { name: "Confirmar" }).click();
     await expect(page).toHaveURL("/login?error=enlace_invalido", { timeout: 15_000 });
     // `getByRole("alert")` por sí solo también atraparía el route announcer
     // de Next.js (#__next-route-announcer__, siempre presente y también
@@ -71,5 +77,6 @@ test("enlace de recuperación con token alterado (mismo camino que uno vencido) 
   const enlaceAlterado = enlace.replace(/token_hash=[^&]+/, "token_hash=alterado-a-mano");
 
   await page.goto(enlaceAlterado);
+  await page.getByRole("button", { name: "Confirmar" }).click();
   await expect(page).toHaveURL("/login?error=enlace_invalido", { timeout: 15_000 });
 });
