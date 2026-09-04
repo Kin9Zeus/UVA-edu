@@ -3,7 +3,7 @@ import { tieneAccesoVigente } from "@/lib/mux/acceso";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 
 export type AccesoCurso = {
-  /** Cortesía al curso O suscripción vigente — la única regla del muro (`tieneAccesoVigente`). */
+  /** Cortesía al curso, suscripción vigente, o ser instructor del curso — ver `tieneAccesoVigente` y el comentario de más abajo sobre `esInstructorDelCurso`. */
   tieneAcceso: boolean;
   tieneCortesia: boolean;
   /** null si nunca hubo suscripción. Se expone aparte porque `tieneAcceso` sola no distingue "nunca canjeó" de "canjeó y se le venció" — el CTA del curso (curso.ts) sí necesita esa distinción. */
@@ -37,7 +37,7 @@ export async function obtenerAccesoAlCurso(
   // Solo CORTESIA activa: una MEMBRESIA no sobrevive a la suscripción que la
   // originó (ver mux/acceso.ts), y una CORTESIA revocada tampoco cuenta — la
   // fila se conserva marcada `activo = false`, no se borra (f4accesos.md).
-  const [{ data: inscripcion }, { data: suscripcionRaw }] = await Promise.all([
+  const [{ data: inscripcion }, { data: suscripcionRaw }, { data: filaInstructor }] = await Promise.all([
     supabase
       .from("inscripciones")
       .select("id")
@@ -57,15 +57,29 @@ export async function obtenerAccesoAlCurso(
       .order("fecha_inicio", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Un profesor entra gratis SOLO a los cursos que él mismo dicta (fila
+    // propia en `curso_instructores`) — decisión de producto todavía en
+    // discusión para extenderla a "todo el catálogo", así que por ahora es
+    // deliberadamente puntual por curso, no un bypass por rol PROFESOR.
+    // `curso_instructores_publico` (no la tabla base) porque ya trae el
+    // mismo criterio de acceso que el resto de esta función usa para
+    // exponer datos públicos, sin duplicar el WHERE.
+    supabase
+      .from("curso_instructores_publico")
+      .select("id_instructor")
+      .eq("id_curso", cursoId)
+      .eq("id_instructor", usuarioId)
+      .maybeSingle(),
   ]);
 
   const suscripcion = suscripcionRaw
     ? { estado: suscripcionRaw.estado, fechaRenovacion: suscripcionRaw.fecha_renovacion }
     : null;
   const tieneCortesia = inscripcion !== null;
+  const esInstructorDelCurso = filaInstructor !== null;
 
   return {
-    tieneAcceso: tieneAccesoVigente(suscripcion, tieneCortesia),
+    tieneAcceso: tieneAccesoVigente(suscripcion, tieneCortesia) || esInstructorDelCurso,
     tieneCortesia,
     suscripcion,
   };
