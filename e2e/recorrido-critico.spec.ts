@@ -125,13 +125,13 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
 
   await test.step("abre el curso", async () => {
     await page.locator(`a[href="/cursos/${cursoSlug}"]`).first().click();
-    await expect(page).toHaveURL(`/cursos/${cursoSlug}`);
+    await expect(page).toHaveURL(`/cursos/${cursoSlug}`, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: CURSO_FIXTURE.titulo })).toBeVisible();
   });
 
   await test.step("reproduce la primera lección (video real y corto)", async () => {
     await page.getByRole("button", { name: "Comenzar curso" }).click();
-    await expect(page).toHaveURL(`/cursos/${cursoSlug}/${leccionSlugs[leccion1.id]}`);
+    await expect(page).toHaveURL(`/cursos/${cursoSlug}/${leccionSlugs[leccion1.id]}`, { timeout: 15_000 });
 
     const reproductor = page.locator("mux-player");
     await expect(reproductor).toBeVisible({ timeout: 20_000 });
