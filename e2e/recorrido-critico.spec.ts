@@ -8,6 +8,7 @@ import {
   formatearCodigoDePrueba,
   generarEnlaceConfirmacion,
   limpiarDatosDeUsuario,
+  obtenerSlugsCursoFixture,
   verificarCursoFixture,
 } from "./supabase-admin";
 
@@ -45,11 +46,18 @@ const [leccion1, leccion2, leccion3] = CURSO_FIXTURE.lecciones;
 
 let codigoId: string;
 let usuarioId: string | null = null;
+// Las páginas públicas aceptan el UUID como respaldo, pero todo <Link> real
+// de la app (catálogo, "Comenzar curso") navega por slug — se consultan acá
+// para que los pasos que hacen clic en esos enlaces (en vez de un
+// page.goto directo) apunten a la URL que la UI realmente produce.
+let cursoSlug = "";
+let leccionSlugs: Record<string, string> = {};
 
 test.beforeAll(async () => {
   await verificarCursoFixture(admin);
   const fila = await crearCodigoInvitacion(admin, { codigo, limiteUsos: 1, duracionDias: 30 });
   codigoId = fila.id;
+  ({ cursoSlug, leccionSlugs } = await obtenerSlugsCursoFixture(admin));
 });
 
 test.afterAll(async () => {
@@ -112,18 +120,18 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
 
   await test.step("entra al catálogo y encuentra el curso", async () => {
     await page.goto("/dashboard/catalogo");
-    await expect(page.locator(`a[href="/cursos/${CURSO_FIXTURE.id}"]`).first()).toBeVisible();
+    await expect(page.locator(`a[href="/cursos/${cursoSlug}"]`).first()).toBeVisible();
   });
 
   await test.step("abre el curso", async () => {
-    await page.locator(`a[href="/cursos/${CURSO_FIXTURE.id}"]`).first().click();
-    await expect(page).toHaveURL(`/cursos/${CURSO_FIXTURE.id}`);
+    await page.locator(`a[href="/cursos/${cursoSlug}"]`).first().click();
+    await expect(page).toHaveURL(`/cursos/${cursoSlug}`);
     await expect(page.getByRole("heading", { name: CURSO_FIXTURE.titulo })).toBeVisible();
   });
 
   await test.step("reproduce la primera lección (video real y corto)", async () => {
-    await page.getByText("Comenzar curso").click();
-    await expect(page).toHaveURL(`/cursos/${CURSO_FIXTURE.id}/${leccion1.id}`);
+    await page.getByRole("button", { name: "Comenzar curso" }).click();
+    await expect(page).toHaveURL(`/cursos/${cursoSlug}/${leccionSlugs[leccion1.id]}`);
 
     const reproductor = page.locator("mux-player");
     await expect(reproductor).toBeVisible({ timeout: 20_000 });

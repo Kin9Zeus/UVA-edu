@@ -140,6 +140,36 @@ export async function verificarCursoFixture(admin: ReturnType<typeof adminClient
 }
 
 /**
+ * Slugs reales del curso fixture y sus lecciones — las páginas públicas
+ * aceptan el UUID como respaldo (`esUuid()`, src/lib/slug.ts), pero todo
+ * `<Link>` real de la app (catálogo, "Comenzar curso", etc.) navega por
+ * slug, nunca por id. Se consultan en vez de hardcodearlos a mano para no
+ * duplicar el algoritmo de slugificar() ni quedar desactualizados si el
+ * curso semilla se renombra.
+ */
+export async function obtenerSlugsCursoFixture(admin: ReturnType<typeof adminClient>) {
+  const { data: curso, error: errorCurso } = await admin
+    .from("cursos")
+    .select("slug")
+    .eq("id", CURSO_FIXTURE.id)
+    .single();
+  if (errorCurso || !curso) {
+    throw new Error(`No pude obtener el slug de CURSO_FIXTURE: ${errorCurso?.message}`);
+  }
+
+  const { data: lecciones, error: errorLecciones } = await admin
+    .from("lecciones")
+    .select("id, slug")
+    .in("id", CURSO_FIXTURE.lecciones.map((l) => l.id));
+  if (errorLecciones || !lecciones || lecciones.length !== CURSO_FIXTURE.lecciones.length) {
+    throw new Error(`No pude obtener los slugs de las lecciones de CURSO_FIXTURE: ${errorLecciones?.message}`);
+  }
+
+  const leccionSlugs = Object.fromEntries(lecciones.map((l) => [l.id, l.slug])) as Record<string, string>;
+  return { cursoSlug: curso.slug as string, leccionSlugs };
+}
+
+/**
  * Formatea un código de prueba con los mismos guiones que
  * formatearCodigoMientrasEscribe (src/lib/codigoInvitacion.ts) produce en el
  * input real: 3-4-4. `normalizarCodigo()` no toca los guiones al enviar el

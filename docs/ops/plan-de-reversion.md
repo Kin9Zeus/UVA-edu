@@ -20,12 +20,14 @@ construido apunta el tráfico.
   cambió. Por eso la sección de migraciones de más abajo no es una
   formalidad: es la diferencia entre que el rollback arregle el incidente o
   lo empeore.
-- Este documento asume Railway porque es el stack elegido
-  (`docs/technical-spec.md`), pero **no hay todavía ningún proyecto de
-  Railway ni archivo de configuración en este repo** (sin `railway.json`,
-  sin `Procfile`) — los pasos exactos de la pestaña *Deployments* hay que
-  confirmarlos la primera vez que se despliegue de verdad, no se pueden
-  verificar desde acá.
+- Ya existe un proyecto de Railway desplegado (confirmado vía Sentry:
+  eventos reales en `environment: production` contra
+  `uva-edu-production.up.railway.app`), aunque todavía no en el dominio
+  final. Sigue sin haber archivo de configuración en este repo (sin
+  `railway.json`, sin `Procfile`) — los pasos exactos de la pestaña
+  *Deployments* hay que confirmarlos contra ese proyecto real la primera
+  vez que se necesite un rollback de verdad, no se pueden verificar desde
+  acá.
 
 ## Criterios que disparan una reversión (vs. arreglar en caliente)
 
