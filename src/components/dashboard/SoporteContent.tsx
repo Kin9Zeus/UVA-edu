@@ -1,4 +1,12 @@
+import { Flag, ArrowUpRight } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+
+// Formulario público de Notion (vista "Reportar bug/incidencias" de la base
+// "Bugs / Incidencias") — cada envío cae ahí directo como fila nueva, sin
+// backend propio. Fase 1 del plan de soporte: si más adelante se reemplaza
+// por un formulario propio dentro de la app, solo hay que cambiar este link
+// por la llamada al Server Action correspondiente.
+const URL_REPORTE_PROBLEMA = "https://loud-voice-8a9.notion.site/544401bd4fae4293ac2a81538ae09037?pvs=105";
 
 // Placeholder: todavía no hay contenido real para estos 4 puntos (pendiente
 // de que el equipo lo redacte). Se deja la estructura de acordeón lista para
@@ -41,6 +49,20 @@ export function SoporteContent() {
             </AccordionItem>
           ))}
         </Accordion>
+
+        {/* No es un acordeón más: es una acción (sale de la app), no una
+            pregunta que se despliega in-place — por eso flecha diagonal en
+            vez de chevron, y por eso no vive dentro de <Accordion>. */}
+        <a
+          href={URL_REPORTE_PROBLEMA}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2.5 border-t border-uva-divider py-4 text-sm font-semibold text-uva-text transition-colors hover:text-uva-accent-text"
+        >
+          <Flag className="size-4 shrink-0 text-uva-text-faint" strokeWidth={2.2} />
+          <span className="flex-1">Reportar un problema</span>
+          <ArrowUpRight className="size-4 shrink-0 text-uva-text-faint" strokeWidth={2.2} />
+        </a>
       </div>
     </div>
   );
