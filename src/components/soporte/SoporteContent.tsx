@@ -1,36 +1,8 @@
 import { Flag, ArrowUpRight } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { TEMAS_SOPORTE, URL_REPORTE_PROBLEMA, type TemaSoporte } from "@/lib/soporte";
 
-// Formulario público de Notion (vista "Reportar bug/incidencias" de la base
-// "Bugs / Incidencias") — cada envío cae ahí directo como fila nueva, sin
-// backend propio. Fase 1 del plan de soporte: si más adelante se reemplaza
-// por un formulario propio dentro de la app, solo hay que cambiar este link
-// por la llamada al Server Action correspondiente.
-const URL_REPORTE_PROBLEMA = "https://loud-voice-8a9.notion.site/544401bd4fae4293ac2a81538ae09037?pvs=105";
-
-// Placeholder: todavía no hay contenido real para estos 4 puntos (pendiente
-// de que el equipo lo redacte). Se deja la estructura de acordeón lista para
-// que solo haya que reemplazar `contenido` acá cuando llegue el texto final.
-const TEMAS = [
-  {
-    titulo: "Centro de ayuda",
-    contenido: "Contenido en preparación. Pronto encontrarás aquí guías y preguntas frecuentes.",
-  },
-  {
-    titulo: "Contacto",
-    contenido: "Contenido en preparación. Pronto encontrarás aquí las formas de comunicarte con nosotros.",
-  },
-  {
-    titulo: "Términos",
-    contenido: "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de U.V.A.",
-  },
-  {
-    titulo: "Privacidad",
-    contenido: "Contenido en preparación. Pronto encontrarás aquí la Política de privacidad de U.V.A.",
-  },
-] as const;
-
-export function SoporteContent() {
+export function SoporteContent({ temaAbierto }: { temaAbierto?: TemaSoporte }) {
   return (
     <div className="mx-auto flex max-w-[720px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
       <div>
@@ -41,9 +13,18 @@ export function SoporteContent() {
       </div>
 
       <div className="rounded-uva-md border border-uva-divider bg-uva-surface px-5">
-        <Accordion className="flex flex-col">
-          {TEMAS.map((tema) => (
-            <AccordionItem key={tema.titulo} value={tema.titulo}>
+        {/* El acordeón es no controlado (el visitante abre y cierra a gusto),
+            así que `defaultValue` solo lo lee al montar. La `key` lo remonta
+            cuando cambia `?tema=`: sin ella, entrar desde el footer a otro
+            tema estando ya en /soporte navegaría sin abrir nada. Los demás
+            temas siguen listados y desplegables, solo arrancan cerrados. */}
+        <Accordion
+          key={temaAbierto ?? "sin-tema"}
+          defaultValue={temaAbierto ? [temaAbierto] : []}
+          className="flex flex-col"
+        >
+          {TEMAS_SOPORTE.map((tema) => (
+            <AccordionItem key={tema.id} value={tema.id}>
               <AccordionTrigger>{tema.titulo}</AccordionTrigger>
               <AccordionContent>{tema.contenido}</AccordionContent>
             </AccordionItem>
