@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -111,11 +112,12 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}
                 >
                   {esPortadaReal(curso.imagenPortada) && (
-                    // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-                    <img
+                    <Image
                       src={curso.imagenPortada}
                       alt=""
-                      className="absolute inset-0 size-full object-cover"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
                     />
                   )}
                   {curso.porcentaje === 100 && (

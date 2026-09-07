@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCursoDestacado } from "@/lib/cursoDestacado";
@@ -36,11 +37,13 @@ export async function CursoDestacado() {
             style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}
           >
             {esPortadaReal(curso.imagenPortada) && (
-              // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-              <img
+              <Image
                 src={curso.imagenPortada}
                 alt=""
-                className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 590px"
+                className="object-cover transition-transform duration-300 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
             )}
           </div>

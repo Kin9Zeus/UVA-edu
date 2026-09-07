@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -198,9 +199,18 @@ export function InfoTab({
           disabled={subiendoPortada}
           className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
         >
-          {fuenteVistaPrevia ? (
-            // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL) o imagen de Supabase Storage
-            <img src={fuenteVistaPrevia} alt="" className="size-full object-cover" />
+          {previewPendiente ? (
+            // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
+            <img src={previewPendiente} alt="" className="size-full object-cover" />
+          ) : fuenteVistaPrevia ? (
+            <Image
+              src={fuenteVistaPrevia}
+              alt=""
+              width={1280}
+              height={720}
+              sizes="280px"
+              className="size-full object-cover"
+            />
           ) : (
             <div className="flex size-full items-center justify-center px-4">
               Arrastra una imagen aquí o{" "}

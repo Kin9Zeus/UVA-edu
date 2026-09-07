@@ -1,7 +1,37 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+// P2-8 (AUDIT-2026-09-04.md): portadas de curso viven en el bucket público
+// `portadas-cursos` de Supabase Storage — se deriva del mismo
+// NEXT_PUBLIC_SUPABASE_URL que ya usa el resto de la app, en vez de
+// hardcodear el project ref acá, para que siga funcionando si algún día
+// hay un proyecto de Supabase distinto por entorno.
+const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : undefined;
+
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      ...(supabaseHostname
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: supabaseHostname,
+              pathname: "/storage/v1/object/public/portadas-cursos/**",
+            },
+          ]
+        : []),
+      // prisma/seed.ts genera portadas de ejemplo acá para no versionar
+      // archivos de imagen en el repo. Solo en desarrollo: en producción
+      // ninguna portada real sale de picsum.photos, así que no tiene
+      // sentido abrirle la puerta al optimizador de next/image ahí.
+      ...(process.env.NODE_ENV !== "production"
+        ? [{ protocol: "https" as const, hostname: "picsum.photos" }]
+        : []),
+    ],
+  },
+
   experimental: {
     serverActions: {
       // P2-7 (AUDIT-2026-09-04.md): antes era "52mb" para que

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -202,11 +203,13 @@ export function CursoDetalleView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex items-center gap-4">
           {esPortadaReal(imagenPortada) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage, no un asset local optimizable por next/image
-            <img
+            <Image
               src={imagenPortada}
               alt=""
-              className="aspect-video h-11 shrink-0 rounded-lg object-cover"
+              width={1280}
+              height={720}
+              sizes="80px"
+              className="aspect-video h-11 w-auto shrink-0 rounded-lg object-cover"
             />
           ) : (
             <div

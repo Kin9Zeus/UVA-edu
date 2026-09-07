@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { CursoDeCategoria } from "@/lib/categoria";
 import { esPortadaReal } from "@/lib/media";
 
@@ -18,11 +19,12 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
     >
       <div className="relative aspect-video" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
         {esPortadaReal(curso.imagenPortada) && (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-          <img
+          <Image
             src={curso.imagenPortada}
             alt=""
-            className="absolute inset-0 size-full object-cover"
+            fill
+            sizes="(max-width: 640px) 90vw, 300px"
+            className="object-cover"
           />
         )}
         {esPortadaReal(curso.imagenPortada) && (

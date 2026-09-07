@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, CircleCheck, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
@@ -188,12 +189,15 @@ export function CursoDetalleContent({
       <div className="contents lg:flex lg:flex-col lg:gap-4">
         <div className="order-2 lg:order-none">
           {esPortadaReal(curso.imagenPortada) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-            <img
-              src={curso.imagenPortada}
-              alt=""
-              className="aspect-video w-full rounded-uva-md object-cover"
-            />
+            <div className="relative aspect-video w-full overflow-hidden rounded-uva-md">
+              <Image
+                src={curso.imagenPortada}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 340px"
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="aspect-video overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
           )}
