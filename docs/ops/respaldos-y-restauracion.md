@@ -49,13 +49,25 @@ siendo evidencia y no un trámite de una sola vez.
    npm run db:rls
    npm run test:rls
    ```
-   El paso `db:rls` + `test:rls` es el que de verdad importa: una base
-   restaurada vuelve con sus tablas, pero **sin ninguna de las ~69
-   políticas de RLS** (viven en `supabase/sql/`, no en el respaldo de
-   datos). El escenario real de desastre no es "perdimos los datos", es
-   "restauramos y quedó todo abierto". Si `test:rls` no pasa en verde
-   contra el proyecto restaurado, el simulacro fracasó aunque los datos
-   se hayan visto bien.
+   El paso `db:rls` + `test:rls` es el que de verdad importa. Un respaldo
+   diario de Supabase es un `pg_dump` lógico del proyecto completo, y las
+   ~69 políticas de RLS son catálogo de Postgres (`CREATE POLICY`,
+   `ALTER TABLE … ENABLE ROW LEVEL SECURITY`) igual que las tablas: en
+   principio **sí** vuelven con la restauración, no hay que asumir que no.
+
+   Lo que sí puede no volver igual es que coincidan con lo que está
+   versionado en `supabase/sql/` — el README de este repo prohíbe cambiar
+   RLS desde el panel de Supabase precisamente porque un cambio hecho ahí
+   queda fuera de control de versiones, y si alguna vez se rompió esa
+   regla, el respaldo capturó ese estado no versionado, no el que describe
+   el repositorio. `db:rls` reaplica los scripts numerados de punta a punta
+   y es idempotente, así que correrlo después de restaurar no reintroduce
+   nada — al contrario, hace converger el proyecto restaurado a exactamente
+   lo que hay en el repo, que es lo único que de verdad se puede auditar y
+   reproducir. Y `test:rls` es la prueba de que esa convergencia funcionó:
+   si no pasa en verde contra el proyecto restaurado, el simulacro fracasó
+   aunque los datos se hayan visto bien. El escenario real de desastre no
+   es "perdimos los datos", es "restauramos y quedó todo abierto".
 4. **Cronometrar el total**, desde que se pidió la restauración hasta que
    `test:rls` terminó en verde. Ese número — no una estimación — es el
    **RTO** (Recovery Time Objective real, no el de aspiración).
