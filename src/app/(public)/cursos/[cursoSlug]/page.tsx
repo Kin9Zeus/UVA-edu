@@ -10,6 +10,7 @@ import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
+import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
   params,
@@ -30,6 +31,14 @@ export async function generateMetadata({
   return {
     title: titulo,
     description: curso.descripcion,
+    // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
+    // slug como por UUID (fallback para enlaces viejos, ver esUuid() en
+    // lib/slug.ts) -- sin esto, /cursos/<uuid> y /cursos/<slug> son dos
+    // URLs que Google ve como contenido duplicado. Apunta siempre a la
+    // versión con slug, sin importar cuál usó quien pidió la página.
+    alternates: {
+      canonical: `${siteUrl()}/cursos/${curso.slug}`,
+    },
     openGraph: {
       title: titulo,
       description: curso.descripcion,

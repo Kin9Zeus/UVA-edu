@@ -7,6 +7,7 @@ import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { esUuid } from "@/lib/slug";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlayerContent } from "@/components/player/PlayerContent";
+import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
   params,
@@ -19,7 +20,16 @@ export async function generateMetadata({
     data: { user },
   } = await supabase.auth.getUser();
   const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
-  return { title: data ? `U.V.A. — ${data.leccionTitulo}` : "U.V.A. — Clase" };
+  if (!data) return { title: "U.V.A. — Clase" };
+
+  return {
+    title: `U.V.A. — ${data.leccionTitulo}`,
+    // P2-5 (AUDIT-2026-09-04.md): mismo motivo que la ficha de curso --
+    // getLeccionPlayer también resuelve por slug o UUID.
+    alternates: {
+      canonical: `${siteUrl()}/cursos/${data.cursoSlug}/${data.leccionSlug}`,
+    },
+  };
 }
 
 // Vive junto a /cursos/[cursoSlug] (no bajo (student)/dashboard) a
