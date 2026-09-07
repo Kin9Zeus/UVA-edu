@@ -799,27 +799,35 @@ function ComentarioItem({
         <User className="size-[18px]" strokeWidth={2} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-[7px]">
-          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-uva-text">
-            {comentario.autor}
-            {comentario.bandera && (
-              <span
-                aria-hidden
-                className={`fi fi-${comentario.bandera} rounded-[2px]`}
-              />
+        {/* Un raíz borrado se conserva como lápida (comentariosVisibles, más
+            abajo), pero sin firmar: mostrar nombre, bandera o rol encima de
+            "[comentario eliminado]" no borra nada de la identidad de quien
+            lo escribió. */}
+        {comentario.eliminado ? (
+          <div className="text-sm font-bold text-uva-text-faint">Comentario eliminado</div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-[7px]">
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold text-uva-text">
+              {comentario.autor}
+              {comentario.bandera && (
+                <span
+                  aria-hidden
+                  className={`fi fi-${comentario.bandera} rounded-[2px]`}
+                />
+              )}
+            </span>
+            {comentario.esInstructor ? (
+              <span className="inline-flex items-center gap-1 rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-accent-2-text">
+                <BadgeCheck className="size-3" strokeWidth={2.4} />
+                Profesor
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
+                Alumno
+              </span>
             )}
-          </span>
-          {comentario.esInstructor ? (
-            <span className="inline-flex items-center gap-1 rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-accent-2-text">
-              <BadgeCheck className="size-3" strokeWidth={2.4} />
-              Profesor
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
-              Alumno
-            </span>
-          )}
-        </div>
+          </div>
+        )}
         <div className="mt-0.5 text-[12px] font-semibold text-uva-text opacity-45">
           {comentario.tiempo}
         </div>
@@ -831,7 +839,7 @@ function ComentarioItem({
         <div className="flex flex-wrap items-center gap-4 text-[12px] font-semibold text-uva-text opacity-60">
           <button
             type="button"
-            disabled={!usuarioActualId || pendienteLike}
+            disabled={comentario.eliminado || !usuarioActualId || pendienteLike}
             onClick={toggleLike}
             className={`inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 disabled:cursor-not-allowed ${meGusta ? "text-uva-accent opacity-100" : ""}`}
           >

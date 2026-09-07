@@ -134,6 +134,7 @@ model Perfiles {
   instructor_vinculado        Instructores?            @relation("InstructorEsPerfil")
   comentarios                 Comentarios[]
   comentario_likes            ComentarioLikes[]
+  comentarios_moderados       ComentarioModeracion[]
   cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
 
   @@map("perfiles")
@@ -857,6 +858,12 @@ model Comentarios {
   id_leccion          String   @db.Uuid
   id_usuario          String   @db.Uuid
   id_comentario_padre String?  @db.Uuid
+  /// Vacío desde que el comentario está `eliminado`: el borrado lógico ya
+  /// no conserva el texto acá (ver actions/comentarios/eliminar.ts) porque
+  /// RLS solo protege filas, no columnas — cualquiera con acceso a la
+  /// lección podía leer el contenido "borrado" directo desde el cliente.
+  /// La copia para moderación de un borrado hecho por un admin vive en
+  /// `ComentarioModeracion`, con su propio RLS solo-admin.
   contenido           String
   /// Borrado lógico, nunca DELETE: un comentario raíz puede tener
   /// respuestas, y borrarlas junto con él las dejaría huérfanas de
@@ -865,11 +872,12 @@ model Comentarios {
   creado_en           DateTime @default(now()) @db.Timestamptz
   actualizado_en      DateTime @updatedAt @db.Timestamptz
 
-  leccion    Lecciones         @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
-  usuario    Perfiles          @relation(fields: [id_usuario], references: [id])
-  padre      Comentarios?      @relation("Respuestas", fields: [id_comentario_padre], references: [id], onDelete: Cascade)
-  respuestas Comentarios[]     @relation("Respuestas")
+  leccion    Lecciones              @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+  usuario    Perfiles               @relation(fields: [id_usuario], references: [id])
+  padre      Comentarios?           @relation("Respuestas", fields: [id_comentario_padre], references: [id], onDelete: Cascade)
+  respuestas Comentarios[]          @relation("Respuestas")
   likes      ComentarioLikes[]
+  moderacion ComentarioModeracion[]
 
   @@index([id_leccion, creado_en])
   @@index([id_comentario_padre])
@@ -886,6 +894,25 @@ model ComentarioLikes {
 
   @@id([id_comentario, id_usuario])
   @@map("comentario_likes")
+}
+
+/// Evidencia de un comentario que un ADMINISTRADOR eliminó por moderación
+/// (no el propio autor): guarda el texto que `comentarios.contenido` ya
+/// perdió al vaciarse, para no quedarse sin rastro de un comentario abusivo.
+/// RLS (065_comentario_moderacion.sql) restringe SELECT a administradores;
+/// nadie más puede leer esta tabla.
+model ComentarioModeracion {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_comentario      String   @db.Uuid
+  contenido_original String
+  id_eliminado_por   String   @db.Uuid
+  creado_en          DateTime @default(now()) @db.Timestamptz
+
+  comentario    Comentarios @relation(fields: [id_comentario], references: [id], onDelete: Cascade)
+  eliminado_por Perfiles    @relation(fields: [id_eliminado_por], references: [id])
+
+  @@index([id_comentario])
+  @@map("comentario_moderacion")
 }
 
 model RecursosDescargables {

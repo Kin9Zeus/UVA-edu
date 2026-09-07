@@ -46,10 +46,10 @@ export async function crearComentario(
   if (idComentarioPadre) {
     const { data: padre } = await supabase
       .from("comentarios")
-      .select("id_comentario_padre")
+      .select("id_comentario_padre, eliminado")
       .eq("id", idComentarioPadre)
       .maybeSingle();
-    if (!padre) return { error: "El comentario al que respondes ya no existe." };
+    if (!padre || padre.eliminado) return { error: "El comentario al que respondes ya no existe." };
     if (padre.id_comentario_padre) return { error: "No se puede responder a una respuesta." };
   }
 
