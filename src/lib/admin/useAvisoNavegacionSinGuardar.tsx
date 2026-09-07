@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 
 /**
  * Confirma antes de salir de la pantalla cuando hay cambios sin guardar.
@@ -16,8 +18,21 @@ import { useEffect } from "react";
  * Intercepta el click en fase de captura sobre cualquier <a> que apunte a
  * otra ruta, antes de que el propio manejador de Link de Next.js la reciba
  * (por eso stopImmediatePropagation, no solo preventDefault).
+ *
+ * El diálogo es el propio de la app (`ConfirmDialog`), no `window.confirm()`
+ * — un confirm nativo se ve como "localhost:3000 dice…" en vez de un modal
+ * de U.V.A, la misma inconsistencia que ContenidoTab.tsx ya había resuelto
+ * para su propio caso. El componente que llama a este hook debe renderizar
+ * el elemento devuelto en algún punto de su árbol.
  */
 export function useAvisoNavegacionSinGuardar(sinGuardar: boolean) {
+  const router = useRouter();
+  const [destinoPendiente, setDestinoPendiente] = useState<string | null>(null);
+  // Objeto mutable, no estado: el listener de click (fuera del ciclo de
+  // render de React) necesita leer y limpiar el destino sin esperar a que
+  // el componente vuelva a renderizar.
+  const destinoRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!sinGuardar) return;
 
@@ -38,14 +53,32 @@ export function useAvisoNavegacionSinGuardar(sinGuardar: boolean) {
       if (destino.origin !== window.location.origin) return;
       if (destino.href === window.location.href) return;
 
-      const continuar = window.confirm("Tienes cambios sin guardar. ¿Salir sin guardarlos?");
-      if (!continuar) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      destinoRef.current = destino.href;
+      setDestinoPendiente(destino.href);
     }
 
     document.addEventListener("click", interceptarClick, true);
     return () => document.removeEventListener("click", interceptarClick, true);
   }, [sinGuardar]);
+
+  const dialog = (
+    <ConfirmDialog
+      open={destinoPendiente !== null}
+      onOpenChange={(open) => {
+        if (!open) setDestinoPendiente(null);
+      }}
+      title="Cambios sin guardar"
+      description="Tienes cambios sin guardar. ¿Salir sin guardarlos?"
+      confirmLabel="Salir sin guardar"
+      onConfirm={() => {
+        const destino = destinoRef.current;
+        setDestinoPendiente(null);
+        if (destino) router.push(destino);
+      }}
+    />
+  );
+
+  return dialog;
 }

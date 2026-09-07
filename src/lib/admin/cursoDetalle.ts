@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
+import { estadoDeCurso, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
 
 export type RecursoDetalle = {
   id: string;
@@ -52,7 +53,9 @@ export type EstudianteDeCurso = {
   usuarioId: string;
   nombre: string;
   progreso: number;
-  estado: "EN_PROGRESO" | "COMPLETADO";
+  /** EXAMEN_PENDIENTE: terminó todas las clases pero el curso exige examen
+   * final y todavía no lo aprobó, así que no tiene certificado (Revf5). */
+  estado: EstadoCursoConExamen;
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
   /** Solo relevante para CORTESIA: false si el admin la revocó. Se mantiene
    * en la lista en vez de desaparecer — mismo criterio que la ficha de
@@ -205,6 +208,30 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     return { ...modulo, lecciones, estudiantesConProgreso: usuariosModulo.size };
   });
 
+  // Estado del examen final de ESTE curso para cada estudiante que aparece
+  // abajo. Dos consultas fijas para toda la lista, no una por estudiante:
+  // getEstadoExamenPorCurso está pensada para varios cursos y un usuario, así
+  // que acá se invierte —un curso, varios usuarios— con una sola lectura de
+  // los intentos aprobados.
+  const { data: examenDelCurso } = await supabase
+    .from("examenes")
+    .select("id")
+    .eq("id_curso", cursoId)
+    .eq("publicado", true)
+    .maybeSingle();
+
+  const { data: intentosAprobados } = examenDelCurso
+    ? await supabase
+        .from("intentos_examen")
+        .select("id_usuario")
+        .eq("id_examen", examenDelCurso.id)
+        .eq("estado", "APROBADO")
+    : { data: [] };
+
+  const aproboExamen = new Set((intentosAprobados ?? []).map((fila) => fila.id_usuario as string));
+  const examenDe = (usuarioId: string) =>
+    examenDelCurso ? { requerido: true, aprobado: aproboExamen.has(usuarioId) } : undefined;
+
   const estudiantes: EstudianteDeCurso[] = (inscripciones ?? []).map((inscripcion) => {
     const usuario = Array.isArray(inscripcion.usuario) ? inscripcion.usuario[0] : inscripcion.usuario;
     const agregados = progresoPorUsuario.get(inscripcion.id_usuario);
@@ -223,7 +250,10 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       usuarioId: inscripcion.id_usuario,
       nombre: usuario?.nombre ?? "Usuario eliminado",
       progreso: porcentaje,
-      estado: porcentaje >= 100 && leccionIds.length > 0 ? "COMPLETADO" : "EN_PROGRESO",
+      estado:
+        leccionIds.length > 0
+          ? estadoDeCurso(porcentaje, examenDe(inscripcion.id_usuario))
+          : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
       activo: inscripcion.activo,
     };
@@ -257,7 +287,8 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         usuarioId,
         nombre: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.nombre ?? "Usuario eliminado",
         progreso: porcentaje,
-        estado: porcentaje >= 100 && leccionIds.length > 0 ? "COMPLETADO" : "EN_PROGRESO",
+        estado:
+          leccionIds.length > 0 ? estadoDeCurso(porcentaje, examenDe(usuarioId)) : "EN_PROGRESO",
         tipoAcceso: "MEMBRESIA",
         activo: true,
       });

@@ -3,6 +3,7 @@ import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
+import { getSituacionExamen } from "@/lib/examen";
 
 export type RecursoLeccion = {
   id: string;
@@ -56,6 +57,13 @@ export type LeccionPlayer = {
   anteriorSlug: string | null;
   siguienteId: string | null;
   siguienteSlug: string | null;
+  /** true solo en la ÚLTIMA clase del curso (siguienteId = null) y solo si el
+   * curso tiene examen final publicado — es lo que hace que "Siguiente clase"
+   * se reemplace por "Hacer examen" en vez de simplemente desaparecer. No
+   * distingue si el examen ya está aprobado/agotado: esos estados se resuelven
+   * al entrar a /cursos/<slug>/examen, no acá — el botón solo decide adónde
+   * apunta el CTA de cierre del curso. */
+  examenDisponible: boolean;
   /** Segundo en el que quedó el estudiante (tabla progreso). */
   segundoActual: number;
   /** Con sesión iniciada: puede comentar (RLS exige `auth.uid()`, un
@@ -204,6 +212,15 @@ export async function getLeccionPlayer(
 
   const completadas = lecciones.filter((leccion) => leccion.completado).length;
   const totalClases = lecciones.length;
+  const esUltimaLeccion = indice === plano.length - 1;
+
+  // Solo se consulta en la última clase: es la única donde el botón de cierre
+  // del reproductor puede necesitar cambiar de "Siguiente clase" a
+  // "Hacer examen" — en cualquier otra, siguienteId ya no es null y el botón
+  // sigue siendo el de siempre.
+  const situacionExamen = esUltimaLeccion
+    ? await getSituacionExamen(curso.id, usuarioId)
+    : { situacion: "SIN_EXAMEN" as const };
 
   return {
     cursoId: curso.id,
@@ -232,6 +249,7 @@ export async function getLeccionPlayer(
     anteriorSlug: indice > 0 ? plano[indice - 1].slug : null,
     siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
     siguienteSlug: indice < plano.length - 1 ? plano[indice + 1].slug : null,
+    examenDisponible: situacionExamen.situacion !== "SIN_EXAMEN",
     segundoActual: progresoPorLeccion.get(actual.id)?.segundo_actual ?? 0,
     puedeComentar: !!usuarioId,
   };

@@ -45,6 +45,21 @@ export function slugificar(texto: string, respaldo = "categoria"): string {
 }
 
 /**
+ * Segmentos que una lección NO puede usar como slug porque la ruta
+ * `/cursos/[cursoSlug]/...` ya los tiene tomados por una página estática.
+ *
+ * En Next.js el segmento estático gana al dinámico, así que una lección cuyo
+ * slug fuera "examen" quedaría inalcanzable: `/cursos/mi-curso/examen`
+ * resolvería siempre a la pantalla del examen final
+ * (src/app/(public)/cursos/[cursoSlug]/examen/page.tsx) y nunca a la clase.
+ *
+ * Reservarlo acá hace que `generarSlugLeccion` le ponga sufijo ("examen-2")
+ * en vez de crear una lección rota. Si mañana se agrega otra ruta estática
+ * hermana, su segmento va en esta lista.
+ */
+export const SLUGS_RESERVADOS_LECCION = ["examen"] as const;
+
+/**
  * Primer slug libre a partir de `base`, dado el conjunto de los que ya
  * están tomados: "diseno", si no, "diseno-2", "diseno-3"…
  *

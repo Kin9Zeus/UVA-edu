@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import { SIN_INSTRUCTOR } from "@/lib/instructores";
+import { ExamenCta } from "@/components/examen/ExamenCta";
 import type { CursoPublico } from "@/lib/curso";
+import type { SituacionExamen } from "@/lib/examen";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
@@ -18,9 +20,16 @@ export function CursoDetalleContent({
   curso,
   basePath = "/catalogo",
   sesionActiva,
+  situacionExamen,
 }: {
   curso: CursoPublico;
   basePath?: string;
+  /**
+   * Estado del examen final para este estudiante. `SIN_EXAMEN` (el default,
+   * y lo que devuelve siempre un visitante sin sesión) no pinta nada: la
+   * ficha queda igual que antes de que existieran los exámenes.
+   */
+  situacionExamen?: SituacionExamen;
   /**
    * Sin esto el CTA de "sin acceso" no puede distinguir un visitante
    * anónimo de un estudiante registrado sin código canjeado — son dos
@@ -259,6 +268,11 @@ export function CursoDetalleContent({
               Regístrate para canjear tu código
             </Button>
           )}
+
+          {/* Debajo del CTA principal, no en su lugar: seguir viendo clases y
+              presentar el examen son dos acciones distintas y pueden estar
+              disponibles a la vez. */}
+          {situacionExamen && <ExamenCta situacion={situacionExamen} cursoSlug={curso.slug} />}
         </div>
 
         {/* Un bloque por profesor: `curso_instructores` es muchos-a-muchos y un

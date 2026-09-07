@@ -36,6 +36,16 @@ import {
   suscripcionEstaVigentePorEstado,
 } from "@/lib/estadoAcceso";
 
+/* Tres estados desde Revf5 (docs/functional-spec.md Flujo 07): un curso con
+   todas las clases vistas cuyo examen final no está aprobado no está
+   completo — no tiene certificado. Mismas etiquetas que usa la pestaña
+   Estudiantes del detalle de curso. */
+const ESTADO_CURSO_BADGE = {
+  EN_PROGRESO: { tone: "neutral", etiqueta: "En progreso" },
+  EXAMEN_PENDIENTE: { tone: "warning", etiqueta: "Examen pendiente" },
+  COMPLETADO: { tone: "success", etiqueta: "Completado" },
+} as const;
+
 /** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil), para que admin y estudiante hablen el mismo idioma. */
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -342,10 +352,10 @@ export function UsuarioDetalleView({
                     {curso.titulo}
                   </Link>
                   <StatusBadge
-                    tone={curso.estado === "COMPLETADO" ? "success" : "neutral"}
+                    tone={ESTADO_CURSO_BADGE[curso.estado].tone}
                     className="shrink-0"
                   >
-                    {curso.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                    {ESTADO_CURSO_BADGE[curso.estado].etiqueta}
                   </StatusBadge>
                 </div>
                 <div className="flex items-center gap-2">
@@ -440,8 +450,8 @@ export function UsuarioDetalleView({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge tone={curso.estado === "COMPLETADO" ? "success" : "neutral"}>
-                    {curso.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                  <StatusBadge tone={ESTADO_CURSO_BADGE[curso.estado].tone}>
+                    {ESTADO_CURSO_BADGE[curso.estado].etiqueta}
                   </StatusBadge>
                 </TableCell>
                 <TableCell>

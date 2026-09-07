@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
+import {
+  estadoDeCurso,
+  getEstadoExamenPorCurso,
+  type EstadoCursoConExamen,
+} from "@/lib/examenes/estadoPorCurso";
 
 export type CursoDelUsuario = {
   /**
@@ -12,7 +17,9 @@ export type CursoDelUsuario = {
   cursoId: string;
   titulo: string;
   progreso: number;
-  estado: "EN_PROGRESO" | "COMPLETADO";
+  /** EXAMEN_PENDIENTE: terminó todas las clases pero el curso exige examen
+   * final y todavía no lo aprobó, así que no tiene certificado (Revf5). */
+  estado: EstadoCursoConExamen;
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
   /** Solo relevante para CORTESIA: false si el admin la revocó (f4accesos.md). MEMBRESIA siempre viene en true — no tiene este concepto. */
   activo: boolean;
@@ -140,6 +147,8 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       cursoId: inscripcion.id_curso,
       titulo: curso?.titulo ?? "Curso eliminado",
       progreso: porcentaje,
+      // Provisional: el examen se resuelve más abajo, de una sola vez para
+      // todos los cursos de la lista (ver el bloque "Revf5").
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
       activo: inscripcion.activo,
@@ -213,6 +222,18 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       motivoRevocacion: null,
       ultimaActividad: datos.ultimaActividad,
     });
+  }
+
+  // Revf5: un curso al 100% de clases cuyo examen final no está aprobado NO
+  // está completo — no tiene certificado. Se resuelve acá, con la lista de
+  // cursos ya armada, para que sean dos consultas en total y no dos por curso.
+  const estadoExamenes = await getEstadoExamenPorCurso(
+    supabase,
+    cursos.map((curso) => curso.cursoId),
+    usuarioId,
+  );
+  for (const curso of cursos) {
+    curso.estado = estadoDeCurso(curso.progreso, estadoExamenes.get(curso.cursoId));
   }
 
   const progresoPromedio =

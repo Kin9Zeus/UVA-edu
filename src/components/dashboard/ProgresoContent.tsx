@@ -35,8 +35,11 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
 
   const cursosVisibles = useMemo(() => {
     const filtrados = cursos.filter((curso) => {
-      if (filtro === "en_progreso") return curso.porcentaje < 100;
-      if (filtro === "completados") return curso.porcentaje === 100;
+      // `completado` y no `porcentaje === 100`: un curso con todas las clases
+      // vistas pero el examen final sin aprobar sigue en progreso (no tiene
+      // certificado). Ver lib/progreso.ts.
+      if (filtro === "en_progreso") return !curso.completado;
+      if (filtro === "completados") return curso.completado;
       return true;
     });
     // `cursos` ya llega ordenado por actividad reciente (order de la vista
@@ -118,10 +121,21 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                       className="absolute inset-0 size-full object-cover"
                     />
                   )}
-                  {curso.porcentaje === 100 && (
+                  {curso.completado ? (
                     <span className="absolute top-2.5 right-2.5 rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-valid uppercase">
                       Completado
                     </span>
+                  ) : (
+                    // Tercer estado, el que hacía falta al agregar exámenes:
+                    // terminó las clases pero le falta aprobar el examen. Sin
+                    // esto la tarjeta se veía igual que un curso a medias, sin
+                    // pista de qué le falta para el certificado.
+                    curso.porcentaje === 100 &&
+                    curso.examenRequerido && (
+                      <span className="absolute top-2.5 right-2.5 rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
+                        Examen pendiente
+                      </span>
+                    )
                   )}
                 </div>
                 <div className="flex flex-col gap-2 p-3.5">
@@ -145,6 +159,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   <Progress value={curso.porcentaje} />
                   <p className="font-mono text-[11px] text-uva-text-faint tabular-nums">
                     {curso.leccionesCompletadas}/{curso.leccionesTotal} · {curso.porcentaje}%
+                    {curso.examenRequerido && !curso.examenAprobado && " · falta el examen"}
                   </p>
                 </div>
               </Link>

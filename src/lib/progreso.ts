@@ -11,6 +11,15 @@ export type CursoConProgreso = {
   leccionesCompletadas: number;
   leccionesTotal: number;
   porcentaje: number;
+  /** El curso tiene examen final publicado, así que terminar las clases no
+   * basta para completarlo (docs/functional-spec.md Flujo 07 — Revf5). */
+  examenRequerido: boolean;
+  examenAprobado: boolean;
+  /** Regla de "curso completo" completa, la misma que decide la emisión del
+   * certificado: 100% de clases y, si el curso exige examen, aprobado.
+   * Centralizada acá para que la tarjeta, el filtro y el badge no la
+   * recombinen cada uno por su cuenta. */
+  completado: boolean;
 };
 
 export type ProgresoData = {
@@ -30,7 +39,9 @@ export async function getProgresoData(): Promise<ProgresoData> {
 
   const { data: filas } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total")
+    .select(
+      "curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total, examen_requerido, examen_aprobado",
+    )
     .order("ultima_actividad", { ascending: false });
 
   const cursoIds = (filas ?? []).map((fila) => fila.curso_id as string);
@@ -57,6 +68,10 @@ export async function getProgresoData(): Promise<ProgresoData> {
   const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
     const total = fila.lecciones_total as number;
     const completadas = fila.lecciones_completadas as number;
+    const porcentaje = total > 0 ? Math.round((completadas / total) * 100) : 0;
+    const examenRequerido = fila.examen_requerido === true;
+    const examenAprobado = fila.examen_aprobado === true;
+
     return {
       cursoId: fila.curso_id as string,
       cursoSlug: fila.curso_slug as string,
@@ -65,7 +80,13 @@ export async function getProgresoData(): Promise<ProgresoData> {
       categorias: categoriasPorCursoMap.get(fila.curso_id as string) ?? [{ id: "general", nombre: "General" }],
       leccionesCompletadas: completadas,
       leccionesTotal: total,
-      porcentaje: total > 0 ? Math.round((completadas / total) * 100) : 0,
+      porcentaje,
+      examenRequerido,
+      examenAprobado,
+      // Antes esto era `porcentaje === 100` en la UI. Con exámenes, un curso
+      // al 100% de clases con el examen sin aprobar NO está completo: no tiene
+      // certificado, así que tampoco puede decir "Completado".
+      completado: porcentaje === 100 && (!examenRequerido || examenAprobado),
     };
   });
 
