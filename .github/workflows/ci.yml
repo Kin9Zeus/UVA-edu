@@ -6,9 +6,16 @@ name: CI
 #     (incluidas las de forks, que no reciben secretos de todas formas).
 #   - rls: aplica las migraciones de Prisma y los 32 scripts de RLS contra
 #     el proyecto real de Supabase y corre test:rls. Necesita secretos, así
-#     que solo corre en push a master y en PRs del propio repo (GitHub no
-#     expone secretos a PRs de forks, así que esto es automático, no una
-#     condición que haya que mantener).
+#     que solo corre en push a master y en PRs del propio repo abiertas por
+#     una persona. Los forks quedan fuera solos (GitHub no les expone
+#     secretos), pero Dependabot NO: empuja la rama a este mismo repo, así
+#     que pasa el filtro de fork, y aun así GitHub corre sus eventos
+#     `pull_request` con permisos de fork — sin acceso a los secrets de
+#     Actions ni a los del environment. `secrets.DATABASE_URL` llegaba
+#     vacío y `prisma migrate deploy` moría con "Connection url is empty"
+#     (PR #7). De ahí la exclusión explícita: darle esos secretos a
+#     Dependabot por su almacén propio expondría la base real a un flujo
+#     automático que instala dependencias de terceros recién publicadas.
 #   - e2e: recorrido crítico y casos límite de canje/acceso (Playwright) +
 #     canje concurrente (test:canje) — tarea "Pruebas E2E del flujo de canje
 #     de código y acceso" (docs/qa/bugs-e2e.md). SOLO en push a master (ni
@@ -102,7 +109,17 @@ jobs:
     name: Migraciones, RLS y autorización (base real)
     needs: checks
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request' }}
+    # Acotada a `pull_request` a propósito. Un `github.actor !=
+    # 'dependabot[bot]'` suelto aplicaría también a `push`, y entonces un
+    # merge hecho por el bot (auto-merge, merge queue) saltaría las
+    # migraciones en master en silencio, con el job en verde. Y se compara
+    # `pull_request.user.login` (el autor del PR, inmutable) en vez de
+    # `github.actor`, para que un re-run manual no reactive un job que
+    # seguiría sin secretos.
+    if: >-
+      ${{ github.event_name != 'pull_request'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]') }}
     environment: supabase-test
     steps:
       - uses: actions/checkout@v5
