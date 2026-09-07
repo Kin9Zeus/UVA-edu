@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import {
   actualizarLeccion,
   eliminarRecursoLeccion,
-  subirRecursoLeccion,
+  crearSubidaRecurso,
+  confirmarSubidaRecurso,
 } from "@/actions/admin/cursos";
+import { createClient } from "@/lib/supabase/client";
 import { useAdminToast } from "@/components/admin/Toast";
 import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
@@ -26,6 +28,8 @@ type CambiosLeccion = Pick<
 // puede importar desde ahí: ese módulo tiene "use server" a nivel de
 // archivo, así que solo puede exportar funciones async.
 const TAMANO_MAXIMO_RECURSO = 50 * 1024 * 1024;
+// Mismo motivo: BUCKET_MATERIALES vive en actions/admin/cursos.ts.
+const BUCKET_MATERIALES = "materiales-lecciones";
 
 /**
  * Editor de lección de la pestaña Contenido. ModuloCard lo monta en línea,
@@ -156,10 +160,25 @@ export function LeccionEditorPanel({
 
     setSubiendoRecurso(true);
     try {
-      const formData = new FormData();
-      formData.set("archivo", archivo);
-      const resultado = await subirRecursoLeccion(leccion.id, cursoId, formData);
+      // P2-7 (AUDIT-2026-09-04.md): el archivo ya no va en el body de una
+      // Server Action (por eso bodySizeLimit pudo bajar a 2mb) -- sube
+      // directo del navegador a Storage con una URL firmada de un solo uso,
+      // y solo después se confirma con el servidor.
+      const inicio = await crearSubidaRecurso(leccion.id, cursoId);
+      if (inicio.error || !inicio.subida) {
+        showToast(inicio.error ?? "No pudimos preparar la subida.", "error");
+        return;
+      }
 
+      const { error: errorSubida } = await createClient()
+        .storage.from(BUCKET_MATERIALES)
+        .uploadToSignedUrl(inicio.subida.ruta, inicio.subida.token, archivo);
+      if (errorSubida) {
+        showToast("No pudimos subir el archivo.", "error");
+        return;
+      }
+
+      const resultado = await confirmarSubidaRecurso(leccion.id, cursoId, inicio.subida.ruta, archivo.name);
       if (resultado.error || !resultado.recurso) {
         showToast(resultado.error ?? "No pudimos subir el archivo.", "error");
         return;

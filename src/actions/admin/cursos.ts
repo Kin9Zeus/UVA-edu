@@ -877,56 +877,106 @@ export async function moverLeccion(
 // Material adicional (recursos_descargables)
 // ------------------------------------------------------------
 
-export async function subirRecursoLeccion(
+/** Misma normalización de carpeta que usaban crearSubidaRecurso y
+ * confirmarSubidaRecurso -- separada para que ambas construyan exactamente
+ * la misma ruta sin repetir la consulta a `cursos` dos veces. */
+async function carpetaDelCurso(admin: { supabase: SupabaseClient }, cursoId: string): Promise<string> {
+  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
+  // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
+  // único (dos cursos podrían llamarse igual), y esta carpeta es la que
+  // reemplaza al uuid crudo que se veía en Storage.
+  return `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
+}
+
+/**
+ * P2-7 (AUDIT-2026-09-04.md): antes, el archivo completo viajaba en el body
+ * de esta Server Action, y por eso next.config.ts necesitaba un
+ * bodySizeLimit de 52mb -- aplicado a TODAS las Server Actions del
+ * proyecto, incluidas las que no requieren sesión (recuperar, registro,
+ * checkEmail: Next no permite un límite distinto por acción). Ahora el
+ * archivo sube directo del navegador a Storage con esta URL firmada, sin
+ * pasar por nuestro servidor -- este paso solo pide el permiso, su body no
+ * lleva el archivo.
+ *
+ * La ruta temporal ("pendiente-...") es la que confirmarSubidaRecurso
+ * revalida antes de aceptar nada: el cliente no puede mandar cualquier
+ * ruta, tiene que ser una que este paso emitió para este mismo curso y
+ * lección.
+ */
+export async function crearSubidaRecurso(
   leccionId: string,
   cursoId: string,
-  formData: FormData,
+): Promise<AdminActionResult & { subida?: { signedUrl: string; token: string; ruta: string } }> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
+
+  const carpetaCurso = await carpetaDelCurso(admin, cursoId);
+  const ruta = `${carpetaCurso}/${leccionId}/pendiente-${randomUUID()}`;
+
+  const { data, error } = await admin.supabase.storage.from(BUCKET_MATERIALES).createSignedUploadUrl(ruta);
+  if (error || !data) return { error: "No pudimos preparar la subida." };
+
+  return { success: true, subida: { signedUrl: data.signedUrl, token: data.token, ruta: data.path } };
+}
+
+/**
+ * Segunda mitad de P2-7: el navegador ya subió el archivo directo a
+ * Storage con la URL de crearSubidaRecurso -- acá se valida y se
+ * confirma. `ruta` viene del cliente, así que antes de tocarla se revisa
+ * que tenga la forma exacta que crearSubidaRecurso le dio para este mismo
+ * curso y lección (nunca se confía en una ruta arbitraria).
+ */
+export async function confirmarSubidaRecurso(
+  leccionId: string,
+  cursoId: string,
+  ruta: string,
+  nombreOriginal: string,
 ): Promise<AdminActionResult & { recurso?: RecursoDetalle }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { error: "Selecciona un archivo." };
+  const carpetaCurso = await carpetaDelCurso(admin, cursoId);
+  const prefijoEsperado = `${carpetaCurso}/${leccionId}/pendiente-`;
+  if (!ruta.startsWith(prefijoEsperado)) {
+    return { error: "Subida inválida." };
   }
 
-  const resultado = await procesarRecurso(archivo);
-  if ("error" in resultado) return { error: resultado.error };
-  const { cuerpo, contentType, extension } = resultado.recurso;
+  const { data: blob, error: errorDescarga } = await admin.supabase.storage
+    .from(BUCKET_MATERIALES)
+    .download(ruta);
+  if (errorDescarga || !blob) return { error: "No pudimos leer el archivo subido." };
 
-  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
-  // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
-  // único (dos cursos podrían llamarse igual), y esta carpeta es la que
-  // reemplaza al uuid crudo que se veía en Storage.
-  const carpetaCurso = `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
+  const resultado = await procesarRecurso(blob);
+  if ("error" in resultado) {
+    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([ruta]);
+    return { error: resultado.error };
+  }
+  const { cuerpo, contentType, extension } = resultado.recurso;
 
   // La extensión es la que detectó procesarRecurso a partir de los magic
   // bytes, no la del nombre subido por el usuario — evita que un archivo
   // con extensión falsificada termine sirviéndose con un Content-Type que
   // no corresponde a su contenido real.
-  const rutaArchivo = `${carpetaCurso}/${leccionId}/${randomUUID()}.${extension}`;
-
-  const { error: errorSubida } = await admin.supabase.storage
-    .from(BUCKET_MATERIALES)
-    .upload(rutaArchivo, cuerpo, { contentType });
-
-  if (errorSubida) return { error: "No pudimos subir el archivo." };
+  const rutaFinal = `${carpetaCurso}/${leccionId}/${randomUUID()}.${extension}`;
+  const { error: errorMove } = await admin.supabase.storage.from(BUCKET_MATERIALES).move(ruta, rutaFinal);
+  if (errorMove) return { error: "No pudimos guardar el archivo." };
 
   const { data, error } = await admin.supabase
     .from("recursos_descargables")
     .insert({
       id_leccion: leccionId,
-      nombre: archivo.name,
+      nombre: nombreOriginal,
       tipo_archivo: contentType,
-      url_archivo: rutaArchivo,
+      url_archivo: rutaFinal,
       tamano_bytes: cuerpo.byteLength,
     })
     .select("id, nombre, tipo_archivo, tamano_bytes")
     .single();
 
   if (error) {
-    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([rutaArchivo]);
+    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([rutaFinal]);
     return { error: "No pudimos guardar el material adicional." };
   }
 

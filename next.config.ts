@@ -4,12 +4,19 @@ import { withSentryConfig } from "@sentry/nextjs";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      // Server Action de subida de material adicional (subirRecursoLeccion,
-      // src/actions/admin/cursos.ts) valida hasta 50 MB de archivo (el
-      // máximo que acepta Supabase Storage); el límite por defecto de Next
-      // es 1 MB. Se deja margen extra para el overhead de
-      // multipart/form-data (boundaries, headers de cada parte).
-      bodySizeLimit: "52mb",
+      // P2-7 (AUDIT-2026-09-04.md): antes era "52mb" para que
+      // subirRecursoLeccion aceptara hasta 50 MB de material adicional —
+      // pero Next no permite un límite distinto por Server Action, así que
+      // ese valor aplicaba a TODAS, incluidas recuperar/registro/checkEmail
+      // (sin sesión: cualquier anónimo podía mandar hasta 52 MB de body a
+      // una de ellas antes de que el código de la acción corriera). Ahora
+      // el material sube directo del navegador a Storage con una URL
+      // firmada (crearSubidaRecurso/confirmarSubidaRecurso en
+      // actions/admin/cursos.ts) y nunca pasa por acá, así que este límite
+      // puede volver a algo cercano al default de Next (1 MB) sin romper
+      // nada — 2 MB deja margen para el resto de las Server Actions del
+      // proyecto sin abrir la misma puerta.
+      bodySizeLimit: "2mb",
     },
   },
 
