@@ -97,11 +97,26 @@ jobs:
       - name: Pruebas unitarias (vitest)
         run: npm test
 
-      - name: Auditoría de dependencias (no bloqueante)
-        # P2-4: quedan 3 advisories `high` en la cadena de build de Prisma
-        # (deepmerge-ts vía @prisma/config) sin parche no-mayor disponible.
-        # No bloquea el merge hasta que Prisma publique uno; se deja visible
-        # en el log para no perderlo de vista.
+      - name: Auditoría de dependencias en producción (bloqueante)
+        # P2-4 (AUDIT-2026-09-04.md): el paso único de abajo (sin --omit)
+        # nunca podía ser bloqueante porque mezclaba dev-tooling (lhci,
+        # shadcn) con lo que de verdad corre en el servidor -- así que
+        # llevaba `continue-on-error: true` sin distinguir "ya lo conocemos"
+        # de "esto es nuevo", y el contador subió 4 veces sin que nadie se
+        # enterara. `--omit=optional` además de `--omit=dev` es necesario:
+        # mysql2/deepmerge-ts/@prisma/config son optionalDependencies de
+        # @prisma/client para adaptadores de driver que este proyecto no usa
+        # en runtime (grep confirma que solo prisma/seed.ts, un script de
+        # desarrollo, importa @prisma/adapter-pg) -- `--omit=dev` por sí solo
+        # no las excluye porque son optional, no dev.
+        run: npm audit --omit=dev --omit=optional --audit-level=high
+
+      - name: Auditoría de dependencias completa (no bloqueante)
+        # Incluye dev-tooling (lhci -> lighthouse/puppeteer, y la cadena de
+        # build de Prisma -- deepmerge-ts vía @prisma/config -- que sigue sin
+        # parche no-mayor incluso en prisma@8.0.0-rc.13, la última). Ninguna
+        # está en el camino de una petición real. Se deja visible en el log,
+        # sin bloquear, para no perder de vista si sube el contador.
         run: npm audit --audit-level=high
         continue-on-error: true
 
