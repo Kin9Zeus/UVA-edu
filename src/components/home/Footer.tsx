@@ -135,9 +135,9 @@ export async function Footer() {
             {socials.map(({ label, Icon, href }) => (
               <a
                 key={label}
-                href={href ?? "#"}
-                target={href ? "_blank" : undefined}
-                rel={href ? "noopener noreferrer" : undefined}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label={label}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-bg even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-bg hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
               >

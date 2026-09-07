@@ -31,7 +31,35 @@ export function RichTextRenderer({
   );
 }
 
-function renderizarBloque(nodo: NodoContenido, key: number | string): ReactNode {
+/**
+ * P3-10 (AUDIT-2026-09-04.md): `renderizarBloque` se llama a sí misma en
+ * listas, tareas y citas, sin nada que le ponga un piso.
+ *
+ * Hoy no es explotable y conviene dejar dicho por qué, para que nadie lo lea
+ * como un agujero abierto: el contenido solo lo escribe un administrador
+ * (`actualizarLeccion` pasa por `requireAdmin`) y el documento entero está
+ * acotado a TAMANO_MAXIMO_CONTENIDO (20 000 bytes). Cada nivel de anidamiento
+ * cuesta unos 55 caracteres de JSON, así que el peor caso que cabe son ~360
+ * niveles: mucho para una lección real, nada para la pila de JavaScript.
+ *
+ * Se pone igual porque el día que eso cambie —contenido escrito por un
+ * PROFESOR, un límite de tamaño más alto, un importador de documentos— el
+ * fallo sería una pestaña congelada sin ninguna pista de por qué, y esta
+ * guarda cuesta una línea. 30 niveles es un orden de magnitud más de lo que
+ * el editor puede producir a mano: la barra de herramientas solo ofrece
+ * lista, lista numerada, tareas y cita, y anidar treinta veces a mano no es
+ * algo que ocurra por accidente.
+ */
+const PROFUNDIDAD_MAXIMA = 30;
+
+function renderizarBloque(
+  nodo: NodoContenido,
+  key: number | string,
+  profundidad = 0,
+): ReactNode {
+  if (profundidad > PROFUNDIDAD_MAXIMA) return null;
+  const profundidadHija = profundidad + 1;
+
   switch (nodo.type) {
     case "paragraph":
       return (
@@ -53,7 +81,7 @@ function renderizarBloque(nodo: NodoContenido, key: number | string): ReactNode 
       return (
         <ul key={key} className="my-0 list-disc space-y-1 pl-5 text-[13.5px] text-uva-muted">
           {(nodo.content ?? []).map((item, i) => (
-            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j))}</li>
+            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}</li>
           ))}
         </ul>
       );
@@ -61,7 +89,7 @@ function renderizarBloque(nodo: NodoContenido, key: number | string): ReactNode 
       return (
         <ol key={key} className="my-0 list-decimal space-y-1 pl-5 text-[13.5px] text-uva-muted">
           {(nodo.content ?? []).map((item, i) => (
-            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j))}</li>
+            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}</li>
           ))}
         </ol>
       );
@@ -77,7 +105,7 @@ function renderizarBloque(nodo: NodoContenido, key: number | string): ReactNode 
                 className="mt-[3px] size-3.5 shrink-0 accent-uva-accent"
               />
               <div className="flex flex-1 flex-col gap-1.5">
-                {(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j))}
+                {(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}
               </div>
             </li>
           ))}
@@ -89,7 +117,7 @@ function renderizarBloque(nodo: NodoContenido, key: number | string): ReactNode 
           key={key}
           className="my-0 flex flex-col gap-2 border-l-2 border-uva-accent py-0.5 pl-3.5 text-[13.5px] text-uva-muted italic"
         >
-          {(nodo.content ?? []).map((hijo, i) => renderizarBloque(hijo, i))}
+          {(nodo.content ?? []).map((hijo, i) => renderizarBloque(hijo, i, profundidadHija))}
         </blockquote>
       );
     case "codeBlock":

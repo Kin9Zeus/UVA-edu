@@ -5,6 +5,35 @@ import { RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-e
 import { ConfirmarCuentaEmail } from "@/emails/confirmar-cuenta";
 import { logError } from "@/lib/log";
 
+/**
+ * Hook de envío de correo de Supabase Auth: recibe el evento, arma el correo
+ * con React Email y lo manda por Resend.
+ *
+ * Excepción deliberada a CLAUDE.md §3.1 ("Todo Webhook entrante debe
+ * registrarse previamente en la tabla Eventos_Webhook antes de ejecutar la
+ * lógica de negocio") — ver AUDIT-2026-09-04.md, P3-1. Los otros tres
+ * webhooks (stripe, wompi, mux) sí pasan por `registrarEvento`/
+ * `marcarProcesado`, y deben hacerlo: una reentrega duplicada de uno de
+ * ellos otorga acceso dos veces, descuenta dos veces o borra un asset que ya
+ * se reemplazó. Acá el peor caso de una reentrega es que a la persona le
+ * llegue el mismo correo dos veces, que es molesto y nada más.
+ *
+ * A cambio, registrar tendría un costo que los otros tres no pagan: este
+ * hook corre EN MEDIO del envío — Supabase espera la respuesta para dar por
+ * enviado el correo —, así que una escritura más a la base entra en el
+ * camino crítico de cada registro, cada recuperación de contraseña y cada
+ * reenvío de verificación. Y si esa escritura falla, se perdería un correo
+ * que sí se podía mandar.
+ *
+ * El dato que sí importa para depurar (a quién se le mandó qué y si falló)
+ * ya queda en Sentry vía `logError`, con el correo redactado por
+ * `lib/log.ts`, y en el propio panel de Resend.
+ *
+ * Si algún día este hook hiciera algo más que enviar un correo —tocar la
+ * base, marcar un perfil, disparar otra acción—, esta excepción deja de
+ * valer y hay que registrarlo como los otros tres.
+ */
+
 type SendEmailHookPayload = {
   user: { email: string };
   email_data: {

@@ -25,7 +25,43 @@ import { logError } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * P3-5 (AUDIT-2026-09-04.md): la ruta es anónima a propósito (un monitor de
+ * uptime externo no puede autenticarse) y hacía una consulta a Supabase por
+ * cada llamada, así que quien le pegara en bucle generaba una consulta por
+ * petición — un amplificador trivial contra la base.
+ *
+ * Se resuelve con una caché en memoria en vez de un token compartido en un
+ * header: un token obligaría a reconfigurar el monitor que ya esté apuntando
+ * acá, y dejaría la ruta inútil para una comprobación manual rápida.
+ *
+ * 30 segundos es cómodamente menor que el intervalo de cualquier monitor
+ * real (1–5 min), así que no se pierde ni una señal: cada ping legítimo cae
+ * siempre fuera de la ventana y golpea la base de verdad. Lo que sí se
+ * corta es el bucle — mil peticiones en un segundo ahora son una consulta.
+ *
+ * La caché es por proceso y se pierde en cada despliegue; con más de una
+ * instancia, cada una lleva la suya. Da igual para lo que hace: no es un
+ * dato que deba ser consistente entre instancias, es un amortiguador.
+ *
+ * Solo se cachea el resultado OK. Un fallo se vuelve a comprobar en la
+ * siguiente llamada: cuando la base está caída, lo que importa es notar el
+ * momento exacto en que vuelve, no ahorrar consultas.
+ */
+const CACHE_MS = 30_000;
+let ultimoChequeo: { hasta: number; resultado: { ok: true } } | null = null;
+
 async function verificarSupabase(): Promise<{ ok: boolean; error?: string }> {
+  if (ultimoChequeo && Date.now() < ultimoChequeo.hasta) {
+    return ultimoChequeo.resultado;
+  }
+
+  const resultado = await consultarSupabase();
+  ultimoChequeo = resultado.ok ? { hasta: Date.now() + CACHE_MS, resultado: { ok: true } } : null;
+  return resultado;
+}
+
+async function consultarSupabase(): Promise<{ ok: boolean; error?: string }> {
   try {
     const admin = createAdminClient();
     const { error } = await admin.from("categorias").select("id").limit(1);

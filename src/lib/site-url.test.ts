@@ -58,10 +58,16 @@ describe("siteUrl", () => {
  * qué — igual que `src/actions/admin/mux.ts`.
  */
 const EXCEPCIONES = new Set([
-  // Único uso legítimo: `cors_origin` del Direct Upload de Mux tiene que ser
-  // el origen real del navegador que sube, no una constante de despliegue.
-  // Ver el comentario extenso en ese archivo.
+  // `cors_origin` del Direct Upload de Mux tiene que ser el origen real del
+  // navegador que sube, no una constante de despliegue. Ver el comentario
+  // extenso en ese archivo.
   "src/actions/admin/mux.ts",
+  // P3-2: compara `Origin` contra el `Host` de la MISMA petición para
+  // decidir si es del propio sitio (anti-CSRF). No construye nada que salga
+  // hacia afuera, que es lo que P1-1 prohíbe, y usar `siteUrl()` acá rompería
+  // a quien navegue por el host que no está en NEXT_PUBLIC_SITE_URL. Ver el
+  // comentario en ese archivo.
+  "src/app/api/progreso/beacon/route.ts",
 ]);
 
 function archivosFuente(dir: string, acumulado: string[] = []): string[] {
