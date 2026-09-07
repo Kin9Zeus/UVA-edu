@@ -41,6 +41,16 @@ import { headers } from "next/headers";
  *     # en un handler temporal, contra el dominio real:
  *     console.log((await headers()).get("x-forwarded-for"));
  *
+ * Esto solo protege si hay de verdad un proxy delante que añada la IP real.
+ * Sin él —`next dev` en local, o un despliegue sin proxy— la cadena entera
+ * es lo que mandó el cliente y esta función devuelve justo eso. No es un
+ * fallo que se pueda cerrar desde acá: no hay forma de distinguir una
+ * entrada escrita por un proxy de una escrita por el cliente si nadie la
+ * reescribió. La consecuencia práctica es que el límite NO se puede probar
+ * en local mandando cabeceras falsas (cada valor entra como clave nueva,
+ * igual que antes del arreglo): esa prueba solo significa algo contra el
+ * dominio real, detrás de Railway.
+ *
  * `X-Real-IP` NO se usa como respaldo, a diferencia de la versión anterior:
  * también lo escribe el cliente cuando el proxy no lo sobrescribe, así que
  * como plan B de un header no confiable no aporta confianza, solo otra vía
