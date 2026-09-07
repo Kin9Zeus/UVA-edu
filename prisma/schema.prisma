@@ -292,6 +292,10 @@ model Suscripciones {
   @@index([id_cliente_externo])
   @@index([id_cupon])
   @@index([id_codigo_invitacion])
+  /// P2-3 (AUDIT-2026-09-04.md): "otorgamientos/revocaciones de este
+  /// administrador" (bitácora, panel de usuarios) hacía seq scan sin esto.
+  @@index([otorgado_por])
+  @@index([cancelado_por])
   // Dos índices únicos PARCIALES viven como SQL crudo, no como @@unique
   // (Prisma no soporta WHERE en índices únicos nativos):
   //   - suscripcion_activa_unica_por_usuario (id_usuario) WHERE estado IN
@@ -393,6 +397,9 @@ model TokensVistaPrevia {
   admin_creador Perfiles? @relation("TokensVistaPreviaCreadosPorAdmin", fields: [id_admin_creador], references: [id])
 
   @@index([id_curso])
+  /// P2-3 (AUDIT-2026-09-04.md): "tokens de vista previa creados por este
+  /// administrador" hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("tokens_vista_previa")
 }
 
@@ -453,6 +460,9 @@ model Instructores {
   perfil_profesor Perfiles? @relation("InstructorEsPerfil", fields: [id_perfil_profesor], references: [id])
   cursos          Cursos[]
 
+  /// P2-3 (AUDIT-2026-09-04.md): "instructores creados por este
+  /// administrador" hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("instructores")
 }
 
@@ -617,6 +627,9 @@ model MuxAssetsPendientesEliminacion {
   leccion Lecciones? @relation(fields: [id_leccion], references: [id], onDelete: SetNull)
 
   @@index([eliminado])
+  /// P2-3 (AUDIT-2026-09-04.md): mux:verificar-atascados busca por
+  /// id_leccion además de eliminado -- hacía seq scan sin esto.
+  @@index([id_leccion])
   @@map("mux_assets_pendientes_eliminacion")
 }
 
@@ -724,6 +737,9 @@ model CodigosInvitacion {
   suscripciones Suscripciones[]
 
   @@index([id_lote])
+  /// P2-3 (AUDIT-2026-09-04.md): "códigos creados por este administrador"
+  /// hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("codigos_invitacion")
 }
 
@@ -751,6 +767,9 @@ model LotesCodigosInvitacion {
   admin_creador Perfiles?           @relation("LotesCodigosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   codigos       CodigosInvitacion[]
 
+  /// P2-3 (AUDIT-2026-09-04.md): "lotes creados por este administrador"
+  /// hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("lotes_codigos_invitacion")
 }
 
@@ -802,6 +821,10 @@ model Inscripciones {
 
   @@unique([id_usuario, id_curso])
   @@index([id_curso])
+  /// P2-3 (AUDIT-2026-09-04.md): "otorgamientos/revocaciones de este
+  /// administrador" hacía seq scan sin esto.
+  @@index([otorgado_por])
+  @@index([revocado_por])
   @@map("inscripciones")
 }
 
@@ -881,6 +904,10 @@ model Comentarios {
 
   @@index([id_leccion, creado_en])
   @@index([id_comentario_padre])
+  /// P2-3 (AUDIT-2026-09-04.md): comentarios_autor_publico (061) hace join
+  /// c.id_usuario = p.id por cada fila de perfiles -- sin este índice, cada
+  /// carga de un hilo de comentarios es un seq scan completo de la tabla.
+  @@index([id_usuario])
   @@map("comentarios")
 }
 
@@ -893,6 +920,10 @@ model ComentarioLikes {
   usuario    Perfiles    @relation(fields: [id_usuario], references: [id])
 
   @@id([id_comentario, id_usuario])
+  /// P2-3 (AUDIT-2026-09-04.md): la PK compuesta de arriba solo sirve como
+  /// índice para buscar por id_comentario (o por ambas columnas) --
+  /// Postgres no puede usar el sufijo para filtrar solo por id_usuario.
+  @@index([id_usuario])
   @@map("comentario_likes")
 }
 
@@ -912,6 +943,11 @@ model ComentarioModeracion {
   eliminado_por Perfiles    @relation(fields: [id_eliminado_por], references: [id])
 
   @@index([id_comentario])
+  /// P2-3 (AUDIT-2026-09-04.md): sin esto, "todo lo que moderó este
+  /// administrador" hace seq scan -- encontrado por check-fk-indexes.ts al
+  /// escribir el gate de CI para el propio hallazgo, el mismo día que esta
+  /// tabla llegó por otra rama.
+  @@index([id_eliminado_por])
   @@map("comentario_moderacion")
 }
 

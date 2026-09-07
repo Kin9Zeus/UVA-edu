@@ -19,6 +19,7 @@
     "db:reset": "tsx scripts/db-reset.ts",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
+    "db:check-fk-indexes": "tsx scripts/check-fk-indexes.ts",
     "test": "vitest run",
     "test:rls": "tsx scripts/rls-test.ts",
     "test:webhooks": "tsx scripts/webhook-test.ts",

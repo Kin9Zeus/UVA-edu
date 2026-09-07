@@ -137,6 +137,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Verificar que toda FK tenga índice de cobertura
+        # P2-3 (AUDIT-2026-09-04.md): tercera vez que "FK sin índice"
+        # aparece como hallazgo de auditoría en vez de detectarse solo. Va
+        # justo después de las migraciones porque FKs e índices son
+        # esquema (Prisma), no RLS -- no depende de los pasos de abajo.
+        run: npm run db:check-fk-indexes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Verificar que los scripts de RLS aplican limpio
         run: npm run db:rls:check
         env:
