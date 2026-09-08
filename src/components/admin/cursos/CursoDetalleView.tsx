@@ -36,7 +36,7 @@ export function CursoDetalleView({
   examen,
 }: {
   curso: CursoDetalle;
-  categorias: { id: string; nombre: string }[];
+  categorias: { id: string; nombre: string; activo?: boolean }[];
   /** Cuentas con rol PROFESOR disponibles para asignar (getPerfilesProfesor). */
   instructores: { id: string; nombre: string }[];
   /** `null` si el curso no tiene examen final: es el caso normal, no un

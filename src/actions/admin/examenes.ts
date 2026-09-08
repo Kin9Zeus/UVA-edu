@@ -233,6 +233,12 @@ export async function alternarPublicacionExamen(
   const { error } = await admin.supabase.from("examenes").update({ publicado }).eq("id", examenId);
   if (error) return { error: "No pudimos actualizar el examen." };
 
+  const { data: cursoDelExamen } = await admin.supabase
+    .from("cursos")
+    .select("titulo")
+    .eq("id", cursoId)
+    .maybeSingle();
+
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: publicado
@@ -240,6 +246,7 @@ export async function alternarPublicacionExamen(
       : "Despublicó el examen final de un curso (deja de ser obligatorio)",
     entidadAfectada: "examenes",
     idEntidadAfectada: examenId,
+    detalles: cursoDelExamen?.titulo ?? null,
   });
 
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
@@ -272,6 +279,12 @@ export async function eliminarExamen(examenId: string, cursoId: string): Promise
     };
   }
 
+  const { data: cursoDelExamen } = await admin.supabase
+    .from("cursos")
+    .select("titulo")
+    .eq("id", cursoId)
+    .maybeSingle();
+
   const { error } = await admin.supabase.from("examenes").delete().eq("id", examenId);
   if (error) return { error: "No pudimos eliminar el examen." };
 
@@ -280,6 +293,7 @@ export async function eliminarExamen(examenId: string, cursoId: string): Promise
     accion: "Eliminó el examen final de un curso",
     entidadAfectada: "examenes",
     idEntidadAfectada: examenId,
+    detalles: cursoDelExamen?.titulo ?? null,
   });
 
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
@@ -547,18 +561,19 @@ export async function otorgarIntentoExtra(
   });
   if (errorIntento) return { error: "No pudimos crear el intento extra." };
 
-  const { data: estudiante } = await admin.supabase
-    .from("perfiles")
-    .select("nombre")
-    .eq("id", usuarioId)
-    .maybeSingle();
+  const [{ data: estudiante }, { data: cursoDelExamen }] = await Promise.all([
+    admin.supabase.from("perfiles").select("nombre").eq("id", usuarioId).maybeSingle(),
+    admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
+  ]);
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: "Otorgó un intento extra de examen final",
     entidadAfectada: "intentos_examen",
     idEntidadAfectada: usuarioId,
-    detalles: estudiante?.nombre ?? usuarioId,
+    detalles: cursoDelExamen?.titulo
+      ? `${estudiante?.nombre ?? usuarioId} — ${cursoDelExamen.titulo}`
+      : (estudiante?.nombre ?? usuarioId),
   });
 
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));

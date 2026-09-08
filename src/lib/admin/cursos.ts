@@ -96,6 +96,25 @@ export async function getCategoriasActivas() {
   return data ?? [];
 }
 
+/**
+ * Todas las categorías (activas e inactivas), para el selector del curso al
+ * EDITAR uno ya existente.
+ *
+ * `getCategoriasActivas()` no sirve acá: si el curso ya tenía asignada una
+ * categoría que después se desactivó, esa lista no la trae — el selector la
+ * mostraba como si el curso no tuviera ninguna categoría ("Sin categoría" en
+ * el encabezado de CursoDetalleView) y guardar sin querer se la quitaba. Acá
+ * sí se listan las inactivas (SelectorCategorias las marca "(inactiva)"): se
+ * pueden ver y desmarcar, pero no hace falta ocultarlas para no ofrecerlas
+ * en un curso nuevo — eso ya lo hace getCategoriasActivas() en el formulario
+ * de creación.
+ */
+export async function getCategoriasParaEdicion() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("categorias").select("id, nombre, activo").order("nombre");
+  return data ?? [];
+}
+
 // El selector de instructores del formulario de curso usa
 // getPerfilesProfesor() de @/lib/admin/profesores: son cuentas reales con rol
 // PROFESOR, no fichas de una tabla de catálogo. `lib/admin/instructores.ts`

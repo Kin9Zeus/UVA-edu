@@ -66,7 +66,7 @@ export function InfoTab({
   onCategoriaIdsChange: (ids: string[]) => void;
   nivel: NivelCurso;
   onNivelChange: (value: NivelCurso) => void;
-  categorias: { id: string; nombre: string }[];
+  categorias: { id: string; nombre: string; activo?: boolean }[];
   idsInstructores: string[];
   onIdsInstructoresChange: (ids: string[]) => void;
   /** Cuentas con rol PROFESOR (getPerfilesProfesor). Puede venir vacía. */

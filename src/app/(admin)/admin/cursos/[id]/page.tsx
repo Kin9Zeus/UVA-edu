@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCursoDetalle } from "@/lib/admin/cursoDetalle";
 import { getExamenDeCurso } from "@/lib/admin/examenDetalle";
-import { getCategoriasActivas } from "@/lib/admin/cursos";
+import { getCategoriasParaEdicion } from "@/lib/admin/cursos";
 import { getPerfilesProfesor } from "@/lib/admin/profesores";
 import { CursoDetalleView } from "@/components/admin/cursos/CursoDetalleView";
 
@@ -18,7 +18,7 @@ export default async function AdminCursoDetallePage({
   const { id } = await params;
   const [curso, categorias, instructores, examen] = await Promise.all([
     getCursoDetalle(id),
-    getCategoriasActivas(),
+    getCategoriasParaEdicion(),
     getPerfilesProfesor(),
     getExamenDeCurso(id),
   ]);
