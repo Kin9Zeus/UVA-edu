@@ -41,10 +41,15 @@ function iniciales(nombre: string) {
  * `perfiles!comentarios_id_usuario_fkey(...)` siempre volvía null para el
  * comentario de cualquier otro usuario (el nombre del autor nunca se veía
  * en producción, tapado por el fallback "Usuario" de abajo). Los datos
- * públicos del autor (nombre, rol, país) salen de la vista
- * `comentarios_autor_publico` (061_comentarios_autor_publico.sql), que
- * expone esas tres columnas nada más — nunca correo ni celular — con su
- * propio control de acceso calcado de comentarios_select_con_acceso.
+ * públicos del autor (nombre, país y si es profesor) salen de la vista
+ * `comentarios_autor_publico` (061, endurecida en 074), que expone esas
+ * tres columnas nada más — nunca correo ni celular — con su propio control
+ * de acceso calcado de comentarios_select_con_acceso.
+ *
+ * `es_profesor` es un booleano derivado, no el `rol` crudo: la vista
+ * exponía `rol` a `anon`, lo que revelaba a cualquier visitante sin sesión
+ * qué cuentas son ADMINISTRADOR (D-5, AUDIT-2026-09-08-base-de-datos.md).
+ * Aquí solo hacía falta distinguir al profesor verificado.
  */
 export async function getComentariosDeLeccion(
   leccionId: string,
@@ -72,7 +77,7 @@ export async function getComentariosDeLeccion(
   const autorIds = [...new Set((filas ?? []).map((fila) => fila.id_usuario as string))];
   const [{ data: autores }, { data: instructoresDelCurso }] = await Promise.all([
     autorIds.length
-      ? supabase.from("comentarios_autor_publico").select("id, nombre, rol, pais").in("id", autorIds)
+      ? supabase.from("comentarios_autor_publico").select("id, nombre, es_profesor, pais").in("id", autorIds)
       : Promise.resolve({ data: [] }),
     // Quién dicta ESTE curso, no solo quién tiene rol PROFESOR en general —
     // ver el comentario de `esInstructor` arriba.
@@ -92,7 +97,7 @@ export async function getComentariosDeLeccion(
       autor: autor?.nombre ?? "Usuario",
       iniciales: iniciales(autor?.nombre ?? "?"),
       bandera: codigoBanderaDePais((autor?.pais as string | null) ?? null),
-      esInstructor: autor?.rol === "PROFESOR" && idsInstructoresDelCurso.has(fila.id_usuario as string),
+      esInstructor: autor?.es_profesor === true && idsInstructoresDelCurso.has(fila.id_usuario as string),
       tiempo: tiempoRelativo(fila.creado_en as string),
       texto: fila.eliminado ? "[comentario eliminado]" : (fila.contenido as string),
       eliminado: fila.eliminado as boolean,

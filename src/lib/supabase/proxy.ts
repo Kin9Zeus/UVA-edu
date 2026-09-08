@@ -13,8 +13,30 @@ function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+/**
+ * `cabecerasPeticion` (P2-2, AUDIT-2026-09-08): cabeceras que hay que añadir
+ * a la PETICIÓN que ve el renderizador, no a la respuesta. Hoy son dos, y
+ * las dos las pone `src/proxy.ts`: `x-nonce` y `Content-Security-Policy`.
+ *
+ * Next extrae el nonce de esa cabecera de petición para ponérselo a sus
+ * propios scripts (ver src/lib/csp.ts), así que tiene que viajar por aquí:
+ * si solo se pusiera en la respuesta, los scripts del framework saldrían sin
+ * numerar. Se aplican en los DOS sitios donde se construye la respuesta —el
+ * inicial y el que rehace `setAll` al refrescar cookies—, porque el segundo
+ * reemplaza al primero y perdería las cabeceras.
+ */
+export async function updateSession(request: NextRequest, cabecerasPeticion?: Headers) {
+  /** Copia de las cabeceras de la petición con los añadidos aplicados.
+   *  Se recalcula en cada uso: `request.cookies.set()` reescribe la cabecera
+   *  `cookie` del propio request, y esa versión actualizada es la que tiene
+   *  que llegar al renderizador. */
+  const cabeceras = () => {
+    const copia = new Headers(request.headers);
+    cabecerasPeticion?.forEach((valor, clave) => copia.set(clave, valor));
+    return copia;
+  };
+
+  let supabaseResponse = NextResponse.next({ request: { headers: cabeceras() } });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -37,7 +59,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({ request: { headers: cabeceras() } });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );

@@ -1,5 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import {
   COOLDOWN_AGOTADO_HORAS,
@@ -261,20 +261,67 @@ export type IntentoEnCurso = {
 };
 
 /**
+ * Convierte un error de PostgREST en una excepción de verdad.
+ *
+ * Por qué existe (AUDIT-2026-09-08, seguimiento del P0-1)
+ * -------------------------------------------------------
+ * `const { data } = await ...` sin mirar `error` es lo que convirtió un fallo
+ * de permisos en un bucle: cuando el GRANT por columna del 081 dejó fuera a
+ * `authenticated`, la consulta empezó a fallar con `42501`, `data` venía
+ * `null`, y `null` aquí significa "el intento ya no está en curso" — un
+ * estado de negocio legítimo. La página redirigía a su propia URL, volvía a
+ * fallar y redirigía otra vez, hasta que el navegador cortaba con
+ * ERR_TOO_MANY_REDIRECTS. Nada lanzó nunca, así que ni `src/app/error.tsx`
+ * ni Sentry se enteraron de un fallo que duró todo un despliegue.
+ *
+ * Lanzar es lo correcto y el código 500 también: un `42501` es un privilegio
+ * que le falta al ROL `authenticated`, y ese rol es idéntico para todos los
+ * usuarios — nunca puede significar "tú en particular no puedes". Solo puede
+ * significar que el código y el esquema no coinciden, que es un fallo del
+ * servidor. Un 403 mentiría al usuario y mandaría a quien lo depure a mirar
+ * permisos en vez de el despliegue. La negativa de RLS, que sí es por
+ * usuario, no llega por aquí: filtra filas y devuelve 0, sin error.
+ *
+ * Se envuelve en un `Error` en vez de relanzar el objeto: un PostgrestError
+ * es un objeto plano, y lanzarlo tal cual deja a Next sin `digest` y a Sentry
+ * sin agrupar. El mensaje de Postgres viaja dentro pero no al navegador: en
+ * producción Next solo manda el `digest` al cliente.
+ */
+export function lanzarSiFalla(
+  error: { message?: string; code?: string } | null,
+  consulta: string,
+): void {
+  if (!error) return;
+  throw new Error(
+    `${consulta} falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`,
+  );
+}
+
+/**
  * Carga el intento abierto para renderizar el examen.
  *
  * Es el único sitio donde `preguntas_congeladas` sale de la base hacia la app,
  * y sale acotado: se pasa por `prepararPreguntasParaEstudiante()` antes de
  * volver, así que lo que llega al componente —y por tanto al navegador— no
  * contiene `correcta` ni `respuestasAceptadas`.
+ *
+ * Lee con Service Role, no con el cliente de sesión (P0-1, AUDIT-2026-09-08).
+ * Desde `supabase/sql/081` el rol `authenticated` ya no tiene privilegio de
+ * SELECT sobre `preguntas_congeladas` —ese GRANT por columna es lo que impide
+ * que el estudiante se lea la solución yendo directo a PostgREST—, así que
+ * esta consulta fallaría con 42501 si siguiera usando su sesión.
+ *
+ * El precio es que RLS deja de autorizar aquí, y por eso el chequeo de abajo
+ * pasa de ser defensa en profundidad a ser LA autorización. Es el mismo
+ * patrón que ya usan `enviarIntento` y el resto del módulo de exámenes:
+ * el servidor lee con Service Role y compara contra un `usuarioId` que salió
+ * de `auth.getUser()`, nunca del cliente.
  */
 export async function getIntentoEnCurso(
   intentoId: string,
   usuarioId: string,
 ): Promise<IntentoEnCurso | null> {
-  const supabase = await createClient();
-
-  const { data: intento } = await supabase
+  const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select(
       "id, id_usuario, estado, nota_requerida, preguntas_congeladas, respuestas, expira_en, iniciado_en, examen:examenes(titulo)",
@@ -282,10 +329,17 @@ export async function getIntentoEnCurso(
     .eq("id", intentoId)
     .maybeSingle();
 
-  // El `.eq("id_usuario")` explícito además de RLS: la policy ya acota a los
-  // intentos propios, pero un administrador SÍ ve los de todos (necesario para
-  // el reporte del panel) y no debe poder abrir la pantalla de rendir con el
-  // intento de otra persona por pegar una URL.
+  // Antes que el `if (!intento)` de abajo: sin esto, un fallo de la consulta
+  // es indistinguible de "el intento se cerró", y esa confusión es la que
+  // produce el bucle de redirección. Ver lanzarSiFalla().
+  lanzarSiFalla(error, "getIntentoEnCurso");
+
+  // ÚNICA autorización de esta función: con Service Role no hay RLS detrás.
+  // `usuarioId` lo pone el servidor (getPerfilActual() -> auth.getUser() en
+  // la página del examen), nunca llega del navegador. Cubre los dos casos:
+  // que el intento sea de otra persona, y que un administrador —que sí puede
+  // ver los intentos ajenos en el panel— abra la pantalla de RENDIR con el
+  // intento de un estudiante por pegar una URL.
   if (!intento || intento.id_usuario !== usuarioId || intento.estado !== "EN_CURSO") {
     return null;
   }
@@ -320,18 +374,29 @@ export type ResultadoIntentoVista = {
   preguntas: { id: string; enunciado: DocumentoContenido; acertada: boolean }[];
 };
 
+/**
+ * Resultado de un intento ya cerrado, para la pantalla de "ya lo enviaste".
+ *
+ * Lee con Service Role por lo mismo que `getIntentoEnCurso`: necesita
+ * `preguntas_congeladas` para recalcular qué preguntas se acertaron, y desde
+ * `supabase/sql/081` esa columna no la puede leer el rol `authenticated`.
+ *
+ * Ya no recibe un `SupabaseClient` opcional. Lo tenía para poder inyectar uno
+ * en pruebas, no lo usaba ningún llamador, y ahora sería una trampa: pasarle
+ * un cliente de sesión haría fallar la consulta con 42501 en producción y en
+ * ningún otro sitio.
+ */
 export async function getResultadoIntento(
   intentoId: string,
   usuarioId: string,
-  supabaseCliente?: SupabaseClient,
 ): Promise<ResultadoIntentoVista | null> {
-  const supabase = supabaseCliente ?? (await createClient());
-
-  const { data: intento } = await supabase
+  const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select("id, id_usuario, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, finalizado_en")
     .eq("id", intentoId)
     .maybeSingle();
+
+  lanzarSiFalla(error, "getResultadoIntento");
 
   if (!intento || intento.id_usuario !== usuarioId || intento.estado === "EN_CURSO") {
     return null;

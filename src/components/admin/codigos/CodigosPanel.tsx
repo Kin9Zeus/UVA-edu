@@ -3,7 +3,6 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CodigosTable } from "@/components/admin/codigos/CodigosTable";
 import { LotesTable } from "@/components/admin/codigos/LotesTable";
-import { useCodigosRealtime } from "@/components/admin/codigos/useCodigosRealtime";
 import type { CodigoInvitacion } from "@/lib/admin/codigosInvitacion";
 import type { LoteCodigosInvitacion } from "@/lib/admin/lotesCodigosInvitacion";
 
@@ -23,8 +22,21 @@ import type { LoteCodigosInvitacion } from "@/lib/admin/lotesCodigosInvitacion";
  *     supabase/sql/044-046) — solo hace falta revertirlos si se quiere
  *     limpiar la base, no para que la pantalla deje de ofrecerlo.
  *
- * Lo que NO se toca al remover uno: RedimidoresButton, la exportación CSV
- * y el realtime son transversales a los dos modos.
+ * Lo que NO se toca al remover uno: RedimidoresButton y la exportación CSV
+ * son transversales a los dos modos.
+ *
+ * Ya NO hay suscripción en tiempo real (useCodigosRealtime, retirada en
+ * D-13 de AUDIT-2026-09-08-base-de-datos.md). Costaba, medido en
+ * pg_stat_statements, 74 792 llamadas al decodificador de WAL con tráfico
+ * casi nulo — Supabase Realtime reevalúa RLS por cada fila que cambia y por
+ * cada suscriptor conectado, y un lote puede insertar hasta 500 filas de
+ * una vez (MAX_LOTE, lotesCodigosInvitacion.ts). El único caso que cubría
+ * —enterarse de un canje hecho por un estudiante en otra sesión mientras
+ * esta pantalla sigue abierta— no tiene urgencia de segundo a segundo:
+ * recargar la pestaña alcanza, igual que en el resto del panel admin, que
+ * no usa Realtime en ninguna otra pantalla. Las acciones del propio
+ * administrador (crear código, crear lote, desactivar) se siguen viendo al
+ * instante vía `revalidatePath`, sin cambios.
  */
 export function CodigosPanel({
   codigos,
@@ -33,8 +45,6 @@ export function CodigosPanel({
   codigos: CodigoInvitacion[];
   lotes: LoteCodigosInvitacion[];
 }) {
-  useCodigosRealtime();
-
   const codigosUnicos = codigos.filter((codigo) => codigo.idLote === null);
   const codigosDeLote = codigos.filter((codigo) => codigo.idLote !== null);
 

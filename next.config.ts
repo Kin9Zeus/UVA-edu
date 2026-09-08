@@ -11,6 +11,18 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   : undefined;
 
 const nextConfig: NextConfig = {
+  // P3-2 (AUDIT-2026-09-08): Next.js manda `X-Powered-By: Next.js` por
+  // defecto. Confirmado en vivo en https://uva-edu-production.up.railway.app.
+  //
+  // El riesgo real es bajo y no conviene exagerarlo: el framework ya se
+  // deduce de las rutas `/_next/static/`, así que esto no oculta nada a
+  // quien mire. Lo que evita es aparecer en el barrido de un escáner
+  // automatizado que filtra objetivos por cabecera —el que busca "todos los
+  // Next.js" para probar el CVE de la semana— sin tener que mirar el HTML.
+  // Cuesta una línea y no rompe nada: ninguna parte del producto lee esta
+  // cabecera.
+  poweredByHeader: false,
+
   images: {
     remotePatterns: [
       ...(supabaseHostname

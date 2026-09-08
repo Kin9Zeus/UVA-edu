@@ -1,8 +1,40 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
+import { construirCsp, generarNonce } from "@/lib/csp";
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  // P2-2 (AUDIT-2026-09-08): la CSP se arma aquí y no en next.config.ts
+  // porque lleva un nonce distinto en cada petición.
+  const nonce = generarNonce();
+  const csp = construirCsp({
+    nonce,
+    desarrollo: process.env.NODE_ENV !== "production",
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  });
+
+  // En la PETICIÓN va `Content-Security-Policy` a secas: es el nombre exacto
+  // que Next busca para extraer el nonce y ponérselo a sus propios scripts
+  // (node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md).
+  // Esta cabecera no sale hacia el navegador.
+  const cabecerasPeticion = new Headers();
+  cabecerasPeticion.set("x-nonce", nonce);
+  cabecerasPeticion.set("Content-Security-Policy", csp);
+
+  const response = await updateSession(request, cabecerasPeticion);
+
+  // En la RESPUESTA va en modo informe. La política todavía no se ha
+  // probado contra tráfico real —el riesgo concreto es que el reproductor
+  // de Mux o el editor TipTap tropiecen con `style-src` sin más aviso que
+  // la consola—, así que durante la fase de observación esto no bloquea
+  // nada: solo reporta a Sentry vía el `report-uri` que arma construirCsp().
+  //
+  // Para forzarla, cuando el informe salga limpio, basta cambiar el nombre
+  // de esta cabecera por "Content-Security-Policy". Ese cambio es de una
+  // línea a propósito: el resto ya está en su sitio y probado.
+  response.headers.set("Content-Security-Policy-Report-Only", csp);
+
+  return response;
 }
 
 export const config = {
