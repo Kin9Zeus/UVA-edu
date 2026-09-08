@@ -266,7 +266,7 @@ export type IntentoEnCurso = {
  * Por qué existe (AUDIT-2026-09-08, seguimiento del P0-1)
  * -------------------------------------------------------
  * `const { data } = await ...` sin mirar `error` es lo que convirtió un fallo
- * de permisos en un bucle: cuando el GRANT por columna del 070 dejó fuera a
+ * de permisos en un bucle: cuando el GRANT por columna del 081 dejó fuera a
  * `authenticated`, la consulta empezó a fallar con `42501`, `data` venía
  * `null`, y `null` aquí significa "el intento ya no está en curso" — un
  * estado de negocio legítimo. La página redirigía a su propia URL, volvía a
@@ -306,7 +306,7 @@ export function lanzarSiFalla(
  * contiene `correcta` ni `respuestasAceptadas`.
  *
  * Lee con Service Role, no con el cliente de sesión (P0-1, AUDIT-2026-09-08).
- * Desde `supabase/sql/070` el rol `authenticated` ya no tiene privilegio de
+ * Desde `supabase/sql/081` el rol `authenticated` ya no tiene privilegio de
  * SELECT sobre `preguntas_congeladas` —ese GRANT por columna es lo que impide
  * que el estudiante se lea la solución yendo directo a PostgREST—, así que
  * esta consulta fallaría con 42501 si siguiera usando su sesión.
@@ -379,7 +379,7 @@ export type ResultadoIntentoVista = {
  *
  * Lee con Service Role por lo mismo que `getIntentoEnCurso`: necesita
  * `preguntas_congeladas` para recalcular qué preguntas se acertaron, y desde
- * `supabase/sql/070` esa columna no la puede leer el rol `authenticated`.
+ * `supabase/sql/081` esa columna no la puede leer el rol `authenticated`.
  *
  * Ya no recibe un `SupabaseClient` opcional. Lo tenía para poder inyectar uno
  * en pruebas, no lo usaba ningún llamador, y ahora sería una trampa: pasarle

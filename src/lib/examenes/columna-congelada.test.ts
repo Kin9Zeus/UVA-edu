@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
  *
  * RLS de Postgres autoriza FILAS, no COLUMNAS. La policy
  * `intentos_examen_select_propio_o_admin` (067) le da al estudiante su propia
- * fila entera, así que hasta el script 070 esa columna era legible por su
+ * fila entera, así que hasta el script 081 esa columna era legible por su
  * dueño con una sola petición a PostgREST:
  *
  *   curl ".../rest/v1/intentos_examen?select=preguntas_congeladas" \
@@ -21,12 +21,12 @@ import { describe, expect, it } from "vitest";
  * no cambiaba nada, porque el atacante no pasa por la app.
  *
  * El arreglo real es el `GRANT` por columna de
- * `supabase/sql/070_intentos_examen_grants_por_columna.sql`. Estas pruebas son
+ * `supabase/sql/081_intentos_examen_grants_por_columna.sql`. Estas pruebas son
  * la red que impide que se deshaga sin querer, y cubren los dos lados:
  *
  *   1. que ningún archivo nuevo lea la columna con el cliente de sesión —
  *      hacerlo ya no filtra nada, pero rompería la pantalla en producción con
- *      un 42501 que en desarrollo no se ve si la base local no tiene el 070;
+ *      un 42501 que en desarrollo no se ve si la base local no tiene el 081;
  *   2. que la lista de columnas del `GRANT` no vuelva a incluirla.
  *
  * Son estructurales a propósito: la prueba de verdad (que PostgREST responda
@@ -131,7 +131,7 @@ describe("preguntas_congeladas no se lee con el cliente de sesión (P0-1)", () =
     // No basta con que el archivo IMPORTE createAdminClient: `admin/examenes.ts`
     // lo importa para otras funciones y aun así leía la columna con
     // `admin.supabase`, que es el cliente de SESIÓN que devuelve requireAdmin()
-    // — y un administrador también es `authenticated`, así que el 070 lo
+    // — y un administrador también es `authenticated`, así que el 081 lo
     // bloquea igual. Por eso se mira qué cliente hace CADA lectura, no qué
     // importa el archivo.
     const infractores = tocanLaColumna.flatMap((ruta) => {
@@ -156,9 +156,9 @@ describe("preguntas_congeladas no se lee con el cliente de sesión (P0-1)", () =
   });
 });
 
-describe("el GRANT por columna del 070 excluye la columna sensible", () => {
+describe("el GRANT por columna del 081 excluye la columna sensible", () => {
   const sql = readFileSync(
-    join(process.cwd(), "supabase/sql/070_intentos_examen_grants_por_columna.sql"),
+    join(process.cwd(), "supabase/sql/081_intentos_examen_grants_por_columna.sql"),
     "utf8",
   );
   const sqlSinComentarios = sql.replace(/^\s*--.*$/gm, "");

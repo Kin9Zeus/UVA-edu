@@ -1232,21 +1232,21 @@ async function main() {
     // `preguntas_congeladas` guarda `respuestasAceptadas` y cuál opción es la
     // correcta. La policy de 067 le da al estudiante su fila ENTERA porque RLS
     // autoriza filas, no columnas; lo que cierra la columna es el GRANT de
-    // supabase/sql/070.
+    // supabase/sql/081.
     //
     // Se comprueba el CÓDIGO de error, no solo que falle: `esperarBloqueado`
     // daría verde también con "0 filas", que es lo que devolvería la policy de
     // fila si el intento fuera ajeno. Aquí el intento es SUYO y la fila sí le
     // corresponde — la única razón válida para que esto falle es 42501,
     // privilegio de columna denegado. Sin esa distinción la prueba pasaría
-    // aunque alguien revirtiera el 070.
+    // aunque alguien revirtiera el 081.
     const lecturaSolucion = await clienteConAcceso
       .from("intentos_examen")
       .select("preguntas_congeladas")
       .eq("id", intentoPrueba.id);
     const codigoSolucion = (lecturaSolucion.error as { code?: string } | null)?.code;
     registrar(
-      "el estudiante NO puede leer preguntas_congeladas ni de su propio intento (GRANT por columna, 070)",
+      "el estudiante NO puede leer preguntas_congeladas ni de su propio intento (GRANT por columna, 081)",
       codigoSolucion === "42501",
       lecturaSolucion.error
         ? `code=${codigoSolucion} ${lecturaSolucion.error.message}`

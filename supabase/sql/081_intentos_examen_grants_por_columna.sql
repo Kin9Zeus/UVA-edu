@@ -1,9 +1,15 @@
 -- ============================================================
 -- intentos_examen: el examen resuelto deja de ser legible por su dueño.
 --
--- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-069.
--- No toca ninguna policy: 067 sigue siendo la única que decide FILAS.
--- Esto opera en la capa de PRIVILEGIOS, que es una capa distinta.
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-080.
+-- No toca ninguna policy: 067 —y 077, que la recrea— siguen siendo las
+-- únicas que deciden FILAS. Esto opera en la capa de PRIVILEGIOS, que es
+-- una capa distinta y no se pisa con aquella.
+--
+-- Nació como 070 y se renumeró al fusionar la auditoría de base de datos,
+-- que ocupó 070-080. El contenido no cambió. Va el último a propósito: el
+-- REVOKE de aquí debe quedar aplicado después de cualquier script que
+-- recree la tabla o reajuste privilegios, no antes.
 --
 -- P0-1 (AUDIT-2026-09-08.md) — qué estaba abierto
 -- -----------------------------------------------

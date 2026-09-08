@@ -611,7 +611,7 @@ export type RevisionIntentoResultado = {
  * --------------------------------------------------------------------
  * `requireAdmin()` verifica el rol pero devuelve el cliente de SESIÓN, y una
  * sesión de administrador sigue hablando con Postgres como `authenticated`.
- * El GRANT por columna de `supabase/sql/070` le quitó a ese rol el SELECT
+ * El GRANT por columna de `supabase/sql/081` le quitó a ese rol el SELECT
  * sobre `preguntas_congeladas` —es lo que impide que un estudiante se lea la
  * solución yendo directo a PostgREST— y no distingue quién es: sin el
  * cambio a Service Role, esta pantalla se caía con 42501 para el admin
