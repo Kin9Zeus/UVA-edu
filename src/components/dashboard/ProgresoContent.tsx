@@ -121,21 +121,27 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                       className="absolute inset-0 size-full object-cover"
                     />
                   )}
-                  {curso.completado ? (
-                    <span className="absolute top-2.5 right-2.5 rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-valid uppercase">
-                      Completado
-                    </span>
-                  ) : (
+                  {/* Franja negra de siempre abajo de la portada (mismo
+                      recurso que CursoCard.tsx del catálogo): "Completado" en
+                      una esquina sin fondo se perdía sobre una portada clara
+                      — acá el badge tiene garantizado el contraste debajo. */}
+                  {curso.completado && (
+                    <div className="absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
+                      <span className="rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-valid uppercase">
+                        Completado
+                      </span>
+                    </div>
+                  )}
+                  {!curso.completado && curso.porcentaje === 100 && curso.examenRequerido && (
                     // Tercer estado, el que hacía falta al agregar exámenes:
                     // terminó las clases pero le falta aprobar el examen. Sin
                     // esto la tarjeta se veía igual que un curso a medias, sin
                     // pista de qué le falta para el certificado.
-                    curso.porcentaje === 100 &&
-                    curso.examenRequerido && (
-                      <span className="absolute top-2.5 right-2.5 rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
+                    <div className="absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
+                      <span className="rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
                         Examen pendiente
                       </span>
-                    )
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-2 p-3.5">

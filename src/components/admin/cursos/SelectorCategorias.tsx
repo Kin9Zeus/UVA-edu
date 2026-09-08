@@ -18,7 +18,12 @@ export function SelectorCategorias({
   onChange,
   id = "curso-categorias",
 }: {
-  categorias: { id: string; nombre: string }[];
+  /** `activo` es opcional: el formulario de creación solo pasa categorías
+   * activas (getCategoriasActivas) y no necesita distinguir nada acá. La
+   * pestaña Información del detalle sí pasa activas e inactivas
+   * (getCategoriasParaEdicion) para que una categoría ya asignada y luego
+   * desactivada siga siendo visible en vez de desaparecer del selector. */
+  categorias: { id: string; nombre: string; activo?: boolean }[];
   seleccionadas: string[];
   onChange: (ids: string[]) => void;
   id?: string;
@@ -62,6 +67,9 @@ export function SelectorCategorias({
               onCheckedChange={(marcada) => alternar(categoria.id, marcada === true)}
             />
             {categoria.nombre}
+            {categoria.activo === false && (
+              <span className="text-uva-text-faint">(inactiva)</span>
+            )}
           </label>
         );
       })}
