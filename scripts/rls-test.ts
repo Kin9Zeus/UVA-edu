@@ -108,6 +108,10 @@ async function main() {
   const correoSinAcceso = `rls-test-sin-acceso-${sufijo}@uva.test`;
   const correoConAcceso = `rls-test-con-acceso-${sufijo}@uva.test`;
   const correoAdmin = `rls-test-admin-${sufijo}@uva.test`;
+  // Cuenta desechable exclusiva para la prueba de supresión (075). No se
+  // reutiliza ninguna de las otras porque la anonimización es irreversible:
+  // después de correrla, esa cuenta ya no sirve para probar nada más.
+  const correoAnonimizar = `rls-test-anonimizar-${sufijo}@uva.test`;
   // Se declara aquí, no dentro del try, para que la limpieza del finally pueda
   // borrar los pagos de prueba aunque una aserción falle antes.
   const refPagoPrueba = `ref_rls_test_${sufijo}`;
@@ -172,6 +176,25 @@ async function main() {
     .update({ rol: "ADMINISTRADOR" })
     .eq("id", userAdmin.user.id);
   if (errPromover) throw new Error(`No pude promover el admin de prueba: ${errPromover.message}`);
+
+  const { data: userAnonimizar, error: errAnonimizar } = await admin.auth.admin.createUser({
+    email: correoAnonimizar,
+    password,
+    email_confirm: true,
+  });
+  if (errAnonimizar || !userAnonimizar.user) {
+    throw new Error(`No pude crear el usuario para anonimizar: ${errAnonimizar?.message}`);
+  }
+  // Datos personales que la supresión tiene que dejar sin rastro. Se
+  // escriben con service role: lo que se prueba es la anonimización, no si
+  // este usuario podría haberlos escrito por su cuenta.
+  const { error: errPerfilAnonimizar } = await admin
+    .from("perfiles")
+    .update({ celular: "+57 300 1234567", pais: "CO", especialidad: "Dato personal de prueba" })
+    .eq("id", userAnonimizar.user.id);
+  if (errPerfilAnonimizar) {
+    throw new Error(`No pude sembrar los datos del usuario a anonimizar: ${errPerfilAnonimizar.message}`);
+  }
 
   const { data: plan, error: errPlan } = await admin
     .from("planes")
@@ -306,6 +329,74 @@ async function main() {
   // aparte que ya no es nullable, no hace falta un `!` en cada uso.
   const idLeccionReproduccion: string = leccionReproduccion.id;
 
+  // --------------------------------------------------------------------
+  // Fixture propio para D-1 (070_progreso_exige_acceso.sql).
+  //
+  // NO se reutiliza cursoReproduccion a propósito: ese curso tiene
+  // exactamente UNA lección, y de eso depende la prueba de emisión de
+  // certificados de más abajo ("completar la única lección del curso emite
+  // el certificado"). Añadirle una segunda lección para poder probar la
+  // excepción de lección introductoria tendría dos efectos colaterales: la
+  // lección de reproducción pasaría a SER la introductoria (es la de menor
+  // orden), y completarla ya no alcanzaría el 100% del curso. Es decir,
+  // rompería dos pruebas existentes para arreglar una nueva.
+  //
+  // Este curso tiene DOS lecciones para que private.es_leccion_introductoria
+  // pueda distinguirlas: esa función exige count(*) > 1 y solo devuelve true
+  // para la primera por (modulo.orden, leccion.orden).
+  // --------------------------------------------------------------------
+  const { data: cursoAcceso, error: errCursoAcceso } = await admin
+    .from("cursos")
+    .insert({
+      titulo: `Curso RLS test (acceso a progreso) ${sufijo}`,
+      slug: `curso-rls-test-acceso-${sufijo}`,
+      descripcion: "x",
+      imagen_portada: "x",
+      id_instructor: instructor.id,
+      mostrado: true,
+      id_admin_creador: adminPerfil.id,
+    })
+    .select("id")
+    .single();
+  if (errCursoAcceso || !cursoAcceso) {
+    throw new Error(`No pude crear el curso de acceso a progreso: ${errCursoAcceso?.message}`);
+  }
+
+  const { data: moduloAcceso, error: errModuloAcceso } = await admin
+    .from("modulos")
+    .insert({ id_curso: cursoAcceso.id, titulo: "Módulo acceso RLS test", orden: 10 })
+    .select("id")
+    .single();
+  if (errModuloAcceso || !moduloAcceso) {
+    throw new Error(`No pude crear el módulo de acceso a progreso: ${errModuloAcceso?.message}`);
+  }
+
+  const { data: leccionesAcceso, error: errLeccionesAcceso } = await admin
+    .from("lecciones")
+    .insert([
+      {
+        id_modulo: moduloAcceso.id,
+        titulo: "Clase 1 (introductoria, gratuita)",
+        slug: `leccion-acceso-intro-${sufijo}`,
+        orden: 10,
+        estado_procesamiento: "LISTO",
+      },
+      {
+        id_modulo: moduloAcceso.id,
+        titulo: "Clase 2 (de pago)",
+        slug: `leccion-acceso-pago-${sufijo}`,
+        orden: 20,
+        estado_procesamiento: "LISTO",
+      },
+    ])
+    .select("id, orden")
+    .order("orden");
+  if (errLeccionesAcceso || leccionesAcceso?.length !== 2) {
+    throw new Error(`No pude crear las lecciones de acceso a progreso: ${errLeccionesAcceso?.message}`);
+  }
+  const idLeccionIntroductoria: string = leccionesAcceso[0].id;
+  const idLeccionDePago: string = leccionesAcceso[1].id;
+
   try {
     console.log("\n=== Sesión: ANÓNIMO (sin login) ===\n");
 
@@ -317,6 +408,38 @@ async function main() {
     await esperarBloqueado("anon no puede leer codigos_invitacion", clienteAnonimo.from("codigos_invitacion").select("*"));
     await esperarBloqueado("anon no puede leer bitacora_administrativa", clienteAnonimo.from("bitacora_administrativa").select("*"));
     await esperarBloqueado("anon no puede leer eventos_webhook", clienteAnonimo.from("eventos_webhook").select("*"));
+
+    // D-15 (074): `instructores` tenía `using (true)` — las filas visibles
+    // para cualquiera, incluida id_perfil_profesor, que es el UUID de una
+    // cuenta real. La tabla quedó vestigial tras 20260903000000_multi_instructores
+    // (nada en src/ la lee; los datos públicos salen de
+    // curso_instructores_publico), así que se cerró del todo en vez de acotarla.
+    await esperarBloqueado(
+      "anon no puede leer instructores (074)",
+      clienteAnonimo.from("instructores").select("*"),
+    );
+
+    // D-5 (074): la vista de autores es SECURITY DEFINER de hecho
+    // (security_barrier sin security_invoker), así que salta la RLS de
+    // `perfiles` — a propósito, para poder pintar el nombre del autor de un
+    // comentario. Lo que NO debía exponer es `rol`: le decía a cualquier
+    // visitante sin sesión qué cuentas son ADMINISTRADOR. Se comprueba que la
+    // columna ya no existe, no que venga vacía: un select de una columna
+    // inexistente falla en PostgREST, que es justo la señal que se busca.
+    const { error: errRolExpuesto } = await clienteAnonimo
+      .from("comentarios_autor_publico")
+      .select("rol")
+      .limit(1);
+    registrar(
+      "comentarios_autor_publico ya NO expone la columna `rol` a anon (074)",
+      !!errRolExpuesto,
+      errRolExpuesto ? errRolExpuesto.message : "la columna `rol` sigue disponible",
+    );
+
+    await esperarPermitido(
+      "comentarios_autor_publico sigue exponiendo nombre/pais/es_profesor (lo que la interfaz necesita)",
+      clienteAnonimo.from("comentarios_autor_publico").select("id, nombre, pais, es_profesor").limit(1),
+    );
     // Listar esta tabla sería listar todos los enlaces de vista previa
     // activos de la plataforma. Quien abre un enlace nunca la consulta: la
     // validación pasa por el servidor de Next.js (ver 025_rls_tokens_vista_previa).
@@ -718,6 +841,95 @@ async function main() {
       "reproducción: cortesía revocada NO obtiene token de video",
       clienteSinAcceso,
       "bloqueado",
+    );
+
+    // ------------------------------------------------------------------
+    // D-1: escribir progreso exige acceso vigente al curso
+    // (070_progreso_exige_acceso.sql — AUDIT-2026-09-08-base-de-datos.md)
+    //
+    // El hueco de la prueba y el hueco de la policy eran el mismo. Este
+    // archivo cubría la LECTURA cruzada de `progreso` (arriba) y la
+    // ESCRITURA de `inscripciones` desde un usuario sin acceso, pero nunca
+    // la escritura de `progreso`: el único upsert lo hacía clienteConAcceso.
+    // Por eso 124/124 en verde convivían con un P0 abierto.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: ACCESO PARA ESCRIBIR PROGRESO (070) ===\n");
+
+    await esperarBloqueado(
+      "estudiante sin acceso NO puede insertar progreso en una lección de pago",
+      clienteSinAcceso
+        .from("progreso")
+        .insert({ id_usuario: userSinAcceso.user!.id, id_leccion: idLeccionDePago, completado: false })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin acceso NO puede marcar completada una lección de pago",
+      clienteSinAcceso
+        .from("progreso")
+        .upsert(
+          { id_usuario: userSinAcceso.user!.id, id_leccion: idLeccionDePago, completado: true },
+          { onConflict: "id_usuario,id_leccion" },
+        )
+        .select(),
+    );
+
+    // La excepción deliberada: la clase gratuita del catálogo. Sin esto,
+    // `iniciarProgresoLeccion` no puede escribir la fila que crea al ABRIR
+    // una clase y el visitante no puede ni empezar el curso gratuito.
+    await esperarPermitido(
+      "estudiante sin acceso SÍ puede registrar progreso en la lección introductoria",
+      clienteSinAcceso
+        .from("progreso")
+        .insert({ id_usuario: userSinAcceso.user!.id, id_leccion: idLeccionIntroductoria, completado: true })
+        .select(),
+    );
+
+    // La cadena completa del P0: aunque el estudiante logre marcar la
+    // introductoria, no puede completar el curso, así que el trigger 047/068
+    // no tiene nada que emitir. Se comprueba con el service role porque la
+    // policy de SELECT de `certificados` ya acota por usuario y un 0 filas
+    // ahí no distinguiría "no se emitió" de "no lo puedo ver".
+    const { count: certificadosSinAcceso } = await admin
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userSinAcceso.user!.id)
+      .eq("id_curso", cursoAcceso.id);
+    registrar(
+      "un estudiante sin acceso NO obtiene certificado por marcar lecciones completadas",
+      certificadosSinAcceso === 0,
+      `certificados=${certificadosSinAcceso}`,
+    );
+
+    // --- Regresiones: el arreglo no puede romper el producto ---
+
+    await esperarPermitido(
+      "estudiante CON acceso sigue pudiendo registrar y completar progreso (regresión)",
+      clienteConAcceso
+        .from("progreso")
+        .upsert(
+          { id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, completado: true },
+          { onConflict: "id_usuario,id_leccion" },
+        )
+        .select(),
+    );
+
+    // Regresión de 030_acceso_curso_despublicado.sql: una membresía vigente
+    // conserva el acceso a un curso retirado del catálogo si YA tenía
+    // progreso en él ("ya lo estaba viendo"). `leccionDespublicada` y la fila
+    // de progreso que la acompaña se sembraron más arriba con el service
+    // role; acá se comprueba que el CLIENTE puede seguir escribiendo sobre
+    // ella. Si 070 hubiera simplificado la regla a "curso mostrado", este
+    // caso fallaría — y es exactamente el estudiante a mitad de curso.
+    await esperarPermitido(
+      "membresía con progreso en curso despublicado sigue pudiendo guardar progreso (regresión 030)",
+      clienteConAcceso
+        .from("progreso")
+        .upsert(
+          { id_usuario: userConAcceso.user!.id, id_leccion: leccionDespublicada.id, completado: false },
+          { onConflict: "id_usuario,id_leccion" },
+        )
+        .select(),
     );
 
     // ------------------------------------------------------------------
@@ -1203,9 +1415,20 @@ async function main() {
       clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
     );
 
+    // Simula "la fecha de renovación ya pasó", no "la suscripción nació
+    // vencida": hay que mover fecha_inicio hacia atrás junto con
+    // fecha_renovacion, o el UPDATE choca contra
+    // suscripciones_renovacion_posterior (071_restricciones_faltantes.sql,
+    // D-6) — que exige fecha_renovacion > fecha_inicio siempre, como hace
+    // src/actions/admin/usuarios.ts al calcularla (fecha_inicio +
+    // duracion_dias, nunca al revés). El CHECK hizo su trabajo: esta fila
+    // sintética habría sido un dato imposible en producción.
     const { error: errVencer } = await admin
       .from("suscripciones")
-      .update({ fecha_renovacion: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .update({
+        fecha_inicio: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+        fecha_renovacion: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      })
       .eq("id_usuario", userConAcceso.user!.id);
     if (errVencer) throw new Error(`No pude vencer la suscripción de prueba: ${errVencer.message}`);
 
@@ -1348,19 +1571,21 @@ async function main() {
     // ------------------------------------------------------------------
     console.log("\n=== Sesión: PANEL DE USUARIOS (036/037) ===\n");
 
-    const { data: filasEstudiante, error: errRpcEstudiante } = await clienteConAcceso.rpc(
-      "admin_listar_usuarios",
-      { p_limite: 100, p_offset: 0 },
-    );
-    const idsVistos = (filasEstudiante ?? []).map((fila: { id: string }) => fila.id);
-    const soloSeVeASiMismo =
-      !errRpcEstudiante && idsVistos.every((id: string) => id === userConAcceso.user!.id);
+    // Hasta 074_endurece_exposicion.sql (D-16) esta función era SECURITY
+    // INVOKER sin ninguna comprobación propia: un estudiante SÍ podía
+    // llamarla, y lo único que lo protegía era que la RLS de `perfiles`
+    // recortaba el resultado a su propia fila por debajo — sin fuga, pero
+    // dependiendo enteramente de que nadie ampliara esa RLS más adelante. La
+    // función ahora comprueba el rol explícitamente y rechaza con un error de
+    // permisos, en vez de devolver un resultado filtrado.
+    const { error: errRpcEstudiante } = await clienteConAcceso.rpc("admin_listar_usuarios", {
+      p_limite: 100,
+      p_offset: 0,
+    });
     registrar(
-      "estudiante que invoca admin_listar_usuarios NO obtiene el padrón (solo su propia fila)",
-      soloSeVeASiMismo,
-      errRpcEstudiante
-        ? errRpcEstudiante.message
-        : `${idsVistos.length} fila(s) visible(s)`,
+      "estudiante que invoca admin_listar_usuarios es rechazado (D-16, 074)",
+      errRpcEstudiante?.code === "42501",
+      errRpcEstudiante ? `${errRpcEstudiante.code}: ${errRpcEstudiante.message}` : "el RPC no falló",
     );
 
     const { data: metricasEstudiante } = await clienteConAcceso
@@ -1449,6 +1674,36 @@ async function main() {
         .delete()
         .eq("id", filaBitacora.id)
         .select(),
+    );
+
+    // D-7 (074): hasta esta migración, "append-only" era una afirmación que
+    // solo valía para `anon` y `authenticated`. `service_role` salta RLS por
+    // completo y es el cliente con el que la aplicación ejecuta las
+    // operaciones administrativas — es decir, la garantía no cubría al único
+    // actor con capacidad real de alterar la auditoría. El trigger sí lo
+    // alcanza. Estas dos pruebas son las que distinguen 069 de 074: contra
+    // 069 ambas fallan.
+    await esperarBloqueado(
+      "ni el service role puede editar una entrada de bitácora (trigger 074)",
+      admin
+        .from("bitacora_administrativa")
+        .update({ accion: "PRUEBA_RLS_EDITADA_POR_SERVICE_ROLE" })
+        .eq("id", filaBitacora.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "ni el service role puede borrar una entrada de bitácora con un DELETE normal (trigger 074)",
+      admin
+        .from("bitacora_administrativa")
+        .delete()
+        .eq("id", filaBitacora.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un administrador NO puede llamar purgar_bitacora_de_admin (solo service_role)",
+      clienteAdmin.rpc("purgar_bitacora_de_admin", { p_id_admin: userAdmin.user!.id }),
     );
 
     // La otra mitad de 064 (P2-1): el trigger prohíbe revivir un comentario
@@ -1821,9 +2076,18 @@ async function main() {
       throw new Error("No encontré la suscripción vigente para la prueba de fechas.");
     }
 
+    // fecha_inicio se aleja también, no solo fecha_renovacion: esta fila
+    // nació con fecha_inicio=ahora (línea ~1822) y fechaLimite es AYER, así
+    // que sin mover fecha_inicio el update chocaría contra
+    // suscripciones_renovacion_posterior (071, D-6). Lo que se está probando
+    // aquí es la comparación de zona horaria sobre fecha_renovacion; a
+    // fecha_inicio no la lee ninguna aserción de este bloque.
     const { error: errFijarLimite } = await admin
       .from("suscripciones")
-      .update({ fecha_renovacion: fechaLimite })
+      .update({
+        fecha_inicio: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+        fecha_renovacion: fechaLimite,
+      })
       .eq("id", suscripcionVigente.id);
     if (errFijarLimite) {
       throw new Error(`No pude fijar la fecha límite de la prueba de vigencia: ${errFijarLimite.message}`);
@@ -1997,6 +2261,124 @@ async function main() {
         })
         .select(),
     );
+
+    // ------------------------------------------------------------------
+    // D-4: supresión de datos personales (075_anonimizar_usuario.sql)
+    //
+    // La base hacía imposible cumplir lo que docs/legal ya promete: diez
+    // tablas referencian `perfiles` con ON DELETE RESTRICT y basta una fila
+    // en `suscripciones` para volver la cuenta indeleble. Y como
+    // `perfiles.id -> auth.users` es ON DELETE CASCADE, un deleteUser
+    // cascadea al borrado del perfil y choca con el primer RESTRICT. Por eso
+    // se anonimiza en vez de borrar, y por eso auth.users se limpia en vez
+    // de eliminarse.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: SUPRESIÓN DE DATOS PERSONALES (075) ===\n");
+
+    // Rastro personal a suprimir. Se siembra con service role: lo que se
+    // prueba es la supresión, no la escritura.
+    const { data: comentarioAnonimizar, error: errComentarioAnon } = await admin
+      .from("comentarios")
+      .insert({
+        id_leccion: idLeccionIntroductoria,
+        id_usuario: userAnonimizar.user!.id,
+        contenido: "Comentario con datos personales de prueba",
+      })
+      .select("id")
+      .single();
+    if (errComentarioAnon || !comentarioAnonimizar) {
+      throw new Error(`No pude sembrar el comentario a anonimizar: ${errComentarioAnon?.message}`);
+    }
+    const { error: errProgresoAnon } = await admin
+      .from("progreso")
+      .insert({ id_usuario: userAnonimizar.user!.id, id_leccion: idLeccionIntroductoria, completado: true });
+    if (errProgresoAnon) throw new Error(`No pude sembrar el progreso a anonimizar: ${errProgresoAnon.message}`);
+
+    await esperarBloqueado(
+      "un estudiante NO puede anonimizar a otro usuario",
+      clienteConAcceso.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
+    );
+
+    await esperarBloqueado(
+      "anon no puede llamar anonimizar_usuario",
+      clienteAnonimo.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
+    );
+
+    // Guardia contra el pie en el que es fácil dispararse: un administrador
+    // que se anonimiza pierde el acceso con el que está operando, y si es el
+    // último deja la plataforma sin ninguno. No hay vuelta desde la interfaz.
+    await esperarBloqueado(
+      "un administrador NO puede anonimizar su propia cuenta",
+      clienteAdmin.rpc("anonimizar_usuario", { p_id_usuario: userAdmin.user!.id }),
+    );
+
+    await esperarPermitido(
+      "un administrador SÍ puede anonimizar la cuenta de otro usuario",
+      clienteAdmin.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
+    );
+
+    const { data: perfilAnonimizado } = await admin
+      .from("perfiles")
+      .select("nombre, correo, celular, pais, especialidad, estado, anonimizado_en")
+      .eq("id", userAnonimizar.user!.id)
+      .single();
+    const sinDatosPersonales =
+      perfilAnonimizado?.nombre === "Usuario eliminado" &&
+      perfilAnonimizado?.correo === `anon+${userAnonimizar.user!.id.replace(/-/g, "")}@uva.invalid` &&
+      perfilAnonimizado?.celular === null &&
+      perfilAnonimizado?.pais === null &&
+      perfilAnonimizado?.especialidad === null &&
+      perfilAnonimizado?.estado === "SUSPENDIDO" &&
+      perfilAnonimizado?.anonimizado_en !== null;
+    registrar(
+      "la supresión no deja ningún dato personal en `perfiles`",
+      sinDatosPersonales,
+      JSON.stringify(perfilAnonimizado),
+    );
+
+    const { count: progresoTrasAnonimizar } = await admin
+      .from("progreso")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userAnonimizar.user!.id);
+    registrar(
+      "la supresión borra el progreso del titular",
+      progresoTrasAnonimizar === 0,
+      `progreso=${progresoTrasAnonimizar}`,
+    );
+
+    // El comentario NO se borra: cascadearía a las respuestas de otras
+    // personas, que no pidieron nada. Se vacía, que es lo que el trigger
+    // comentarios_contenido_solo_se_vacia (064) permite.
+    const { data: comentarioTrasAnonimizar } = await admin
+      .from("comentarios")
+      .select("contenido, eliminado")
+      .eq("id", comentarioAnonimizar.id)
+      .maybeSingle();
+    registrar(
+      "la supresión conserva el hilo del comentario pero vacía su contenido",
+      comentarioTrasAnonimizar?.contenido === "" && comentarioTrasAnonimizar?.eliminado === true,
+      JSON.stringify(comentarioTrasAnonimizar),
+    );
+
+    // Idempotencia: repetir no debe fallar NI mover la fecha. Esa fecha es
+    // el dato que habría que poder demostrar ante una reclamación; si cada
+    // corrida la reescribe, deja de significar cuándo se atendió la
+    // solicitud.
+    const fechaPrimeraSupresion = perfilAnonimizado?.anonimizado_en;
+    await esperarPermitido(
+      "repetir la supresión no falla (idempotente)",
+      clienteAdmin.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
+    );
+    const { data: perfilRepetido } = await admin
+      .from("perfiles")
+      .select("anonimizado_en")
+      .eq("id", userAnonimizar.user!.id)
+      .single();
+    registrar(
+      "repetir la supresión NO reescribe la fecha en que se hizo",
+      perfilRepetido?.anonimizado_en === fechaPrimeraSupresion,
+      `antes=${fechaPrimeraSupresion} despues=${perfilRepetido?.anonimizado_en}`,
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
 
@@ -2009,7 +2391,16 @@ async function main() {
     //
     // Ahora va de las hojas al tronco: primero todo lo que cuelga de los
     // usuarios, después el contenido, y los usuarios al final.
-    const usuariosDePrueba = [userSinAcceso.user!, userConAcceso.user!, userAdmin.user!];
+    // userAnonimizar va en la lista aunque su cuenta esté anonimizada: la
+    // supresión borra progreso, likes e intentos, pero conserva el
+    // comentario (vacío), y `comentarios.id_usuario` es una FK RESTRICT que
+    // haría fallar el deleteUser. El bucle de abajo ya lo limpia todo.
+    const usuariosDePrueba = [
+      userSinAcceso.user!,
+      userConAcceso.user!,
+      userAdmin.user!,
+      userAnonimizar.user!,
+    ];
 
     // Los pagos van antes que las suscripciones: `pagos.id_suscripcion` es una
     // FK sin cascada.
@@ -2030,16 +2421,23 @@ async function main() {
       // caen las cascadas.
       await admin.from("intentos_examen").delete().eq("id_usuario", usuario.id);
       await admin.from("comentarios").delete().eq("id_usuario", usuario.id);
-      // 069: la fila que dejó la prueba de bitácora append-only. Solo el
-      // service role puede borrarla —para eso se comprobó arriba que el
-      // administrador no puede— y tiene que irse antes del deleteUser:
-      // `bitacora_administrativa.id_admin` es una FK a `perfiles` sin cascada.
-      await admin.from("bitacora_administrativa").delete().eq("id_admin", usuario.id);
+      // 069 + 074: la fila que dejó la prueba de bitácora append-only. Tiene
+      // que irse antes del deleteUser (`bitacora_administrativa.id_admin` es
+      // una FK a `perfiles` sin cascada), pero desde 074 un DELETE normal ya
+      // no funciona ni con el service role: el trigger lo bloquea. La única
+      // puerta es esta RPC, que declara la intención en vez de borrar de
+      // tapadillo. Es exactamente lo que se comprobó dos veces más arriba.
+      await admin.rpc("purgar_bitacora_de_admin", { p_id_admin: usuario.id });
     }
 
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
     await admin.from("modulos").delete().eq("id_curso", cursoReproduccion.id);
     await admin.from("cursos").delete().eq("id", cursoReproduccion.id);
+    // Fixture de D-1 (070). Va después del bucle de usuarios de arriba, que
+    // ya borró su progreso: `progreso.id_leccion` cascadea desde `lecciones`,
+    // pero `modulos.id_curso` es RESTRICT y el curso no cae si queda algo.
+    await admin.from("modulos").delete().eq("id_curso", cursoAcceso.id);
+    await admin.from("cursos").delete().eq("id", cursoAcceso.id);
     await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("inscripciones").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);

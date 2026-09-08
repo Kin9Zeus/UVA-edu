@@ -281,6 +281,7 @@
   }
   html {
     @apply font-sans;
+    background: var(--uva-bg);
   }
   h1,
   h2,
