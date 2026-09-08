@@ -65,21 +65,40 @@ export type ResultadoBitacora = {
  * (`bitacora_solo_admin`, 003_rls_membresia_y_gestion.sql) ya la restringe a
  * administradores — esta función no repite esa comprobación, la hereda del
  * cliente de sesión igual que el resto de `lib/admin/*`.
+ *
+ * `filtroDesde`/`filtroHasta` son fechas "YYYY-MM-DD" (el `<input
+ * type="date">` de BitacoraTable) sobre `creado_en`. Mismo criterio que
+ * `admin_listar_usuarios` (037_admin_listar_usuarios.sql) para el rango de
+ * registro: `hasta` es un día completo, no un instante — comparar con
+ * `< hasta + 1 día` en vez de `<= hasta` evita excluir lo que pasó ese
+ * mismo día después de las 00:00.
  */
-export async function getBitacora(pagina: number = 1): Promise<ResultadoBitacora> {
+export async function getBitacora(
+  pagina: number = 1,
+  filtroDesde?: string,
+  filtroHasta?: string,
+): Promise<ResultadoBitacora> {
   const supabase = await createClient();
   const paginaSegura = Math.max(1, pagina);
   const desde = (paginaSegura - 1) * BITACORA_POR_PAGINA;
   const hasta = desde + BITACORA_POR_PAGINA - 1;
 
-  const { data, count, error } = await supabase
+  let consulta = supabase
     .from("bitacora_administrativa")
     .select(
       "id, creado_en, accion, entidad_afectada, id_entidad_afectada, detalles, admin:perfiles(nombre, correo)",
       { count: "exact" },
     )
-    .order("creado_en", { ascending: false })
-    .range(desde, hasta);
+    .order("creado_en", { ascending: false });
+
+  if (filtroDesde) consulta = consulta.gte("creado_en", filtroDesde);
+  if (filtroHasta) {
+    const diaSiguiente = new Date(`${filtroHasta}T00:00:00Z`);
+    diaSiguiente.setUTCDate(diaSiguiente.getUTCDate() + 1);
+    consulta = consulta.lt("creado_en", diaSiguiente.toISOString());
+  }
+
+  const { data, count, error } = await consulta.range(desde, hasta);
 
   if (error || !data) {
     return { entradas: [], total: 0, pagina: paginaSegura, totalPaginas: 1 };

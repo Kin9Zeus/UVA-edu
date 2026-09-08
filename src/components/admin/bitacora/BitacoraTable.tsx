@@ -51,12 +51,61 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
+  function actualizarUrl(cambios: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams);
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor === null || valor === "") params.delete(clave);
+      else params.set(clave, valor);
+    }
+    // Cambiar el rango vuelve a la página 1: si estabas en la 3 y el rango
+    // deja dos páginas, la 3 quedaría vacía.
+    params.delete("page");
+    const cadena = params.toString();
+    router.push(cadena ? `${pathname}?${cadena}` : pathname, { scroll: false });
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Rango sobre `creado_en` (mismo criterio que el filtro de registro
+          en UsuariosTable): vive en la URL para que la página, y no solo la
+          tabla, se recargue con el rango aplicado. */}
+      <div className="flex items-center gap-2">
+        <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="bitacora-filtro-desde">
+          Fecha
+        </label>
+        <input
+          id="bitacora-filtro-desde"
+          type="date"
+          value={searchParams.get("desde") ?? ""}
+          onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
+          className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+          aria-label="Desde"
+        />
+        <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
+        <input
+          type="date"
+          value={searchParams.get("hasta") ?? ""}
+          onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
+          className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+          aria-label="Hasta"
+        />
+        {(searchParams.get("desde") || searchParams.get("hasta")) && (
+          <button
+            type="button"
+            onClick={() => actualizarUrl({ desde: null, hasta: null })}
+            className="shrink-0 text-[12.5px] text-uva-muted-2 hover:text-uva-text"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
       <AdminCard flush className="gap-0">
         {resultado.entradas.length === 0 && (
           <p className="px-5 py-6 text-center text-sm text-uva-text-faint">
-            Todavía no hay acciones registradas.
+            {searchParams.get("desde") || searchParams.get("hasta")
+              ? "No hay acciones registradas en ese rango de fechas."
+              : "Todavía no hay acciones registradas."}
           </p>
         )}
 

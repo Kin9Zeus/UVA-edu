@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, LayoutDashboard, LogOut, Search, Settings, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAdminSearch } from "@/components/admin/SearchContext";
 import { BuscadorMovilDialog } from "@/components/admin/BuscadorMovilDialog";
@@ -31,7 +31,7 @@ function tituloDeSeccion(pathname: string) {
   if (pathname.startsWith("/admin/categorias")) return "Categorías";
   if (pathname.startsWith("/admin/codigos")) return "Códigos de invitación";
   if (pathname.startsWith("/admin/bitacora")) return "Bitácora";
-  if (pathname.startsWith("/admin/configuracion")) return "Configuración";
+  if (pathname.startsWith("/admin/configuracion")) return "Perfil";
   return "Panel";
 }
 
@@ -115,13 +115,6 @@ export function Header({ nombre }: { nombre: string }) {
             >
               <User className="size-4" />
               Ver perfil
-            </DropdownMenuLinkItem>
-            <DropdownMenuLinkItem
-              render={<Link href="/admin/configuracion" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <Settings className="size-4" />
-              Configuración
             </DropdownMenuLinkItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

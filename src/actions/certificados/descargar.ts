@@ -1,20 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { construirCertificadoPdf } from "@/lib/certificados/pdf";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 const BUCKET_CERTIFICADOS = "certificados";
 const DURACION_URL_SEGUNDOS = 300;
-
-async function getOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const proto = headersList.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 export type DescargarCertificadoResult = { url?: string; error?: string };
 
@@ -46,7 +39,12 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
   const rutaArchivo = `${user.id}/${certificado.id}.pdf`;
 
   if (!certificado.archivo_pdf) {
-    const origin = await getOrigin();
+    // El origen sale de la configuración del despliegue, nunca del header
+    // `Host` (P1-1, AUDIT-2026-09-04.md). Aquí importa más que en los correos:
+    // el PDF se cachea en Storage y se descarga durante años, así que un
+    // origen envenenado no caduca — quien escanea el QR meses después (un
+    // empleador verificando el título) acabaría en el dominio del atacante.
+    const origin = siteUrl();
     // El diseño (Uva - Certificado.dc.html) muestra la URL sin protocolo
     // ("uva.co/verificar/@daniela" en el mockup) — esa es la que se
     // imprime como texto. El QR necesita la URL completa y real para que

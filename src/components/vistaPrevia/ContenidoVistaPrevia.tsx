@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { esPortadaReal } from "@/lib/media";
@@ -41,10 +42,12 @@ export function ContenidoVistaPrevia({
     <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-[clamp(20px,4vw,40px)] py-10">
       <div className="flex flex-col gap-4">
         {esPortadaReal(curso.imagenPortada) ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-          <img
+          <Image
             src={curso.imagenPortada}
             alt=""
+            width={1280}
+            height={720}
+            sizes="(max-width: 880px) 100vw, 880px"
             className="aspect-video w-full rounded-uva-md object-cover"
           />
         ) : (

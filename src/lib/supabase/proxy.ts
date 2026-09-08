@@ -56,7 +56,6 @@ export async function updateSession(request: NextRequest) {
     ...STUDENT_PATH_PREFIXES,
     ...ADMIN_PATH_PREFIXES,
   ]);
-  const requiresAdmin = matchesPrefix(pathname, ADMIN_PATH_PREFIXES);
 
   if (requiresAuth && !user) {
     const loginUrl = new URL("/login", request.url);
@@ -74,11 +73,25 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (requiresAuth && user) {
-    // TODO: optimizar esta consulta (ej. leer el rol desde un claim del
-    // JWT en vez de golpear Perfiles en cada request al dashboard/panel admin).
+    // P2-8 (AUDIT-2026-09-04.md): antes esta consulta traía "rol, estado"
+    // para además redirigir a /acceso-denegado si el rol no era
+    // ADMINISTRADOR en rutas /admin — pero `(admin)/admin/layout.tsx` ya
+    // hace exactamente esa misma consulta y el mismo redirect (lo tenía
+    // documentado como "defensa en profundidad", cuando en realidad corre
+    // siempre: toda request a /admin pasa por ese layout). Quitar el
+    // chequeo de rol de acá no abre ningún hueco, solo deja de pagar la
+    // misma consulta dos veces por request.
+    //
+    // "estado" sí se queda: es lo único que hace el signOut() de abajo, y
+    // ese signOut no es redundante con el layout (que solo redirige, no
+    // limpia la cookie) — verificado que un access_token ya emitido sigue
+    // pasando auth.getUser() después de un auth.admin.signOut(id, "global")
+    // hasta que expira solo, así que sin este chequeo puntual una cuenta
+    // recién suspendida seguiría "viéndose" logueada por el resto de la
+    // sesión en vez de cerrarse al instante.
     const { data: perfil } = await supabase
       .from("perfiles")
-      .select("rol, estado")
+      .select("estado")
       .eq("id", user.id)
       .single();
 
@@ -91,10 +104,6 @@ export async function updateSession(request: NextRequest) {
       const response = NextResponse.redirect(loginUrl);
       supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
       return response;
-    }
-
-    if (requiresAdmin && perfil?.rol !== "ADMINISTRADOR") {
-      return NextResponse.redirect(new URL("/acceso-denegado", request.url));
     }
   }
 

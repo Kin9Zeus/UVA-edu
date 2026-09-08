@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string; email?: string }>;
+  searchParams: Promise<{ redirect?: string; email?: string; error?: string }>;
 }) {
-  const { redirect, email } = await searchParams;
+  const { redirect, email, error } = await searchParams;
   const redirectTo = redirect?.startsWith("/") ? redirect : "/dashboard";
 
   return (
@@ -31,7 +31,7 @@ export default async function LoginPage({
 
       <section className="relative z-[2] grid flex-1 place-items-center px-5 pt-3 pb-10 min-[900px]:overflow-y-auto min-[900px]:bg-[rgba(250,250,250,0.04)] min-[900px]:p-11 min-[900px]:[place-items:safe_center]">
         <div className="w-full max-w-[396px] rounded-uva-lg border border-uva-divider bg-uva-surface/90 px-6 py-7 shadow-xl backdrop-blur-sm min-[900px]:rounded-none min-[900px]:border-0 min-[900px]:bg-transparent min-[900px]:px-0 min-[900px]:py-4 min-[900px]:shadow-none min-[900px]:backdrop-blur-none">
-          <AuthFlow redirectTo={redirectTo} initialEmail={email} />
+          <AuthFlow redirectTo={redirectTo} initialEmail={email} initialError={error} />
         </div>
       </section>
     </div>

@@ -11,9 +11,10 @@ export type LikeComentarioResultado = { error: string } | { success: true };
  * upsert la absorbe), quitar un like inexistente simplemente no borra nada.
  */
 export async function darLikeComentario(
-  cursoId: string,
-  leccionId: string,
   comentarioId: string,
+  /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
+   * revalidar exactamente el path que Next.js cacheó — no el UUID interno. */
+  ruta: string,
 ): Promise<LikeComentarioResultado> {
   const supabase = await createClient();
   const {
@@ -29,14 +30,15 @@ export async function darLikeComentario(
     );
 
   if (error) return { error: "No pudimos guardar tu like." };
-  revalidatePath(`/cursos/${cursoId}/${leccionId}`);
+  revalidatePath(ruta);
   return { success: true };
 }
 
 export async function quitarLikeComentario(
-  cursoId: string,
-  leccionId: string,
   comentarioId: string,
+  /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
+   * revalidar exactamente el path que Next.js cacheó — no el UUID interno. */
+  ruta: string,
 ): Promise<LikeComentarioResultado> {
   const supabase = await createClient();
   const {
@@ -51,6 +53,6 @@ export async function quitarLikeComentario(
     .eq("id_usuario", user.id);
 
   if (error) return { error: "No pudimos quitar tu like." };
-  revalidatePath(`/cursos/${cursoId}/${leccionId}`);
+  revalidatePath(ruta);
   return { success: true };
 }

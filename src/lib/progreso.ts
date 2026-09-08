@@ -3,18 +3,26 @@ import type { CategoriaChip } from "@/lib/categoria";
 
 export type CursoConProgreso = {
   cursoId: string;
+  cursoSlug: string;
   titulo: string;
+  imagenPortada: string;
   /** Todas las categorías del curso — ver CategoriaChip en lib/categoria.ts. */
   categorias: CategoriaChip[];
   leccionesCompletadas: number;
   leccionesTotal: number;
   porcentaje: number;
+  /** El curso tiene examen final publicado, así que terminar las clases no
+   * basta para completarlo (docs/functional-spec.md Flujo 07 — Revf5). */
+  examenRequerido: boolean;
+  examenAprobado: boolean;
+  /** Regla de "curso completo" completa, la misma que decide la emisión del
+   * certificado: 100% de clases y, si el curso exige examen, aprobado.
+   * Centralizada acá para que la tarjeta, el filtro y el badge no la
+   * recombinen cada uno por su cuenta. */
+  completado: boolean;
 };
 
 export type ProgresoData = {
-  clasesCompletadas: number;
-  clasesTotal: number;
-  certificados: number;
   cursos: CursoConProgreso[];
 };
 
@@ -24,18 +32,17 @@ export type ProgresoData = {
  * con un `count(...) filter (...)` agregado por curso — no trayendo cada
  * fila de `progreso` y sumando acá. La vista ya excluye lecciones sin video
  * listo y ya viene acotada por RLS a las filas del usuario de la sesión, así
- * que esta función no vuelve a filtrar por `usuarioId` sobre ella.
+ * que esta función no necesita filtrar por usuario sobre ella.
  */
-export async function getProgresoData(usuarioId: string): Promise<ProgresoData> {
+export async function getProgresoData(): Promise<ProgresoData> {
   const supabase = await createClient();
 
-  const [{ data: filas }, { count: certificadosCount }] = await Promise.all([
-    supabase
-      .from("progreso_cursos_estudiante")
-      .select("curso_id, titulo, lecciones_completadas, lecciones_total")
-      .order("ultima_actividad", { ascending: false }),
-    supabase.from("certificados").select("id", { count: "exact", head: true }).eq("id_usuario", usuarioId),
-  ]);
+  const { data: filas } = await supabase
+    .from("progreso_cursos_estudiante")
+    .select(
+      "curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total, examen_requerido, examen_aprobado",
+    )
+    .order("ultima_actividad", { ascending: false });
 
   const cursoIds = (filas ?? []).map((fila) => fila.curso_id as string);
 
@@ -61,23 +68,27 @@ export async function getProgresoData(usuarioId: string): Promise<ProgresoData> 
   const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
     const total = fila.lecciones_total as number;
     const completadas = fila.lecciones_completadas as number;
+    const porcentaje = total > 0 ? Math.round((completadas / total) * 100) : 0;
+    const examenRequerido = fila.examen_requerido === true;
+    const examenAprobado = fila.examen_aprobado === true;
+
     return {
       cursoId: fila.curso_id as string,
+      cursoSlug: fila.curso_slug as string,
       titulo: fila.titulo as string,
+      imagenPortada: fila.imagen_portada as string,
       categorias: categoriasPorCursoMap.get(fila.curso_id as string) ?? [{ id: "general", nombre: "General" }],
       leccionesCompletadas: completadas,
       leccionesTotal: total,
-      porcentaje: total > 0 ? Math.round((completadas / total) * 100) : 0,
+      porcentaje,
+      examenRequerido,
+      examenAprobado,
+      // Antes esto era `porcentaje === 100` en la UI. Con exámenes, un curso
+      // al 100% de clases con el examen sin aprobar NO está completo: no tiene
+      // certificado, así que tampoco puede decir "Completado".
+      completado: porcentaje === 100 && (!examenRequerido || examenAprobado),
     };
   });
 
-  const clasesCompletadas = cursos.reduce((total, curso) => total + curso.leccionesCompletadas, 0);
-  const clasesTotal = cursos.reduce((total, curso) => total + curso.leccionesTotal, 0);
-
-  return {
-    clasesCompletadas,
-    clasesTotal,
-    certificados: certificadosCount ?? 0,
-    cursos,
-  };
+  return { cursos };
 }

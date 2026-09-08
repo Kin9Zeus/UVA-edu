@@ -50,17 +50,34 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
+/**
+ * Mensajes para el `?error=` que agregan los redirects de enlaces de correo
+ * fallidos: token ya usado, vencido, o simplemente inválido —
+ * verifyOtp()/exchangeCodeForSession() no distingue el motivo exacto, así
+ * que los tres caen en el mismo código (auth/confirm/route.ts,
+ * actualizar-password/page.tsx, auth/callback/route.ts). Antes de esto
+ * `?error=enlace_invalido` no se leía en ningún lado y el usuario caía en
+ * /login sin ninguna explicación (docs/qa/bugs-e2e.md, BUG-001).
+ */
+const MENSAJES_ERROR_QUERY: Record<string, string> = {
+  enlace_invalido: "Ese enlace ya no es válido o ya venció. Pide uno nuevo.",
+};
+
 export function AuthFlow({
   redirectTo,
   initialEmail,
+  initialError,
 }: {
   redirectTo: string;
   initialEmail?: string;
+  initialError?: string;
 }) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState(initialEmail ?? "");
   const [checking, setChecking] = useState(false);
-  const [checkError, setCheckError] = useState<string | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(
+    initialError ? (MENSAJES_ERROR_QUERY[initialError] ?? null) : null,
+  );
 
   async function runCheckEmail(correo: string) {
     setCheckError(null);

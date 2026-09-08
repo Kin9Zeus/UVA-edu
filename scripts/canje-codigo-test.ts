@@ -18,7 +18,13 @@
  * Sale con código 1 si algo falló, para poder usarse como gate de CI.
  */
 
-process.loadEnvFile(".env.local");
+// .env.local no existe en CI, donde las variables llegan del entorno
+// (mismo patrón que scripts/rls-test.ts).
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // Sin archivo: se usan las variables ya presentes en process.env.
+}
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -26,7 +32,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!URL || !SERVICE_KEY) {
-  throw new Error("Faltan variables de entorno de Supabase en .env.local.");
+  throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (.env.local en local, secrets en CI).");
 }
 
 type Resultado = { nombre: string; ok: boolean; detalle?: string };

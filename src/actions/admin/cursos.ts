@@ -14,16 +14,88 @@ import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import type { RecursoDetalle } from "@/lib/admin/cursoDetalle";
 import { ordenEntre, siguienteOrden } from "@/lib/orden";
+import {
+  contenidoLeccionSchema,
+  contenidoEstaVacio,
+  TAMANO_MAXIMO_CONTENIDO,
+  type DocumentoContenido,
+} from "@/lib/editor/tipos";
 // Nombre de carpeta legible para Storage (solo eso: no es un identificador
 // único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
 // id del curso al lado). Es la misma normalización que genera el slug de
 // las categorías — ver lib/slug.ts.
-import { slugificar as slugificarTexto } from "@/lib/slug";
+import {
+  slugificar as slugificarTexto,
+  slugDisponible,
+  SLUGS_RESERVADOS_LECCION,
+} from "@/lib/slug";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
 
 const slugificar = (texto: string) => slugificarTexto(texto, "curso");
+
+/**
+ * Slug libre para `titulo`, ignorando el propio curso al editar (`exceptoId`)
+ * para que reguardar sin cambiar el título no le agregue un sufijo contra sí
+ * mismo. Mismo criterio que generarSlug() en actions/admin/categorias.ts.
+ */
+async function generarSlugCurso(
+  supabase: SupabaseClient,
+  titulo: string,
+  exceptoId?: string,
+): Promise<string> {
+  const base = slugificar(titulo);
+
+  let consulta = supabase.from("cursos").select("slug").like("slug", `${base}%`);
+  if (exceptoId) consulta = consulta.neq("id", exceptoId);
+  const { data } = await consulta;
+
+  return slugDisponible(base, (data ?? []).map((fila) => fila.slug as string));
+}
+
+/**
+ * Slug libre para una lección DENTRO DE SU CURSO (no globalmente: dos cursos
+ * distintos sí pueden tener una lección "introduccion" cada uno — ver el
+ * comentario de `Lecciones.slug` en schema.prisma, que por eso no lleva un
+ * UNIQUE de Postgres).
+ *
+ * Existe desde que las rutas públicas pasaron a `/cursos/<slug>/<slug>`
+ * (migración 20260903010000_agrega_slug_a_cursos_y_lecciones), pero
+ * `crearLeccion` nunca lo rellenó: la columna quedó NOT NULL sin default, así
+ * que cada intento de crear una lección desde el CMS moría con un 23502
+ * ("null value in column slug") y el panel solo mostraba "No pudimos crear la
+ * lección". Este generador cierra ese hueco.
+ *
+ * `SLUGS_RESERVADOS_LECCION` entra al conjunto de ocupados desde el principio:
+ * son segmentos que ya tiene tomados una ruta estática hermana, y una lección
+ * con ese slug quedaría inalcanzable.
+ *
+ * Solo se usa al CREAR, a diferencia del slug de curso (que se regenera en
+ * cada `actualizarInfoCurso`). Renombrar una lección deja su URL intacta a
+ * propósito: el enlace a una clase concreta es lo que un estudiante comparte
+ * o guarda, y cambiarlo por una corrección de tipografía en el título lo
+ * rompería sin avisar.
+ */
+async function generarSlugLeccion(
+  supabase: SupabaseClient,
+  cursoId: string,
+  titulo: string,
+): Promise<string> {
+  const base = slugificarTexto(titulo, "leccion");
+
+  // Las lecciones no tienen `id_curso` propio: se llega por su módulo.
+  const { data: modulos } = await supabase.from("modulos").select("id").eq("id_curso", cursoId);
+  const moduloIds = (modulos ?? []).map((modulo) => modulo.id as string);
+
+  const { data: lecciones } = moduloIds.length
+    ? await supabase.from("lecciones").select("id, slug").in("id_modulo", moduloIds)
+    : { data: [] };
+
+  const tomados = (lecciones ?? []).map((leccion) => leccion.slug as string).filter(Boolean);
+
+  return slugDisponible(base, [...SLUGS_RESERVADOS_LECCION, ...tomados]);
+}
 
 /** Ruta dentro del bucket a partir de una public URL de Storage, o null si
  * `url` no viene de `BUCKET_PORTADAS` (el placeholder, u otro valor). */
@@ -103,7 +175,7 @@ const tituloLeccionSchema = z
 
 const actualizarLeccionSchema = z.object({
   titulo: tituloLeccionSchema,
-  resumen: z.string().trim().max(2000, "El resumen es demasiado largo."),
+  contenido: contenidoLeccionSchema.nullable(),
 });
 
 const moverSchema = z.object({
@@ -239,6 +311,7 @@ export async function crearCurso(input: {
     .from("cursos")
     .insert({
       titulo,
+      slug: await generarSlugCurso(admin.supabase, titulo),
       descripcion,
       imagen_portada: IMAGEN_PORTADA_PLACEHOLDER,
       nivel,
@@ -308,7 +381,12 @@ export async function actualizarInfoCurso(
 
   const { error } = await admin.supabase
     .from("cursos")
-    .update({ titulo, descripcion, nivel })
+    .update({
+      titulo,
+      slug: await generarSlugCurso(admin.supabase, titulo, cursoId),
+      descripcion,
+      nivel,
+    })
     .eq("id", cursoId);
 
   if (error) return { error: "No pudimos guardar los cambios." };
@@ -729,6 +807,7 @@ export async function crearLeccion(
     .insert({
       id_modulo: moduloId,
       titulo: tituloLimpio,
+      slug: await generarSlugLeccion(admin.supabase, cursoId, tituloLimpio),
       orden: siguienteOrden(ultima?.orden ?? null),
     })
     .select("id")
@@ -743,23 +822,31 @@ export async function crearLeccion(
 export async function actualizarLeccion(
   leccionId: string,
   cursoId: string,
-  input: { titulo: string; resumen: string },
+  input: { titulo: string; contenido: DocumentoContenido | null },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
+  if (input.contenido && JSON.stringify(input.contenido).length > TAMANO_MAXIMO_CONTENIDO) {
+    return { error: "El contenido de la lección es demasiado largo." };
+  }
+
   const parseo = actualizarLeccionSchema.safeParse(input);
   if (!parseo.success) return { error: primerError(parseo) };
-  const { titulo, resumen } = parseo.data;
+  const { titulo, contenido } = parseo.data;
 
   // `duracion` no se escribe desde acá a propósito: es el webhook de Mux
   // (video.asset.ready, src/app/api/webhooks/mux/route.ts) el único que la
   // sincroniza con la duración real del video subido. Un input editable a
   // mano permitía que quedara desincronizada del video después de procesar.
+  //
+  // `resumen` (texto plano legado) no se escribe más — `contenido` es la
+  // única fuente de verdad desde aquí en adelante. Ver comentario en
+  // schema.prisma y resolverContenidoLeccion.
   const { error } = await admin.supabase
     .from("lecciones")
-    .update({ titulo, resumen: resumen || null })
+    .update({ titulo, contenido: contenido && !contenidoEstaVacio(contenido) ? contenido : null })
     .eq("id", leccionId);
 
   if (error) return { error: "No pudimos guardar la lección." };
@@ -838,56 +925,106 @@ export async function moverLeccion(
 // Material adicional (recursos_descargables)
 // ------------------------------------------------------------
 
-export async function subirRecursoLeccion(
+/** Misma normalización de carpeta que usaban crearSubidaRecurso y
+ * confirmarSubidaRecurso -- separada para que ambas construyan exactamente
+ * la misma ruta sin repetir la consulta a `cursos` dos veces. */
+async function carpetaDelCurso(admin: { supabase: SupabaseClient }, cursoId: string): Promise<string> {
+  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
+  // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
+  // único (dos cursos podrían llamarse igual), y esta carpeta es la que
+  // reemplaza al uuid crudo que se veía en Storage.
+  return `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
+}
+
+/**
+ * P2-7 (AUDIT-2026-09-04.md): antes, el archivo completo viajaba en el body
+ * de esta Server Action, y por eso next.config.ts necesitaba un
+ * bodySizeLimit de 52mb -- aplicado a TODAS las Server Actions del
+ * proyecto, incluidas las que no requieren sesión (recuperar, registro,
+ * checkEmail: Next no permite un límite distinto por acción). Ahora el
+ * archivo sube directo del navegador a Storage con esta URL firmada, sin
+ * pasar por nuestro servidor -- este paso solo pide el permiso, su body no
+ * lleva el archivo.
+ *
+ * La ruta temporal ("pendiente-...") es la que confirmarSubidaRecurso
+ * revalida antes de aceptar nada: el cliente no puede mandar cualquier
+ * ruta, tiene que ser una que este paso emitió para este mismo curso y
+ * lección.
+ */
+export async function crearSubidaRecurso(
   leccionId: string,
   cursoId: string,
-  formData: FormData,
+): Promise<AdminActionResult & { subida?: { signedUrl: string; token: string; ruta: string } }> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
+
+  const carpetaCurso = await carpetaDelCurso(admin, cursoId);
+  const ruta = `${carpetaCurso}/${leccionId}/pendiente-${randomUUID()}`;
+
+  const { data, error } = await admin.supabase.storage.from(BUCKET_MATERIALES).createSignedUploadUrl(ruta);
+  if (error || !data) return { error: "No pudimos preparar la subida." };
+
+  return { success: true, subida: { signedUrl: data.signedUrl, token: data.token, ruta: data.path } };
+}
+
+/**
+ * Segunda mitad de P2-7: el navegador ya subió el archivo directo a
+ * Storage con la URL de crearSubidaRecurso -- acá se valida y se
+ * confirma. `ruta` viene del cliente, así que antes de tocarla se revisa
+ * que tenga la forma exacta que crearSubidaRecurso le dio para este mismo
+ * curso y lección (nunca se confía en una ruta arbitraria).
+ */
+export async function confirmarSubidaRecurso(
+  leccionId: string,
+  cursoId: string,
+  ruta: string,
+  nombreOriginal: string,
 ): Promise<AdminActionResult & { recurso?: RecursoDetalle }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { error: "Selecciona un archivo." };
+  const carpetaCurso = await carpetaDelCurso(admin, cursoId);
+  const prefijoEsperado = `${carpetaCurso}/${leccionId}/pendiente-`;
+  if (!ruta.startsWith(prefijoEsperado)) {
+    return { error: "Subida inválida." };
   }
 
-  const resultado = await procesarRecurso(archivo);
-  if ("error" in resultado) return { error: resultado.error };
-  const { cuerpo, contentType, extension } = resultado.recurso;
+  const { data: blob, error: errorDescarga } = await admin.supabase.storage
+    .from(BUCKET_MATERIALES)
+    .download(ruta);
+  if (errorDescarga || !blob) return { error: "No pudimos leer el archivo subido." };
 
-  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
-  // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
-  // único (dos cursos podrían llamarse igual), y esta carpeta es la que
-  // reemplaza al uuid crudo que se veía en Storage.
-  const carpetaCurso = `${slugificar(curso?.titulo ?? "curso")}-${cursoId.slice(0, 8)}`;
+  const resultado = await procesarRecurso(blob);
+  if ("error" in resultado) {
+    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([ruta]);
+    return { error: resultado.error };
+  }
+  const { cuerpo, contentType, extension } = resultado.recurso;
 
   // La extensión es la que detectó procesarRecurso a partir de los magic
   // bytes, no la del nombre subido por el usuario — evita que un archivo
   // con extensión falsificada termine sirviéndose con un Content-Type que
   // no corresponde a su contenido real.
-  const rutaArchivo = `${carpetaCurso}/${leccionId}/${randomUUID()}.${extension}`;
-
-  const { error: errorSubida } = await admin.supabase.storage
-    .from(BUCKET_MATERIALES)
-    .upload(rutaArchivo, cuerpo, { contentType });
-
-  if (errorSubida) return { error: "No pudimos subir el archivo." };
+  const rutaFinal = `${carpetaCurso}/${leccionId}/${randomUUID()}.${extension}`;
+  const { error: errorMove } = await admin.supabase.storage.from(BUCKET_MATERIALES).move(ruta, rutaFinal);
+  if (errorMove) return { error: "No pudimos guardar el archivo." };
 
   const { data, error } = await admin.supabase
     .from("recursos_descargables")
     .insert({
       id_leccion: leccionId,
-      nombre: archivo.name,
+      nombre: nombreOriginal,
       tipo_archivo: contentType,
-      url_archivo: rutaArchivo,
+      url_archivo: rutaFinal,
       tamano_bytes: cuerpo.byteLength,
     })
     .select("id, nombre, tipo_archivo, tamano_bytes")
     .single();
 
   if (error) {
-    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([rutaArchivo]);
+    await admin.supabase.storage.from(BUCKET_MATERIALES).remove([rutaFinal]);
     return { error: "No pudimos guardar el material adicional." };
   }
 

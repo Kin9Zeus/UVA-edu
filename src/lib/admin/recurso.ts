@@ -48,13 +48,21 @@ export type RecursoProcesado = {
 };
 
 /**
- * Valida el material adicional de una lección antes de subirlo a Storage.
+ * Valida el material adicional de una lección.
  * A diferencia de la portada, acá no se re-codifica el archivo (un PDF o un
  * ZIP no se pueden "normalizar" como una imagen) — solo se confirma que los
  * bytes reales correspondan a uno de los formatos permitidos.
+ *
+ * P2-7 (AUDIT-2026-09-04.md): recibe `Blob` y no `File` porque desde que la
+ * subida es directa del navegador a Storage (crearSubidaRecurso/
+ * confirmarSubidaRecurso en actions/admin/cursos.ts), esto ya no corre
+ * sobre el archivo recién llegado en el FormData de la Server Action --
+ * corre sobre lo que devuelve `storage.download()` una vez que el archivo
+ * ya está en Storage, que es un Blob (File también lo es, así que las
+ * llamadas existentes con un File del FormData siguen compilando igual).
  */
 export async function procesarRecurso(
-  archivo: File,
+  archivo: Blob,
 ): Promise<{ recurso: RecursoProcesado } | { error: string }> {
   if (archivo.size === 0) return { error: "Selecciona un archivo." };
   if (archivo.size > TAMANO_MAXIMO_RECURSO) return { error: ERROR_TAMANO_RECURSO };

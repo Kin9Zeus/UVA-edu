@@ -4,7 +4,7 @@ export function AuthVisual() {
   return (
     <section
       aria-label="Presentación"
-      className="relative z-[2] flex items-center px-6 pt-6 pb-2 min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:flex-col min-[900px]:justify-between min-[900px]:overflow-hidden min-[900px]:bg-uva-surface/35 min-[900px]:p-11"
+      className="relative z-[2] flex items-center px-6 pt-6 pb-2 min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:flex-col min-[900px]:items-start min-[900px]:justify-between min-[900px]:overflow-hidden min-[900px]:bg-uva-surface/35 min-[900px]:p-11"
     >
       <Link
         href="/"

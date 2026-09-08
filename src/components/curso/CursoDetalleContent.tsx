@@ -1,10 +1,13 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, CircleCheck, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import { SIN_INSTRUCTOR } from "@/lib/instructores";
+import { ExamenCta } from "@/components/examen/ExamenCta";
 import type { CursoPublico } from "@/lib/curso";
+import type { SituacionExamen } from "@/lib/examen";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
@@ -18,9 +21,16 @@ export function CursoDetalleContent({
   curso,
   basePath = "/catalogo",
   sesionActiva,
+  situacionExamen,
 }: {
   curso: CursoPublico;
   basePath?: string;
+  /**
+   * Estado del examen final para este estudiante. `SIN_EXAMEN` (el default,
+   * y lo que devuelve siempre un visitante sin sesión) no pinta nada: la
+   * ficha queda igual que antes de que existieran los exámenes.
+   */
+  situacionExamen?: SituacionExamen;
   /**
    * Sin esto el CTA de "sin acceso" no puede distinguir un visitante
    * anónimo de un estudiante registrado sin código canjeado — son dos
@@ -31,18 +41,17 @@ export function CursoDetalleContent({
    */
   sesionActiva: boolean;
 }) {
-  const primeraLeccionId = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0]
-    ?.id;
+  const primeraLeccion = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0];
   // Vista previa pública (Revcurso: "que la primera lección sea visible"):
   // solo aplica si el curso tiene más de una lección — de una sola clase,
   // esa clase ES el curso completo, no una introducción aparte. Misma
   // guarda que lib/leccion.ts y lib/video/reproduccion.ts.
-  const leccionVistaPreviaId = curso.totalClases > 1 ? primeraLeccionId : undefined;
+  const leccionVistaPreviaId = curso.totalClases > 1 ? primeraLeccion?.id : undefined;
   // Si ya hay progreso guardado en alguna clase del curso, el botón retoma
   // ahí en vez de mandar de nuevo a la primera clase (ver Revcurso: "seguir
   // viendo" solo debe aparecer si el estudiante ya empezó).
   const siguiendoProgreso = curso.progresoIniciado && curso.leccionContinuarId !== null;
-  const leccionDestinoId = siguiendoProgreso ? curso.leccionContinuarId! : primeraLeccionId;
+  const leccionDestinoSlug = siguiendoProgreso ? curso.leccionContinuarSlug! : primeraLeccion?.slug;
   // Si ya completó todo el curso no hay "siguiente" a la que volver: se
   // ofrece repasar desde la primera clase en vez de un botón sin destino.
   const cursoCompletado = curso.progresoIniciado && curso.leccionContinuarId === null;
@@ -140,7 +149,7 @@ export function CursoDetalleContent({
                     return clicable ? (
                       <Link
                         key={leccion.id}
-                        href={`/cursos/${curso.id}/${leccion.id}`}
+                        href={`/cursos/${curso.slug}/${leccion.slug}`}
                         className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
@@ -189,12 +198,15 @@ export function CursoDetalleContent({
       <div className="contents lg:flex lg:flex-col lg:gap-4">
         <div className="order-2 lg:order-none">
           {esPortadaReal(curso.imagenPortada) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-            <img
-              src={curso.imagenPortada}
-              alt=""
-              className="aspect-video w-full rounded-uva-md object-cover"
-            />
+            <div className="relative aspect-video w-full overflow-hidden rounded-uva-md">
+              <Image
+                src={curso.imagenPortada}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 340px"
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="aspect-video overflow-hidden rounded-uva-md" style={PORTADA_TRAMA} />
           )}
@@ -202,9 +214,9 @@ export function CursoDetalleContent({
 
         <div className="order-3 lg:order-none">
           {curso.tieneAcceso ? (
-            leccionDestinoId ? (
+            leccionDestinoSlug ? (
               <Button
-                render={<Link href={`/cursos/${curso.id}/${leccionDestinoId}`} />}
+                render={<Link href={`/cursos/${curso.slug}/${leccionDestinoSlug}`} />}
                 nativeButton={false}
                 variant="uva-primary"
                 size="uva"
@@ -251,7 +263,7 @@ export function CursoDetalleContent({
             </Button>
           ) : (
             <Button
-              render={<Link href={`/login?redirect=/cursos/${curso.id}`} />}
+              render={<Link href={`/login?redirect=/cursos/${curso.slug}`} />}
               nativeButton={false}
               variant="uva-primary"
               size="uva"
@@ -260,6 +272,11 @@ export function CursoDetalleContent({
               Regístrate para canjear tu código
             </Button>
           )}
+
+          {/* Debajo del CTA principal, no en su lugar: seguir viendo clases y
+              presentar el examen son dos acciones distintas y pueden estar
+              disponibles a la vez. */}
+          {situacionExamen && <ExamenCta situacion={situacionExamen} cursoSlug={curso.slug} />}
         </div>
 
         {/* Un bloque por profesor: `curso_instructores` es muchos-a-muchos y un

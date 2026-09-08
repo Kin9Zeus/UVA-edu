@@ -3,8 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
-import { formatDuracion } from "@/lib/admin/format";
+import { ChevronDown, ChevronLeft, ChevronRight, FileCheck, List } from "lucide-react";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
@@ -19,7 +18,9 @@ import {
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
 
-function ProgresoBarra({
+// Tarjeta de refuerzo psicológico: solo el % y cuántas clases faltan, sin la
+// lista de clases (esa vive en TemarioDrawer, no hay que duplicarla).
+function ProgresoCard({
   porcentaje,
   completadas,
   totalClases,
@@ -29,18 +30,23 @@ function ProgresoBarra({
   totalClases: number;
 }) {
   return (
-    <div>
-      <div className="mb-[7px] flex items-baseline gap-2">
-        <span className="font-mono text-xl font-bold text-uva-text">{porcentaje}%</span>
-        <span className="text-xs text-uva-muted">
-          completado · {completadas} de {totalClases} clases
-        </span>
-      </div>
-      <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
-        <div
-          className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
-          style={{ width: `${porcentaje}%` }}
-        />
+    <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+      <h4 className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text">
+        Progreso
+      </h4>
+      <div>
+        <div className="mb-[7px] flex items-baseline gap-2">
+          <span className="font-mono text-xl font-bold text-uva-text">{porcentaje}%</span>
+          <span className="text-xs text-uva-muted">
+            completado · {completadas} de {totalClases} clases
+          </span>
+        </div>
+        <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
+          <div
+            className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
+            style={{ width: `${porcentaje}%` }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -76,7 +82,13 @@ export function PlayerContent({
     void iniciarProgresoLeccion(data.leccionId);
   }, [data.leccionId]);
 
-  const irALeccion = (leccionId: string) => router.push(`/cursos/${data.cursoId}/${leccionId}`);
+  // `data.anteriorId`/`data.siguienteId` y el Temario (TemarioDrawer, también
+  // usado por LeccionVistaPreviaContent con lecciones que no tienen slug)
+  // siguen navegando por id — esta tabla los traduce al slug real de la
+  // lección justo antes de construir la URL.
+  const slugPorLeccionId = new Map(data.lecciones.map((leccion) => [leccion.id, leccion.slug]));
+  const irALeccion = (leccionId: string) =>
+    router.push(`/cursos/${data.cursoSlug}/${slugPorLeccionId.get(leccionId) ?? leccionId}`);
 
   const completadas = [...completadoPorLeccion.values()].filter(Boolean).length;
   const porcentaje =
@@ -115,12 +127,22 @@ export function PlayerContent({
           y siguiente clase, nada más. */}
       <div className="sticky top-0 z-40 -mx-[clamp(20px,3vw,44px)] mb-[18px] flex items-center gap-2 border-b border-uva-divider bg-uva-bg/95 px-[18px] py-3 backdrop-blur lg:hidden">
         <Link
-          href={`/cursos/${data.cursoId}`}
+          href={`/cursos/${data.cursoSlug}`}
           aria-label="Volver al curso"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
         >
           <ChevronDown className="size-5" strokeWidth={2.2} />
         </Link>
+        {data.anteriorId ? (
+          <button
+            type="button"
+            onClick={() => irALeccion(data.anteriorId!)}
+            aria-label="Clase anterior"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
+          >
+            <ChevronLeft className="size-5" strokeWidth={2.2} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setTemarioOpen(true)}
@@ -138,14 +160,25 @@ export function PlayerContent({
           >
             <ChevronRight className="size-5" strokeWidth={2.5} />
           </button>
+        ) : data.examenDisponible ? (
+          // Última clase del curso con examen final: el botón que en el resto
+          // del temario dice "Siguiente clase" pasa a llevar al examen, en vez
+          // de desaparecer y obligar a volver a la ficha del curso.
+          <Link
+            href={`/cursos/${data.cursoSlug}/examen`}
+            aria-label="Hacer examen"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+          >
+            <FileCheck className="size-4" strokeWidth={2.5} />
+          </Link>
         ) : null}
       </div>
 
-      {/* Desktop: barra completa con título, contador, Reportar, Temario y
-          Siguiente clase. */}
+      {/* Desktop: barra completa con título, contador, clase anterior,
+          Temario y Siguiente clase. */}
       <div className="mb-[18px] hidden items-center gap-3.5 rounded-uva-md bg-uva-text/[0.06] px-[18px] py-3 lg:flex">
         <Link
-          href={`/cursos/${data.cursoId}`}
+          href={`/cursos/${data.cursoSlug}`}
           className="inline-flex min-w-0 items-center gap-[7px] rounded-uva-md border-0 bg-transparent px-2 py-1.5 text-sm font-semibold text-uva-text no-underline"
         >
           <ChevronLeft className="size-[15px] shrink-0" strokeWidth={2.75} />
@@ -155,12 +188,16 @@ export function PlayerContent({
           Clase {data.numero} de {data.totalClases}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center rounded-uva-md border-0 bg-transparent px-2 py-1.5 text-[12.5px] font-semibold text-uva-text opacity-60"
-          >
-            Reportar
-          </button>
+          {data.anteriorId ? (
+            <button
+              type="button"
+              onClick={() => irALeccion(data.anteriorId!)}
+              aria-label="Clase anterior"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+            >
+              <ChevronLeft className="size-4" strokeWidth={2.5} />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setTemarioOpen(true)}
@@ -180,11 +217,20 @@ export function PlayerContent({
               Siguiente clase
               <ChevronRight className="size-4" strokeWidth={2.5} />
             </button>
+          ) : data.examenDisponible ? (
+            <Link
+              href={`/cursos/${data.cursoSlug}/examen`}
+              aria-label="Hacer examen"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+            >
+              Hacer examen
+              <FileCheck className="size-4" strokeWidth={2.5} />
+            </Link>
           ) : null}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-[clamp(14px,2vw,24px)] lg:grid-cols-[minmax(0,1fr)_clamp(272px,25vw,352px)]">
+      <div className="grid grid-cols-1 items-start gap-[clamp(14px,2vw,24px)] lg:grid-cols-[minmax(0,1fr)_clamp(360px,32vw,480px)]">
         <div>
           {/* Mobile: el video llega a los bordes de la pantalla (margen
               negativo cancelando el padding del contenedor de la página);
@@ -207,6 +253,12 @@ export function PlayerContent({
             {data.leccionTitulo}
           </h1>
 
+          {/* Mobile: la tarjeta de progreso vive acá, en la columna única;
+              en desktop se muestra en el sidebar (ver más abajo). */}
+          <div className="mt-4 lg:hidden">
+            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+          </div>
+
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
             <TabsHeader
               tab={tab}
@@ -215,63 +267,48 @@ export function PlayerContent({
               totalComentarios={contarComentarios(comentariosIniciales)}
             />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
-            {tab === "resumen" && <ResumenTab resumen={data.resumen} />}
+            {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
             {tab === "comentarios" && (
-              <ComentariosTab
-                cursoId={data.cursoId}
-                leccionId={data.leccionId}
-                comentarios={comentariosIniciales}
-                puedeComentar={data.puedeComentar}
-                usuarioActualId={usuarioActualId}
-                esAdmin={esAdmin}
-                onCambio={() => router.refresh()}
-              />
+              <div className="lg:hidden">
+                <ComentariosTab
+                  ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
+                  leccionId={data.leccionId}
+                  comentarios={comentariosIniciales}
+                  puedeComentar={data.puedeComentar}
+                  usuarioActualId={usuarioActualId}
+                  esAdmin={esAdmin}
+                  onCambio={() => router.refresh()}
+                />
+              </div>
             )}
           </div>
         </div>
 
-        <div className="top-[88px] hidden max-h-[calc(100vh-112px)] flex-col gap-3.5 overflow-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky lg:flex">
-          <div className="flex items-center gap-2">
-            <h4 className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text">
-              Clases y progreso
-            </h4>
-          </div>
+        {/* Desktop: columna derecha con Progreso arriba y Comentarios abajo.
+            Un solo hijo grid acá (este wrapper) para no romper las 2
+            columnas del grid de arriba — si Progreso y Comentarios fueran
+            hijos grid directos, el tercer elemento caería en una fila nueva
+            bajo la columna del video en vez de quedarse a la derecha.
+            La tarjeta de Comentarios sigue deliberadamente NO `sticky`: los
+            dos intentos anteriores con `position: sticky` producían un
+            deslizamiento visible al hacer scroll (primero se despegaba antes
+            de tiempo por tener alto variable, y ajustar el alto a `100vh`
+            para evitarlo dejaba un "alcance" notorio hasta engancharse) —
+            vive en flujo normal, igual que la columna del video, sin ese
+            salto. */}
+        <div className="hidden flex-col gap-[clamp(14px,2vw,24px)] lg:flex">
+          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
 
-          <ProgresoBarra porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
-
-          <div className="flex max-h-[420px] flex-col gap-[5px] overflow-auto">
-            {data.lecciones.map((leccion) => {
-              const estaCompletada = completadoPorLeccion.get(leccion.id) ?? false;
-              const esActual = leccion.id === data.leccionId;
-              const ring = estaCompletada
-                ? "border-uva-accent-2"
-                : esActual
-                  ? "border-uva-accent"
-                  : "border-[#3F3F46]";
-              const fill = estaCompletada ? "bg-uva-accent-2" : "bg-transparent";
-              return (
-                <button
-                  key={leccion.id}
-                  type="button"
-                  onClick={() => irALeccion(leccion.id)}
-                  className={`flex cursor-pointer items-center gap-[11px] rounded-uva-md border-0 px-[11px] py-[9px] text-left ${
-                    esActual ? "bg-uva-accent/14" : "bg-transparent hover:bg-uva-text/5"
-                  }`}
-                >
-                  <div
-                    className={`grid size-5 shrink-0 place-items-center rounded-full border-[1.5px] text-[11px] font-bold text-uva-bg ${ring} ${fill}`}
-                  >
-                    {estaCompletada ? "✓" : ""}
-                  </div>
-                  <div className="min-w-0 flex-1 text-[12.5px] leading-[1.3] text-uva-text">
-                    {leccion.numero} · {leccion.titulo}
-                  </div>
-                  <div className="font-mono text-[11px] text-uva-muted">
-                    {formatDuracion(leccion.duracion)}
-                  </div>
-                </button>
-              );
-            })}
+          <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+            <ComentariosTab
+              ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
+              leccionId={data.leccionId}
+              comentarios={comentariosIniciales}
+              puedeComentar={data.puedeComentar}
+              usuarioActualId={usuarioActualId}
+              esAdmin={esAdmin}
+              onCambio={() => router.refresh()}
+            />
           </div>
         </div>
       </div>

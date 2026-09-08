@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { CursoDeCategoria } from "@/lib/categoria";
 import { esPortadaReal } from "@/lib/media";
 
@@ -13,16 +14,17 @@ const PORTADA_TRAMA = {
 export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
   return (
     <Link
-      href={`/cursos/${curso.id}`}
+      href={`/cursos/${curso.slug}`}
       className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface hover:border-uva-text-faint"
     >
       <div className="relative aspect-video" style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}>
         {esPortadaReal(curso.imagenPortada) && (
-          // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-          <img
+          <Image
             src={curso.imagenPortada}
             alt=""
-            className="absolute inset-0 size-full object-cover"
+            fill
+            sizes="(max-width: 640px) 90vw, 300px"
+            className="object-cover"
           />
         )}
         {esPortadaReal(curso.imagenPortada) && (
@@ -66,7 +68,12 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
         </h3>
         <p className="mt-1.5 truncate text-xs text-uva-muted-2">{curso.instructorNombre}</p>
       </div>
-      <div className="flex items-center gap-2.5 px-4 pt-2.5 pb-3.5 font-mono text-[10px] font-medium tracking-[.12em] text-uva-muted uppercase">
+      {/* mt-auto: la tarjeta (Link) es un flex-col que el grid estira a la
+          altura de la fila (align-items: stretch por defecto); esto empuja
+          la fila de nivel/clases al fondo sin importar cuántas categorías o
+          líneas de título tenga arriba, así queda alineada con sus vecinas
+          de la misma fila. */}
+      <div className="mt-auto flex items-center gap-2.5 px-4 pt-2.5 pb-3.5 font-mono text-[10px] font-medium tracking-[.12em] text-uva-muted uppercase">
         <span>{NIVEL_LABEL[curso.nivel]}</span>
         <span className="ml-auto">
           {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}

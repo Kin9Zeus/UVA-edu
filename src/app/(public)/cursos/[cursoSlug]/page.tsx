@@ -5,20 +5,22 @@ import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
+import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
+import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ cursoSlug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { cursoSlug } = await params;
   const { user } = await getPerfilActual();
-  const curso = await getCursoPublico(id, user?.id ?? null);
+  const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
   if (!curso) return { title: "U.V.A. — Curso" };
 
@@ -30,6 +32,14 @@ export async function generateMetadata({
   return {
     title: titulo,
     description: curso.descripcion,
+    // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
+    // slug como por UUID (fallback para enlaces viejos, ver esUuid() en
+    // lib/slug.ts) -- sin esto, /cursos/<uuid> y /cursos/<slug> son dos
+    // URLs que Google ve como contenido duplicado. Apunta siempre a la
+    // versión con slug, sin importar cuál usó quien pidió la página.
+    alternates: {
+      canonical: `${siteUrl()}/cursos/${curso.slug}`,
+    },
     openGraph: {
       title: titulo,
       description: curso.descripcion,
@@ -47,16 +57,20 @@ export async function generateMetadata({
 export default async function CursoDetallePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ cursoSlug: string }>;
 }) {
-  const { id } = await params;
+  const { cursoSlug } = await params;
   const perfilActual = await getPerfilActual();
   const { user } = perfilActual;
-  const curso = await getCursoPublico(id, user?.id ?? null);
+  const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
   if (!curso) {
     notFound();
   }
+
+  // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es
+  // contenido público, así que la ficha anónima no cambia en nada.
+  const situacionExamen = await getSituacionExamen(curso.id, user?.id ?? null);
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
 
@@ -65,7 +79,12 @@ export default async function CursoDetallePage({
       <>
         <SiteHeader {...perfilActual} />
         <main>
-          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva={false} />
+          <CursoDetalleContent
+            curso={curso}
+            basePath={basePath}
+            sesionActiva={false}
+            situacionExamen={situacionExamen}
+          />
         </main>
         <Footer />
       </>
@@ -93,9 +112,13 @@ export default async function CursoDetallePage({
           diasGracia={diasGracia}
         />
         <main className="pb-20 md:pb-0">
-          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva />
+          <CursoDetalleContent
+            curso={curso}
+            basePath={basePath}
+            sesionActiva
+            situacionExamen={situacionExamen}
+          />
         </main>
-        <Footer />
         <BottomTabBar />
       </div>
     </div>

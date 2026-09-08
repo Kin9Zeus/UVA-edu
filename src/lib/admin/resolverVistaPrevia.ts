@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluarToken, hashToken, type EstadoTokenVistaPrevia } from "@/lib/vistaPrevia";
+import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 
 /**
  * ⚠️  ÚNICO punto de la aplicación que lee un curso NO publicado sin sesión.
@@ -183,7 +184,7 @@ export type LeccionVistaPrevia = {
   leccionTitulo: string;
   numero: number;
   totalClases: number;
-  resumen: string | null;
+  contenido: DocumentoContenido | null;
   recursos: { id: string; nombre: string; tipoArchivo: string; tamanoBytes: number | null }[];
   lecciones: LeccionEnListaVistaPrevia[];
   anteriorId: string | null;
@@ -219,7 +220,7 @@ export async function getLeccionVistaPrevia(
   const supabase = createAdminClient();
 
   const [{ data: detalle }, { data: recursos }] = await Promise.all([
-    supabase.from("lecciones").select("resumen").eq("id", leccionId).maybeSingle(),
+    supabase.from("lecciones").select("resumen, contenido").eq("id", leccionId).maybeSingle(),
     supabase
       .from("recursos_descargables")
       .select("id, nombre, tipo_archivo, tamano_bytes")
@@ -235,7 +236,7 @@ export async function getLeccionVistaPrevia(
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases: plano.length,
-    resumen: detalle?.resumen ?? null,
+    contenido: resolverContenidoLeccion(detalle?.contenido ?? null, detalle?.resumen ?? null),
     recursos: (recursos ?? []).map((recurso) => ({
       id: recurso.id,
       nombre: recurso.nombre,

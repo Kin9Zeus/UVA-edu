@@ -9,17 +9,14 @@ import {
 import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
+import { TEMAS_SOPORTE } from "@/lib/soporte";
 
-// La columna "Escuelas" sale de la tabla `categorias`; estas dos son
-// contenido editorial del sitio, sin fuente en base de datos.
+// La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
+// editorial del sitio, sin fuente en base de datos.
 const columns = [
   {
     heading: "U.V.A. y comunidad",
     links: ["Sobre nosotros", "Blog del gremio", "Casos de éxito", "Empleo"],
-  },
-  {
-    heading: "Soporte",
-    links: ["Centro de ayuda", "Contacto", "Términos", "Privacidad"],
   },
 ];
 
@@ -94,7 +91,10 @@ export async function Footer() {
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
-                    <Link href={`/catalogo/${escuela.slug}`} className={linkClass}>
+                    <Link
+                      href={`/catalogo/${escuela.slug}`}
+                      className={linkClass}
+                    >
                       {escuela.nombre}
                     </Link>
                   </li>
@@ -118,6 +118,21 @@ export async function Footer() {
             </div>
           ))}
 
+          {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
+              desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
+          <div>
+            <p className={headingClass}>Soporte</p>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {TEMAS_SOPORTE.map((tema) => (
+                <li key={tema.id}>
+                  <Link href={`/soporte?tema=${tema.id}`} className={linkClass}>
+                    {tema.titulo}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div>
             <p className={headingClass}>Verificar certificado</p>
             <p className="mb-2.5 text-[13px] text-uva-text-muted">
@@ -135,9 +150,9 @@ export async function Footer() {
             {socials.map(({ label, Icon, href }) => (
               <a
                 key={label}
-                href={href ?? "#"}
-                target={href ? "_blank" : undefined}
-                rel={href ? "noopener noreferrer" : undefined}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label={label}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-bg even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-bg hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
               >

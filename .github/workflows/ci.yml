@@ -1,25 +1,42 @@
 name: CI
 
 # P1-2 (AUDIT-2026-08-26.md): antes de esto, nada impedía mergear código que
-# ni siquiera compila. Dos jobs:
+# ni siquiera compila. Tres jobs:
 #   - checks: tsc, lint, vitest — puro, sin secretos, corre en cualquier PR
 #     (incluidas las de forks, que no reciben secretos de todas formas).
 #   - rls: aplica las migraciones de Prisma y los 32 scripts de RLS contra
 #     el proyecto real de Supabase y corre test:rls. Necesita secretos, así
-#     que solo corre en push a master y en PRs del propio repo (GitHub no
-#     expone secretos a PRs de forks, así que esto es automático, no una
-#     condición que haya que mantener).
+#     que solo corre en push a master y en PRs del propio repo abiertas por
+#     una persona. Los forks quedan fuera solos (GitHub no les expone
+#     secretos), pero Dependabot NO: empuja la rama a este mismo repo, así
+#     que pasa el filtro de fork, y aun así GitHub corre sus eventos
+#     `pull_request` con permisos de fork — sin acceso a los secrets de
+#     Actions ni a los del environment. `secrets.DATABASE_URL` llegaba
+#     vacío y `prisma migrate deploy` moría con "Connection url is empty"
+#     (PR #7). De ahí la exclusión explícita: darle esos secretos a
+#     Dependabot por su almacén propio expondría la base real a un flujo
+#     automático que instala dependencias de terceros recién publicadas.
+#   - e2e: recorrido crítico y casos límite de canje/acceso (Playwright) +
+#     canje concurrente (test:canje) — tarea "Pruebas E2E del flujo de canje
+#     de código y acceso" (docs/qa/bugs-e2e.md). SOLO en push a master (ni
+#     siquiera en PRs del propio repo, a diferencia de `rls`): estos specs sí
+#     llaman signUp()/resetPasswordForEmail() de verdad contra el proyecto
+#     compartido con producción, y BUG-002 (docs/qa/bugs-e2e.md) ya mostró
+#     que el Rate Limit de Auth de Supabase se agota con pocos intentos
+#     seguidos — correrlo en cada PR multiplicaría cuánto se golpea ese
+#     límite sin necesidad. `workflow_dispatch` queda como válvula manual.
 #
-# Por qué el job de RLS NO usa una base efímera (el plan original de la
-# auditoría decía "prisma migrate deploy contra una base efímera"): los 32
-# scripts de supabase/sql/ dependen del schema `auth` de Supabase en toda su
-# extensión (auth.uid(), el trigger sobre auth.users, auth.identities) — el
-# mismo motivo, documentado en scripts/apply-rls.ts, por el que estos
-# scripts no pueden vivir en prisma/migrations/. Un contenedor de Postgres
-# en el runner no tiene ese schema. Sin un stack local de Supabase CLI
-# (`supabase start`) configurado en el repo, la única base que sí lo tiene
-# es el proyecto real — el mismo que ya usan db:rls/test:rls en local. Es
-# una desviación consciente del texto original, no un descuido.
+# Por qué el job de RLS (ni el de e2e) NO usa una base efímera (el plan
+# original de la auditoría decía "prisma migrate deploy contra una base
+# efímera"): los 32 scripts de supabase/sql/ dependen del schema `auth` de
+# Supabase en toda su extensión (auth.uid(), el trigger sobre auth.users,
+# auth.identities) — el mismo motivo, documentado en scripts/apply-rls.ts,
+# por el que estos scripts no pueden vivir en prisma/migrations/. Un
+# contenedor de Postgres en el runner no tiene ese schema. Sin un stack
+# local de Supabase CLI (`supabase start`) configurado en el repo, la única
+# base que sí lo tiene es el proyecto real — el mismo que ya usan
+# db:rls/test:rls/test:e2e/test:canje en local. Es una desviación consciente
+# del texto original, no un descuido.
 
 on:
   pull_request:
@@ -37,6 +54,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # fetch-depth: 0 (historial completo) para que
+          # verificar-migraciones-reversibles.ts pueda calcular el merge-base
+          # contra origin/master — un clon superficial (depth 1, el default)
+          # no tiene la historia común y el diff de tres puntos falla.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -45,6 +68,14 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Verificar que las migraciones nuevas sean reversibles
+        # Plan de reversión (docs/ops/plan-de-reversion.md): Railway
+        # revierte el código al hacer rollback, nunca la base de datos —
+        # un DROP/RENAME en una migración ya aplicada deja el rollback
+        # sirviendo un build viejo contra un esquema que ya no tiene lo
+        # que ese build espera.
+        run: npm run verificar:migraciones-reversibles -- origin/master
 
       - name: Generar tipos de rutas de Next.js
         # LayoutProps/PageProps/RouteContext (src/app/layout.tsx y otros) son
@@ -66,11 +97,26 @@ jobs:
       - name: Pruebas unitarias (vitest)
         run: npm test
 
-      - name: Auditoría de dependencias (no bloqueante)
-        # P2-4: quedan 3 advisories `high` en la cadena de build de Prisma
-        # (deepmerge-ts vía @prisma/config) sin parche no-mayor disponible.
-        # No bloquea el merge hasta que Prisma publique uno; se deja visible
-        # en el log para no perderlo de vista.
+      - name: Auditoría de dependencias en producción (bloqueante)
+        # P2-4 (AUDIT-2026-09-04.md): el paso único de abajo (sin --omit)
+        # nunca podía ser bloqueante porque mezclaba dev-tooling (lhci,
+        # shadcn) con lo que de verdad corre en el servidor -- así que
+        # llevaba `continue-on-error: true` sin distinguir "ya lo conocemos"
+        # de "esto es nuevo", y el contador subió 4 veces sin que nadie se
+        # enterara. `--omit=optional` además de `--omit=dev` es necesario:
+        # mysql2/deepmerge-ts/@prisma/config son optionalDependencies de
+        # @prisma/client para adaptadores de driver que este proyecto no usa
+        # en runtime (grep confirma que solo prisma/seed.ts, un script de
+        # desarrollo, importa @prisma/adapter-pg) -- `--omit=dev` por sí solo
+        # no las excluye porque son optional, no dev.
+        run: npm audit --omit=dev --omit=optional --audit-level=high
+
+      - name: Auditoría de dependencias completa (no bloqueante)
+        # Incluye dev-tooling (lhci -> lighthouse/puppeteer, y la cadena de
+        # build de Prisma -- deepmerge-ts vía @prisma/config -- que sigue sin
+        # parche no-mayor incluso en prisma@8.0.0-rc.13, la última). Ninguna
+        # está en el camino de una petición real. Se deja visible en el log,
+        # sin bloquear, para no perder de vista si sube el contador.
         run: npm audit --audit-level=high
         continue-on-error: true
 
@@ -78,7 +124,17 @@ jobs:
     name: Migraciones, RLS y autorización (base real)
     needs: checks
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request' }}
+    # Acotada a `pull_request` a propósito. Un `github.actor !=
+    # 'dependabot[bot]'` suelto aplicaría también a `push`, y entonces un
+    # merge hecho por el bot (auto-merge, merge queue) saltaría las
+    # migraciones en master en silencio, con el job en verde. Y se compara
+    # `pull_request.user.login` (el autor del PR, inmutable) en vez de
+    # `github.actor`, para que un re-run manual no reactive un job que
+    # seguiría sin secretos.
+    if: >-
+      ${{ github.event_name != 'pull_request'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]') }}
     environment: supabase-test
     steps:
       - uses: actions/checkout@v5
@@ -93,6 +149,15 @@ jobs:
 
       - name: Migraciones de Prisma
         run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verificar que toda FK tenga índice de cobertura
+        # P2-3 (AUDIT-2026-09-04.md): tercera vez que "FK sin índice"
+        # aparece como hallazgo de auditoría en vez de detectarse solo. Va
+        # justo después de las migraciones porque FKs e índices son
+        # esquema (Prisma), no RLS -- no depende de los pasos de abajo.
+        run: npm run db:check-fk-indexes
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -120,3 +185,51 @@ jobs:
           # supabase-test`), separado del de Railway.
           MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+  e2e:
+    name: E2E — canje/acceso (Playwright) y canje concurrente
+    needs: rls
+    runs-on: ubuntu-latest
+    # Solo push a master (ver comentario de arriba) o disparo manual — nunca
+    # en PRs, ni siquiera del propio repo.
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch' }}
+    environment: supabase-test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Recorrido crítico y casos límite (Playwright)
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Firman el playback token de Mux (resolverTokenReproduccion) —
+          # sin esto, cualquier spec que reproduzca video falla con "Signing
+          # key required", no por un bug real (mismo motivo que en `rls`).
+          MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+      - name: Canje concurrente del último cupo (test:canje)
+        run: npm run test:canje
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Subir trazas de Playwright si algo falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

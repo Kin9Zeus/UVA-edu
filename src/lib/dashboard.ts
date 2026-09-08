@@ -4,7 +4,9 @@ import type { CategoriaChip } from "@/lib/categoria";
 
 export type ClaseEnProgreso = {
   leccionId: string;
+  leccionSlug: string;
   cursoId: string;
+  cursoSlug: string;
   cursoTitulo: string;
   imagenPortada: string;
   moduloTitulo: string;
@@ -48,7 +50,7 @@ export async function getInicioData() {
 
   const { data: progresoCursos } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas")
+    .select("curso_id, curso_slug, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas")
     .order("ultima_actividad", { ascending: false });
 
   // Ya en orden de última actividad (la vista ordena así) y ya sin los
@@ -86,7 +88,7 @@ export async function getInicioData() {
     // tabla por separado.
     const { data: moduloRows } = await supabase
       .from("modulos")
-      .select("orden, titulo, lecciones(id, orden, duracion, estado_procesamiento, progreso(completado))")
+      .select("orden, titulo, lecciones(id, slug, orden, duracion, estado_procesamiento, progreso(completado))")
       .eq("id_curso", curso.curso_id)
       .order("orden");
 
@@ -100,6 +102,7 @@ export async function getInicioData() {
           .sort((a, b) => a.orden - b.orden)
           .map((leccion) => ({
             id: leccion.id as string,
+            slug: leccion.slug as string,
             duracion: leccion.duracion as number | null,
             completada: !!leccion.progreso?.[0]?.completado,
             moduloTitulo: modulo.titulo as string,
@@ -121,7 +124,9 @@ export async function getInicioData() {
 
     sigueAprendiendo.push({
       leccionId: siguiente.id,
+      leccionSlug: siguiente.slug,
       cursoId: curso.curso_id as string,
+      cursoSlug: curso.curso_slug as string,
       cursoTitulo: curso.titulo as string,
       imagenPortada: curso.imagen_portada as string,
       moduloTitulo: siguiente.moduloTitulo,

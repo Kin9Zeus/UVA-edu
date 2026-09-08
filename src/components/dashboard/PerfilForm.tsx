@@ -18,6 +18,7 @@ import {
   type ActualizarPerfilState,
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
+import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 
@@ -148,34 +149,30 @@ export function PerfilForm({
                   >
                     <SelectTrigger
                       aria-label="Indicativo del país"
-                      className="h-10 w-[112px] shrink-0 bg-uva-surface"
+                      className="h-10 w-[104px] shrink-0 bg-uva-surface"
                     >
                       <SelectValue>
                         {(codigo: string) => {
                           const pais = buscarPaisPorCodigo(codigo);
                           return (
                             <>
-                              <span
-                                aria-hidden
-                                className="rounded-uva-xs bg-uva-hover px-1 font-mono text-[10px] text-uva-text-faint"
-                              >
-                                {pais.codigo}
-                              </span>
+                              <span aria-hidden className={`fi fi-${pais.codigo.toLowerCase()} rounded-[2px]`} />
                               {pais.indicativo}
                             </>
                           );
                         }}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    {/* alignItemWithTrigger=false: el default centra la lista en el país
+                        ya seleccionado (como un <select> nativo), lo que la hace "emerger"
+                        sin animación desde la mitad de la fila y taparla. Un dropdown
+                        anclado normal, con su altura ya acotada al espacio disponible
+                        (max-h-(--available-height) en SelectContent), se ve mucho más
+                        prolijo y no se sale de la pantalla. */}
+                    <SelectContent alignItemWithTrigger={false} className="max-h-72">
                       {PAISES.map((pais) => (
                         <SelectItem key={pais.codigo} value={pais.codigo}>
-                          <span
-                            aria-hidden
-                            className="rounded-uva-xs bg-uva-hover px-1 font-mono text-[10px] text-uva-text-faint"
-                          >
-                            {pais.codigo}
-                          </span>
+                          <span aria-hidden className={`fi fi-${pais.codigo.toLowerCase()} rounded-[2px]`} />
                           {pais.indicativo}
                           <span className="text-uva-text-faint">{pais.nombre}</span>
                         </SelectItem>
@@ -231,6 +228,8 @@ export function PerfilForm({
             </div>
           </form>
         </div>
+
+        <CambiarPasswordForm />
       </div>
 
       <div className="flex flex-col gap-4">

@@ -75,7 +75,7 @@ export function CrearCursoForm({
     return () => window.removeEventListener("beforeunload", avisar);
   }, [hayCambiosSinGuardar]);
 
-  useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
+  const dialogAvisoNavegacion = useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
 
   // El curso todavía no existe mientras se llena este formulario (no hay
   // cursoId para subirla ya), así que la imagen se guarda en memoria y solo
@@ -303,6 +303,8 @@ export function CrearCursoForm({
           Cancelar
         </Button>
       </div>
+
+      {dialogAvisoNavegacion}
     </div>
   );
 }

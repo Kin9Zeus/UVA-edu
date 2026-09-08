@@ -88,6 +88,43 @@ enum TipoAcceso {
   CORTESIA
 }
 
+/// Tipo de pregunta de un examen final (ver docs/functional-spec.md Flujo 14).
+///
+/// El enum enumera los SIETE tipos del diseño, pero la v1 solo implementa los
+/// cuatro "cerrados" (autocalificables sin intervención humana):
+/// OPCION_UNICA, OPCION_MULTIPLE, VERDADERO_FALSO y RELLENAR_ESPACIO.
+///
+/// ORDENAR_PASOS, EMPAREJAR y RESPUESTA_ABIERTA quedan declarados desde ya, a
+/// propósito: agregar un valor a un enum de Postgres en caliente obliga a un
+/// `ALTER TYPE ... ADD VALUE`, que no corre dentro del mismo bloque
+/// transaccional que lo usa. Declararlos ahora hace que la Fase 2
+/// (docs/development-plan.md, "Exámenes — Fase 2") sea solo UI y calificación,
+/// sin migración de tipo. `esTipoImplementado()` (src/lib/examenes/tipos.ts)
+/// es el único punto que decide cuáles acepta la app hoy.
+enum TipoPregunta {
+  OPCION_UNICA
+  OPCION_MULTIPLE
+  VERDADERO_FALSO
+  RELLENAR_ESPACIO
+  ORDENAR_PASOS
+  EMPAREJAR
+  RESPUESTA_ABIERTA
+}
+
+/// EN_CURSO: el estudiante lo abrió y todavía no lo envió (o se le venció el
+/// tiempo sin enviar — lo cierra el propio envío, ver `enviarIntento`).
+/// APROBADO/REPROBADO: ya calificado contra `Examenes.nota_aprobatoria`.
+/// EN_REVISION: enviado, pero con preguntas de tipo RESPUESTA_ABIERTA que un
+/// administrador todavía no calificó a mano. No se produce en la v1 (que solo
+/// admite tipos cerrados); existe para la Fase 2, mismo motivo que los valores
+/// no implementados de `TipoPregunta`.
+enum EstadoIntentoExamen {
+  EN_CURSO
+  APROBADO
+  REPROBADO
+  EN_REVISION
+}
+
 // ============================================================
 // Módulo de Usuarios y Membresía
 // ============================================================
@@ -134,7 +171,9 @@ model Perfiles {
   instructor_vinculado        Instructores?            @relation("InstructorEsPerfil")
   comentarios                 Comentarios[]
   comentario_likes            ComentarioLikes[]
+  comentarios_moderados       ComentarioModeracion[]
   cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
+  intentos_examen             IntentosExamen[]
 
   @@map("perfiles")
 }
@@ -291,6 +330,10 @@ model Suscripciones {
   @@index([id_cliente_externo])
   @@index([id_cupon])
   @@index([id_codigo_invitacion])
+  /// P2-3 (AUDIT-2026-09-04.md): "otorgamientos/revocaciones de este
+  /// administrador" (bitácora, panel de usuarios) hacía seq scan sin esto.
+  @@index([otorgado_por])
+  @@index([cancelado_por])
   // Dos índices únicos PARCIALES viven como SQL crudo, no como @@unique
   // (Prisma no soporta WHERE en índices únicos nativos):
   //   - suscripcion_activa_unica_por_usuario (id_usuario) WHERE estado IN
@@ -392,6 +435,9 @@ model TokensVistaPrevia {
   admin_creador Perfiles? @relation("TokensVistaPreviaCreadosPorAdmin", fields: [id_admin_creador], references: [id])
 
   @@index([id_curso])
+  /// P2-3 (AUDIT-2026-09-04.md): "tokens de vista previa creados por este
+  /// administrador" hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("tokens_vista_previa")
 }
 
@@ -452,12 +498,22 @@ model Instructores {
   perfil_profesor Perfiles? @relation("InstructorEsPerfil", fields: [id_perfil_profesor], references: [id])
   cursos          Cursos[]
 
+  /// P2-3 (AUDIT-2026-09-04.md): "instructores creados por este
+  /// administrador" hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("instructores")
 }
 
 model Cursos {
   id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   titulo              String
+  /// Identificador legible para la URL pública del curso y sus lecciones
+  /// (/cursos/render-fotorrealista-con-v-ray en vez de /cursos/<uuid>). Lo
+  /// genera la app desde `titulo` con slugificar() (src/lib/slug.ts), mismo
+  /// patrón que `Categorias.slug`; único porque dos cursos no pueden
+  /// compartir URL. Las rutas públicas siguen aceptando el UUID además del
+  /// slug (mismo criterio que `resolverCategoria`, lib/categoria.ts).
+  slug                String     @unique
   descripcion         String
   imagen_portada      String
   /// ⚠️ COLUMNA VESTIGIAL — ninguna capa de la aplicación la lee ni la
@@ -487,6 +543,8 @@ model Cursos {
   /// Quién dicta el curso: 1 o más cuentas con rol PROFESOR.
   instructores        CursoInstructores[]
   tokens_vista_previa TokensVistaPrevia[]
+  /// Como máximo uno (ver el `@unique` de `Examenes.id_curso`).
+  examen              Examenes?
 
   @@index([id_instructor])
   @@index([id_admin_creador])
@@ -537,6 +595,13 @@ model Lecciones {
   id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_modulo            String                     @db.Uuid
   titulo               String
+  /// Identificador legible para la URL pública de la lección, único dentro
+  /// del curso (no globalmente — dos cursos distintos sí pueden repetir,
+  /// p. ej., "introduccion"). Sin índice UNIQUE de Postgres porque esta
+  /// tabla no tiene `id_curso` directo (solo vía `modulo.id_curso`); la
+  /// unicidad por curso la garantiza la app al generarlo (mismo patrón que
+  /// `Cursos.slug`, ver src/lib/slug.ts).
+  slug                 String
   orden                Int                        @default(0)
   /// Playback ID de Mux (docs/technical-spec.md §4) — se escribe recién en
   /// video.asset.ready. No se toca al reemplazar el video hasta que el
@@ -556,7 +621,18 @@ model Lecciones {
   /// Mensaje de Mux cuando estado_procesamiento = ERROR (video.asset.errored
   /// o video.upload.cancelled). Null en cualquier otro estado.
   error_procesamiento  String?
+  /// Legado: resumen en texto plano, reemplazado por `contenido` (editor
+  /// enriquecido). Ya no se escribe desde la app — se conserva solo como
+  /// respaldo de lecciones sembradas antes de este campo; getCursoDetalle,
+  /// getLeccionPlayer y getLeccionVistaPrevia lo usan como valor inicial de
+  /// `contenido` (un único párrafo) cuando la lección todavía no tiene JSON
+  /// propio, para no perder texto ya publicado.
   resumen              String?
+  /// Documento JSON de Tiptap/ProseMirror con el contenido enriquecido de la
+  /// lección (texto con formato, listas, citas, bloques de código, etc.).
+  /// Fuente de verdad del contenido — nunca se guarda HTML. Validado contra
+  /// contenidoLeccionSchema (src/lib/editor/tipos.ts) antes de escribir.
+  contenido            Json?
   creado_en            DateTime                   @default(now()) @db.Timestamptz
   actualizado_en       DateTime                   @updatedAt @db.Timestamptz
 
@@ -591,7 +667,152 @@ model MuxAssetsPendientesEliminacion {
   leccion Lecciones? @relation(fields: [id_leccion], references: [id], onDelete: SetNull)
 
   @@index([eliminado])
+  /// P2-3 (AUDIT-2026-09-04.md): mux:verificar-atascados busca por
+  /// id_leccion además de eliminado -- hacía seq scan sin esto.
+  @@index([id_leccion])
   @@map("mux_assets_pendientes_eliminacion")
+}
+
+// ============================================================
+// Módulo de Evaluación (exámenes finales)
+// ============================================================
+
+/// Examen final de un curso. `@unique` en `id_curso`: un curso tiene como
+/// máximo UN examen final (no es una tabla de "cuestionarios por módulo").
+///
+/// Su ausencia es significativa — la regla de certificación
+/// (`private.curso_esta_completo`, supabase/sql/068) exige aprobar examen
+/// SOLO si existe uno publicado para el curso. Un curso sin fila acá, o con
+/// `publicado = false`, certifica con el 100% de lecciones igual que antes de
+/// que existiera este módulo: quien crea el curso decide si su curso necesita
+/// examen o no.
+model Examenes {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso              String   @unique @db.Uuid
+  titulo                String
+  /// Instrucciones que el estudiante lee antes de iniciar (documento Tiptap,
+  /// mismo formato que `Lecciones.contenido`).
+  instrucciones         Json?
+  /// Porcentaje mínimo para aprobar. El default y el piso duro son 75 (regla
+  /// de negocio, docs/functional-spec.md Flujo 14): la restricción
+  /// `examenes_nota_aprobatoria_minima` lo impone en la base, no solo en el
+  /// formulario — el admin puede exigir MÁS, nunca menos.
+  nota_aprobatoria      Int      @default(75)
+  /// Intentos permitidos por estudiante. `null` = sin límite.
+  intentos_maximos      Int?     @default(3)
+  /// Minutos de duración del intento. `null` = sin límite de tiempo. El corte
+  /// real se valida contra `IntentosExamen.iniciado_en` en el servidor, nunca
+  /// contra el reloj del cliente.
+  minutos_limite        Int?
+  aleatorizar_preguntas Boolean  @default(true)
+  aleatorizar_opciones  Boolean  @default(true)
+  /// Mientras es false el examen no existe para el estudiante y no bloquea la
+  /// certificación de nadie — así se arma con calma en un curso que ya tiene
+  /// estudiantes activos, igual que `Cursos.mostrado`.
+  publicado             Boolean  @default(false)
+  creado_en             DateTime @default(now()) @db.Timestamptz
+  actualizado_en        DateTime @updatedAt @db.Timestamptz
+
+  curso     Cursos            @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  preguntas PreguntasExamen[]
+  intentos  IntentosExamen[]
+
+  @@map("examenes")
+}
+
+/// Una pregunta del examen. `enunciado` es un documento Tiptap (mismo
+/// `contenidoLeccionSchema` que valida `Lecciones.contenido`) para que una
+/// pregunta pueda llevar listas, citas o bloques de código — no solo texto
+/// plano.
+///
+/// `opciones` guarda la forma propia de cada tipo, validada en el servidor por
+/// el discriminated union de `src/lib/examenes/tipos.ts` antes de escribir:
+///   OPCION_UNICA / OPCION_MULTIPLE / VERDADERO_FALSO
+///     -> [{ id, texto, correcta }]
+///   RELLENAR_ESPACIO
+///     -> null; la respuesta vive en `respuestas_aceptadas`
+///
+/// ⚠️ Esta tabla contiene las respuestas correctas. RLS le abre SELECT solo a
+/// administradores (supabase/sql/067): el estudiante NUNCA la lee directo —
+/// recibe las preguntas ya despojadas de `correcta`/`respuestas_aceptadas`
+/// por `prepararPreguntasParaEstudiante()`.
+model PreguntasExamen {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_examen            String       @db.Uuid
+  tipo                 TipoPregunta
+  enunciado            Json
+  /// Peso de la pregunta en el puntaje final. El % del intento es
+  /// (puntos obtenidos / puntos posibles) * 100, no un conteo de preguntas.
+  puntos               Int          @default(1)
+  /// Fraccionado igual que `Modulos.orden` / `Lecciones.orden` — ver
+  /// src/lib/orden.ts, mismo drag & drop que el temario.
+  orden                Int          @default(0)
+  opciones             Json?
+  /// Solo RELLENAR_ESPACIO: variantes aceptadas como correctas, ya
+  /// normalizadas al guardar (minúsculas, sin tildes, sin espacios de sobra —
+  /// `normalizarRespuestaCorta()`). Comparar contra una lista y no contra un
+  /// único string es lo que evita reprobar a alguien por escribir "V-Ray" en
+  /// vez de "vray".
+  respuestas_aceptadas String[]
+  /// Feedback pedagógico. NO se le muestra al estudiante en la v1 mientras le
+  /// queden intentos (decisión de producto: con 3 intentos, mostrarlo permite
+  /// reconstruir el examen completo). Se guarda para la revisión posterior y
+  /// para el reporte del admin.
+  explicacion          Json?
+  creado_en            DateTime     @default(now()) @db.Timestamptz
+  actualizado_en       DateTime     @updatedAt @db.Timestamptz
+
+  examen Examenes @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+
+  @@index([id_examen, orden])
+  @@map("preguntas_examen")
+}
+
+/// Un intento de examen de un estudiante.
+///
+/// `preguntas_congeladas` es el contrato del intento: al iniciarlo se copia
+/// ahí la pregunta completa —enunciado, opciones y respuestas correctas— en el
+/// orden aleatorizado que le tocó a ESE estudiante. Mismo criterio que el
+/// snapshot de `Certificados.nombre_estudiante` (supabase/sql/047): si el
+/// admin edita, reordena o borra una pregunta mientras alguien está rindiendo,
+/// el intento en curso se califica contra lo que el estudiante realmente vio,
+/// no contra lo que quedó en la tabla después.
+///
+/// Sin `@@unique([id_usuario, id_examen])`: los reintentos son varias filas a
+/// propósito (el historial es la evidencia de cuántos intentos consumió). La
+/// unicidad que sí importa —un solo intento EN_CURSO por estudiante— la impone
+/// el índice parcial `intentos_examen_uno_en_curso` de la migración, que Prisma
+/// no sabe expresar.
+model IntentosExamen {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_examen            String              @db.Uuid
+  id_usuario           String              @db.Uuid
+  estado               EstadoIntentoExamen @default(EN_CURSO)
+  /// Porcentaje obtenido, 0-100 con dos decimales. `null` mientras EN_CURSO.
+  puntaje_pct          Decimal?            @db.Decimal(5, 2)
+  /// Copia de `Examenes.nota_aprobatoria` al iniciar: si el admin sube el
+  /// umbral después, un intento ya rendido no cambia de resultado.
+  nota_requerida       Int
+  preguntas_congeladas Json
+  /// Respuestas dadas, indexadas por id de pregunta. Se reescribe completo en
+  /// cada autoguardado.
+  respuestas           Json                @default("{}")
+  iniciado_en          DateTime            @default(now()) @db.Timestamptz
+  finalizado_en        DateTime?           @db.Timestamptz
+  /// Momento a partir del cual el servidor rechaza el envío por tiempo
+  /// agotado. Se calcula al iniciar (iniciado_en + minutos_limite) y se
+  /// congela acá para que cambiar `minutos_limite` no altere intentos en
+  /// curso. `null` = examen sin límite de tiempo.
+  expira_en            DateTime?           @db.Timestamptz
+  creado_en            DateTime            @default(now()) @db.Timestamptz
+  actualizado_en       DateTime            @updatedAt @db.Timestamptz
+
+  examen  Examenes @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+  usuario Perfiles @relation(fields: [id_usuario], references: [id])
+
+  @@index([id_usuario, id_examen])
+  @@index([id_examen])
+  @@map("intentos_examen")
 }
 
 // ============================================================
@@ -698,6 +919,9 @@ model CodigosInvitacion {
   suscripciones Suscripciones[]
 
   @@index([id_lote])
+  /// P2-3 (AUDIT-2026-09-04.md): "códigos creados por este administrador"
+  /// hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("codigos_invitacion")
 }
 
@@ -725,6 +949,9 @@ model LotesCodigosInvitacion {
   admin_creador Perfiles?           @relation("LotesCodigosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   codigos       CodigosInvitacion[]
 
+  /// P2-3 (AUDIT-2026-09-04.md): "lotes creados por este administrador"
+  /// hacía seq scan sin esto.
+  @@index([id_admin_creador])
   @@map("lotes_codigos_invitacion")
 }
 
@@ -776,6 +1003,10 @@ model Inscripciones {
 
   @@unique([id_usuario, id_curso])
   @@index([id_curso])
+  /// P2-3 (AUDIT-2026-09-04.md): "otorgamientos/revocaciones de este
+  /// administrador" hacía seq scan sin esto.
+  @@index([otorgado_por])
+  @@index([revocado_por])
   @@map("inscripciones")
 }
 
@@ -832,6 +1063,12 @@ model Comentarios {
   id_leccion          String   @db.Uuid
   id_usuario          String   @db.Uuid
   id_comentario_padre String?  @db.Uuid
+  /// Vacío desde que el comentario está `eliminado`: el borrado lógico ya
+  /// no conserva el texto acá (ver actions/comentarios/eliminar.ts) porque
+  /// RLS solo protege filas, no columnas — cualquiera con acceso a la
+  /// lección podía leer el contenido "borrado" directo desde el cliente.
+  /// La copia para moderación de un borrado hecho por un admin vive en
+  /// `ComentarioModeracion`, con su propio RLS solo-admin.
   contenido           String
   /// Borrado lógico, nunca DELETE: un comentario raíz puede tener
   /// respuestas, y borrarlas junto con él las dejaría huérfanas de
@@ -840,14 +1077,19 @@ model Comentarios {
   creado_en           DateTime @default(now()) @db.Timestamptz
   actualizado_en      DateTime @updatedAt @db.Timestamptz
 
-  leccion    Lecciones         @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
-  usuario    Perfiles          @relation(fields: [id_usuario], references: [id])
-  padre      Comentarios?      @relation("Respuestas", fields: [id_comentario_padre], references: [id], onDelete: Cascade)
-  respuestas Comentarios[]     @relation("Respuestas")
+  leccion    Lecciones              @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+  usuario    Perfiles               @relation(fields: [id_usuario], references: [id])
+  padre      Comentarios?           @relation("Respuestas", fields: [id_comentario_padre], references: [id], onDelete: Cascade)
+  respuestas Comentarios[]          @relation("Respuestas")
   likes      ComentarioLikes[]
+  moderacion ComentarioModeracion[]
 
   @@index([id_leccion, creado_en])
   @@index([id_comentario_padre])
+  /// P2-3 (AUDIT-2026-09-04.md): comentarios_autor_publico (061) hace join
+  /// c.id_usuario = p.id por cada fila de perfiles -- sin este índice, cada
+  /// carga de un hilo de comentarios es un seq scan completo de la tabla.
+  @@index([id_usuario])
   @@map("comentarios")
 }
 
@@ -860,7 +1102,35 @@ model ComentarioLikes {
   usuario    Perfiles    @relation(fields: [id_usuario], references: [id])
 
   @@id([id_comentario, id_usuario])
+  /// P2-3 (AUDIT-2026-09-04.md): la PK compuesta de arriba solo sirve como
+  /// índice para buscar por id_comentario (o por ambas columnas) --
+  /// Postgres no puede usar el sufijo para filtrar solo por id_usuario.
+  @@index([id_usuario])
   @@map("comentario_likes")
+}
+
+/// Evidencia de un comentario que un ADMINISTRADOR eliminó por moderación
+/// (no el propio autor): guarda el texto que `comentarios.contenido` ya
+/// perdió al vaciarse, para no quedarse sin rastro de un comentario abusivo.
+/// RLS (065_comentario_moderacion.sql) restringe SELECT a administradores;
+/// nadie más puede leer esta tabla.
+model ComentarioModeracion {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_comentario      String   @db.Uuid
+  contenido_original String
+  id_eliminado_por   String   @db.Uuid
+  creado_en          DateTime @default(now()) @db.Timestamptz
+
+  comentario    Comentarios @relation(fields: [id_comentario], references: [id], onDelete: Cascade)
+  eliminado_por Perfiles    @relation(fields: [id_eliminado_por], references: [id])
+
+  @@index([id_comentario])
+  /// P2-3 (AUDIT-2026-09-04.md): sin esto, "todo lo que moderó este
+  /// administrador" hace seq scan -- encontrado por check-fk-indexes.ts al
+  /// escribir el gate de CI para el propio hallazgo, el mismo día que esta
+  /// tabla llegó por otra rama.
+  @@index([id_eliminado_por])
+  @@map("comentario_moderacion")
 }
 
 model RecursosDescargables {

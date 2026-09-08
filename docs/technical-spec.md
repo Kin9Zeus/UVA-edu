@@ -205,6 +205,76 @@ Sustituye al antiguo campo de texto libre `Cursos.instructor`.
 | **estado\_procesamiento** | Enum | SUBIENDO, PROCESANDO, LISTO |
 | **resumen** | Text (nullable) | Descripción en markdown |
 
+### **Módulo de Evaluación (Exámenes Finales)**
+
+Ver `docs/functional-spec.md` Módulo 9 y Flujo 14. Migración:
+`prisma/migrations/20260907020000_examenes_finales`. RLS y triggers:
+`supabase/sql/067_examenes.sql` y `068_certificado_requiere_examen.sql`.
+
+#### **Tabla: Examenes**
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **id\_curso** | UUID (FK, UNIQUE) | Como máximo un examen final por curso |
+| **titulo** | String | Título que ve el estudiante |
+| **instrucciones** | JSONB (nullable) | Documento Tiptap, mismo formato que `lecciones.contenido` |
+| **nota\_aprobatoria** | Int | Default 75. CHECK `>= 75 AND <= 100` — el piso es regla de negocio, no del formulario |
+| **intentos\_maximos** | Int (nullable) | Default 3. `null` \= sin límite |
+| **minutos\_limite** | Int (nullable) | `null` \= sin límite de tiempo |
+| **aleatorizar\_preguntas** | Boolean | Default true |
+| **aleatorizar\_opciones** | Boolean | Default true |
+| **publicado** | Boolean | Default false. Solo un examen publicado exige aprobación para certificar |
+| **creado\_en / actualizado\_en** | DateTime | Timestamptz |
+
+#### **Tabla: PreguntasExamen**
+
+⚠️ Contiene las respuestas correctas. RLS abre SELECT **solo a administradores**;
+el estudiante nunca la lee — recibe las preguntas ya despojadas desde
+`intentos_examen.preguntas_congeladas`.
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **id\_examen** | UUID (Foreign Key) | Examen al que pertenece (ON DELETE CASCADE) |
+| **tipo** | Enum TipoPregunta | v1: OPCION\_UNICA, OPCION\_MULTIPLE, VERDADERO\_FALSO, RELLENAR\_ESPACIO |
+| **enunciado** | JSONB | Documento Tiptap |
+| **puntos** | Int | Default 1. CHECK `>= 1 AND <= 100`. El puntaje se pondera por puntos, no por número de preguntas |
+| **orden** | Int | Fraccionado, igual que módulos y lecciones (`src/lib/orden.ts`) |
+| **opciones** | JSONB (nullable) | `[{ id, texto, correcta }]` para los tipos de opciones |
+| **respuestas\_aceptadas** | Text\[\] | Solo RELLENAR\_ESPACIO. Se comparan normalizadas (sin mayúsculas, tildes ni signos) |
+| **explicacion** | JSONB (nullable) | Feedback interno; no se le muestra al estudiante en la v1 |
+
+#### **Tabla: IntentosExamen**
+
+**No tiene ninguna política de escritura** (ver §5). Todas las mutaciones pasan
+por Server Actions con Service Role tras verificar identidad y acceso.
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **id\_examen** | UUID (Foreign Key) | Examen rendido |
+| **id\_usuario** | UUID (FK, ON DELETE RESTRICT) | Un intento es evidencia de evaluación: no cascadea con el perfil |
+| **estado** | Enum EstadoIntentoExamen | EN\_CURSO, APROBADO, REPROBADO, EN\_REVISION |
+| **puntaje\_pct** | Decimal(5,2) (nullable) | 0-100. `null` mientras EN\_CURSO |
+| **nota\_requerida** | Int | Copia de `nota_aprobatoria` al iniciar: subir la exigencia después no reprueba a quien ya pasó |
+| **preguntas\_congeladas** | JSONB | Las preguntas tal como se le presentaron a ESE estudiante, ya aleatorizadas, con sus respuestas correctas |
+| **respuestas** | JSONB | Respuestas dadas, indexadas por id de pregunta. Se reescribe en cada autoguardado |
+| **iniciado\_en / finalizado\_en** | DateTime | Timestamptz |
+| **expira\_en** | DateTime (nullable) | Corte por tiempo, congelado al iniciar. El servidor valida contra esto, nunca contra el reloj del cliente |
+
+Índices y restricciones que importan:
+
+> * `intentos_examen_uno_en_curso` — índice **parcial** UNIQUE sobre (id\_usuario, id\_examen) WHERE estado \= 'EN\_CURSO'. Dos pestañas abiertas no pueden gastar dos intentos.
+> * `intentos_examen_cerrado_tiene_puntaje` — CHECK que impide un intento cerrado sin puntaje o uno EN\_CURSO con nota.
+> * `examenes_nota_aprobatoria_minima` — CHECK del piso de 75%.
+
+**Intentos por rondas, no de por vida:** `calcularDisponibilidad` (`src/lib/examen.ts`) es la única fuente de verdad de cuándo un estudiante puede iniciar un intento — la usan tanto `iniciarIntento` (Server Action) como `getSituacionExamen` (pantalla previa), así que nunca pueden divergir. `intentos_maximos` no limita el total histórico de intentos: es el tamaño de una ronda. Con `cerrados.length % intentosMaximos === 0` (ronda recién agotada), el cooldown pasa de `COOLDOWN_REINTENTO_MINUTOS` (15 min) a `COOLDOWN_AGOTADO_HORAS` (5h); al cumplirse, vuelve a estar disponible con una ronda nueva. No hay ningún estado permanente de "sin intentos" — el estudiante siempre recupera acceso solo, sin admin de por medio.
+
+**Intento extra otorgado por admin:** `otorgarIntentoExtra` (`src/actions/admin/examenes.ts`) crea un intento directo con Service Role para saltarse la espera larga (no para "desbloquear" algo que de otro modo quedaría cerrado — nunca lo está). Reusa `congelarPreguntas` (`src/lib/examenes/congelar.ts`), compartida con el flujo del estudiante para que un intento otorgado por admin tenga exactamente la misma forma que uno iniciado normalmente.
+
+**Revisión de un intento (admin):** `getRevisionIntento` (`src/actions/admin/examenes.ts`) + `construirRevision` (`src/lib/examenes/revision.ts`, función pura) arman, pregunta por pregunta, qué marcó/escribió el estudiante, cuál era la respuesta correcta y si acertó — al contrario de `getResultadoIntento` (lo que ve el propio estudiante), que nunca revela la respuesta correcta. Se pide bajo demanda al expandir un intento en el panel, no precalculada para todos los intentos del examen.
+
 ### **Módulo de Operaciones y Seguimiento**
 
 #### **Tabla: Progreso**
@@ -292,6 +362,7 @@ Sustituye al antiguo campo de texto libre `Cursos.instructor`.
 Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 
 > * **Tabla Progreso y Certificados:** SELECT, INSERT, UPDATE limitados a auth.uid() \= id\_usuario.  
+> * **Tablas de Exámenes (asimetría deliberada, ver supabase/sql/067):** `preguntas_examen` solo es legible por administradores —contiene las respuestas correctas, un SELECT sería el examen resuelto—. `intentos_examen` tiene SELECT para el dueño (o un administrador) y **ninguna** política de INSERT/UPDATE/DELETE: con RLS activo y sin política, Postgres deniega, así que un `PATCH /rest/v1/intentos_examen` con `{"estado":"APROBADO"}` no afecta ninguna fila. Es la excepción a la regla del proyecto de escribir con el cliente de sesión: el dato a escribir (la nota) es exactamente el que el usuario querría falsificar, y el trigger de certificación confía en él. Iniciar/autoguardar/enviar pasan por `src/actions/examenes/intento.ts`, que usa las lecturas de sesión para autorizar (RLS decide si ve el examen) y Service Role solo para escribir, siempre filtrando por el `id_usuario` de `auth.getUser()`.  
 > * **Tablas Cursos, Módulos, Lecciones:**  
   * SELECT habilitado para todos los usuarios, condicionado a mostrado \= true.  
   * INSERT, UPDATE, DELETE restringidos estrictamente a perfiles donde rol \= 'administrador'.  

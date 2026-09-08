@@ -9,10 +9,10 @@ export const metadata: Metadata = {
 export default async function AdminBitacoraPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; desde?: string; hasta?: string }>;
 }) {
-  const { page } = await searchParams;
-  const resultado = await getBitacora(page ? Number(page) : 1);
+  const { page, desde, hasta } = await searchParams;
+  const resultado = await getBitacora(page ? Number(page) : 1, desde, hasta);
 
   return (
     <div className="flex flex-col gap-6">

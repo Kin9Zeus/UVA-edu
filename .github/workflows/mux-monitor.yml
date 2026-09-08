@@ -1,0 +1,50 @@
+name: Monitoreo — videos atascados en Mux
+
+# "Monitoreo, alertas, respaldo de base de datos y plan de reversión" —
+# "Alerta específica si falla el webhook de Mux": un video que se queda en
+# SUBIENDO/PROCESANDO para siempre no genera ningún error visible, porque
+# src/app/api/webhooks/mux/route.ts solo actualiza la lección cuando Mux le
+# manda un evento. scripts/mux-verificar-atascados.ts hace la consulta cada
+# rato y manda un Sentry.captureMessage si encuentra alguna.
+#
+# Por qué un workflow aparte y no un job más en ci.yml: un `schedule:` en el
+# `on:` de ci.yml dispararía TODO el workflow, incluidos `checks` y `rls` —
+# sus `if` solo distinguen push/PR de "cualquier otra cosa", así que en un
+# evento `schedule` igual correrían. Eso multiplicaría el golpe al Auth rate
+# limit de Supabase que ya documentó BUG-002 (docs/qa/bugs-e2e.md) sin
+# necesidad: este chequeo es de solo lectura y no depende de que el resto
+# del pipeline pase.
+#
+# NOTA: usa el mismo `environment: supabase-test` que `rls`/`e2e` en ci.yml
+# — hoy vigila el proyecto de PRUEBA, no producción. Para vigilar producción
+# de verdad hace falta un `environment` separado (con las credenciales
+# reales de Supabase y el DSN de Sentry de producción) y apuntar este job a
+# él en vez de a `supabase-test`.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  mux-monitor:
+    name: Videos atascados en Mux
+    runs-on: ubuntu-latest
+    environment: supabase-test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar lecciones atascadas en Mux
+        run: npm run mux:verificar-atascados
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}

@@ -13,19 +13,27 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
-import { AdminCard } from "@/components/admin/AdminCard";
 import { Input } from "@/components/ui/input";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ModuloCard } from "@/components/admin/cursos/ModuloCard";
-import { LeccionEditorPanel } from "@/components/admin/cursos/LeccionEditorPanel";
 import { crearModulo, moverModulo } from "@/actions/admin/cursos";
 import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
 /**
- * Pestaña Contenido del mockup del panel admin: dos columnas
- * (`minmax(0,1fr) minmax(260px,340px)`) donde la derecha es una tarjeta fija
- * con el editor de lección — no un modal. La lección elegida vive aquí para
- * que la fila de la lista y el editor miren siempre el mismo dato.
+ * Pestaña Contenido del panel admin.
+ *
+ * Deviación deliberada del mockup (`design-spec/project/Uva - Panel
+ * Admin.dc.html`, líneas 255-286: dos columnas, la derecha una columna
+ * sticky de 260-340px con el editor): acá el editor de una lección se abre
+ * EN LÍNEA, justo debajo de su fila dentro de su propio módulo — ver
+ * ModuloCard.tsx — y no en un panel aparte. El editor de texto enriquecido
+ * quedaba ilegible a 300px de ancho; ver también el comentario de
+ * LeccionEditorPanel.tsx.
+ *
+ * La lección elegida vive en este componente (no en ModuloCard) para que la
+ * fila de la lista y el editor miren siempre el mismo dato, y para que solo
+ * pueda haber una lección abierta a la vez entre todos los módulos.
  */
 export function ContenidoTab({
   cursoId,
@@ -57,17 +65,16 @@ export function ContenidoTab({
   // resumen sin guardar, cambiar de lección o cerrar el editor los pierde en
   // silencio. Con esto se confirma antes en vez de después.
   const [edicionSinGuardar, setEdicionSinGuardar] = useState(false);
+  // Diálogo propio para reemplazar el window.confirm() nativo del navegador
+  // (que aparecía como "localhost:3000 dice" en vez de un modal de la app).
+  // confirmarSalirSinGuardar() es la única llamadora: cuando no hay nada sin
+  // guardar resuelve `true` de inmediato; si hay, abre el diálogo y deja la
+  // resolución de la promesa pendiente en resolverSalirRef hasta que el
+  // usuario elija un botón.
+  const [dialogSalirAbierto, setDialogSalirAbierto] = useState(false);
+  const resolverSalirRef = useRef<((continuar: boolean) => void) | null>(null);
   const showToast = useAdminToast();
   const router = useRouter();
-  // En desktop el editor es una columna sticky siempre visible; por debajo de
-  // `lg` es una tarjeta más abajo en el documento, así que elegir una lección
-  // ahí no da ninguna señal si el editor ya quedó fuera de la vista — este
-  // scroll es esa señal.
-  const editorRef = useRef<HTMLDivElement>(null);
-
-  const leccionActiva =
-    modulos.flatMap((modulo) => modulo.lecciones).find((leccion) => leccion.id === leccionActivaId) ??
-    null;
 
   const handleDirtyChange = useCallback(
     (dirty: boolean) => {
@@ -77,9 +84,16 @@ export function ContenidoTab({
     [onDirtyChange],
   );
 
-  function confirmarSalirSinGuardar(): boolean {
-    if (!edicionSinGuardar) return true;
-    const continuar = window.confirm("Tienes cambios sin guardar en esta lección. ¿Salir sin guardarlos?");
+  function confirmarSalirSinGuardar(): Promise<boolean> {
+    if (!edicionSinGuardar) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      resolverSalirRef.current = resolve;
+      setDialogSalirAbierto(true);
+    });
+  }
+
+  function resolverDialogSalir(continuar: boolean) {
+    setDialogSalirAbierto(false);
     // Si acepta descartar, se limpia ya: algunos llamadores (crear/renombrar/
     // eliminar módulo o lección) terminan en router.refresh(), que remonta
     // este panel sin volver a pasar por seleccionarLeccion()/cerrarEditor()
@@ -89,29 +103,29 @@ export function ContenidoTab({
       setEdicionSinGuardar(false);
       onDirtyChange(false);
     }
-    return continuar;
+    resolverSalirRef.current?.(continuar);
+    resolverSalirRef.current = null;
   }
 
-  function seleccionarLeccion(leccion: LeccionDetalle) {
+  async function seleccionarLeccion(leccion: LeccionDetalle) {
     if (leccion.id === leccionActivaId) return;
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
     setEdicionSinGuardar(false);
     onDirtyChange(false);
     setLeccionActivaId(leccion.id);
 
-    // Por debajo de `lg` (el corte de `AdminCard.lg:sticky` en el JSX de
-    // abajo) el editor no es sticky: sin este scroll, tocar una lección
-    // mientras se sigue viendo la lista de módulos no da ninguna señal de
-    // que sí se seleccionó.
-    if (window.innerWidth < 1024) {
-      requestAnimationFrame(() => {
-        editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
+    // El editor se abre en línea, justo debajo de la fila elegida: sin este
+    // scroll, tocar una lección más abajo en una lista larga no da ninguna
+    // señal de que sí se seleccionó.
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`leccion-editor-${leccion.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
-  function cerrarEditor() {
-    if (!confirmarSalirSinGuardar()) return;
+  async function cerrarEditor() {
+    if (!(await confirmarSalirSinGuardar())) return;
     setEdicionSinGuardar(false);
     onDirtyChange(false);
     setLeccionActivaId(null);
@@ -158,7 +172,7 @@ export function ContenidoTab({
     // (la key de <ContenidoTab> depende de los ids de módulos/lecciones) y
     // con él el editor de lección — se perdería cualquier cambio sin
     // guardar en la lección abierta, en silencio.
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
 
     setPending(true);
     const resultado = await crearModulo(cursoId, nombre);
@@ -174,10 +188,10 @@ export function ContenidoTab({
     router.refresh();
   }
 
-  function handleModuloDragEnd(event: DragEndEvent) {
+  async function handleModuloDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    if (!confirmarSalirSinGuardar()) return;
+    if (!(await confirmarSalirSinGuardar())) return;
 
     const anteriores = modulos;
     const origenIndex = modulos.findIndex((modulo) => modulo.id === active.id);
@@ -201,80 +215,73 @@ export function ContenidoTab({
   }
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <h4 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
-            Módulos y lecciones
-          </h4>
-          {agregando ? (
-            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
-              <Input
-                autoFocus
-                placeholder="Nombre del módulo"
-                value={nombreModulo}
-                onChange={(event) => setNombreModulo(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && handleAgregarModulo()}
-                className="h-8 text-sm sm:max-w-[240px]"
-              />
-              <div className="flex items-center gap-2">
-                <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
-                  Agregar
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setAgregando(false)}>
-                  Cancelar
-                </Button>
-              </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <h4 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+          Módulos y lecciones
+        </h4>
+        {agregando ? (
+          <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
+            <Input
+              autoFocus
+              placeholder="Nombre del módulo"
+              value={nombreModulo}
+              onChange={(event) => setNombreModulo(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && handleAgregarModulo()}
+              className="h-8 text-sm sm:max-w-[240px]"
+            />
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
+                Agregar
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAgregando(false)}>
+                Cancelar
+              </Button>
             </div>
-          ) : (
-            <Button type="button" size="sm" className="sm:ml-auto" onClick={() => setAgregando(true)}>
-              + Módulo
-            </Button>
-          )}
-        </div>
-
-        {modulos.length === 0 && (
-          <p className="text-sm text-uva-muted-2">Este curso todavía no tiene módulos.</p>
+          </div>
+        ) : (
+          <Button type="button" size="sm" className="sm:ml-auto" onClick={() => setAgregando(true)}>
+            + Módulo
+          </Button>
         )}
-
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuloDragEnd}>
-          <SortableContext items={modulos.map((modulo) => modulo.id)} strategy={verticalListSortingStrategy}>
-            {modulos.map((modulo, index) => (
-              <ModuloCard
-                key={modulo.id}
-                modulo={modulo}
-                posicion={index + 1}
-                totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
-                cursoId={cursoId}
-                leccionActivaId={leccionActivaId}
-                onSeleccionarLeccion={seleccionarLeccion}
-                onLeccionesChange={handleLeccionesChange}
-                onTituloChange={handleTituloModuloChange}
-                confirmarSalirSinGuardar={confirmarSalirSinGuardar}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
       </div>
 
-      {/* Columna derecha fija: `position:sticky;top:88px` en el mockup */}
-      <AdminCard ref={editorRef} className="lg:sticky lg:top-[88px]">
-        {leccionActiva ? (
-          <LeccionEditorPanel
-            key={leccionActiva.id}
-            leccion={leccionActiva}
-            cursoId={cursoId}
-            onCerrar={cerrarEditor}
-            onGuardado={handleLeccionGuardada}
-            onRecursosChange={handleRecursosChange}
-            onDirtyChange={handleDirtyChange}
-          />
-        ) : (
-          <p className="px-1 py-5 text-center text-[13px] text-uva-muted-2">
-            Selecciona una lección para editarla.
-          </p>
-        )}
-      </AdminCard>
+      {modulos.length === 0 && (
+        <p className="text-sm text-uva-muted-2">Este curso todavía no tiene módulos.</p>
+      )}
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuloDragEnd}>
+        <SortableContext items={modulos.map((modulo) => modulo.id)} strategy={verticalListSortingStrategy}>
+          {modulos.map((modulo, index) => (
+            <ModuloCard
+              key={modulo.id}
+              modulo={modulo}
+              posicion={index + 1}
+              totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
+              cursoId={cursoId}
+              leccionActivaId={leccionActivaId}
+              onSeleccionarLeccion={seleccionarLeccion}
+              onLeccionesChange={handleLeccionesChange}
+              onTituloChange={handleTituloModuloChange}
+              confirmarSalirSinGuardar={confirmarSalirSinGuardar}
+              onCerrarEditor={cerrarEditor}
+              onLeccionGuardada={handleLeccionGuardada}
+              onRecursosChange={handleRecursosChange}
+              onDirtyChangeLeccion={handleDirtyChange}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      <ConfirmDialog
+        open={dialogSalirAbierto}
+        onOpenChange={(open) => !open && resolverDialogSalir(false)}
+        title="Cambios sin guardar"
+        description="Tienes cambios sin guardar en esta lección. ¿Salir sin guardarlos?"
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        onConfirm={() => resolverDialogSalir(true)}
+      />
     </div>
   );
 }

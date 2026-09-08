@@ -8,6 +8,25 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { logError } from "@/lib/log";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
+/**
+ * Excepción deliberada a `siteUrl()` (src/lib/site-url.ts) — el único sitio
+ * del proyecto que sigue armando un origen con el header `Host`, y por eso
+ * queda documentado acá en vez de leerse como un descuido.
+ *
+ * P1-1 (AUDIT-2026-09-04.md) movió a una constante de despliegue los otros
+ * seis usos de este mismo patrón, porque todos terminaban en un enlace que
+ * alguien recibía por correo o en el QR de un PDF. Este no: es `cors_origin`
+ * de un Direct Upload de Mux, o sea el origen desde el que el NAVEGADOR del
+ * administrador va a hacer el PUT del archivo. Tiene que coincidir con el
+ * host por el que esa persona está navegando, y la app puede ser alcanzable
+ * por más de uno a la vez (el `*.up.railway.app` del servicio y el dominio
+ * propio) — fijarlo a `NEXT_PUBLIC_SITE_URL` rompería la subida desde el otro.
+ *
+ * Y no hay nada que ganar cerrándolo: la acción exige `requireAdmin()`, y un
+ * `Host` falsificado solo produce un `cors_origin` que no coincide con el
+ * origen real del atacante, con lo que su propia subida falla. El header no
+ * viaja a ningún tercero ni queda escrito en ningún artefacto.
+ */
 async function getOrigin() {
   const headersList = await headers();
   const host = headersList.get("host");

@@ -27,10 +27,12 @@ const contenidoSchema = z
  * puede expresar "el padre de mi padre debe ser null".
  */
 export async function crearComentario(
-  cursoId: string,
   leccionId: string,
   contenido: string,
   idComentarioPadre: string | null,
+  /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
+   * revalidar exactamente el path que Next.js cacheó — no el UUID interno. */
+  ruta: string,
 ): Promise<CrearComentarioResultado> {
   const supabase = await createClient();
   const {
@@ -44,10 +46,10 @@ export async function crearComentario(
   if (idComentarioPadre) {
     const { data: padre } = await supabase
       .from("comentarios")
-      .select("id_comentario_padre")
+      .select("id_comentario_padre, eliminado")
       .eq("id", idComentarioPadre)
       .maybeSingle();
-    if (!padre) return { error: "El comentario al que respondes ya no existe." };
+    if (!padre || padre.eliminado) return { error: "El comentario al que respondes ya no existe." };
     if (padre.id_comentario_padre) return { error: "No se puede responder a una respuesta." };
   }
 
@@ -64,6 +66,6 @@ export async function crearComentario(
 
   if (error || !data) return { error: "No pudimos publicar tu comentario." };
 
-  revalidatePath(`/cursos/${cursoId}/${leccionId}`);
+  revalidatePath(ruta);
   return { success: true, id: data.id };
 }

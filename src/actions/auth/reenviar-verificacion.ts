@@ -1,8 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -11,15 +11,6 @@ export type ReenviarVerificacionState =
   | { error: string; success?: never }
   | { error?: never; success: true }
   | null;
-
-async function getOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const proto =
-    headersList.get("x-forwarded-proto") ??
-    (host?.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 export async function reenviarVerificacion(
   _prevState: ReenviarVerificacionState,
@@ -46,7 +37,7 @@ export async function reenviarVerificacion(
     return { error: "Espera un minuto antes de solicitar otro enlace." };
   }
 
-  const origin = await getOrigin();
+  const origin = siteUrl();
   const supabase = await createClient();
   const { error } = await supabase.auth.resend({
     type: "signup",

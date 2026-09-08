@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export function InicioContent({
             {sigueAprendiendo.map((clase) => (
               <Link
                 key={clase.leccionId}
-                href={`/cursos/${clase.cursoId}/${clase.leccionId}`}
+                href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
                 className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
               >
                 <div
@@ -58,11 +59,12 @@ export function InicioContent({
                   style={esPortadaReal(clase.imagenPortada) ? undefined : PORTADA_TRAMA}
                 >
                   {esPortadaReal(clase.imagenPortada) && (
-                    // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-                    <img
+                    <Image
                       src={clase.imagenPortada}
                       alt=""
-                      className="absolute inset-0 size-full object-cover"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover"
                     />
                   )}
                   <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
@@ -110,7 +112,7 @@ export function InicioContent({
         <section>
           <h2 className="mb-4 text-base text-uva-text">Curso recomendado para ti</h2>
           <Link
-            href={`/cursos/${cursoDestacado.id}`}
+            href={`/cursos/${cursoDestacado.slug}`}
             className="group flex max-w-[380px] flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
           >
             <div
@@ -118,11 +120,12 @@ export function InicioContent({
               style={esPortadaReal(cursoDestacado.imagenPortada) ? undefined : PORTADA_TRAMA}
             >
               {esPortadaReal(cursoDestacado.imagenPortada) && (
-                // eslint-disable-next-line @next/next/no-img-element -- imagen de Supabase Storage
-                <img
+                <Image
                   src={cursoDestacado.imagenPortada}
                   alt=""
-                  className="absolute inset-0 size-full object-cover"
+                  fill
+                  sizes="380px"
+                  className="object-cover"
                 />
               )}
               <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">

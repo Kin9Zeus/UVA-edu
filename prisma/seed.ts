@@ -924,6 +924,7 @@ async function sembrar(): Promise<void> {
     data: CURSOS.map((c, i) => ({
       id: IDS_CURSOS[i],
       titulo: c.titulo,
+      slug: slugificar(c.titulo, "curso"),
       descripcion: c.descripcion,
       imagen_portada: `https://picsum.photos/seed/uva-curso-${i + 1}/1200/675`,
       id_instructor: IDS_INSTRUCTORES[c.instructor],
@@ -952,6 +953,7 @@ async function sembrar(): Promise<void> {
     id: string;
     id_modulo: string;
     titulo: string;
+    slug: string;
     orden: number;
     duracion: number;
     estado_procesamiento: "SUBIENDO" | "PROCESANDO";
@@ -972,6 +974,7 @@ async function sembrar(): Promise<void> {
           id: uuid(B.leccion, (c + 1) * 10_000 + (m + 1) * 100 + (l + 1)),
           id_modulo: idModulo,
           titulo: leccion.titulo,
+          slug: slugificar(leccion.titulo, "clase"),
           orden: l + 1,
           duracion: leccion.duracion,
           // NINGUNA lección sembrada tiene `id_video_mux`.
