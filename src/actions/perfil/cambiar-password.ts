@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPasswordValid } from "@/lib/password";
+import { esPasswordFiltrada, MENSAJE_PASSWORD_FILTRADA } from "@/lib/password-filtrada";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 
@@ -51,6 +52,13 @@ export async function cambiarPassword(
   }
   if (passwordNueva === passwordActual) {
     return { error: "La contraseña nueva debe ser distinta de la actual." };
+  }
+  // Tercer punto donde se fija una contraseña, junto con registro.ts y
+  // actualizar-password.ts. Los tres tienen que llevar el mismo chequeo: una
+  // sola puerta sin él basta para que la cuenta acabe con una contraseña que
+  // está en la lista de cualquier atacante.
+  if (await esPasswordFiltrada(passwordNueva)) {
+    return { error: MENSAJE_PASSWORD_FILTRADA };
   }
 
   const supabase = await createClient();

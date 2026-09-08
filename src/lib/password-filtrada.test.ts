@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { esPasswordFiltrada } from "@/lib/password-filtrada";
 
@@ -86,5 +88,55 @@ describe("esPasswordFiltrada", () => {
     vi.stubGlobal("fetch", vi.fn(async () => respuesta("", false, 503)));
 
     expect(await esPasswordFiltrada(PASSWORD)).toBe(false);
+  });
+});
+
+/**
+ * Prueba estructural, no de comportamiento.
+ *
+ * El chequeo empezó cubriendo los dos puntos que fijaban contraseña
+ * (registro.ts y actualizar-password.ts). En la misma sesión en que se
+ * escribió apareció un TERCERO —`perfil/cambiar-password.ts`, el cambio desde
+ * Mi perfil— traído por otra rama, y estuvo a punto de quedarse sin él.
+ *
+ * Ese es el modo de fallo real de esta defensa: no que la función esté mal,
+ * sino que alguien añada una puerta nueva y no se acuerde. Y una sola puerta
+ * sin el chequeo basta para que una cuenta acabe con una contraseña que está
+ * en la lista de cualquier atacante — no hay "cubierto a medias" acá.
+ *
+ * El criterio es `isPasswordValid`: si una Server Action valida la forma de
+ * una contraseña, es porque está fijando una, y entonces también le toca
+ * mirar si está filtrada.
+ */
+function archivosDeAcciones(dir: string, acumulado: string[] = []): string[] {
+  for (const entrada of readdirSync(dir)) {
+    const ruta = join(dir, entrada);
+    if (statSync(ruta).isDirectory()) {
+      archivosDeAcciones(ruta, acumulado);
+    } else if (/\.tsx?$/.test(entrada) && !/\.test\.tsx?$/.test(entrada)) {
+      acumulado.push(ruta);
+    }
+  }
+  return acumulado;
+}
+
+describe("toda acción que fija una contraseña comprueba si está filtrada", () => {
+  it("no hay ninguna que valide con isPasswordValid y se salte esPasswordFiltrada", () => {
+    const descubiertas = archivosDeAcciones(join(process.cwd(), "src", "actions"))
+      .filter((ruta) => {
+        const fuente = readFileSync(ruta, "utf8");
+        return fuente.includes("isPasswordValid") && !fuente.includes("esPasswordFiltrada");
+      })
+      .map((ruta) => relative(process.cwd(), ruta).split("\\").join("/"));
+
+    expect(descubiertas).toEqual([]);
+  });
+
+  it("encuentra de verdad los archivos que debe vigilar (si no, la de arriba pasa vacía)", () => {
+    const vigilados = archivosDeAcciones(join(process.cwd(), "src", "actions")).filter((ruta) =>
+      readFileSync(ruta, "utf8").includes("isPasswordValid"),
+    );
+
+    expect(vigilados.length).toBeGreaterThanOrEqual(3);
   });
 });
