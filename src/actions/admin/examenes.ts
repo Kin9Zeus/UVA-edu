@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { logError } from "@/lib/log";
 import { ordenEntre, siguienteOrden } from "@/lib/orden";
 import { TAMANO_MAXIMO_CONTENIDO, type DocumentoContenido } from "@/lib/editor/tipos";
 import { normalizarRespuestaCorta } from "@/lib/examenes/calificar";
@@ -628,13 +629,32 @@ export async function getRevisionIntento(
   if ("error" in admin) return { error: admin.error ?? "No tienes permisos de administrador." };
   if (!idSchema.safeParse(intentoId).success) return { error: "Intento inválido." };
 
-  const { data: intento } = await createAdminClient()
+  const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select(
       "id, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, iniciado_en, finalizado_en, usuario:perfiles(nombre)",
     )
     .eq("id", intentoId)
     .maybeSingle();
+
+  // Aquí NO se lanza, al revés que en getIntentoEnCurso (src/lib/examen.ts).
+  // Esto es un Server Action y `IntentoRevisionDialog` lo consume con
+  // `.then()` sin `.catch()`: una excepción no llegaría al boundary de
+  // error.tsx —que solo cubre lo que falla al renderizar— sino que acabaría
+  // como unhandled rejection en el navegador, que es peor que lo que había.
+  //
+  // Se registra y se devuelve un mensaje que no miente. "No encontramos ese
+  // intento" era falso y caro: el intento existe, lo que falla es la consulta,
+  // y ese mensaje manda a buscar un problema de datos en vez de uno de
+  // servidor. logError conserva el code/hint/details de Postgres aunque un
+  // PostgrestError sea un objeto plano y no un Error.
+  if (error) {
+    logError("admin/examenes", "getRevisionIntento: la consulta del intento falló", error, {
+      area: "examenes",
+      intentoId,
+    });
+    return { error: "No pudimos cargar la revisión. El error quedó registrado." };
+  }
 
   if (!intento) return { error: "No encontramos ese intento." };
   if (intento.estado === "EN_CURSO") {

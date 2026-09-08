@@ -261,6 +261,43 @@ export type IntentoEnCurso = {
 };
 
 /**
+ * Convierte un error de PostgREST en una excepción de verdad.
+ *
+ * Por qué existe (AUDIT-2026-09-08, seguimiento del P0-1)
+ * -------------------------------------------------------
+ * `const { data } = await ...` sin mirar `error` es lo que convirtió un fallo
+ * de permisos en un bucle: cuando el GRANT por columna del 070 dejó fuera a
+ * `authenticated`, la consulta empezó a fallar con `42501`, `data` venía
+ * `null`, y `null` aquí significa "el intento ya no está en curso" — un
+ * estado de negocio legítimo. La página redirigía a su propia URL, volvía a
+ * fallar y redirigía otra vez, hasta que el navegador cortaba con
+ * ERR_TOO_MANY_REDIRECTS. Nada lanzó nunca, así que ni `src/app/error.tsx`
+ * ni Sentry se enteraron de un fallo que duró todo un despliegue.
+ *
+ * Lanzar es lo correcto y el código 500 también: un `42501` es un privilegio
+ * que le falta al ROL `authenticated`, y ese rol es idéntico para todos los
+ * usuarios — nunca puede significar "tú en particular no puedes". Solo puede
+ * significar que el código y el esquema no coinciden, que es un fallo del
+ * servidor. Un 403 mentiría al usuario y mandaría a quien lo depure a mirar
+ * permisos en vez de el despliegue. La negativa de RLS, que sí es por
+ * usuario, no llega por aquí: filtra filas y devuelve 0, sin error.
+ *
+ * Se envuelve en un `Error` en vez de relanzar el objeto: un PostgrestError
+ * es un objeto plano, y lanzarlo tal cual deja a Next sin `digest` y a Sentry
+ * sin agrupar. El mensaje de Postgres viaja dentro pero no al navegador: en
+ * producción Next solo manda el `digest` al cliente.
+ */
+export function lanzarSiFalla(
+  error: { message?: string; code?: string } | null,
+  consulta: string,
+): void {
+  if (!error) return;
+  throw new Error(
+    `${consulta} falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`,
+  );
+}
+
+/**
  * Carga el intento abierto para renderizar el examen.
  *
  * Es el único sitio donde `preguntas_congeladas` sale de la base hacia la app,
@@ -284,13 +321,18 @@ export async function getIntentoEnCurso(
   intentoId: string,
   usuarioId: string,
 ): Promise<IntentoEnCurso | null> {
-  const { data: intento } = await createAdminClient()
+  const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select(
       "id, id_usuario, estado, nota_requerida, preguntas_congeladas, respuestas, expira_en, iniciado_en, examen:examenes(titulo)",
     )
     .eq("id", intentoId)
     .maybeSingle();
+
+  // Antes que el `if (!intento)` de abajo: sin esto, un fallo de la consulta
+  // es indistinguible de "el intento se cerró", y esa confusión es la que
+  // produce el bucle de redirección. Ver lanzarSiFalla().
+  lanzarSiFalla(error, "getIntentoEnCurso");
 
   // ÚNICA autorización de esta función: con Service Role no hay RLS detrás.
   // `usuarioId` lo pone el servidor (getPerfilActual() -> auth.getUser() en
@@ -348,11 +390,13 @@ export async function getResultadoIntento(
   intentoId: string,
   usuarioId: string,
 ): Promise<ResultadoIntentoVista | null> {
-  const { data: intento } = await createAdminClient()
+  const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select("id, id_usuario, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, finalizado_en")
     .eq("id", intentoId)
     .maybeSingle();
+
+  lanzarSiFalla(error, "getResultadoIntento");
 
   if (!intento || intento.id_usuario !== usuarioId || intento.estado === "EN_CURSO") {
     return null;
