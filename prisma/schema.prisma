@@ -88,6 +88,43 @@ enum TipoAcceso {
   CORTESIA
 }
 
+/// Tipo de pregunta de un examen final (ver docs/functional-spec.md Flujo 14).
+///
+/// El enum enumera los SIETE tipos del diseño, pero la v1 solo implementa los
+/// cuatro "cerrados" (autocalificables sin intervención humana):
+/// OPCION_UNICA, OPCION_MULTIPLE, VERDADERO_FALSO y RELLENAR_ESPACIO.
+///
+/// ORDENAR_PASOS, EMPAREJAR y RESPUESTA_ABIERTA quedan declarados desde ya, a
+/// propósito: agregar un valor a un enum de Postgres en caliente obliga a un
+/// `ALTER TYPE ... ADD VALUE`, que no corre dentro del mismo bloque
+/// transaccional que lo usa. Declararlos ahora hace que la Fase 2
+/// (docs/development-plan.md, "Exámenes — Fase 2") sea solo UI y calificación,
+/// sin migración de tipo. `esTipoImplementado()` (src/lib/examenes/tipos.ts)
+/// es el único punto que decide cuáles acepta la app hoy.
+enum TipoPregunta {
+  OPCION_UNICA
+  OPCION_MULTIPLE
+  VERDADERO_FALSO
+  RELLENAR_ESPACIO
+  ORDENAR_PASOS
+  EMPAREJAR
+  RESPUESTA_ABIERTA
+}
+
+/// EN_CURSO: el estudiante lo abrió y todavía no lo envió (o se le venció el
+/// tiempo sin enviar — lo cierra el propio envío, ver `enviarIntento`).
+/// APROBADO/REPROBADO: ya calificado contra `Examenes.nota_aprobatoria`.
+/// EN_REVISION: enviado, pero con preguntas de tipo RESPUESTA_ABIERTA que un
+/// administrador todavía no calificó a mano. No se produce en la v1 (que solo
+/// admite tipos cerrados); existe para la Fase 2, mismo motivo que los valores
+/// no implementados de `TipoPregunta`.
+enum EstadoIntentoExamen {
+  EN_CURSO
+  APROBADO
+  REPROBADO
+  EN_REVISION
+}
+
 // ============================================================
 // Módulo de Usuarios y Membresía
 // ============================================================
@@ -136,6 +173,7 @@ model Perfiles {
   comentario_likes            ComentarioLikes[]
   comentarios_moderados       ComentarioModeracion[]
   cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
+  intentos_examen             IntentosExamen[]
 
   @@map("perfiles")
 }
@@ -505,6 +543,8 @@ model Cursos {
   /// Quién dicta el curso: 1 o más cuentas con rol PROFESOR.
   instructores        CursoInstructores[]
   tokens_vista_previa TokensVistaPrevia[]
+  /// Como máximo uno (ver el `@unique` de `Examenes.id_curso`).
+  examen              Examenes?
 
   @@index([id_instructor])
   @@index([id_admin_creador])
@@ -631,6 +671,148 @@ model MuxAssetsPendientesEliminacion {
   /// id_leccion además de eliminado -- hacía seq scan sin esto.
   @@index([id_leccion])
   @@map("mux_assets_pendientes_eliminacion")
+}
+
+// ============================================================
+// Módulo de Evaluación (exámenes finales)
+// ============================================================
+
+/// Examen final de un curso. `@unique` en `id_curso`: un curso tiene como
+/// máximo UN examen final (no es una tabla de "cuestionarios por módulo").
+///
+/// Su ausencia es significativa — la regla de certificación
+/// (`private.curso_esta_completo`, supabase/sql/068) exige aprobar examen
+/// SOLO si existe uno publicado para el curso. Un curso sin fila acá, o con
+/// `publicado = false`, certifica con el 100% de lecciones igual que antes de
+/// que existiera este módulo: quien crea el curso decide si su curso necesita
+/// examen o no.
+model Examenes {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso              String   @unique @db.Uuid
+  titulo                String
+  /// Instrucciones que el estudiante lee antes de iniciar (documento Tiptap,
+  /// mismo formato que `Lecciones.contenido`).
+  instrucciones         Json?
+  /// Porcentaje mínimo para aprobar. El default y el piso duro son 75 (regla
+  /// de negocio, docs/functional-spec.md Flujo 14): la restricción
+  /// `examenes_nota_aprobatoria_minima` lo impone en la base, no solo en el
+  /// formulario — el admin puede exigir MÁS, nunca menos.
+  nota_aprobatoria      Int      @default(75)
+  /// Intentos permitidos por estudiante. `null` = sin límite.
+  intentos_maximos      Int?     @default(3)
+  /// Minutos de duración del intento. `null` = sin límite de tiempo. El corte
+  /// real se valida contra `IntentosExamen.iniciado_en` en el servidor, nunca
+  /// contra el reloj del cliente.
+  minutos_limite        Int?
+  aleatorizar_preguntas Boolean  @default(true)
+  aleatorizar_opciones  Boolean  @default(true)
+  /// Mientras es false el examen no existe para el estudiante y no bloquea la
+  /// certificación de nadie — así se arma con calma en un curso que ya tiene
+  /// estudiantes activos, igual que `Cursos.mostrado`.
+  publicado             Boolean  @default(false)
+  creado_en             DateTime @default(now()) @db.Timestamptz
+  actualizado_en        DateTime @updatedAt @db.Timestamptz
+
+  curso     Cursos            @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  preguntas PreguntasExamen[]
+  intentos  IntentosExamen[]
+
+  @@map("examenes")
+}
+
+/// Una pregunta del examen. `enunciado` es un documento Tiptap (mismo
+/// `contenidoLeccionSchema` que valida `Lecciones.contenido`) para que una
+/// pregunta pueda llevar listas, citas o bloques de código — no solo texto
+/// plano.
+///
+/// `opciones` guarda la forma propia de cada tipo, validada en el servidor por
+/// el discriminated union de `src/lib/examenes/tipos.ts` antes de escribir:
+///   OPCION_UNICA / OPCION_MULTIPLE / VERDADERO_FALSO
+///     -> [{ id, texto, correcta }]
+///   RELLENAR_ESPACIO
+///     -> null; la respuesta vive en `respuestas_aceptadas`
+///
+/// ⚠️ Esta tabla contiene las respuestas correctas. RLS le abre SELECT solo a
+/// administradores (supabase/sql/067): el estudiante NUNCA la lee directo —
+/// recibe las preguntas ya despojadas de `correcta`/`respuestas_aceptadas`
+/// por `prepararPreguntasParaEstudiante()`.
+model PreguntasExamen {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_examen            String       @db.Uuid
+  tipo                 TipoPregunta
+  enunciado            Json
+  /// Peso de la pregunta en el puntaje final. El % del intento es
+  /// (puntos obtenidos / puntos posibles) * 100, no un conteo de preguntas.
+  puntos               Int          @default(1)
+  /// Fraccionado igual que `Modulos.orden` / `Lecciones.orden` — ver
+  /// src/lib/orden.ts, mismo drag & drop que el temario.
+  orden                Int          @default(0)
+  opciones             Json?
+  /// Solo RELLENAR_ESPACIO: variantes aceptadas como correctas, ya
+  /// normalizadas al guardar (minúsculas, sin tildes, sin espacios de sobra —
+  /// `normalizarRespuestaCorta()`). Comparar contra una lista y no contra un
+  /// único string es lo que evita reprobar a alguien por escribir "V-Ray" en
+  /// vez de "vray".
+  respuestas_aceptadas String[]
+  /// Feedback pedagógico. NO se le muestra al estudiante en la v1 mientras le
+  /// queden intentos (decisión de producto: con 3 intentos, mostrarlo permite
+  /// reconstruir el examen completo). Se guarda para la revisión posterior y
+  /// para el reporte del admin.
+  explicacion          Json?
+  creado_en            DateTime     @default(now()) @db.Timestamptz
+  actualizado_en       DateTime     @updatedAt @db.Timestamptz
+
+  examen Examenes @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+
+  @@index([id_examen, orden])
+  @@map("preguntas_examen")
+}
+
+/// Un intento de examen de un estudiante.
+///
+/// `preguntas_congeladas` es el contrato del intento: al iniciarlo se copia
+/// ahí la pregunta completa —enunciado, opciones y respuestas correctas— en el
+/// orden aleatorizado que le tocó a ESE estudiante. Mismo criterio que el
+/// snapshot de `Certificados.nombre_estudiante` (supabase/sql/047): si el
+/// admin edita, reordena o borra una pregunta mientras alguien está rindiendo,
+/// el intento en curso se califica contra lo que el estudiante realmente vio,
+/// no contra lo que quedó en la tabla después.
+///
+/// Sin `@@unique([id_usuario, id_examen])`: los reintentos son varias filas a
+/// propósito (el historial es la evidencia de cuántos intentos consumió). La
+/// unicidad que sí importa —un solo intento EN_CURSO por estudiante— la impone
+/// el índice parcial `intentos_examen_uno_en_curso` de la migración, que Prisma
+/// no sabe expresar.
+model IntentosExamen {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_examen            String              @db.Uuid
+  id_usuario           String              @db.Uuid
+  estado               EstadoIntentoExamen @default(EN_CURSO)
+  /// Porcentaje obtenido, 0-100 con dos decimales. `null` mientras EN_CURSO.
+  puntaje_pct          Decimal?            @db.Decimal(5, 2)
+  /// Copia de `Examenes.nota_aprobatoria` al iniciar: si el admin sube el
+  /// umbral después, un intento ya rendido no cambia de resultado.
+  nota_requerida       Int
+  preguntas_congeladas Json
+  /// Respuestas dadas, indexadas por id de pregunta. Se reescribe completo en
+  /// cada autoguardado.
+  respuestas           Json                @default("{}")
+  iniciado_en          DateTime            @default(now()) @db.Timestamptz
+  finalizado_en        DateTime?           @db.Timestamptz
+  /// Momento a partir del cual el servidor rechaza el envío por tiempo
+  /// agotado. Se calcula al iniciar (iniciado_en + minutos_limite) y se
+  /// congela acá para que cambiar `minutos_limite` no altere intentos en
+  /// curso. `null` = examen sin límite de tiempo.
+  expira_en            DateTime?           @db.Timestamptz
+  creado_en            DateTime            @default(now()) @db.Timestamptz
+  actualizado_en       DateTime            @updatedAt @db.Timestamptz
+
+  examen  Examenes @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+  usuario Perfiles @relation(fields: [id_usuario], references: [id])
+
+  @@index([id_usuario, id_examen])
+  @@index([id_examen])
+  @@map("intentos_examen")
 }
 
 // ============================================================

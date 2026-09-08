@@ -24,7 +24,11 @@ import {
 // único por sí solo, `subirRecursoLeccion` siempre le agrega un sufijo del
 // id del curso al lado). Es la misma normalización que genera el slug de
 // las categorías — ver lib/slug.ts.
-import { slugificar as slugificarTexto, slugDisponible } from "@/lib/slug";
+import {
+  slugificar as slugificarTexto,
+  slugDisponible,
+  SLUGS_RESERVADOS_LECCION,
+} from "@/lib/slug";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 const BUCKET_PORTADAS = "portadas-cursos";
@@ -48,6 +52,49 @@ async function generarSlugCurso(
   const { data } = await consulta;
 
   return slugDisponible(base, (data ?? []).map((fila) => fila.slug as string));
+}
+
+/**
+ * Slug libre para una lección DENTRO DE SU CURSO (no globalmente: dos cursos
+ * distintos sí pueden tener una lección "introduccion" cada uno — ver el
+ * comentario de `Lecciones.slug` en schema.prisma, que por eso no lleva un
+ * UNIQUE de Postgres).
+ *
+ * Existe desde que las rutas públicas pasaron a `/cursos/<slug>/<slug>`
+ * (migración 20260903010000_agrega_slug_a_cursos_y_lecciones), pero
+ * `crearLeccion` nunca lo rellenó: la columna quedó NOT NULL sin default, así
+ * que cada intento de crear una lección desde el CMS moría con un 23502
+ * ("null value in column slug") y el panel solo mostraba "No pudimos crear la
+ * lección". Este generador cierra ese hueco.
+ *
+ * `SLUGS_RESERVADOS_LECCION` entra al conjunto de ocupados desde el principio:
+ * son segmentos que ya tiene tomados una ruta estática hermana, y una lección
+ * con ese slug quedaría inalcanzable.
+ *
+ * Solo se usa al CREAR, a diferencia del slug de curso (que se regenera en
+ * cada `actualizarInfoCurso`). Renombrar una lección deja su URL intacta a
+ * propósito: el enlace a una clase concreta es lo que un estudiante comparte
+ * o guarda, y cambiarlo por una corrección de tipografía en el título lo
+ * rompería sin avisar.
+ */
+async function generarSlugLeccion(
+  supabase: SupabaseClient,
+  cursoId: string,
+  titulo: string,
+): Promise<string> {
+  const base = slugificarTexto(titulo, "leccion");
+
+  // Las lecciones no tienen `id_curso` propio: se llega por su módulo.
+  const { data: modulos } = await supabase.from("modulos").select("id").eq("id_curso", cursoId);
+  const moduloIds = (modulos ?? []).map((modulo) => modulo.id as string);
+
+  const { data: lecciones } = moduloIds.length
+    ? await supabase.from("lecciones").select("id, slug").in("id_modulo", moduloIds)
+    : { data: [] };
+
+  const tomados = (lecciones ?? []).map((leccion) => leccion.slug as string).filter(Boolean);
+
+  return slugDisponible(base, [...SLUGS_RESERVADOS_LECCION, ...tomados]);
 }
 
 /** Ruta dentro del bucket a partir de una public URL de Storage, o null si
@@ -760,6 +807,7 @@ export async function crearLeccion(
     .insert({
       id_modulo: moduloId,
       titulo: tituloLimpio,
+      slug: await generarSlugLeccion(admin.supabase, cursoId, tituloLimpio),
       orden: siguienteOrden(ultima?.orden ?? null),
     })
     .select("id")

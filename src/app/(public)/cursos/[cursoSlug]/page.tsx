@@ -5,6 +5,7 @@ import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
+import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -67,6 +68,10 @@ export default async function CursoDetallePage({
     notFound();
   }
 
+  // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es
+  // contenido público, así que la ficha anónima no cambia en nada.
+  const situacionExamen = await getSituacionExamen(curso.id, user?.id ?? null);
+
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
 
   if (!user) {
@@ -74,7 +79,12 @@ export default async function CursoDetallePage({
       <>
         <SiteHeader {...perfilActual} />
         <main>
-          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva={false} />
+          <CursoDetalleContent
+            curso={curso}
+            basePath={basePath}
+            sesionActiva={false}
+            situacionExamen={situacionExamen}
+          />
         </main>
         <Footer />
       </>
@@ -102,7 +112,12 @@ export default async function CursoDetallePage({
           diasGracia={diasGracia}
         />
         <main className="pb-20 md:pb-0">
-          <CursoDetalleContent curso={curso} basePath={basePath} sesionActiva />
+          <CursoDetalleContent
+            curso={curso}
+            basePath={basePath}
+            sesionActiva
+            situacionExamen={situacionExamen}
+          />
         </main>
         <BottomTabBar />
       </div>

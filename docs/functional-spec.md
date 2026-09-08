@@ -31,7 +31,9 @@
 | Ver Detalle de Curso y Temario | Permitido | Permitido | Permitido | Permitido |
 | Reproducción de Video (Streaming HLS) | Req. Auth | Req. Checkout | Permitido | Modo Preview |
 | Guardado de Progreso de Lección | No | No | Permitido | No |
+| Presentación de Examen Final | No | No | Permitido | Vista previa |
 | Emisión y Descarga de Certificado | No | No | Permitido | Vista previa |
+| Creación y Publicación de Exámenes | No | No | No | Permitido |
 | Validación Pública de Certificados | Permitido | Permitido | Permitido | Permitido |
 | Gestión de Métodos de Pago y Suscripción | No | Permitido | Permitido | No |
 | Panel Backoffice CMS / CRUD de Cursos | No | No | No | Permitido |
@@ -69,7 +71,8 @@
 
 ### **Módulo 5: Sistema de Certificación y Validación Pública**
 
-> * **Emisión Automática:** Evaluación de completitud del 100% de lecciones de un curso e inserción inmediata de registro en certificados.  
+> * **Emisión Automática (Revf5):** Evaluación de DOS condiciones —completitud del 100% de lecciones del curso y, *si el curso tiene examen final publicado*, un intento aprobado— e inserción inmediata de registro en certificados. Un curso sin examen publicado certifica solo con las lecciones, igual que antes.  
+> * **Examen Final Opcional por Curso:** Quien crea el curso decide si exige examen. Ver Módulo 9 y Flujo 14.  
 > * **Generación Server-Side:** Construcción en tiempo real de archivos PDF descargables con firma digital y hash único.  
 > * **Verificación Pública Permanente:** Página de validación de autenticidad accesible para empleadores o terceros mediante un código de verificación único, con validez permanente sin importar el estado futuro de la suscripción.
 
@@ -90,6 +93,16 @@
 
 > * **Idempotencia de Webhooks:** Registro previo de cada evento recibido de Stripe/Wompi en eventos\_webhook para garantizar procesamiento único.  
 > * **Bitácora Administrativa:** Registro inmutable en bitacora\_admin de cada acción administrativa ejecutada (publicar curso, otorgar cortesía, alterar cupón).
+
+### **Módulo 9: Evaluación y Exámenes Finales**
+
+> * **Examen Opcional por Curso:** Como máximo un examen final por curso, y solo si quien lo crea decide que su curso lo necesita. Sin examen publicado, el curso certifica con el 100% de lecciones, como siempre.
+> * **Gate de Certificación:** Con examen publicado, aprobarlo es condición necesaria —junto al 100% de lecciones— para que el curso quede completo y se emita el certificado (Flujo 07, Revf5).
+> * **Nota Mínima:** 75% por regla de negocio, con piso impuesto en la base de datos. El administrador puede exigir más, nunca menos.
+> * **Tipos de Pregunta:** opción única, opción múltiple, verdadero/falso y respuesta corta. Enunciado con editor enriquecido (listas, citas, código), no solo texto plano.
+> * **Intentos por Rondas:** `intentos_maximos` (default 3) no es un tope de por vida, es el tamaño de una RONDA. Reprobar dentro de la ronda espera 15 minutos; agotar la ronda completa espera 5 horas y al cumplirse habilita una ronda nueva, indefinidamente y sin que un admin tenga que intervenir (aunque puede saltarse la espera). Tiempo límite opcional por examen, validado en el servidor.
+> * **Integridad del Intento:** las preguntas se congelan en el intento al iniciarlo, con su orden aleatorizado; editar el examen después no altera intentos en curso ni recalifica los ya rendidos.
+> * **Calificación Server-Side:** ponderada por puntos. Las respuestas correctas nunca viajan al navegador.
 
 ## **4\. Flujos de Trabajo Detallados (End-to-End Workflows)**
 
@@ -173,13 +186,14 @@
 
 ### **Flujo 07: Emisión, Impresión PDF y Verificación de Certificados**
 
-> 1. El trigger de la base de datos detecta que todas las lecciones asociadas a un curso poseen un registro de progreso con completado \= true para el usuario.  
+> 1. El trigger de la base de datos detecta que se cumplen las dos condiciones de certificación: (a) todas las lecciones asociadas a un curso poseen un registro de progreso con completado \= true para el usuario, y (b) si el curso tiene un examen final publicado, el usuario tiene un intento en estado `APROBADO` (Revf5, ver abajo).  
 > 2. Se inserta una entrada en la tabla certificados asignando la fecha de emisión, generando un codigo\_verificacion único e inmutable, y **congelando** en la misma fila el nombre del estudiante (Perfiles) y el título del curso (Cursos) tal como están en ese instante.  
 > 3. Cuando el estudiante hace clic en "Descargar Certificado", una función *serverless* genera el archivo PDF imprimiendo el nombre y el título del curso **congelados en el certificado** (no el valor vigente en Perfiles/Cursos) y el código de verificación.  
 > 4. Cualquier persona puede acceder a la página de verificación para consultar la validez oficial del diploma; los datos del estudiante y el curso que muestra son los mismos congelados del paso 2, no una consulta en vivo.  
 > 5. **Regla de integridad (Revf3):** Si después de emitido un certificado se agrega una lección nueva al curso, el % de avance de ese estudiante puede bajar de 100% — el certificado ya emitido **no se revoca**. La emisión es un evento puntual (una fila en `certificados` con su propio `codigo_verificacion`), no una condición que se re-evalúe en cada lectura; revocarlo retroactivamente invalidaría un diploma que el estudiante ya pudo haber presentado a un tercero por un cambio de contenido posterior a su esfuerzo real.  
 > 6. **Regla de integridad (Revf4):** Si el estudiante corrige su nombre en Perfiles o un administrador renombra el curso *después* de emitido un certificado, ese certificado ya emitido **no cambia** — es un documento oficial ya expedido. Solo un certificado emitido *después* del cambio refleja el nombre/título nuevo.  
-> 7. La emisión es asíncrona respecto a la navegación del estudiante (el trigger corre en el mismo INSERT/UPDATE de `progreso`, sin bloquear la interfaz) y dispara una notificación por correo ("tu certificado ya está listo") una vez procesada — ver `scripts/certificados-enviar-notificaciones.ts`.
+> 7. **Regla de integridad (Revf5):** Terminar el 100% de las lecciones ya no basta si el curso tiene examen final publicado. La condición se puede completar por cualquiera de sus dos lados y en cualquier orden, así que la detecta uno de DOS triggers: `progreso_emite_certificado` (al completar una lección) e `intento_examen_emite_certificado` (al aprobar el examen). Los dos delegan en la misma función `private.emitir_certificado`, y la regla vive en un solo sitio: `private.curso_esta_completo` (supabase/sql/068). Publicar un examen en un curso que ya tiene estudiantes NO revoca certificados ya emitidos —nunca se revocan, ver Revf3— pero sí pasa a exigirse a quien todavía no se ha certificado. Despublicarlo tampoco quita nada a quien ya lo aprobó.  
+> 8. La emisión es asíncrona respecto a la navegación del estudiante (el trigger corre en el mismo INSERT/UPDATE de `progreso`, sin bloquear la interfaz) y dispara una notificación por correo ("tu certificado ya está listo") una vez procesada — ver `scripts/certificados-enviar-notificaciones.ts`.
 
 ### **Flujo 08: Backoffice — Creación y Estructuración de Cursos (CMS)**
 
@@ -239,6 +253,56 @@
 > 1. Un Administrador activo ingresa al módulo de equipo y solicita la creación de un nuevo usuario administrativo.  
 > 2. Se envía una invitación por correo. Tras completar su registro en Supabase Auth, se actualiza el campo rol \= 'administrador' en la tabla Perfiles.  
 > 3. Cada vez que cualquier administrador realice una acción operativa (crear/editar/eliminar curso, otorgar acceso, modificar cupones), el sistema inserta inmutablemente la acción en bitacora\_admin.
+
+### **Flujo 14: Examen Final de Curso — Creación, Presentación y Calificación**
+
+\[Admin\] Crea examen (borrador) ── Agrega preguntas ── Publica
+                                                            │
+                                                            ▼
+\[Estudiante\] Termina 100% de clases ──> Examen desbloqueado
+                                                            │
+                                            Inicia intento (preguntas congeladas)
+                                                            │
+                                              Autoguardado cada 10s
+                                                            │
+                                    Envía (o se agota el tiempo) ──> Calificación server-side
+                                                            │
+                                      ┌─────────────────────┴─────────────────────┐
+                                      ▼                                           ▼
+                              \[≥ nota requerida\]                        \[< nota requerida\]
+                                      │                                           │
+                        Certificado emitido por trigger              Espera 15 min y reintenta
+                                                                     (dentro de la misma ronda)
+                                                                                    │
+                                                              ┌─────────────────────┴─────────────────────┐
+                                                              ▼                                           ▼
+                                                    [ronda sin agotar]                          [ronda de N agotada]
+                                                              │                                           │
+                                                     Reintenta con el                        Espera larga (5h) y
+                                                     mismo cooldown corto                     recibe una ronda nueva
+                                                                                              (o el admin se la salta)
+
+**Lado administrador**
+
+> 1. Desde el detalle de curso del panel (pestaña **Examen**), el Administrador crea el examen. Nace SIEMPRE en borrador: mientras `publicado = false` no existe para el estudiante ni bloquea ninguna certificación.
+> 2. Configura título, instrucciones (editor enriquecido), nota para aprobar (**mínimo 75%**, puede exigir más — lo impone la restricción `examenes_nota_aprobatoria_minima` en la base, no solo el formulario), intentos permitidos (default 3, admite "sin límite"), tiempo límite en minutos (admite "sin límite") y si se barajan preguntas y opciones.
+> 3. Agrega preguntas de cuatro tipos cerrados: **opción única**, **opción múltiple** (calificación todo-o-nada), **verdadero/falso** y **respuesta corta** (comparación normalizada: ignora mayúsculas, tildes y signos; admite varias respuestas aceptadas). El enunciado usa el mismo editor enriquecido que las lecciones, así que admite listas, citas y bloques de código. Las reordena por arrastre, igual que módulos y lecciones.
+> 4. El interruptor de publicar está bloqueado mientras el examen no tenga título, al menos una pregunta, y un margen de error razonable (con 3 preguntas al 75%, el estudiante tendría que acertarlas todas: la UI lo advierte antes de publicar, no después de que alguien repruebe).
+> 5. Publicar es lo que cambia la regla de certificación del curso; queda registrado en la bitácora administrativa. Un examen con intentos ya presentados no se puede eliminar — se despublica.
+> 6. La pestaña "Estudiantes" agrupa por estudiante, no una fila por intento: cada uno se expande para ver su historial completo (número de intento — "2 de 3" —, estado, puntaje, fecha) y un botón **Ver revisión** por intento cerrado, con el detalle pregunta por pregunta — qué marcó/escribió el estudiante, cuál era la respuesta correcta, y si acertó (`getRevisionIntento`, a diferencia de lo que ve el propio estudiante, que nunca revela la respuesta correcta).
+> 6.1. Si un estudiante agota una ronda completa de intentos sin aprobar, aparece con la etiqueta "Agotó su tanda" y, al expandirlo, un botón **Dar un intento extra** para saltarse la espera de 5 horas. No es la única forma de destrabarlo — la espera se resuelve sola — pero sí la única forma de que el estudiante no tenga que esperar. Queda registrado en la bitácora.
+
+**Lado estudiante**
+
+> 7. La ficha del curso muestra el examen desde el principio, con candado, para que sepa qué le falta para el certificado antes de llegar al final. En el reproductor, al llegar a la **última clase** del curso, el botón que en el resto del temario dice "Siguiente clase" cambia a **"Hacer examen"** y lleva directo a `/cursos/<slug>/examen` — no hace falta salir a la ficha del curso para encontrarlo.
+> 8. Al completar el 100% de las clases se desbloquea `/cursos/<slug>/examen`: pantalla previa con instrucciones, nota requerida, tiempo e intentos restantes.
+> 9. Al iniciar, el servidor **congela** en el intento las preguntas tal como se le presentan a ESE estudiante, ya aleatorizadas, junto con las respuestas correctas. Editar, reordenar o borrar una pregunta después no altera un intento en curso — mismo criterio que el snapshot de nombre/curso de un certificado (Revf4).
+> 10. Las respuestas se autoguardan cada 10 segundos. Si hay tiempo límite, se muestra una cuenta regresiva y el examen se envía solo al agotarse; el corte se valida contra `intentos_examen.expira_en` en el servidor, nunca contra el reloj del cliente, y un envío que llega tarde se califica con lo último autoguardado antes del vencimiento.
+> 11. La calificación es 100% server-side y ponderada por puntos, no por número de preguntas. El navegador nunca recibe las respuestas correctas (`prepararPreguntasParaEstudiante` las despoja), así que no podría calificar aunque quisiera.
+> 12. Aprueba con un puntaje ≥ la nota congelada en el intento. El certificado se emite en el mismo UPDATE, por trigger.
+> 13. Si reprueba ve su puntaje y **cuáles** preguntas falló, pero nunca cuál era la respuesta correcta: con intentos limitados, revelarla convertiría el reintento en un trámite.
+> 14. `intentos_maximos` no es un tope de por vida, es el tamaño de una RONDA (`calcularDisponibilidad`, src/lib/examen.ts — única fuente de verdad del cooldown, la usan tanto la Server Action que inicia el intento como la pantalla). Reprobar dentro de la ronda espera **15 minutos**; agotar la ronda completa (todos sus intentos sin aprobar) espera **5 horas**, y al cumplirse se habilita una ronda nueva de la misma cantidad de intentos — así indefinidamente, sin que un admin tenga que intervenir. Un administrador puede saltarse esa espera con **Dar un intento extra** (ver punto 6.1), pero no es necesario para que el estudiante eventualmente pueda volver a intentarlo.
+> 15. **Antifraude:** `preguntas_examen` no es legible por ningún estudiante (RLS solo la abre a administradores) e `intentos_examen` **no tiene ninguna política de escritura** — un `PATCH` directo contra la API con `{"estado":"APROBADO"}` no afecta ninguna fila. Iniciar, autoguardar y enviar pasan siempre por Server Actions que verifican identidad y acceso antes de escribir. Un índice parcial garantiza un único intento abierto por estudiante y examen, así que dos pestañas no consumen dos intentos.
 
 ## **5\. Especificación de Reglas de Negocio, Validaciones y Edge Cases**
 

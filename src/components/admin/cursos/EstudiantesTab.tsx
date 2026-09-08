@@ -26,7 +26,21 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { EstudianteDeCurso } from "@/lib/admin/cursoDetalle";
 
 const ACCESO_ITEMS = { todos: "Todo acceso", MEMBRESIA: "Membresía", CORTESIA: "Cortesía" };
-const ESTADO_ITEMS = { todos: "Todo estado", EN_PROGRESO: "En progreso", COMPLETADO: "Completado" };
+const ESTADO_ITEMS = {
+  todos: "Todo estado",
+  EN_PROGRESO: "En progreso",
+  EXAMEN_PENDIENTE: "Examen pendiente",
+  COMPLETADO: "Completado",
+};
+
+/* Tres estados desde Revf5: terminar las clases ya no implica haber
+   completado el curso si este exige examen final. "Examen pendiente" usa el
+   tono de advertencia para que se distinga de un curso a medias. */
+const ESTADO_BADGE = {
+  EN_PROGRESO: { tone: "accent", etiqueta: "En progreso" },
+  EXAMEN_PENDIENTE: { tone: "warning", etiqueta: "Examen pendiente" },
+  COMPLETADO: { tone: "success", etiqueta: "Completado" },
+} as const;
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -80,6 +94,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
           <SelectContent>
             <SelectItem value="todos">Todo estado</SelectItem>
             <SelectItem value="EN_PROGRESO">En progreso</SelectItem>
+            <SelectItem value="EXAMEN_PENDIENTE">Examen pendiente</SelectItem>
             <SelectItem value="COMPLETADO">Completado</SelectItem>
           </SelectContent>
         </Select>
@@ -115,11 +130,8 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                     </Avatar>
                     <span className="truncate text-sm text-uva-text">{estudiante.nombre}</span>
                   </Link>
-                  <StatusBadge
-                    tone={estudiante.estado === "COMPLETADO" ? "success" : "accent"}
-                    className="shrink-0"
-                  >
-                    {estudiante.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                  <StatusBadge tone={ESTADO_BADGE[estudiante.estado].tone} className="shrink-0">
+                    {ESTADO_BADGE[estudiante.estado].etiqueta}
                   </StatusBadge>
                 </div>
                 <div className="flex items-center gap-2">
@@ -171,8 +183,8 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                     </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge tone={estudiante.estado === "COMPLETADO" ? "success" : "accent"}>
-                      {estudiante.estado === "COMPLETADO" ? "Completado" : "En progreso"}
+                    <StatusBadge tone={ESTADO_BADGE[estudiante.estado].tone}>
+                      {ESTADO_BADGE[estudiante.estado].etiqueta}
                     </StatusBadge>
                   </TableCell>
                   <TableCell>

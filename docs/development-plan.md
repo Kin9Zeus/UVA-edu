@@ -112,3 +112,35 @@
   * Ausencia total de bugs bloqueantes o errores críticos en consola.
   * Catálogo real de lanzamiento 100% subido y verificado.
   * Primer pago real en el entorno de producción procesado exitosamente, concediendo acceso total.
+
+### Fase 8: Exámenes Finales de Curso — v1 (entregada)
+* **Objetivo:** Que un curso pueda exigir aprobar un examen final para considerarse completo y emitir certificado, sin cambiarle el comportamiento a los cursos que no lo necesiten.
+* **Prerrequisitos:** Fase 5 (certificados) culminada — el gate se monta sobre el trigger de emisión existente.
+* **Especificación:** `docs/functional-spec.md` Módulo 9 y Flujo 14; regla de certificación en Flujo 07 (Revf5). Esquema en `docs/technical-spec.md`, "Módulo de Evaluación".
+* **Tareas entregadas:**
+  * Esquema: `examenes`, `preguntas_examen`, `intentos_examen` (migración `20260907020000_examenes_finales`), con el piso de 75% y el índice parcial de intento único como restricciones de base, no de formulario.
+  * RLS (`supabase/sql/067_examenes.sql`): `preguntas_examen` solo para administradores; `intentos_examen` sin ninguna política de escritura.
+  * Gate de certificación (`supabase/sql/068_certificado_requiere_examen.sql`): `private.curso_esta_completo` como fuente de verdad única, con dos triggers (progreso y aprobación de examen) que delegan en la misma función de emisión.
+  * CMS: pestaña **Examen** en el detalle de curso — configuración, preguntas con arrastre, publicación bloqueada por reglas, y tabla de intentos.
+  * Estudiante: `/cursos/<slug>/examen` con pantalla previa, rendición con autoguardado y temporizador, y resultado.
+  * Tercer estado "Examen pendiente" en el dashboard del estudiante y en los dos paneles de admin que decían "Completado" solo con el 100% de clases.
+* **Criterios de Aceptación (verificados):**
+  * Un estudiante con el 100% de clases y examen sin aprobar NO recibe certificado ni ve el curso como completo (`npm run test:rls`).
+  * Un estudiante no puede leer `preguntas_examen` ni escribir su propia nota vía API (`npm run test:rls`).
+  * Un curso sin examen publicado certifica exactamente como antes.
+
+### Exámenes — Fase 2 (pendiente, NO entregada)
+* **Objetivo:** Ampliar los tipos de pregunta más allá de los cerrados, para evaluar criterio y no solo reconocimiento.
+* **Por qué se pospuso:** cada tipo nuevo cuesta tres cosas, no una — UI de captura en el CMS, UI de respuesta para el estudiante y validación/calificación server-side. Los cuatro tipos cerrados de la v1 ya cubren el requisito de "que no sea solo un formulario" (enunciados enriquecidos con código e imágenes, respuesta corta escrita, opción múltiple todo-o-nada) y son los únicos autocalificables sin intervención humana.
+* **Preparado desde la v1 para que esta fase NO requiera migración de esquema:**
+  * El enum `TipoPregunta` ya declara `ORDENAR_PASOS`, `EMPAREJAR` y `RESPUESTA_ABIERTA` (agregar un valor a un enum de Postgres en caliente obliga a un `ALTER TYPE ... ADD VALUE`, que no corre en la misma transacción que lo usa).
+  * El enum `EstadoIntentoExamen` ya declara `EN_REVISION`, para intentos con preguntas abiertas pendientes de calificación manual.
+  * `src/lib/examenes/tipos.ts` centraliza qué tipos acepta la app hoy: `TIPOS_IMPLEMENTADOS` y `TIPOS_FASE_2`. Habilitar un tipo es moverlo de una lista a la otra y escribir su caso en `calificarPregunta`.
+  * `getExamenDeCurso` y `congelarPreguntas` ya filtran por `esTipoImplementado()`, así que una pregunta de Fase 2 guardada por error no rompe la pantalla ni cuenta como fallada.
+* **Tareas:**
+  * **Ordenar pasos:** el estudiante reordena una secuencia. Reusar el drag & drop de módulos/lecciones (`@dnd-kit`) que ya está en el proyecto. Calificación: comparación de la secuencia completa.
+  * **Emparejar columnas:** conectar término ↔ definición. Es el tipo con más trabajo de UI (interacción de dos columnas en móvil).
+  * **Respuesta abierta con revisión manual:** el intento va a `EN_REVISION` en vez de calificarse solo; el admin califica esas preguntas desde una bandeja de pendientes y el `puntaje_pct` se recalcula al completarlas. Requiere además notificar al estudiante cuando su resultado quede confirmado.
+* **Criterios de Aceptación:**
+  * Un examen puede mezclar tipos cerrados y abiertos; los cerrados se califican solos y el intento queda `EN_REVISION` hasta que se califiquen los abiertos.
+  * El certificado se emite recién cuando el intento pasa a `APROBADO`, no al enviarlo.

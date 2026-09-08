@@ -117,6 +117,13 @@ async function main() {
   // Mismo motivo: el certificado que emite el trigger (047) hay que
   // conocerlo en el finally para borrar también su archivo de Storage.
   let idCertificadoPrueba: string | null = null;
+  // Mismo motivo: el curso y el examen de la sesión de exámenes (066/067)
+  // se crean dentro del try, pero hay que borrarlos en el finally — y los
+  // intentos ANTES que los usuarios, porque intentos_examen.id_usuario es
+  // ON DELETE RESTRICT (un intento es evidencia de evaluación, no se borra
+  // en cascada con el perfil).
+  let idCursoExamen: string | null = null;
+  let idExamenPrueba: string | null = null;
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -822,6 +829,316 @@ async function main() {
       "registrar_archivo_certificado sí guardó la ruta cuando el dueño lo llama",
       certificadoConArchivo?.archivo_pdf === `${userConAcceso.user!.id}/${idCertificadoPrueba}.pdf`,
       `archivo_pdf=${certificadoConArchivo?.archivo_pdf ?? "null"}`,
+    );
+
+    // ==================================================================
+    // Sesión: EXÁMENES FINALES (066/067)
+    //
+    // Lo que se prueba acá no es "¿el estudiante ve lo que debe?" sino las
+    // dos cosas que, si fallan, regalan un certificado:
+    //   1. que NO pueda leer las respuestas correctas;
+    //   2. que NO pueda escribir su propia nota.
+    // Y, del otro lado, que el examen bloquee de verdad la certificación
+    // mientras no esté aprobado (Revf5).
+    // ==================================================================
+    console.log("\n=== Sesión: EXÁMENES FINALES (066/067) ===\n");
+
+    const { data: cursoExamen, error: errCursoExamen } = await admin
+      .from("cursos")
+      .insert({
+        titulo: `Curso RLS test (examen) ${sufijo}`,
+        slug: `curso-rls-test-examen-${sufijo}`,
+        descripcion: "x",
+        imagen_portada: "x",
+        id_instructor: instructor.id,
+        mostrado: true,
+        id_admin_creador: adminPerfil.id,
+      })
+      .select("id")
+      .single();
+    if (errCursoExamen || !cursoExamen) {
+      throw new Error(`No pude crear el curso de examen de prueba: ${errCursoExamen?.message}`);
+    }
+    idCursoExamen = cursoExamen.id;
+
+    const { data: moduloExamen } = await admin
+      .from("modulos")
+      .insert({ id_curso: cursoExamen.id, titulo: "Módulo examen RLS test", orden: 10 })
+      .select("id")
+      .single();
+
+    const { data: leccionExamen } = await admin
+      .from("lecciones")
+      .insert({
+        id_modulo: moduloExamen!.id,
+        titulo: "Lección examen RLS test",
+        slug: `leccion-examen-rls-test-${sufijo}`,
+        orden: 10,
+        id_video_mux: `rls-test-examen-${sufijo}`,
+        estado_procesamiento: "LISTO",
+      })
+      .select("id")
+      .single();
+
+    // Nota por debajo del piso de negocio: la restricción de la base tiene que
+    // rechazarla aunque el Server Action no esté en medio.
+    const { error: errNotaBaja } = await admin
+      .from("examenes")
+      .insert({ id_curso: cursoExamen.id, titulo: "Examen inválido", nota_aprobatoria: 60 });
+    registrar(
+      "la base rechaza un examen con nota aprobatoria por debajo de 75% (no solo el formulario)",
+      errNotaBaja?.code === "23514",
+      errNotaBaja?.code ?? "se insertó igual",
+    );
+
+    const { data: examenPrueba, error: errExamen } = await admin
+      .from("examenes")
+      .insert({
+        id_curso: cursoExamen.id,
+        titulo: "Examen final RLS test",
+        nota_aprobatoria: 75,
+        intentos_maximos: 3,
+        publicado: true,
+      })
+      .select("id, nota_aprobatoria")
+      .single();
+    if (errExamen || !examenPrueba) throw new Error(`No pude crear el examen de prueba: ${errExamen?.message}`);
+    idExamenPrueba = examenPrueba.id;
+
+    const { error: errPregunta } = await admin.from("preguntas_examen").insert({
+      id_examen: examenPrueba.id,
+      tipo: "OPCION_UNICA",
+      enunciado: { type: "doc", content: [] },
+      puntos: 1,
+      orden: 10,
+      opciones: [
+        { id: "op-correcta", texto: "La correcta", correcta: true },
+        { id: "op-falsa", texto: "La otra", correcta: false },
+      ],
+    });
+    if (errPregunta) throw new Error(`No pude crear la pregunta de prueba: ${errPregunta.message}`);
+
+    // ---------- Lectura ----------
+    const { data: examenVistoPorEstudiante } = await clienteConAcceso
+      .from("examenes")
+      .select("id, titulo, nota_aprobatoria")
+      .eq("id_curso", cursoExamen.id);
+    registrar(
+      "el estudiante con acceso SÍ ve la ficha del examen publicado (título, nota, intentos)",
+      (examenVistoPorEstudiante ?? []).length === 1,
+      `filas=${(examenVistoPorEstudiante ?? []).length}`,
+    );
+
+    await esperarBloqueado(
+      "un estudiante SIN acceso al curso no ve ni la ficha del examen",
+      clienteSinAcceso.from("examenes").select("*").eq("id_curso", cursoExamen.id),
+    );
+
+    // La prueba que más importa de todo el bloque: `preguntas_examen` guarda
+    // cuál opción es la correcta. Un SELECT desde el navegador sería el examen
+    // resuelto.
+    await esperarBloqueado(
+      "un estudiante NO puede leer preguntas_examen (contiene las respuestas correctas)",
+      clienteConAcceso.from("preguntas_examen").select("*").eq("id_examen", examenPrueba.id),
+    );
+
+    // ---------- El gate de certificación ----------
+    const { error: errCompletarExamen } = await clienteConAcceso.from("progreso").upsert(
+      { id_usuario: userConAcceso.user!.id, id_leccion: leccionExamen!.id, completado: true },
+      { onConflict: "id_usuario,id_leccion" },
+    );
+    if (errCompletarExamen) {
+      throw new Error(`No pude completar la lección del curso con examen: ${errCompletarExamen.message}`);
+    }
+
+    const { count: certSinExamen } = await admin
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoExamen.id);
+    registrar(
+      "Revf5: terminar el 100% de las clases NO emite certificado si el curso exige examen",
+      certSinExamen === 0,
+      `certificados=${certSinExamen}`,
+    );
+
+    const { data: leccionesListas } = await clienteConAcceso.rpc("lecciones_completas_curso", {
+      p_id_curso: cursoExamen.id,
+    });
+    registrar(
+      "lecciones_completas_curso() sí reconoce las clases terminadas (el examen se desbloquea)",
+      leccionesListas === true,
+      `resultado=${leccionesListas}`,
+    );
+
+    const { data: cursoCompletoAun } = await clienteConAcceso.rpc("curso_esta_completo", {
+      p_id_curso: cursoExamen.id,
+    });
+    registrar(
+      "curso_esta_completo() distingue 'clases terminadas' de 'curso completo' (falta el examen)",
+      cursoCompletoAun === false,
+      `resultado=${cursoCompletoAun}`,
+    );
+
+    // ---------- Escritura de intentos ----------
+    await esperarBloqueado(
+      "un estudiante NO puede insertar su propio intento (no hay policy de INSERT: pasa por Server Action)",
+      clienteConAcceso
+        .from("intentos_examen")
+        .insert({
+          id_examen: examenPrueba.id,
+          id_usuario: userConAcceso.user!.id,
+          nota_requerida: 75,
+          preguntas_congeladas: [],
+        })
+        .select(),
+    );
+
+    const { data: intentoPrueba, error: errIntento } = await admin
+      .from("intentos_examen")
+      .insert({
+        id_examen: examenPrueba.id,
+        id_usuario: userConAcceso.user!.id,
+        nota_requerida: 75,
+        preguntas_congeladas: [],
+      })
+      .select("id")
+      .single();
+    if (errIntento || !intentoPrueba) throw new Error(`No pude crear el intento de prueba: ${errIntento?.message}`);
+
+    const { data: intentoPropio } = await clienteConAcceso
+      .from("intentos_examen")
+      .select("id, estado")
+      .eq("id", intentoPrueba.id);
+    registrar(
+      "el estudiante SÍ lee su propio intento (lo necesita para rendir el examen)",
+      (intentoPropio ?? []).length === 1,
+      `filas=${(intentoPropio ?? []).length}`,
+    );
+
+    await esperarBloqueado(
+      "otro estudiante no puede leer un intento ajeno",
+      clienteSinAcceso.from("intentos_examen").select("*").eq("id", intentoPrueba.id),
+    );
+
+    // El escenario de fraude concreto: PATCH directo contra PostgREST para
+    // autoaprobarse y disparar el trigger de certificación.
+    const { data: autoaprobado, error: errAutoaprobar } = await clienteConAcceso
+      .from("intentos_examen")
+      .update({ estado: "APROBADO", puntaje_pct: 100, finalizado_en: new Date().toISOString() })
+      .eq("id", intentoPrueba.id)
+      .select();
+    const { data: intentoTrasIntento } = await admin
+      .from("intentos_examen")
+      .select("estado, puntaje_pct")
+      .eq("id", intentoPrueba.id)
+      .single();
+    registrar(
+      "un estudiante NO puede escribirse su propia nota (PATCH estado=APROBADO no toca nada)",
+      (errAutoaprobar !== null || (autoaprobado ?? []).length === 0) &&
+        intentoTrasIntento?.estado === "EN_CURSO",
+      `filas=${(autoaprobado ?? []).length} estado=${intentoTrasIntento?.estado}`,
+    );
+
+    const { count: certTrasFraude } = await admin
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoExamen.id);
+    registrar(
+      "el intento de autoaprobarse tampoco emitió certificado",
+      certTrasFraude === 0,
+      `certificados=${certTrasFraude}`,
+    );
+
+    // ---------- Aprobar de verdad (como lo hace el Server Action) ----------
+    const { error: errAprobar } = await admin
+      .from("intentos_examen")
+      .update({ estado: "APROBADO", puntaje_pct: 100, finalizado_en: new Date().toISOString() })
+      .eq("id", intentoPrueba.id);
+    if (errAprobar) throw new Error(`No pude aprobar el intento de prueba: ${errAprobar.message}`);
+
+    const { data: certificadoTrasExamen } = await admin
+      .from("certificados")
+      .select("id, codigo_verificacion")
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoExamen.id)
+      .maybeSingle();
+    registrar(
+      "aprobar el examen SÍ emite el certificado (trigger intento_examen_emite_certificado, 067)",
+      !!certificadoTrasExamen && /^[A-Z2-9]{5}-[A-Z2-9]{5}$/.test(certificadoTrasExamen.codigo_verificacion),
+      certificadoTrasExamen ? `codigo=${certificadoTrasExamen.codigo_verificacion}` : "no se emitió",
+    );
+
+    const { data: cursoCompletoYa } = await clienteConAcceso.rpc("curso_esta_completo", {
+      p_id_curso: cursoExamen.id,
+    });
+    registrar(
+      "curso_esta_completo() pasa a true con las dos condiciones cumplidas",
+      cursoCompletoYa === true,
+      `resultado=${cursoCompletoYa}`,
+    );
+
+    // Un segundo intento aprobado del mismo curso no puede duplicar el
+    // certificado: el unique (id_usuario, id_curso) es el que manda.
+    const { data: segundoIntento } = await admin
+      .from("intentos_examen")
+      .insert({
+        id_examen: examenPrueba.id,
+        id_usuario: userConAcceso.user!.id,
+        nota_requerida: 75,
+        preguntas_congeladas: [],
+      })
+      .select("id")
+      .single();
+    await admin
+      .from("intentos_examen")
+      .update({ estado: "APROBADO", puntaje_pct: 100, finalizado_en: new Date().toISOString() })
+      .eq("id", segundoIntento!.id);
+    const { count: certificadosDelCurso } = await admin
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("id_curso", cursoExamen.id);
+    registrar(
+      "aprobar dos veces no duplica el certificado (unique id_usuario+id_curso)",
+      certificadosDelCurso === 1,
+      `certificados=${certificadosDelCurso}`,
+    );
+
+    // Índice parcial `intentos_examen_uno_en_curso`: dos pestañas abiertas no
+    // pueden gastar dos intentos.
+    await admin
+      .from("intentos_examen")
+      .update({ estado: "EN_CURSO", puntaje_pct: null, finalizado_en: null })
+      .eq("id", intentoPrueba.id);
+    const { error: errDosEnCurso } = await admin.from("intentos_examen").insert({
+      id_examen: examenPrueba.id,
+      id_usuario: userConAcceso.user!.id,
+      nota_requerida: 75,
+      preguntas_congeladas: [],
+    });
+    registrar(
+      "no se pueden tener dos intentos EN_CURSO del mismo examen (índice parcial)",
+      errDosEnCurso?.code === "23505",
+      errDosEnCurso?.code ?? "se insertó igual",
+    );
+
+    await esperarBloqueado(
+      "un estudiante no puede publicar/despublicar un examen",
+      clienteConAcceso.from("examenes").update({ publicado: false }).eq("id", examenPrueba.id).select(),
+    );
+
+    await esperarBloqueado(
+      "un estudiante no puede crear preguntas",
+      clienteConAcceso
+        .from("preguntas_examen")
+        .insert({
+          id_examen: examenPrueba.id,
+          tipo: "OPCION_UNICA",
+          enunciado: { type: "doc", content: [] },
+        })
+        .select(),
     );
 
     // ------------------------------------------------------------------
@@ -1609,6 +1926,7 @@ async function main() {
       // corrida dejaría un usuario de prueba colgado — exactamente el problema
       // que este `finally` existe para evitar. No se depende del orden en que
       // caen las cascadas.
+      await admin.from("intentos_examen").delete().eq("id_usuario", usuario.id);
       await admin.from("comentarios").delete().eq("id_usuario", usuario.id);
     }
 
@@ -1618,6 +1936,11 @@ async function main() {
     await admin.from("modulos").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("inscripciones").delete().eq("id_curso", cursoNoPublicado.id);
     await admin.from("cursos").delete().eq("id", cursoNoPublicado.id);
+    if (idExamenPrueba) await admin.from("examenes").delete().eq("id", idExamenPrueba);
+    if (idCursoExamen) {
+      await admin.from("modulos").delete().eq("id_curso", idCursoExamen);
+      await admin.from("cursos").delete().eq("id", idCursoExamen);
+    }
     await admin.from("instructores").delete().eq("id", instructor.id);
     await admin.from("categorias").delete().eq("id", categoria.id);
     await admin.from("planes").delete().eq("id", plan.id);

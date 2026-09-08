@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, FileCheck, List } from "lucide-react";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
@@ -160,6 +160,17 @@ export function PlayerContent({
           >
             <ChevronRight className="size-5" strokeWidth={2.5} />
           </button>
+        ) : data.examenDisponible ? (
+          // Última clase del curso con examen final: el botón que en el resto
+          // del temario dice "Siguiente clase" pasa a llevar al examen, en vez
+          // de desaparecer y obligar a volver a la ficha del curso.
+          <Link
+            href={`/cursos/${data.cursoSlug}/examen`}
+            aria-label="Hacer examen"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+          >
+            <FileCheck className="size-4" strokeWidth={2.5} />
+          </Link>
         ) : null}
       </div>
 
@@ -206,6 +217,15 @@ export function PlayerContent({
               Siguiente clase
               <ChevronRight className="size-4" strokeWidth={2.5} />
             </button>
+          ) : data.examenDisponible ? (
+            <Link
+              href={`/cursos/${data.cursoSlug}/examen`}
+              aria-label="Hacer examen"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+            >
+              Hacer examen
+              <FileCheck className="size-4" strokeWidth={2.5} />
+            </Link>
           ) : null}
         </div>
       </div>

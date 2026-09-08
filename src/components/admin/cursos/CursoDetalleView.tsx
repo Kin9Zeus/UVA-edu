@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { InfoTab } from "@/components/admin/cursos/InfoTab";
 import { ContenidoTab } from "@/components/admin/cursos/ContenidoTab";
+import { ExamenTab } from "@/components/admin/cursos/ExamenTab";
 import { EstudiantesTab } from "@/components/admin/cursos/EstudiantesTab";
 import { ConfiguracionTab } from "@/components/admin/cursos/ConfiguracionTab";
 import { useAdminToast } from "@/components/admin/Toast";
@@ -17,6 +18,7 @@ import { esPortadaReal } from "@/lib/media";
 import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import { useAvisoNavegacionSinGuardar } from "@/lib/admin/useAvisoNavegacionSinGuardar";
 import type { CursoDetalle } from "@/lib/admin/cursoDetalle";
+import type { ExamenDetalle } from "@/lib/admin/examenDetalle";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
@@ -31,11 +33,15 @@ export function CursoDetalleView({
   curso,
   categorias,
   instructores,
+  examen,
 }: {
   curso: CursoDetalle;
   categorias: { id: string; nombre: string }[];
   /** Cuentas con rol PROFESOR disponibles para asignar (getPerfilesProfesor). */
   instructores: { id: string; nombre: string }[];
+  /** `null` si el curso no tiene examen final: es el caso normal, no un
+   * estado incompleto — ver el comentario de ExamenTab. */
+  examen: ExamenDetalle | null;
 }) {
   const [titulo, setTitulo] = useState(curso.titulo);
   const [imagenPortada, setImagenPortada] = useState(curso.imagenPortada);
@@ -53,11 +59,14 @@ export function CursoDetalleView({
   // guardar también debe bloquear salir de esta pantalla, no solo cambiar
   // de lección dentro de la pestaña.
   const [contenidoSinGuardar, setContenidoSinGuardar] = useState(false);
+  // Igual que `contenidoSinGuardar`, pero reportado por ExamenTab: una
+  // pregunta a medio editar también tiene que bloquear la salida.
+  const [examenSinGuardar, setExamenSinGuardar] = useState(false);
   const showToast = useAdminToast();
 
-  // Las 4 etiquetas de pestaña casi llenan el ancho de un teléfono angosto,
-  // sin ningún margen — este scroll + degradado es la red de seguridad
-  // (mismo patrón que los filtros de /admin/cursos) para cuando no alcanzan.
+  // Las 5 etiquetas de pestaña ya no caben en el ancho de un teléfono
+  // angosto — este scroll + degradado es la red de seguridad (mismo patrón
+  // que los filtros de /admin/cursos) para cuando no alcanzan.
   const tabsRef = useRef<HTMLDivElement>(null);
   const [hayMasTabs, setHayMasTabs] = useState(false);
 
@@ -103,7 +112,7 @@ export function CursoDetalleView({
     idsInstructores.length !== guardadoComo.idsInstructores.length ||
     idsInstructores.some((id) => !guardadoComo.idsInstructores.includes(id));
 
-  const hayCambiosSinGuardar = sinGuardar || contenidoSinGuardar;
+  const hayCambiosSinGuardar = sinGuardar || contenidoSinGuardar || examenSinGuardar;
 
   useEffect(() => {
     function avisar(event: BeforeUnloadEvent) {
@@ -116,10 +125,13 @@ export function CursoDetalleView({
   }, [hayCambiosSinGuardar]);
 
   // Cubre lo que beforeunload no cubre: navegación interna (Volver a
-  // cursos, menú lateral) vía <Link>, que no descarga la página.
-  useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
+  // cursos, menú lateral) vía <Link>, que no descarga la página. Devuelve el
+  // diálogo de confirmación (propio de la app, no window.confirm()) — hay
+  // que renderizarlo, ver el `return` de abajo.
+  const dialogAvisoNavegacion = useAvisoNavegacionSinGuardar(hayCambiosSinGuardar);
 
   const handleContenidoDirtyChange = useCallback((dirty: boolean) => setContenidoSinGuardar(dirty), []);
+  const handleExamenDirtyChange = useCallback((dirty: boolean) => setExamenSinGuardar(dirty), []);
 
   // Se recalcula con el título y la portada en vivo (los edita esta misma
   // pantalla) y con los módulos tal como vinieron del servidor: ContenidoTab
@@ -249,6 +261,7 @@ export function CursoDetalleView({
           <TabsList ref={tabsRef} className="overflow-x-auto">
             <TabsTrigger value="informacion">Información</TabsTrigger>
             <TabsTrigger value="contenido">Contenido</TabsTrigger>
+            <TabsTrigger value="examen">Examen</TabsTrigger>
             <TabsTrigger value="estudiantes">Estudiantes</TabsTrigger>
             <TabsTrigger value="configuracion">Configuración</TabsTrigger>
           </TabsList>
@@ -288,6 +301,17 @@ export function CursoDetalleView({
             onDirtyChange={handleContenidoDirtyChange}
           />
         </TabsContent>
+        <TabsContent value="examen" className="pt-[18px]">
+          {/* La key remonta el tab cuando cambia el conjunto de preguntas:
+              igual que ContenidoTab, el estado local de cada editor tiene que
+              partir de los datos recién revalidados y no de los anteriores. */}
+          <ExamenTab
+            key={examen ? `${examen.id}:${examen.preguntas.map((p) => p.id).join(",")}` : "sin-examen"}
+            cursoId={curso.id}
+            examen={examen}
+            onDirtyChange={handleExamenDirtyChange}
+          />
+        </TabsContent>
         <TabsContent value="estudiantes" className="pt-[18px]">
           <EstudiantesTab estudiantes={curso.estudiantes} />
         </TabsContent>
@@ -306,6 +330,8 @@ export function CursoDetalleView({
           />
         </TabsContent>
       </Tabs>
+
+      {dialogAvisoNavegacion}
     </div>
   );
 }
