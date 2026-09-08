@@ -410,3 +410,73 @@ export async function revocarMembresia(
   revalidatePath("/admin/usuarios");
   return { success: true };
 }
+
+/**
+ * Suprime los datos personales de una cuenta (Ley 1581 / Habeas Data).
+ * Cierra D-4 de AUDIT-2026-09-08-base-de-datos.md.
+ *
+ * No borra la cuenta, la anonimiza — y esa no es una concesión, es la única
+ * forma que el esquema permite: `perfiles.id` referencia `auth.users` con ON
+ * DELETE CASCADE, mientras que diez tablas referencian `perfiles` con ON
+ * DELETE RESTRICT. Un `deleteUser` cascadearía al borrado del perfil y
+ * chocaría con el primer RESTRICT. Las razones de cada RESTRICT son buenas
+ * (pagos y certificados tienen valor contable y probatorio), así que lo que
+ * se va es el dato personal, no la fila. El detalle completo de qué se borra
+ * y qué se conserva está en supabase/sql/075_anonimizar_usuario.sql.
+ *
+ * Es irreversible a propósito: no hay "deshacer" para una supresión bajo
+ * Habeas Data, y ofrecerlo sería la funcionalidad equivocada. La interfaz
+ * que la invoque debe pedir confirmación explícita.
+ *
+ * La bitácora se escribe DESPUÉS y a propósito conserva el id del usuario
+ * anonimizado: es el registro de que la solicitud se atendió, y sin el id no
+ * se podría demostrar a quién. El id por sí solo no es un dato personal una
+ * vez que no queda nada asociado a él.
+ */
+export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  if (usuarioId === admin.adminId) {
+    return { error: "No puedes anonimizar tu propia cuenta." };
+  }
+
+  // Con el cliente de la sesión, no con service role: la RPC vuelve a
+  // comprobar el rol por su cuenta (075) y así las dos capas coinciden en
+  // quién está actuando. `auth.uid()` dentro de la función también necesita
+  // ser el administrador para que la guardia de "no a ti mismo" signifique
+  // algo del lado de la base.
+  const { error } = await admin.supabase.rpc("anonimizar_usuario", {
+    p_id_usuario: usuarioId,
+  });
+
+  if (error) {
+    logError("admin/usuarios", "No se pudo anonimizar la cuenta", error, { usuarioId });
+    return { error: "No pudimos suprimir los datos de esta cuenta." };
+  }
+
+  // Las sesiones ya se borraron dentro de la transacción de la RPC
+  // (auth.sessions), pero un access token emitido y no expirado sigue siendo
+  // criptográficamente válido hasta que caduque — mismo razonamiento que
+  // 019_cuenta_activa_rls.sql. `estado = SUSPENDIDO` cierra las escrituras
+  // vía private.cuenta_activa(); este signOut corta además la sesión en el
+  // servidor de Auth. Si falla no se aborta: los datos ya se suprimieron,
+  // que es lo que el titular pidió.
+  const { error: errorSignOut } = await createAdminClient().auth.admin.signOut(usuarioId, "global");
+  if (errorSignOut) {
+    logError("admin/usuarios", "No se pudo revocar la sesión de la cuenta anonimizada", errorSignOut, {
+      usuarioId,
+    });
+  }
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Suprimió los datos personales de una cuenta (Habeas Data)",
+    entidadAfectada: "perfiles",
+    idEntidadAfectada: usuarioId,
+  });
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  return { success: true };
+}

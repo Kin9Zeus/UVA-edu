@@ -1,11 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/log";
 
 /**
  * Registra una acción administrativa en bitacora_administrativa
  * (docs/functional-spec.md Módulo 8 / Flujo 11 y 13). Se llama después de
  * que la mutación principal tuvo éxito; un fallo aquí no debe tumbar la
  * acción ya realizada, así que los llamadores no esperan su resultado.
+ *
+ * Pero "no tumbar la acción" no es lo mismo que "callar": hasta
+ * AUDIT-2026-09-08-base-de-datos.md (D-7) el error del insert se descartaba
+ * sin mirarlo, así que una operación administrativa podía completarse sin
+ * entrada de auditoría y nadie se enteraba — ni en el momento ni después.
+ * Un registro de auditoría con huecos silenciosos es peor que no tenerlo:
+ * invita a concluir que la acción nunca ocurrió.
+ *
+ * La política de INSERT (069) exige `es_administrador() and id_admin =
+ * auth.uid()`, así que el caso más probable de fallo es que el llamador pase
+ * un cliente que no sea el de la sesión del administrador. Eso es un bug de
+ * programación, y ahora deja rastro.
  */
 export async function registrarBitacora(
   supabase: SupabaseClient,
@@ -17,13 +30,21 @@ export async function registrarBitacora(
     detalles?: string;
   },
 ) {
-  await supabase.from("bitacora_administrativa").insert({
+  const { error } = await supabase.from("bitacora_administrativa").insert({
     id_admin: params.idAdmin,
     accion: params.accion,
     entidad_afectada: params.entidadAfectada,
     id_entidad_afectada: params.idEntidadAfectada ?? null,
     detalles: params.detalles ?? null,
   });
+
+  if (error) {
+    logError("bitacora:registrar", "no se pudo registrar la acción administrativa", error, {
+      accion: params.accion,
+      entidadAfectada: params.entidadAfectada,
+      idEntidadAfectada: params.idEntidadAfectada,
+    });
+  }
 }
 
 /** Filas por página en la pantalla de bitácora. */

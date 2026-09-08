@@ -1,0 +1,12 @@
+-- Regulariza un drift preexistente (D-11, AUDIT-2026-09-08-base-de-datos.md).
+--
+-- `perfiles.pais` está declarada en schema.prisma desde que se añadió el
+-- selector de país, pero la columna la creó supabase/sql/060_perfil_pais.sql
+-- con `add column if not exists` — nunca hubo migración de Prisma. Resultado:
+-- una base construida solo desde prisma/migrations no tiene la columna, y
+-- `prisma migrate dev` la reporta como drift contra el esquema.
+--
+-- `IF NOT EXISTS` hace que esto sea un no-op en cualquier base donde 060 ya
+-- corrió (todas las actuales) y la cree donde falte. Es deliberadamente la
+-- misma sentencia que 060: si las dos corren, la segunda no hace nada.
+ALTER TABLE "perfiles" ADD COLUMN IF NOT EXISTS "pais" TEXT;

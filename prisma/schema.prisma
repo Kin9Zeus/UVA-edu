@@ -150,6 +150,18 @@ model Perfiles {
   /// porque RLS es por fila y abrir la fila abriría también correo y celular.
   especialidad   String?
   estado         EstadoPerfil @default(ACTIVO)
+  /// Sello de supresión bajo Ley 1581 (Habeas Data). No null significa que
+  /// `nombre`, `correo`, `celular`, `pais` y `especialidad` ya no son datos
+  /// del titular sino marcadores, y que la fila de `auth.users` ya no existe.
+  ///
+  /// La fila NO se borra: diez tablas referencian `perfiles` con ON DELETE
+  /// RESTRICT y varias de ellas —`pagos`, `certificados`,
+  /// `bitacora_administrativa`— tienen valor contable o probatorio que
+  /// sobrevive legítimamente a la cuenta. Se anonimiza, que es lo que la ley
+  /// pide y lo que el esquema permite. Ver
+  /// supabase/sql/075_anonimizar_usuario.sql y
+  /// AUDIT-2026-09-08-base-de-datos.md (D-4).
+  anonimizado_en DateTime?    @db.Timestamptz
   creado_en      DateTime     @default(now()) @db.Timestamptz
   actualizado_en DateTime     @updatedAt @db.Timestamptz
 
@@ -603,6 +615,20 @@ model Lecciones {
   /// `Cursos.slug`, ver src/lib/slug.ts).
   slug                 String
   orden                Int                        @default(0)
+  /// Derivado, NO editable a mano: true solo para la primera lección del
+  /// curso por (modulo.orden, leccion.orden), y solo si el curso tiene más
+  /// de una. Es la clase gratuita del catálogo.
+  ///
+  /// Materializa lo que antes calculaba `private.es_leccion_introductoria()`
+  /// en cada evaluación de RLS — una función que unía `lecciones` con
+  /// `modulos` de todo el curso y ordenaba, POR FILA. Medido: 605 buffers y
+  /// 3,5 ms solo por ese predicado sobre 29 comentarios
+  /// (AUDIT-2026-09-08-base-de-datos.md, D-3).
+  ///
+  /// La mantiene `private.recalcular_leccion_introductoria()` vía triggers
+  /// sobre `lecciones` y `modulos` — ver
+  /// supabase/sql/076_leccion_introductoria_materializada.sql.
+  es_introductoria     Boolean                    @default(false)
   /// Playback ID de Mux (docs/technical-spec.md §4) — se escribe recién en
   /// video.asset.ready. No se toca al reemplazar el video hasta que el
   /// nuevo asset esté listo (Flujo 10): el estudiante sigue viendo el
