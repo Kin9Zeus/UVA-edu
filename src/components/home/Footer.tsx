@@ -13,12 +13,12 @@ import { TEMAS_SOPORTE } from "@/lib/soporte";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
-/*  const columns = [
+const columns = [
   {
     heading: "U.V.A. y comunidad",
     links: ["Sobre nosotros", "Blog del gremio", "Casos de éxito", "Empleo"],
   },
-]; */
+];
 
 const socials = [
   {
@@ -102,6 +102,21 @@ export async function Footer() {
               </ul>
             </div>
           )}
+
+          {columns.map((column) => (
+            <div key={column.heading}>
+              <p className={headingClass}>{column.heading}</p>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                {column.links.map((link) => (
+                  <li key={link}>
+                    <a href="#" className={linkClass}>
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
           {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}

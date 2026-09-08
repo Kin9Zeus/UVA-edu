@@ -18,6 +18,7 @@ import {
   type ActualizarPerfilState,
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
+import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 
@@ -227,6 +228,8 @@ export function PerfilForm({
             </div>
           </form>
         </div>
+
+        <CambiarPasswordForm />
       </div>
 
       <div className="flex flex-col gap-4">
