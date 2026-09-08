@@ -1016,6 +1016,42 @@ async function main() {
       `filas=${(intentoPropio ?? []).length}`,
     );
 
+    // ---------- P0-1 (AUDIT-2026-09-08): el examen resuelto ----------
+    // `preguntas_congeladas` guarda `respuestasAceptadas` y cuál opción es la
+    // correcta. La policy de 067 le da al estudiante su fila ENTERA porque RLS
+    // autoriza filas, no columnas; lo que cierra la columna es el GRANT de
+    // supabase/sql/070.
+    //
+    // Se comprueba el CÓDIGO de error, no solo que falle: `esperarBloqueado`
+    // daría verde también con "0 filas", que es lo que devolvería la policy de
+    // fila si el intento fuera ajeno. Aquí el intento es SUYO y la fila sí le
+    // corresponde — la única razón válida para que esto falle es 42501,
+    // privilegio de columna denegado. Sin esa distinción la prueba pasaría
+    // aunque alguien revirtiera el 070.
+    const lecturaSolucion = await clienteConAcceso
+      .from("intentos_examen")
+      .select("preguntas_congeladas")
+      .eq("id", intentoPrueba.id);
+    const codigoSolucion = (lecturaSolucion.error as { code?: string } | null)?.code;
+    registrar(
+      "el estudiante NO puede leer preguntas_congeladas ni de su propio intento (GRANT por columna, 070)",
+      codigoSolucion === "42501",
+      lecturaSolucion.error
+        ? `code=${codigoSolucion} ${lecturaSolucion.error.message}`
+        : `SIN ERROR — ${(lecturaSolucion.data ?? []).length} fila(s) con el examen resuelto`,
+    );
+
+    // La otra mitad: el GRANT tiene que dejar pasar lo que las pantallas del
+    // estudiante sí necesitan. Sin esta aserción, revocar la tabla entera
+    // también daría verde arriba y rompería el producto.
+    await esperarPermitido(
+      "el estudiante sigue leyendo las columnas no sensibles de su intento (la lista del GRANT alcanza)",
+      clienteConAcceso
+        .from("intentos_examen")
+        .select("id, estado, puntaje_pct, nota_requerida, respuestas, iniciado_en, finalizado_en, expira_en")
+        .eq("id", intentoPrueba.id),
+    );
+
     await esperarBloqueado(
       "otro estudiante no puede leer un intento ajeno",
       clienteSinAcceso.from("intentos_examen").select("*").eq("id", intentoPrueba.id),

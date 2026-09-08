@@ -599,14 +599,27 @@ export type RevisionIntentoResultado = {
  * Detalle pregunta por pregunta de un intento — a diferencia de lo que ve el
  * propio estudiante (`getResultadoIntento`, src/lib/examen.ts, que NUNCA
  * revela la respuesta correcta), esta sí la incluye: es la vista que le
- * permite al admin entender en qué se está equivocando el estudiante, y RLS
- * (`intentos_examen_select_propio_o_admin`, supabase/sql/067) ya le abre
- * SELECT sobre cualquier intento por su rol.
+ * permite al admin entender en qué se está equivocando el estudiante.
  *
  * Se pide bajo demanda (al expandir un intento en el panel), no precalculada
  * para todos los intentos del examen: `preguntas_congeladas` puede pesar
  * bastante por intento y la mayoría de las veces el admin solo revisa unos
  * pocos, no todos.
+ *
+ * Por qué la consulta NO usa `admin.supabase` (P0-1, AUDIT-2026-09-08)
+ * --------------------------------------------------------------------
+ * `requireAdmin()` verifica el rol pero devuelve el cliente de SESIÓN, y una
+ * sesión de administrador sigue hablando con Postgres como `authenticated`.
+ * El GRANT por columna de `supabase/sql/070` le quitó a ese rol el SELECT
+ * sobre `preguntas_congeladas` —es lo que impide que un estudiante se lea la
+ * solución yendo directo a PostgREST— y no distingue quién es: sin el
+ * cambio a Service Role, esta pantalla se caía con 42501 para el admin
+ * también.
+ *
+ * La autorización no se debilita: `requireAdmin()` de arriba ya la resolvió
+ * entera, y era él quien decidía, no la policy. Lo que se pierde al saltarse
+ * RLS aquí es una segunda comprobación del MISMO hecho que ya se comprobó
+ * tres líneas antes.
  */
 export async function getRevisionIntento(
   intentoId: string,
@@ -615,7 +628,7 @@ export async function getRevisionIntento(
   if ("error" in admin) return { error: admin.error ?? "No tienes permisos de administrador." };
   if (!idSchema.safeParse(intentoId).success) return { error: "Intento inválido." };
 
-  const { data: intento } = await admin.supabase
+  const { data: intento } = await createAdminClient()
     .from("intentos_examen")
     .select(
       "id, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, iniciado_en, finalizado_en, usuario:perfiles(nombre)",
