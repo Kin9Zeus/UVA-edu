@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
+import { esPasswordFiltrada, MENSAJE_PASSWORD_FILTRADA } from "@/lib/password-filtrada";
 import { checkEmail } from "@/actions/auth/check-email";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
@@ -34,6 +35,11 @@ export async function registro(
   }
   if (!isPasswordValid(password)) {
     return { error: "La contraseña no cumple los requisitos." };
+  }
+  // Solo en el servidor: es una consulta de red, no puede vivir en la lista
+  // de requisitos que RegistroForm marca mientras se escribe.
+  if (await esPasswordFiltrada(password)) {
+    return { error: MENSAJE_PASSWORD_FILTRADA };
   }
 
   const check = await checkEmail(email);

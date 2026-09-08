@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
+import { esPasswordFiltrada, MENSAJE_PASSWORD_FILTRADA } from "@/lib/password-filtrada";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 
@@ -20,6 +21,11 @@ export async function actualizarPassword(
   }
   if (password !== password2) {
     return { error: "Las contraseñas no coinciden." };
+  }
+  // Va después de comparar las dos: si no coinciden, es un error de tecleo y
+  // no vale la pena gastar la consulta de red.
+  if (await esPasswordFiltrada(password)) {
+    return { error: MENSAJE_PASSWORD_FILTRADA };
   }
 
   const supabase = await createClient();
