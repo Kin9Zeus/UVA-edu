@@ -1349,6 +1349,72 @@ async function main() {
       clienteAdmin.rpc("admin_listar_usuarios", { p_limite: 5, p_offset: 0 }),
     );
 
+    // 069: la bitácora es append-only DE VERDAD, no solo en el comentario de
+    // schema.prisma. Hasta 069 las policies de 014 le daban al administrador
+    // las cuatro operaciones, así que el único control frente a un admin que
+    // abusa de sus permisos podía ser borrado por el propio admin del que
+    // protege. Sin estas pruebas, "append-only" vuelve a ser una afirmación
+    // de un comentario y de nadie más: una policy de UPDATE o DELETE que
+    // alguien reintroduzca en un script futuro pasaría sin que nada chille.
+    //
+    // La fila de prueba se limpia en el `finally` con service role (que sí
+    // pasa por encima de RLS, y debe): si sobreviviera, la FK
+    // bitacora_administrativa.id_admin → perfiles haría fallar el deleteUser
+    // del admin de prueba y la corrida dejaría un usuario colgado.
+    const filaBitacora = (await esperarPermitido(
+      "administrador SÍ puede escribir en la bitácora firmando con su propio id",
+      clienteAdmin
+        .from("bitacora_administrativa")
+        .insert({
+          id_admin: userAdmin.user!.id,
+          accion: "PRUEBA_RLS",
+          entidad_afectada: "prueba",
+        })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+
+    // Sin esto las dos pruebas de abajo pasan por el motivo equivocado: con un
+    // id vacío, Postgres corta en «invalid input syntax for type uuid» antes de
+    // que RLS opine, y `esperarBloqueado` cuenta ese error como bloqueo. Se
+    // veían dos ✅ verdes que no habían probado nada.
+    if (!filaBitacora?.id) {
+      throw new Error("La bitácora de prueba no devolvió id; sin ella, las pruebas de UPDATE/DELETE no significan nada.");
+    }
+
+    await esperarBloqueado(
+      "administrador NO puede firmar una entrada de bitácora con el id de otro",
+      clienteAdmin
+        .from("bitacora_administrativa")
+        .insert({
+          id_admin: userConAcceso.user!.id,
+          accion: "PRUEBA_RLS_SUPLANTACION",
+          entidad_afectada: "prueba",
+        })
+        .select(),
+    );
+
+    // Contra la fila de prueba, no contra las reales: el resultado es el mismo
+    // (no hay policy, RLS deniega) y una suite que apunta un DELETE a la
+    // auditoría de producción es una mala idea aunque esté bloqueado.
+    await esperarBloqueado(
+      "administrador NO puede editar una entrada de bitácora ya escrita",
+      clienteAdmin
+        .from("bitacora_administrativa")
+        .update({ accion: "PRUEBA_RLS_EDITADA" })
+        .eq("id", filaBitacora.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "administrador NO puede borrar una entrada de bitácora",
+      clienteAdmin
+        .from("bitacora_administrativa")
+        .delete()
+        .eq("id", filaBitacora.id)
+        .select(),
+    );
+
     // La otra mitad de 064 (P2-1): el trigger prohíbe revivir un comentario
     // eliminado, pero deja hacerlo a un administrador a propósito — puede
     // haber moderado por error y no debería necesitar SQL a mano. El
@@ -1928,6 +1994,11 @@ async function main() {
       // caen las cascadas.
       await admin.from("intentos_examen").delete().eq("id_usuario", usuario.id);
       await admin.from("comentarios").delete().eq("id_usuario", usuario.id);
+      // 069: la fila que dejó la prueba de bitácora append-only. Solo el
+      // service role puede borrarla —para eso se comprobó arriba que el
+      // administrador no puede— y tiene que irse antes del deleteUser:
+      // `bitacora_administrativa.id_admin` es una FK a `perfiles` sin cascada.
+      await admin.from("bitacora_administrativa").delete().eq("id_admin", usuario.id);
     }
 
     await admin.from("recursos_descargables").delete().eq("nombre", "Material RLS test.pdf");
