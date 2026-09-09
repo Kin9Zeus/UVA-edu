@@ -33,6 +33,7 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    RESEND_API_KEY=
    RESEND_FROM_EMAIL=
    SEND_EMAIL_HOOK_SECRET=
+   GEMINI_API_KEY=
    NEXT_PUBLIC_SITE_URL=
    ```
 
@@ -40,6 +41,18 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    (Project Settings → API / Database). Las de Mux, Stripe, Wompi y Resend
    solo son necesarias para probar esos flujos puntuales — el resto de la
    app funciona sin ellas.
+
+   **`GEMINI_API_KEY`** (aistudio.google.com → API keys) la usa solo la
+   generación de exámenes con IA (`src/lib/examenes/generacion/`). Su ausencia
+   no rompe nada al arrancar —el cliente se construye de forma perezosa, ver
+   `src/lib/gemini/client.ts`— pero el botón «generar examen» del panel
+   devuelve error hasta que exista. Es una clave de servidor: nunca la
+   prefijes con `NEXT_PUBLIC_`, o viajaría en el bundle del navegador.
+
+   El modelo está fijo en `MODELO_GENERACION_EXAMEN`
+   (`src/lib/gemini/client.ts`), no en una variable de entorno: cambiarlo
+   cambia la calidad de un examen calificable, así que debe pasar por revisión
+   de código.
 
    **`NEXT_PUBLIC_SITE_URL` es obligatoria en producción** (en local puede
    omitirse: `siteUrl()` cae a `http://localhost:3000`). Es el origen con el

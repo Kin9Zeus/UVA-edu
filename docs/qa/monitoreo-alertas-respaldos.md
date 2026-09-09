@@ -114,6 +114,47 @@ no se pudo confirmar desde el repo (sin `gh` CLI disponible en esta
 máquina); sin él, el SDK no envía nada pero el job igual falla (código 1) y
 queda como señal en GitHub Actions.
 
+### Anexo — Generaciones de examen con IA atascadas
+
+Mismo problema que el de arriba, otra causa. La generación del examen de un
+curso se dispara desde un Server Action que responde enseguida y deja el
+trabajo caro en `after()` (`src/actions/admin/generacionExamen.ts`). `after()`
+sobrevive a la respuesta HTTP pero **no** a que el proceso muera: un
+redespliegue de Railway a mitad de una generación mata la continuación sin que
+nadie cierre la fila de `trabajos_generacion_examen`.
+
+Y esa fila abierta no es inofensiva: el índice parcial único
+`trabajos_generacion_examen_uno_pendiente` es lo que impide dos corridas
+simultáneas, así que un `PENDIENTE` huérfano lo convierte en un candado
+permanente — **ese curso no se puede volver a generar nunca**, y el admin solo
+ve un «ya hay una generación en curso» eterno.
+
+- `scripts/examenes-liberar-generaciones-atascadas.ts` — marca `FALLIDO` (con
+  el motivo) todo `PENDIENTE` más viejo que
+  `GENERACION_ATASCADA_UMBRAL_MINUTOS` (default 20 min), lo reporta a Sentry
+  con `area: "exam-generation"` y sale con código 1. A diferencia del chequeo
+  de Mux, este **escribe**: cerrar el trabajo es justamente lo que suelta el
+  cerrojo.
+- `npm run examenes:liberar-atascados`.
+- Umbral holgado a propósito: liberar de más mata una generación viva y deja
+  que otra la pise a mitad de la escritura; liberar de menos solo retrasa el
+  arreglo a la siguiente pasada del cron.
+- Falta agregarlo a un workflow programado (serviría el mismo
+  `mux-monitor.yml`, con la misma limitación de `environment` documentada
+  arriba).
+
+**Verificado end-to-end contra la base real**, no solo compilado:
+
+1. Sembrado un `PENDIENTE` con `creado_en` 60 min atrás → un segundo
+   `PENDIENTE` del mismo curso choca con `23505`: el cerrojo estaba puesto.
+2. `npm run examenes:liberar-atascados` → lo marcó `FALLIDO`, mandó el evento
+   a Sentry y salió con código 1.
+3. Reintento del insert → pasa. El cerrojo quedó liberado.
+4. Segunda corrida con un `PENDIENTE` **recién creado** → `✅ Ninguno`, y el
+   trabajo siguió intacto: no mata generaciones vivas.
+
+Datos de prueba borrados al terminar.
+
 ## Módulo 2 — Chequeo de disponibilidad del sitio
 
 **Decisión consultada, no asumida:** CLAUDE.md dice que las Route Handlers
