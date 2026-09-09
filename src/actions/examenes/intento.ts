@@ -121,6 +121,7 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
     const hora = disponibilidad.disponibleDesde.toLocaleTimeString("es-CO", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Bogota",
     });
     return {
       error: disponibilidad.esperaLarga

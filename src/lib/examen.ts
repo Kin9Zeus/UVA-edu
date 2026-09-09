@@ -156,16 +156,26 @@ export async function getSituacionExamen(
   // RLS ya filtra: solo devuelve la fila si el examen está publicado y el
   // estudiante tiene acceso vigente al curso. Un examen en borrador sale como
   // "no hay examen", que es exactamente lo que debe pasar.
-  const { data: examenRow } = await supabase
+  const { data: examenRow, error: errorExamen } = await supabase
     .from("examenes")
     .select("id, titulo, instrucciones, nota_aprobatoria, intentos_maximos, minutos_limite")
     .eq("id_curso", cursoId)
     .maybeSingle();
 
+  // Un `data: null` legítimo (examen en borrador o sin acceso) es
+  // indistinguible de un `error` a simple vista, pero solo el segundo merece
+  // quedar en el log: es lo que habría escondido el 42501 de D-17
+  // (AUDIT-2026-09-08-base-de-datos.md — falta de GRANT SELECT en
+  // intentos_examen, ver supabase/sql/081) detrás de un inocente
+  // "SIN_EXAMEN".
+  if (errorExamen) {
+    console.error("[getSituacionExamen] error leyendo examenes:", errorExamen);
+  }
+
   if (!examenRow) return { situacion: "SIN_EXAMEN" };
   const examen = aExamenPublico(examenRow);
 
-  const { data: intentosRow } = await supabase
+  const { data: intentosRow, error: errorIntentos } = await supabase
     .from("intentos_examen")
     // Proyección explícita, sin `preguntas_congeladas`: esa columna lleva las
     // respuestas correctas y RLS protege filas, no columnas (ver el comentario
@@ -174,6 +184,10 @@ export async function getSituacionExamen(
     .eq("id_examen", examen.id)
     .eq("id_usuario", usuarioId)
     .order("iniciado_en", { ascending: false });
+
+  if (errorIntentos) {
+    console.error("[getSituacionExamen] error leyendo intentos_examen:", errorIntentos);
+  }
 
   const intentos = intentosRow ?? [];
 
@@ -274,13 +288,21 @@ export async function getIntentoEnCurso(
 ): Promise<IntentoEnCurso | null> {
   const supabase = await createClient();
 
-  const { data: intento } = await supabase
+  const { data: intento, error: errorIntento } = await supabase
     .from("intentos_examen")
     .select(
       "id, id_usuario, estado, nota_requerida, preguntas_congeladas, respuestas, expira_en, iniciado_en, examen:examenes(titulo)",
     )
     .eq("id", intentoId)
     .maybeSingle();
+
+  // Un `error` acá (por ejemplo el 42501 de D-17: faltaba GRANT SELECT en
+  // intentos_examen, ver supabase/sql/081) deja `intento` en `null` igual que
+  // un intento legítimamente cerrado en otra pestaña — sin este log, la única
+  // señal visible era el redirect a esta misma URL repitiéndose sin fin.
+  if (errorIntento) {
+    console.error("[getIntentoEnCurso] error leyendo intentos_examen:", errorIntento);
+  }
 
   // El `.eq("id_usuario")` explícito además de RLS: la policy ya acota a los
   // intentos propios, pero un administrador SÍ ve los de todos (necesario para
@@ -327,11 +349,15 @@ export async function getResultadoIntento(
 ): Promise<ResultadoIntentoVista | null> {
   const supabase = supabaseCliente ?? (await createClient());
 
-  const { data: intento } = await supabase
+  const { data: intento, error: errorIntento } = await supabase
     .from("intentos_examen")
     .select("id, id_usuario, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, finalizado_en")
     .eq("id", intentoId)
     .maybeSingle();
+
+  if (errorIntento) {
+    console.error("[getResultadoIntento] error leyendo intentos_examen:", errorIntento);
+  }
 
   if (!intento || intento.id_usuario !== usuarioId || intento.estado === "EN_CURSO") {
     return null;

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
+import { formatFechaHora } from "@/lib/admin/format";
 import { getRevisionIntento, type RevisionIntentoResultado } from "@/actions/admin/examenes";
 
 /**
@@ -90,7 +91,7 @@ export function IntentoRevisionDialog({
           <div className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between rounded-uva-md bg-uva-surface-2 px-3.5 py-2.5">
               <span className="text-[13px] text-uva-muted">
-                {new Date(revision.finalizadoEn ?? revision.iniciadoEn).toLocaleString("es-CO")}
+                {formatFechaHora(revision.finalizadoEn ?? revision.iniciadoEn)}
               </span>
               <span className="font-mono text-[15px] font-bold text-uva-text">
                 {revision.puntajePct === null ? "—" : `${revision.puntajePct}%`}

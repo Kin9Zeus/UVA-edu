@@ -1,0 +1,39 @@
+-- ============================================================
+-- authenticated no tenía GRANT SELECT sobre public.intentos_examen.
+--
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-080.
+--
+-- Síntoma en producción
+-- ----------------------
+-- El examen final de cualquier curso con un intento EN_CURSO se quedaba en
+-- pantalla negra, con Network mostrando decenas de GET repetidos a la misma
+-- URL /cursos/[slug]/examen (uno incluso devolviendo 503 por saturar el
+-- servidor). Reproducido en vivo: la consulta de getIntentoEnCurso
+-- (src/lib/examen.ts) fallaba con
+--
+--   permission denied for table intentos_examen (42501)
+--   hint: Grant the required privileges to the current role with:
+--         GRANT SELECT ON public.intentos_examen TO authenticated;
+--
+-- Causa
+-- -----
+-- 067_examenes.sql creó la tabla y la policy RLS
+-- `intentos_examen_select_propio_o_admin`, pero nunca el GRANT SELECT base.
+-- En Postgres, RLS filtra FILAS de un SELECT ya autorizado por privilegios de
+-- tabla — no lo sustituye. Sin el GRANT, el motor rechaza la consulta antes
+-- de llegar a evaluar la policy, sin importar qué tan permisiva sea.
+--
+-- Por qué no se notó antes
+-- -------------------------
+-- authenticated sí tenía INSERT/UPDATE/DELETE sobre esta tabla (los necesita
+-- para iniciar un intento y guardar respuestas), así que rendir un examen
+-- funcionaba de punta a punta. Solo se rompía al VOLVER a leer un intento ya
+-- abierto — retomar el examen tras cerrar la pestaña, o el chequeo de
+-- situación en la pantalla previa — que es exactamente el camino que
+-- getSituacionExamen y getIntentoEnCurso (src/lib/examen.ts) descartaban el
+-- `error` de Supabase y trataban `data: null` como "el intento ya no existe",
+-- lo que disparaba un `redirect()` a la misma URL una y otra vez (ver
+-- logging agregado en el mismo commit).
+-- ============================================================
+
+grant select on public.intentos_examen to authenticated;
