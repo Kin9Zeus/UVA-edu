@@ -76,6 +76,23 @@ export async function iniciarSubidaVideoLeccion(
         // (CLAUDE.md §3.3, docs/technical-spec.md §5, obtenerTokenReproduccion
         // en src/actions/video/reproduccion.ts).
         playback_policies: ["signed"],
+        // Subtítulos autogenerados. Son dos cosas a la vez: accesibilidad para
+        // el estudiante, y la MATERIA PRIMA del generador de exámenes con IA
+        // (src/lib/examenes/generacion/) — sin esta pista no llega nunca el
+        // webhook `video.asset.track.ready` y el curso se queda sin
+        // transcripciones con las que generar preguntas.
+        //
+        // Para un direct upload, este primer input va SIN `url`: el archivo lo
+        // aporta la propia subida (ver el comentario de `generated_subtitles`
+        // en @mux/mux-node). La generación ocurre DESPUÉS del ingest, así que
+        // la pista queda en `preparing` cuando el asset pasa a `ready` — por
+        // eso `video.asset.track.ready` llega más tarde y por separado que
+        // `video.asset.ready`.
+        inputs: [
+          {
+            generated_subtitles: [{ language_code: "es", name: "Español (automático)" }],
+          },
+        ],
       },
     });
   } catch (error) {
