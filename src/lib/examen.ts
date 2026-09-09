@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logError } from "@/lib/log";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import {
   COOLDOWN_AGOTADO_HORAS,
@@ -156,16 +157,29 @@ export async function getSituacionExamen(
   // RLS ya filtra: solo devuelve la fila si el examen está publicado y el
   // estudiante tiene acceso vigente al curso. Un examen en borrador sale como
   // "no hay examen", que es exactamente lo que debe pasar.
-  const { data: examenRow } = await supabase
+  const { data: examenRow, error: errorExamen } = await supabase
     .from("examenes")
     .select("id, titulo, instrucciones, nota_aprobatoria, intentos_maximos, minutos_limite")
     .eq("id_curso", cursoId)
     .maybeSingle();
 
+  // Un `data: null` legítimo (examen en borrador o sin acceso) es
+  // indistinguible de un `error` a simple vista, pero solo el segundo merece
+  // quedar registrado: es lo que escondía el 42501 de D-17 detrás de un
+  // inocente "SIN_EXAMEN". Aquí NO se lanza —a diferencia de las dos
+  // funciones de abajo— porque "no hay examen" es un estado normal de esta
+  // pantalla y tumbarla por un fallo de lectura sería peor que degradarla.
+  if (errorExamen) {
+    logError("examen", "getSituacionExamen: la consulta de examenes falló", errorExamen, {
+      area: "examenes",
+      cursoId,
+    });
+  }
+
   if (!examenRow) return { situacion: "SIN_EXAMEN" };
   const examen = aExamenPublico(examenRow);
 
-  const { data: intentosRow } = await supabase
+  const { data: intentosRow, error: errorIntentos } = await supabase
     .from("intentos_examen")
     // Proyección explícita, sin `preguntas_congeladas`: esa columna lleva las
     // respuestas correctas y RLS protege filas, no columnas (ver el comentario
@@ -174,6 +188,13 @@ export async function getSituacionExamen(
     .eq("id_examen", examen.id)
     .eq("id_usuario", usuarioId)
     .order("iniciado_en", { ascending: false });
+
+  if (errorIntentos) {
+    logError("examen", "getSituacionExamen: la consulta de intentos_examen falló", errorIntentos, {
+      area: "examenes",
+      cursoId,
+    });
+  }
 
   const intentos = intentosRow ?? [];
 

@@ -110,6 +110,7 @@ export function ExamenIntro({
               {new Date(situacion.disponibleDesde).toLocaleTimeString("es-CO", {
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: "America/Bogota",
               })}
             </time>{" "}
             {situacion.esperaLarga

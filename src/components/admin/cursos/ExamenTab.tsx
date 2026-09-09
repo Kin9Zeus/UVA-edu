@@ -30,6 +30,7 @@ import { PreguntaEditor } from "@/components/admin/cursos/PreguntaEditor";
 import { IntentoRevisionDialog } from "@/components/admin/cursos/IntentoRevisionDialog";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
+import { formatFechaHora } from "@/lib/admin/format";
 import { motivosParaNoPublicarExamen } from "@/lib/examenes/publicacion";
 import {
   ETIQUETA_TIPO,
@@ -863,7 +864,7 @@ function EstudianteFila({
                   <th scope="col" className="px-3.5 py-2 font-semibold">Intento</th>
                   <th scope="col" className="px-3.5 py-2 font-semibold">Estado</th>
                   <th scope="col" className="px-3.5 py-2 font-semibold">Puntaje</th>
-                  <th scope="col" className="px-3.5 py-2 font-semibold">Fecha</th>
+                  <th scope="col" className="px-3.5 py-2 font-semibold">Fecha y hora</th>
                   <th scope="col" className="px-3.5 py-2 font-semibold sr-only">Revisión</th>
                 </tr>
               </thead>
@@ -890,7 +891,7 @@ function EstudianteFila({
                       {intento.puntajePct === null ? "—" : `${intento.puntajePct}%`}
                     </td>
                     <td className="px-3.5 py-2 text-uva-muted">
-                      {new Date(intento.finalizadoEn ?? intento.iniciadoEn).toLocaleDateString("es-CO")}
+                      {formatFechaHora(intento.finalizadoEn ?? intento.iniciadoEn)}
                     </td>
                     <td className="px-3.5 py-2 text-right">
                       {intento.estado !== "EN_CURSO" && (

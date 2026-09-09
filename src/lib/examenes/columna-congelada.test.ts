@@ -184,3 +184,90 @@ describe("el GRANT por columna del 081 excluye la columna sensible", () => {
     expect(listasConcedidas.filter((lista) => lista.includes(COLUMNA))).toEqual([]);
   });
 });
+
+/**
+ * Este bloque nació de un incidente real (2026-09-09). La auditoría de base
+ * de datos, que lleva otra persona, vio el 42501 que produce el 081, lo leyó
+ * como un privilegio que faltaba —el propio `hint` de Postgres lo sugiere—
+ * y publicó un script con `grant select on public.intentos_examen to
+ * authenticated`. Eso devuelve las 13 columnas y reabre el P0-1 entero.
+ *
+ * Las pruebas de arriba no lo detectaron porque solo leen el archivo del 081.
+ * El agujero puede reaparecer desde CUALQUIER script, así que este barre
+ * todos: la forma permitida es únicamente `grant select (<columnas>)`.
+ */
+describe("ningún script concede intentos_examen a nivel de tabla", () => {
+  const DIRECTORIO = join(process.cwd(), "supabase/sql");
+
+  /** `grant select on ... intentos_examen` SIN lista de columnas entre
+   *  paréntesis. El `(?!\s*\()` es lo que distingue la forma peligrosa de la
+   *  correcta. */
+  const GRANT_DE_TABLA =
+    /grant\s+(?:select|all)(?!\s*\()[^;]*?\bon\s+(?:table\s+)?public\.intentos_examen\b[^;]*?\bto\b([^;]*);/gi;
+
+  const scripts = readdirSync(DIRECTORIO)
+    .filter((nombre) => nombre.endsWith(".sql"))
+    .map((nombre) => ({
+      nombre,
+      sql: readFileSync(join(DIRECTORIO, nombre), "utf8").replace(/^\s*--.*$/gm, ""),
+    }));
+
+  it("hay scripts que revisar (si esto falla, la prueba se quedó ciega)", () => {
+    expect(scripts.length).toBeGreaterThan(80);
+  });
+
+  it("nadie concede la tabla entera a authenticated ni a anon", () => {
+    const infractores = scripts.flatMap(({ nombre, sql }) =>
+      [...sql.matchAll(GRANT_DE_TABLA)]
+        .filter((m) => /\b(authenticated|anon|public)\b/i.test(m[1]))
+        .map((m) => `${nombre}: ${m[0].replace(/\s+/g, " ").trim()}`),
+    );
+
+    expect(infractores).toEqual([]);
+  });
+
+  it("el último script que toca privilegios de la tabla deja la forma por columna", () => {
+    // El orden de aplicación es el prefijo numérico: gana el último. Aunque
+    // alguien vuelva a conceder de más en un script intermedio, el estado
+    // final tiene que ser el acotado.
+    const queTocan = scripts
+      .filter(({ sql }) => /\b(grant|revoke)\b[^;]*public\.intentos_examen/i.test(sql))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    expect(queTocan.length).toBeGreaterThan(0);
+    const ultimo = queTocan[queTocan.length - 1];
+    expect(ultimo.sql).toMatch(
+      /grant\s+select\s*\([^)]+\)\s*\n?\s*on\s+public\.intentos_examen\s+to/i,
+    );
+    const listas = [...ultimo.sql.matchAll(/grant\s+select\s*\(([^)]+)\)/gi)].map((m) => m[1]);
+    expect(listas.length).toBeGreaterThan(0);
+    expect(listas.filter((lista) => lista.includes(COLUMNA))).toEqual([]);
+  });
+});
+
+/**
+ * El orden de aplicación de `supabase/sql/` ES el prefijo numérico
+ * (scripts/apply-rls.ts lo ordena por ahí). Dos archivos con el mismo número
+ * dejan indefinido cuál gana — y eso ya pasó dos veces: dos `070` al fusionar
+ * la auditoría de BD, y dos `081` con criterios OPUESTOS sobre esta misma
+ * tabla. Mientras tocan cosas distintas parece inofensivo; cuando tocan lo
+ * mismo, el resultado depende del orden del sistema de archivos.
+ */
+describe("los scripts de supabase/sql tienen numeración única", () => {
+  const nombres = readdirSync(join(process.cwd(), "supabase/sql")).filter((n) => n.endsWith(".sql"));
+
+  it("todos siguen el formato NNN_descripcion.sql", () => {
+    expect(nombres.filter((n) => !/^\d{3}_.+\.sql$/.test(n))).toEqual([]);
+  });
+
+  it("no hay dos scripts con el mismo prefijo", () => {
+    const porPrefijo = new Map<string, string[]>();
+    for (const nombre of nombres) {
+      const prefijo = nombre.slice(0, 3);
+      porPrefijo.set(prefijo, [...(porPrefijo.get(prefijo) ?? []), nombre]);
+    }
+    const repetidos = [...porPrefijo.entries()].filter(([, archivos]) => archivos.length > 1);
+
+    expect(repetidos).toEqual([]);
+  });
+});
