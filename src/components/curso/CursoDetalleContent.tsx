@@ -287,15 +287,20 @@ export function CursoDetalleContent({
         <div className="order-4 lg:order-none flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
           {(curso.instructores.length > 0
             ? curso.instructores
-            : [{ id: "sin-instructor", nombre: SIN_INSTRUCTOR, especialidad: null }]
+            : [{ id: "sin-instructor", nombre: SIN_INSTRUCTOR, especialidad: null, fotoUrl: null }]
           ).map((instructor) => (
             <div key={instructor.id} className="flex items-center gap-3">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
-                {instructor.nombre
-                  .split(/\s+/)
-                  .slice(0, 2)
-                  .map((parte) => parte[0]?.toUpperCase())
-                  .join("")}
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
+                {instructor.fotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
+                  <img src={instructor.fotoUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  instructor.nombre
+                    .split(/\s+/)
+                    .slice(0, 2)
+                    .map((parte) => parte[0]?.toUpperCase())
+                    .join("")
+                )}
               </div>
               <div className="min-w-0">
                 <p className="font-heading text-[15px] text-uva-text">{instructor.nombre}</p>

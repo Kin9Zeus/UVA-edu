@@ -90,7 +90,7 @@ export type CursoVistaPrevia = {
   categorias: { id: string; slug: string; nombre: string }[];
   fechaEdicion: string;
   /** 1 o más profesores; vacío si el curso todavía no tiene ninguno asignado. */
-  instructores: { id: string; nombre: string; especialidad: string | null }[];
+  instructores: { id: string; nombre: string; especialidad: string | null; fotoUrl: string | null }[];
   mostrado: boolean;
   modulos: {
     id: string;
@@ -136,18 +136,24 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
   // constraint es el de la migración 20260903000000_multi_instructores.
   const { data: filasInstructores } = await supabase
     .from("curso_instructores")
-    .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre, especialidad)")
+    .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre, especialidad, foto_url)")
     .eq("id_curso", idCurso);
 
   const instructores = (filasInstructores ?? [])
     .map((fila) => {
       const perfil = Array.isArray(fila.perfil) ? fila.perfil[0] : fila.perfil;
       return perfil
-        ? { id: perfil.id as string, nombre: perfil.nombre as string, especialidad: (perfil.especialidad as string | null) ?? null }
+        ? {
+            id: perfil.id as string,
+            nombre: perfil.nombre as string,
+            especialidad: (perfil.especialidad as string | null) ?? null,
+            fotoUrl: (perfil.foto_url as string | null) ?? null,
+          }
         : null;
     })
     .filter(
-      (perfil): perfil is { id: string; nombre: string; especialidad: string | null } => perfil !== null,
+      (perfil): perfil is { id: string; nombre: string; especialidad: string | null; fotoUrl: string | null } =>
+        perfil !== null,
     )
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
