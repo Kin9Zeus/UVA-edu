@@ -16,10 +16,14 @@ import {
   revocarEnlaceVistaPrevia,
 } from "@/actions/admin/vistaPrevia";
 import { tiempoRelativo } from "@/lib/admin/format";
+// Desde "@/lib/vistaPreviaVigencias" y NO desde "@/lib/vistaPrevia": aquel
+// importa `node:crypto` y este componente es "use client", así que el import
+// de valor arrastraría el polyfill de crypto (~415 KB) y su `eval` al
+// navegador. Ver la cabecera de src/lib/vistaPreviaVigencias.ts.
 import {
   MINUTOS_VIGENCIA_VISTA_PREVIA,
   VIGENCIAS_VISTA_PREVIA,
-} from "@/lib/vistaPrevia";
+} from "@/lib/vistaPreviaVigencias";
 import type { EnlaceVistaPrevia } from "@/lib/admin/cursoDetalle";
 
 /**

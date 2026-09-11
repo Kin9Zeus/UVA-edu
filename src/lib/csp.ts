@@ -137,7 +137,15 @@ export function construirCsp(opciones: OpcionesCsp): string {
 
     // El video va por HLS desde stream.mux.com, y el reproductor arma los
     // segmentos como blob: antes de dárselos al elemento <video>.
-    "media-src": ["'self'", "blob:", "https://stream.mux.com"],
+    //
+    // El comodín va por el mismo motivo que en connect-src, pero aquí es
+    // RAZONADO, no medido: en Safari/iOS el reproductor de Mux delega en el
+    // HLS nativo, y entonces quien descarga los segmentos es el propio
+    // elemento <video> —esto es media-src, no connect-src— siguiendo la misma
+    // redirección a un PoP regional. No hay violación registrada de esta
+    // directiva porque en la ventana de observación nadie reprodujo desde
+    // Safari; dejar solo `stream.mux.com` sería confiar en esa ausencia.
+    "media-src": ["'self'", "blob:", "https://*.mux.com"],
 
     // next/font descarga las tipografías en tiempo de build y las sirve desde
     // /_next/static/media — no hay ninguna petición a fonts.gstatic.com en
@@ -145,15 +153,43 @@ export function construirCsp(opciones: OpcionesCsp): string {
     // preload de woff2 apuntan a /_next/).
     "font-src": ["'self'"],
 
-    // stream.mux.com: manifiestos y segmentos. stats.mux.com: telemetría de
-    // reproducción. El wss de Supabase es Realtime (códigos de invitación).
-    // ws: en desarrollo es el socket de Hot Module Reload.
+    // Comodines en Mux, y no la lista de hosts que había antes.
+    //
+    // La versión original enumeraba stream.mux.com y stats.mux.com, que es lo
+    // que aparece en el código y en la documentación. La fase de observación
+    // demostró que eso NO es lo que pide el navegador: `stream.mux.com` es
+    // solo la puerta de entrada y redirige a un PoP regional distinto por
+    // usuario y por sesión. Violaciones reales recogidas en Sentry:
+    //
+    //   manifest-oci-us-phoenix-1-vop1.fastly.mux.com   (UVA-EDU-1J)
+    //   chunk-oci-us-phoenix-1-vop1.fastly.mux.com      (UVA-EDU-1K)
+    //   manifest-oci-us-ashburn-1-vop1.fastly.mux.com   (UVA-EDU-1Q)
+    //   chunk-oci-us-ashburn-1-vop1.fastly.mux.com      (UVA-EDU-1R)
+    //   direct-uploads-oci-us-phoenix-1-vop1.mux.com    (UVA-EDU-1T)
+    //   inferred.litix.io                               (UVA-EDU-1M)
+    //
+    // Dos regiones en una tarde con dos usuarios: enumerarlas es una carrera
+    // perdida —Mux añade PoPs cuando quiere y cada uno sería una caída de
+    // reproducción en producción, no un aviso—. El comodín de CSP casa
+    // cualquier profundidad de subdominio, así que `*.mux.com` cubre también
+    // los `*.fastly.mux.com`.
+    //
+    // El precio es acotado: `*.mux.com` y `*.litix.io` son la infraestructura
+    // del proveedor de video, que ya sirve el contenido del producto y ya
+    // recibe su telemetría. No abre un dominio de terceros nuevo.
+    //
+    // `direct-uploads-*` es la subida directa del panel de administración
+    // (iniciarSubidaVideoLeccion, src/actions/admin/mux.ts): sin esto,
+    // forzar la política dejaría al administrador sin poder subir videos.
+    //
+    // El wss de Supabase es Realtime (códigos de invitación). ws: en
+    // desarrollo es el socket de Hot Module Reload.
     "connect-src": [
       "'self'",
       supabase && `https://${supabase}`,
       supabase && `wss://${supabase}`,
-      "https://stream.mux.com",
-      "https://stats.mux.com",
+      "https://*.mux.com",
+      "https://*.litix.io",
       sentry && `https://${sentry}`,
       desarrollo && "ws:",
     ],

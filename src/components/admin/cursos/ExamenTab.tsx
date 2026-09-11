@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, GripVertical, Plus } from "lucide-react";
+import { ChevronDown, GripVertical, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { PreguntaEditor } from "@/components/admin/cursos/PreguntaEditor";
+import { GenerarExamenPanel } from "@/components/admin/cursos/GenerarExamenPanel";
 import { IntentoRevisionDialog } from "@/components/admin/cursos/IntentoRevisionDialog";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
@@ -95,7 +96,7 @@ export function ExamenTab({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   if (!examen) {
-    return <ExamenVacio cursoId={cursoId} />;
+    return <ExamenVacioConGeneracion cursoId={cursoId} />;
   }
   return <ExamenExistente cursoId={cursoId} examen={examen} onDirtyChange={onDirtyChange} />;
 }
@@ -143,6 +144,22 @@ function ExamenVacio({ cursoId }: { cursoId: string }) {
         <Plus className="size-4" />
         {pending ? "Creando…" : "Crear examen final"}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Vacío + generación. Van juntos en un contenedor y no en la misma tarjeta
+ * porque son dos caminos alternativos hacia lo mismo: crear el examen a mano y
+ * escribir las preguntas uno, o dejar que salgan de las transcripciones el
+ * otro. Generar NO exige crear antes — `persistirPreguntasGeneradas` hace el
+ * upsert del examen— así que el panel funciona igual con examen y sin él.
+ */
+function ExamenVacioConGeneracion({ cursoId }: { cursoId: string }) {
+  return (
+    <div className="space-y-4">
+      <ExamenVacio cursoId={cursoId} />
+      <GenerarExamenPanel cursoId={cursoId} tieneExamen={false} preguntasGeneradas={0} />
     </div>
   );
 }
@@ -555,6 +572,17 @@ function ExamenExistente({
           </p>
         </div>
 
+        {/* Antes de la lista y no al final: regenerar reemplaza justo lo que
+            hay debajo, así que la acción tiene que verse junto a lo que
+            afecta. `preguntasGeneradas` sale del estado local y no de
+            `examen.preguntas` para que el contador de la confirmación siga a
+            lo que el administrador está viendo tras borrar una a mano. */}
+        <GenerarExamenPanel
+          cursoId={cursoId}
+          tieneExamen
+          preguntasGeneradas={preguntas.filter((pregunta) => pregunta.origen).length}
+        />
+
         {/* El aviso de navegación (useAvisoNavegacionSinGuardar, en
             CursoDetalleView) ya bloquea salir de la pantalla, pero no se ve
             hasta que se intenta salir: esto lo hace visible mientras se edita. */}
@@ -760,6 +788,17 @@ function PreguntaFila({
               <RichTextRenderer contenido={pregunta.enunciado} className="[&_p]:!m-0 [&_p]:truncate" />
             )}
           </span>
+          {/* Solo las generadas llevan insignia. Una pregunta escrita a mano
+              es el caso normal y no necesita etiquetarse como tal. */}
+          {pregunta.origen ? (
+            <StatusBadge
+              tone={pregunta.origen.validada === true ? "accent" : "warning"}
+              className="hidden shrink-0 sm:inline-flex"
+            >
+              <Sparkles className="size-3" />
+              IA
+            </StatusBadge>
+          ) : null}
           <span className="hidden shrink-0 text-xs text-uva-text-faint sm:inline">
             {ETIQUETA_TIPO[pregunta.tipo]}
           </span>
@@ -774,6 +813,11 @@ function PreguntaFila({
 
       {abierta && (
         <div className="border-t border-uva-divider p-3.5">
+          {/* La procedencia va ARRIBA del editor y no dentro: es contexto para
+              decidir si la pregunta sirve, no un campo que se edite. Ver la
+              frase citada al lado del enunciado es lo que permite juzgar en un
+              vistazo si el modelo entendió el video o se lo inventó. */}
+          {pregunta.origen ? <Procedencia origen={pregunta.origen} /> : null}
           <PreguntaEditor
             pregunta={pregunta}
             numero={numero}
@@ -784,6 +828,37 @@ function PreguntaFila({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * De dónde salió una pregunta generada.
+ *
+ * `validada === false` no significa "está mal": significa que el fragmento
+ * citado NO se encontró literalmente en la transcripción de ese video, así que
+ * nadie ha comprobado que la pregunta se apoye en algo que se dijo de verdad.
+ * Como esas preguntas ni siquiera se guardan hoy (persistirPreguntasGeneradas
+ * solo escribe las validadas), verlo aquí querría decir que la fila entró por
+ * otra vía — y merece mirarse con más cuidado, no menos.
+ */
+function Procedencia({ origen }: { origen: NonNullable<PreguntaCompleta["origen"]> }) {
+  return (
+    <div className="mb-3.5 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge tone={origen.validada === true ? "accent" : "warning"}>
+          <Sparkles className="size-3" />
+          {origen.validada === true ? "Generada y verificada" : "Generada sin verificar"}
+        </StatusBadge>
+        <span className="text-[12.5px] text-uva-muted">
+          {origen.leccionTitulo ?? "clase eliminada"}
+        </span>
+      </div>
+      {origen.fragmento ? (
+        <blockquote className="mt-2 border-l-2 border-uva-divider pl-2.5 text-[12.5px] leading-relaxed text-uva-text-faint italic">
+          «{origen.fragmento}»
+        </blockquote>
+      ) : null}
     </div>
   );
 }

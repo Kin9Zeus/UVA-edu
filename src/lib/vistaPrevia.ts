@@ -1,31 +1,18 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
- * Vigencias que se pueden elegir al generar un enlace, en minutos.
- *
- * El caso normal —y el que pide Revcurso— es que el administrador repase su
- * propio trabajo antes de publicar: eso dura minutos, no días, y siempre
- * puede generar otro enlace con un clic. Por eso el valor por defecto es el
- * más corto: cada minuto extra es ventana de exposición de contenido sin
- * publicar a cambio de nada.
- *
- * Las opciones largas existen para el otro caso, que es compartirlo con un
- * cliente o un instructor sin cuenta. Ahí la espera no la controla el
- * administrador, así que tiene sentido — pero es una decisión explícita, no
- * lo que sale por defecto.
+ * Las vigencias viven en `vistaPreviaVigencias.ts` y se reexportan aquí para
+ * que este siga siendo el módulo único del dominio para el código de
+ * servidor. La separación es de empaquetado: un componente de cliente que
+ * importe de ESTE archivo se lleva el `node:crypto` de arriba —y con él el
+ * polyfill que dispara la violación de CSP `eval`—, así que el cliente debe
+ * importar del otro. El porqué completo está documentado allí.
  */
-export const VIGENCIAS_VISTA_PREVIA = [
-  { minutos: 15, etiqueta: "15 minutos" },
-  { minutos: 60 * 24, etiqueta: "24 horas" },
-  { minutos: 60 * 24 * 7, etiqueta: "7 días" },
-] as const;
-
-export const MINUTOS_VIGENCIA_VISTA_PREVIA = VIGENCIAS_VISTA_PREVIA[0].minutos;
-
-/** Minutos aceptados por el Server Action; el valor llega del cliente. */
-export const MINUTOS_VIGENCIA_VALIDOS: readonly number[] = VIGENCIAS_VISTA_PREVIA.map(
-  (opcion) => opcion.minutos,
-);
+export {
+  VIGENCIAS_VISTA_PREVIA,
+  MINUTOS_VIGENCIA_VISTA_PREVIA,
+  MINUTOS_VIGENCIA_VALIDOS,
+} from "@/lib/vistaPreviaVigencias";
 
 /**
  * Genera un token de vista previa y su hash.

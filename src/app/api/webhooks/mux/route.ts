@@ -3,6 +3,7 @@ import Mux from "@mux/mux-node";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
 import { eliminarAssetMux } from "@/lib/mux/limpieza";
+import { descargarTranscripcionMux } from "@/lib/mux/transcripcion";
 import { logError } from "@/lib/log";
 
 // A diferencia de Stripe, `new Mux({ tokenId: "", tokenSecret: "" })` no
@@ -26,8 +27,26 @@ type DatosAsset = {
 /** Los campos de video.upload.cancelled que este handler necesita. */
 type DatosUpload = { id: string };
 
+/**
+ * Los campos de video.asset.track.ready que este handler necesita.
+ *
+ * A diferencia de los tres eventos de arriba, este NO trae `upload_id`: llega
+ * cuando el asset ya existe y su pista de subtítulos terminó de generarse, así
+ * que la única forma de encontrar la lección es por `asset_id` — que a esas
+ * alturas ya está escrito (lo puso `video.asset.ready`, que siempre llega
+ * antes: la generación de subtítulos ocurre después del ingest).
+ */
+type DatosTrack = {
+  id: string;
+  asset_id?: string;
+  type?: string;
+  text_type?: string;
+  status?: string;
+  language_code?: string;
+};
+
 /** El evento que manda Mux, con los campos que este handler necesita. */
-type EventoMux = { id: string; type: string; data?: DatosAsset | DatosUpload };
+type EventoMux = { id: string; type: string; data?: DatosAsset | DatosUpload | DatosTrack };
 
 export async function POST(request: NextRequest) {
   const secret = process.env.MUX_WEBHOOK_SECRET;
@@ -245,6 +264,90 @@ export async function POST(request: NextRequest) {
           uploadId: data.id,
         });
         return NextResponse.json({ error: "no se pudo actualizar la lección" }, { status: 500 });
+      }
+      break;
+    }
+
+    // La pista de subtítulos autogenerados terminó de procesarse. Es la
+    // materia prima del generador de exámenes con IA: se guarda el TEXTO acá,
+    // una sola vez, en vez de re-pedírselo a Mux cada vez que un administrador
+    // genera un examen (ver el comentario del modelo `TranscripcionesVideo`).
+    //
+    // Este case NO dispara ninguna generación. Es deliberado: generar el examen
+    // en cada webhook de video gastaría una llamada al modelo por clase y
+    // tiraría exámenes ya revisados. La generación la dispara un administrador
+    // (o el alta de un video nuevo), vía ejecutarGeneracionExamenCurso().
+    case "video.asset.track.ready": {
+      const data = evento.data as DatosTrack;
+
+      // Mux manda este evento para toda pista lista, incluidas las de audio.
+      // Solo interesa el texto de subtítulos.
+      if (data.type !== "text" || data.text_type !== "subtitles" || !data.asset_id) {
+        break;
+      }
+
+      const { data: leccion } = await admin
+        .from("lecciones")
+        .select("id, id_video_mux, modulo:modulos!inner(id_curso)")
+        .eq("id_mux_asset_id", data.asset_id)
+        .maybeSingle();
+
+      // Ninguna lección con ese asset: el video se reemplazó o se borró
+      // mientras Mux generaba los subtítulos. No es un error — no hay nada que
+      // corromper, igual que en los UPDATE por upload_id de los otros casos.
+      if (!leccion || !leccion.id_video_mux) {
+        break;
+      }
+
+      // Sin los tipos generados de Supabase, el cliente tipa todo embed como
+      // array (ver usuarioDetalle.ts, mismo desenvuelto).
+      const modulo = Array.isArray(leccion.modulo) ? leccion.modulo[0] : leccion.modulo;
+      const idCurso = modulo?.id_curso as string | undefined;
+      if (!idCurso) break;
+
+      const resultado = await descargarTranscripcionMux(leccion.id_video_mux, data.id);
+
+      if (!resultado.ok) {
+        // No se devuelve 500: el video ya está LISTO y se reproduce sin
+        // problema. Lo único que falta es la transcripción, y su ausencia ya la
+        // reporta la generación del examen nombrando este video. Un 500 acá
+        // haría que Mux reintentara el evento entero por algo que casi nunca se
+        // arregla solo (una pista vacía sigue vacía).
+        logError("webhook:mux", "no se pudo obtener la transcripción de la pista", null, {
+          area: "webhook",
+          idEvento: evento.id,
+          leccionId: leccion.id,
+          trackId: data.id,
+          mensaje: resultado.error,
+        });
+        break;
+      }
+
+      // Upsert sobre `id_leccion` (UNIQUE): un reemplazo de video pisa la
+      // transcripción vieja en vez de acumular dos. La vieja describe un asset
+      // que ya no se reproduce, y generar preguntas con ella sería anclarlas a
+      // algo que el estudiante no puede ver.
+      const { error } = await admin.from("transcripciones_video").upsert(
+        {
+          id_leccion: leccion.id,
+          id_curso: idCurso,
+          id_asset_mux: data.asset_id,
+          id_track_mux: data.id,
+          transcripcion: resultado.texto,
+          idioma: data.language_code ?? "es",
+          actualizado_en: new Date().toISOString(),
+        },
+        { onConflict: "id_leccion" },
+      );
+
+      if (error) {
+        logError("webhook:mux", "no se pudo guardar la transcripción del video", error, {
+          area: "webhook",
+          idEvento: evento.id,
+          leccionId: leccion.id,
+          trackId: data.id,
+        });
+        return NextResponse.json({ error: "no se pudo guardar la transcripción" }, { status: 500 });
       }
       break;
     }

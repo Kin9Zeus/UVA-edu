@@ -2265,6 +2265,196 @@ async function main() {
     // ------------------------------------------------------------------
     // D-4: supresión de datos personales (075_anonimizar_usuario.sql)
     //
+    // ------------------------------------------------------------------
+    // Generación de exámenes con IA (088)
+    //
+    // `transcripciones_video` es la superficie nueva que más importa cerrar:
+    // guarda la clase entera en texto plano. Es el MISMO contenido por el que
+    // se paga la suscripción, pero sin el candado que lo protege en su forma
+    // nativa — el video solo se reproduce con una URL firmada de Mux que
+    // caduca, mientras que un SELECT sobre esta tabla devuelve el curso
+    // completo en una petición, copiable y redistribuible.
+    //
+    // Por eso la prueba clave es NEGATIVA y sobre el estudiante CON acceso
+    // vigente: es el caso que uno estaría tentado de abrir ("total, ya pagó").
+    // Si alguien agrega mañana una policy de `tiene_acceso_vigente_curso`
+    // sobre esta tabla, esta prueba es la que lo detecta.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: GENERACIÓN DE EXÁMENES CON IA (088) ===\n");
+
+    const { error: errSembrarTranscripcion } = await admin
+      .from("transcripciones_video")
+      .insert({
+        id_leccion: leccionExamen!.id,
+        id_curso: idCursoExamen!,
+        id_asset_mux: `rls-test-asset-${sufijo}`,
+        id_track_mux: `rls-test-track-${sufijo}`,
+        transcripcion: "la subdivisión de la luz controla el ruido de la imagen",
+        idioma: "es",
+        // `actualizado_en` NO se pasa a propósito: lo pone el DEFAULT now()
+        // de la migración 20260910000000. Pasarlo era lo que ocultaba que la
+        // 088 había olvidado ese default, y el fallo salió en producción al
+        // pulsar "Generar examen" (la otra tabla, que nadie rellenaba a mano).
+      });
+    if (errSembrarTranscripcion) {
+      throw new Error(`No pude sembrar la transcripción de prueba: ${errSembrarTranscripcion.message}`);
+    }
+
+    await esperarBloqueado(
+      "anon no puede leer transcripciones_video",
+      clienteAnonimo.from("transcripciones_video").select("transcripcion"),
+    );
+    await esperarBloqueado(
+      "estudiante SIN acceso no puede leer transcripciones_video",
+      clienteSinAcceso.from("transcripciones_video").select("transcripcion"),
+    );
+    // La que de verdad importa: pagar da derecho a VER el video, no a
+    // descargarse su transcripción completa.
+    await esperarBloqueado(
+      "estudiante CON suscripción vigente TAMPOCO lee la transcripción del curso",
+      clienteConAcceso.from("transcripciones_video").select("transcripcion"),
+    );
+    await esperarPermitido(
+      "un administrador sí lee la transcripción (es quien revisa las preguntas generadas)",
+      clienteAdmin.from("transcripciones_video").select("transcripcion").eq("id_curso", idCursoExamen!),
+    );
+
+    // Sin política de INSERT/UPDATE/DELETE: con RLS activo y sin policy,
+    // Postgres deniega incluso al administrador. Solo el Service Role escribe
+    // (el webhook de Mux). Mismo criterio que `intentos_examen` en 067.
+    const { error: errEscribirTranscripcion } = await clienteAdmin
+      .from("transcripciones_video")
+      .update({ transcripcion: "manipulada" })
+      .eq("id_curso", idCursoExamen!);
+    registrar(
+      "ni un administrador puede escribir transcripciones_video desde el cliente (solo el webhook)",
+      errEscribirTranscripcion !== null,
+      errEscribirTranscripcion?.message ?? "la escritura pasó",
+    );
+
+    await esperarBloqueado(
+      "estudiante no puede leer trabajos_generacion_examen",
+      clienteConAcceso.from("trabajos_generacion_examen").select("id"),
+    );
+
+    // Regresión del fallo que vio el administrador al pulsar "Generar examen":
+    //
+    //   null value in column "actualizado_en" of relation
+    //   "trabajos_generacion_examen" violates not-null constraint
+    //
+    // `@updatedAt` en schema.prisma no pone nada: es del cliente de Prisma, y
+    // en tiempo de ejecución este proyecto escribe con supabase-js. La columna
+    // necesita DEFAULT now() en la base, y la 088 lo olvidó en sus dos tablas.
+    // Esta prueba inserta SIN la columna a propósito — si alguien vuelve a
+    // crear una tabla sin el default, muere aquí y no en producción.
+    const { error: errSinTimestamp } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
+    registrar(
+      "se puede registrar un trabajo sin pasar actualizado_en (lo pone el DEFAULT)",
+      errSinTimestamp === null,
+      errSinTimestamp?.message ?? "ok",
+    );
+    await admin
+      .from("trabajos_generacion_examen")
+      .update({ estado: "COMPLETADO", finalizado_en: new Date().toISOString() })
+      .eq("id_curso", idCursoExamen!)
+      .eq("estado", "PENDIENTE");
+
+    // Idempotencia en la BASE, no en TypeScript: dos clics simultáneos son dos
+    // procesos que no se ven entre sí, así que el cerrojo tiene que ser el
+    // índice parcial único y no una comprobación en la app.
+    const { error: errPrimerTrabajo } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
+    registrar(
+      "se registra un trabajo de generación PENDIENTE",
+      errPrimerTrabajo === null,
+      errPrimerTrabajo?.message ?? "ok",
+    );
+
+    const { error: errSegundoTrabajo } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
+    registrar(
+      "un SEGUNDO trabajo PENDIENTE para el mismo curso choca — es el cerrojo de idempotencia",
+      errSegundoTrabajo?.code === "23505",
+      errSegundoTrabajo?.code ?? "se insertó igual",
+    );
+
+    // Cerrado el primero, la siguiente corrida sí puede empezar: el índice es
+    // PARCIAL sobre `estado = PENDIENTE`, para que el historial se acumule.
+    await admin
+      .from("trabajos_generacion_examen")
+      .update({ estado: "COMPLETADO", finalizado_en: new Date().toISOString() })
+      .eq("id_curso", idCursoExamen!)
+      .eq("estado", "PENDIENTE");
+
+    const { error: errTercerTrabajo } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "VIDEO_AGREGADO" });
+    registrar(
+      "cerrado el anterior, sí se puede registrar una corrida nueva (el índice es parcial)",
+      errTercerTrabajo === null,
+      errTercerTrabajo?.message ?? "ok",
+    );
+
+    const { error: errDisparadorInvalido } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "LO_QUE_SEA" });
+    registrar(
+      "un disparador fuera de DISPARADORES_GENERACION se rechaza en la base",
+      errDisparadorInvalido?.code === "23514",
+      errDisparadorInvalido?.code ?? "se insertó igual",
+    );
+
+    // Una pregunta "validada" sin fragmento sería una afirmación que nadie
+    // puede revisar — justo la clase de fila que este módulo existe para evitar.
+    const { error: errValidadaSinOrigen } = await admin.from("preguntas_examen").insert({
+      id_examen: idExamenPrueba!,
+      tipo: "OPCION_UNICA",
+      enunciado: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] },
+      puntos: 1,
+      orden: 999,
+      opciones: [
+        { id: "a", texto: "a", correcta: true },
+        { id: "b", texto: "b", correcta: false },
+      ],
+      respuestas_aceptadas: [],
+      validada: true,
+    });
+    registrar(
+      "no se puede marcar una pregunta como validada sin decir contra qué se validó",
+      errValidadaSinOrigen?.code === "23514",
+      errValidadaSinOrigen?.code ?? "se insertó igual",
+    );
+
+    // La migración 088 añadió tres COLUMNAS a `preguntas_examen`, y el panel
+    // las lee con la sesión del administrador (getExamenDeCurso pasa por
+    // createClient(), no por service role). Si el GRANT de esa tabla fuera por
+    // columna en vez de por tabla, las nuevas no quedarían incluidas y la
+    // pestaña de examen entera fallaría con 42501 — un fallo que ni tsc ni los
+    // tests unitarios pueden ver, porque solo existe en la base.
+    // Se comprueba junto con el embed a `lecciones`, que es como lo pide la
+    // pantalla de verdad.
+    await esperarPermitido(
+      "administrador SÍ puede leer las columnas de procedencia de preguntas_examen (088)",
+      clienteAdmin
+        .from("preguntas_examen")
+        .select(
+          "id, id_leccion_origen, fragmento_origen, validada, leccion_origen:lecciones!preguntas_examen_id_leccion_origen_fkey(titulo)",
+        )
+        .eq("id_examen", idExamenPrueba!),
+    );
+
+    // El estudiante nunca debe ver el fragmento: es texto literal de la
+    // transcripción, o sea el contenido pagado del curso, y además delata cuál
+    // es el trozo del video donde está la respuesta.
+    await esperarBloqueado(
+      "estudiante NO puede leer los fragmentos de origen de las preguntas",
+      clienteConAcceso.from("preguntas_examen").select("id, fragmento_origen"),
+    );
+
     // La base hacía imposible cumplir lo que docs/legal ya promete: diez
     // tablas referencian `perfiles` con ON DELETE RESTRICT y basta una fila
     // en `suscripciones` para volver la cuenta indeleble. Y como

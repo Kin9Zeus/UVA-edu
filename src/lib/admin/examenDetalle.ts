@@ -111,7 +111,9 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
     .select(
       `id, titulo, instrucciones, nota_aprobatoria, intentos_maximos, minutos_limite,
        aleatorizar_preguntas, aleatorizar_opciones, publicado,
-       preguntas_examen(id, tipo, enunciado, puntos, orden, opciones, respuestas_aceptadas, explicacion)`,
+       preguntas_examen(id, tipo, enunciado, puntos, orden, opciones, respuestas_aceptadas, explicacion,
+         id_leccion_origen, fragmento_origen, validada,
+         leccion_origen:lecciones!preguntas_examen_id_leccion_origen_fkey(titulo))`,
     )
     .eq("id_curso", cursoId)
     .maybeSingle();
@@ -138,6 +140,25 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
       opciones: parsearOpciones(pregunta.opciones),
       respuestasAceptadas: (pregunta.respuestas_aceptadas ?? []) as string[],
       explicacion: resolverContenidoLeccion(pregunta.explicacion, null),
+      // Sin `id_leccion_origen` no hay procedencia que mostrar: la pregunta la
+      // escribió una persona. Se colapsan los tres campos en un solo objeto
+      // nullable para que la UI no tenga que combinarlos ella (y no pueda
+      // pintar "generada" leyendo solo `validada`, que en las escritas a mano
+      // también es null).
+      origen: pregunta.id_leccion_origen
+        ? {
+            leccionId: pregunta.id_leccion_origen,
+            // PostgREST devuelve las relaciones embebidas como array —misma
+            // convención que el resto del proyecto.
+            leccionTitulo:
+              (Array.isArray(pregunta.leccion_origen)
+                ? pregunta.leccion_origen[0]
+                : pregunta.leccion_origen
+              )?.titulo ?? null,
+            fragmento: pregunta.fragmento_origen,
+            validada: pregunta.validada,
+          }
+        : null,
     }));
 
   const { data: intentos } = await supabase

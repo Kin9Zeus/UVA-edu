@@ -491,3 +491,22 @@ SENTRY\_DSN= \# init del servidor/edge (src/instrumentation.ts)
 SENTRY\_ORG= \# opcional — solo para subir source maps en el build  
 SENTRY\_PROJECT= \# opcional — solo para subir source maps en el build  
 SENTRY\_AUTH\_TOKEN= \# opcional — solo para subir source maps en el build
+
+\# IA — generación de exámenes (src/lib/gemini/configuracion.ts)  
+\# Solo la primera es un secreto. El resto son parámetros de operación: todos  
+\# tienen el mismo valor por defecto en el código, así que borrar cualquiera  
+\# de ellos no rompe nada.  
+GEMINI\_API\_KEY= \# única credencial. No hace falta project id/number: se usa la  
+\# Gemini Developer API, no Vertex AI  
+GEMINI\_MODELS= \# cadena de respaldo separada por comas; se cae al siguiente ante 503/504/429  
+GEMINI\_TIMEOUT\_MS= \# techo por intento (300000)  
+GEMINI\_ATTEMPTS\_PER\_MODEL= \# intentos contra cada modelo antes de pasar al siguiente (1)  
+GEMINI\_RETRY\_BASE\_MS= \# espera inicial entre reintentos al mismo modelo (2000)  
+GEMINI\_TEMPERATURE= \# 0.3 — es un examen calificable, no texto creativo  
+GEMINI\_TOP\_P= \# opcional; si no está, no se manda. Ajustar temperatura O top-p, no ambas  
+GEMINI\_MAX\_OUTPUT\_TOKENS= \# 64000 — el riesgo es quedarse corto: trunca el JSON y pierde la corrida  
+GEMINI\_TARGET\_LATENCY\_MS= \# objetivo, NO límite: registra en Sentry las corridas lentas (60000)  
+GEMINI\_SYSTEM\_PROMPT= \# opcional; sustituye el prompt del código. Se valida antes de usarse  
+GENERACION\_ATASCADA\_UMBRAL\_MINUTOS= \# 20 — ver la invariante de abajo
+
+**Invariante del pipeline de IA.** `GEMINI_MODELS × GEMINI_ATTEMPTS_PER_MODEL × GEMINI_TIMEOUT_MS` debe quedar por debajo de `GENERACION_ATASCADA_UMBRAL_MINUTOS` con margen. Por defecto: 3 × 1 × 300s = 15 min contra 20 min. Si se rompe, el barredor (`scripts/examenes-liberar-generaciones-atascadas.ts`) marcaría FALLIDO trabajos que siguen vivos, soltando el cerrojo del curso para que otra corrida pise la escritura de la primera. `configuracionGemini()` lo comprueba y se niega a generar si no cuadra.

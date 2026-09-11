@@ -121,6 +121,21 @@ enum TipoPregunta {
   RESPUESTA_ABIERTA
 }
 
+/// Estado de un `TrabajosGeneracionExamen`.
+///
+/// No hay valor "EN_CURSO" aparte: PENDIENTE ya significa "reclamado y sin
+/// terminar". La fila se inserta ANTES de llamar al modelo, y el índice
+/// parcial único `trabajos_generacion_examen_uno_pendiente` (un solo
+/// PENDIENTE por curso) es lo que impide que dos administradores que pulsan
+/// el botón a la vez disparen dos generaciones — misma técnica que
+/// `intentos_examen_uno_en_curso`. Un tercer estado solo agregaría una
+/// transición que nadie observa.
+enum EstadoTrabajoGeneracionExamen {
+  PENDIENTE
+  COMPLETADO
+  FALLIDO
+}
+
 /// EN_CURSO: el estudiante lo abrió y todavía no lo envió (o se le venció el
 /// tiempo sin enviar — lo cierra el propio envío, ver `enviarIntento`).
 /// APROBADO/REPROBADO: ya calificado contra `Examenes.nota_aprobatoria`.
@@ -563,8 +578,8 @@ model Cursos {
   actualizado_en      DateTime   @updatedAt @db.Timestamptz
 
   /// Vestigial junto con `id_instructor` — ver el comentario de esa columna.
-  instructor          Instructores?       @relation(fields: [id_instructor], references: [id])
-  admin_creador       Perfiles            @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
+  instructor          Instructores?              @relation(fields: [id_instructor], references: [id])
+  admin_creador       Perfiles                   @relation("CursosCreadosPorAdmin", fields: [id_admin_creador], references: [id])
   modulos             Modulos[]
   certificados        Certificados[]
   inscripciones       Inscripciones[]
@@ -574,6 +589,8 @@ model Cursos {
   tokens_vista_previa TokensVistaPrevia[]
   /// Como máximo uno (ver el `@unique` de `Examenes.id_curso`).
   examen              Examenes?
+  transcripciones     TranscripcionesVideo[]
+  trabajos_generacion TrabajosGeneracionExamen[]
 
   @@index([id_instructor])
   @@index([id_admin_creador])
@@ -681,6 +698,8 @@ model Lecciones {
 
   modulo              Modulos                          @relation(fields: [id_modulo], references: [id], onDelete: Cascade)
   progreso            Progreso[]
+  transcripcion       TranscripcionesVideo?
+  preguntas_generadas PreguntasExamen[]
   recursos            RecursosDescargables[]
   assetsMuxPendientes MuxAssetsPendientesEliminacion[]
   comentarios         Comentarios[]
@@ -802,12 +821,51 @@ model PreguntasExamen {
   /// reconstruir el examen completo). Se guarda para la revisión posterior y
   /// para el reporte del admin.
   explicacion          Json?
+  /// De cuál video (lección) salió esta pregunta, cuando la generó el
+  /// pipeline de IA. `null` = la escribió un administrador a mano.
+  ///
+  /// El examen sigue siendo del CURSO —eso ya lo fija `Examenes.id_curso`,
+  /// que es `@unique`— y esta columna no lo cambia: solo dice de qué parte
+  /// del temario se sacó la pregunta, para poder auditar por video cuáles
+  /// quedaron bien y cuáles no.
+  ///
+  /// `onDelete: SetNull` y no Cascade: borrar una lección no puede borrar
+  /// preguntas de un examen que quizá ya se rindió (los intentos guardan su
+  /// propia copia en `preguntas_congeladas`, pero el examen vivo sí perdería
+  /// una pregunta sin que nadie lo pidiera).
+  id_leccion_origen    String?      @db.Uuid
+  /// Frase textual (máx. 20 palabras) de la transcripción de la que salió la
+  /// pregunta. Es la evidencia que hace revisable una pregunta generada: un
+  /// administrador puede leerla y decidir en segundos si la pregunta está
+  /// anclada al contenido real o si el modelo se lo inventó.
+  fragmento_origen     String?
+  /// ¿Se comprobó que `fragmento_origen` aparece de verdad en la
+  /// transcripción de `id_leccion_origen`?
+  ///
+  /// Nullable a propósito, con tres estados y no dos: `null` = no aplica
+  /// (pregunta escrita a mano, no hay fragmento que verificar), `true` =
+  /// generada y verificada, `false` = generada y NO verificada. Un
+  /// `Boolean @default(false)` marcaría como "sin validar" a todas las
+  /// preguntas que un administrador escribió él mismo, que es justo al revés
+  /// de lo que se quiere leer en el panel.
+  ///
+  /// Hoy `persistirPreguntasGeneradas()` solo escribe filas con `true` (las
+  /// que no validan se descartan antes de llegar a la base); `false` queda
+  /// disponible para cuando el panel de admin permita guardar borradores
+  /// dudosos para revisión manual.
+  validada             Boolean?
   creado_en            DateTime     @default(now()) @db.Timestamptz
   actualizado_en       DateTime     @updatedAt @db.Timestamptz
 
-  examen Examenes @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+  examen         Examenes   @relation(fields: [id_examen], references: [id], onDelete: Cascade)
+  leccion_origen Lecciones? @relation(fields: [id_leccion_origen], references: [id], onDelete: SetNull)
 
   @@index([id_examen, orden])
+  /// El panel de admin lista "preguntas generadas de este video" al revisar
+  /// una lección, y `persistirPreguntasGeneradas` borra por video antes de
+  /// reinsertar. Sin índice, ambas cosas hacen seq scan (mismo criterio que
+  /// los FK indexados en 20260907010000_indices_fk_faltantes_p2_3).
+  @@index([id_leccion_origen])
   @@map("preguntas_examen")
 }
 
@@ -856,6 +914,114 @@ model IntentosExamen {
   @@index([id_usuario, id_examen])
   @@index([id_examen])
   @@map("intentos_examen")
+}
+
+/// Transcripción de UN video del curso, tal como la generó Mux.
+///
+/// Se llena desde el webhook `video.asset.track.ready` (subtítulos
+/// autogenerados) y se guarda ACÁ en vez de pedírsela a Mux cada vez que se
+/// genera un examen: generar el examen de un curso de 20 clases serían 20
+/// descargas de VTT contra stream.mux.com —cada una con su token firmado— en
+/// el camino caliente de un clic del administrador. Además, un asset borrado
+/// o reemplazado se lleva su transcripción; acá el texto sobrevive al video.
+///
+/// "Video" en este módulo es una LECCIÓN: es la fila que tiene el asset de
+/// Mux (`Lecciones.id_mux_asset_id`) y el título que el examen necesita. Por
+/// eso la clave natural es `id_leccion`, no el asset id — aunque el asset id
+/// también se guarda, porque es lo único que trae el webhook para encontrar
+/// la fila.
+model TranscripcionesVideo {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Una transcripción por lección. Un reemplazo de video sobreescribe la
+  /// fila (upsert), no crea una segunda: la vieja describe un asset que ya
+  /// no se reproduce y generar preguntas con ella sería anclarlas a algo
+  /// que el estudiante no puede ver.
+  id_leccion     String   @unique @db.Uuid
+  /// Desnormalizado a propósito. `lecciones` no tiene `id_curso` (solo
+  /// `modulo.id_curso`), así que sin esta columna "todas las
+  /// transcripciones del curso" sería un doble JOIN en la consulta que más
+  /// se usa de este módulo. Lo escribe el webhook, que ya tiene que leer el
+  /// módulo para resolver la lección.
+  id_curso       String   @db.Uuid
+  /// Asset de Mux del que salió. Es por donde entra el webhook
+  /// (`video.asset.track.ready` trae `asset_id`, nunca `upload_id`).
+  id_asset_mux   String
+  /// Track de texto dentro del asset. Se guarda para poder re-descargar la
+  /// misma pista si hiciera falta, y para no confundir dos idiomas.
+  id_track_mux   String
+  /// Texto plano ya extraído del WebVTT (sin marcas de tiempo ni cues) —
+  /// ver `vttATextoPlano()` en src/lib/mux/transcripcion.ts. Es lo que se le
+  /// manda al modelo y contra lo que se valida `fragmento_origen`.
+  transcripcion  String
+  /// BCP 47, tal como lo reporta Mux (`es`, `en`, `es-419`...).
+  idioma         String   @default("es")
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
+
+  leccion Lecciones @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+  curso   Cursos    @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+
+  @@index([id_curso])
+  @@map("transcripciones_video")
+}
+
+/// Una corrida del pipeline "generar el examen de este curso con IA".
+///
+/// Existe para dos cosas que el examen resultante no puede contar por sí
+/// solo: QUÉ disparó la generación y CÓMO terminó (incluido el fallo, con su
+/// mensaje). Sin esta tabla, un examen que quedó a medias porque el modelo
+/// devolvió basura para tres videos es indistinguible de uno que salió
+/// perfecto.
+///
+/// Idempotencia — las dos reglas, y dónde vive cada una:
+///
+///   1. No dos corridas simultáneas para el mismo curso. La impone la BASE,
+///      con el índice parcial único `trabajos_generacion_examen_uno_pendiente`
+///      (solo sobre `estado = 'PENDIENTE'`). Que sea la base y no una
+///      comprobación en TypeScript es el punto: dos clics simultáneos son
+///      dos procesos distintos y ninguno ve al otro.
+///   2. No regenerar sola sobre un examen que ya está bien. La impone
+///      `puedeGenerarExamenCurso()` (src/lib/examenes/generacion/trabajo.ts):
+///      un disparo VIDEO_AGREGADO se retira si el curso ya tiene preguntas
+///      generadas y validadas, mientras que ADMIN_MANUAL siempre procede —
+///      "regenerar" es exactamente lo que el administrador pidió.
+///
+/// Lo que NO dispara esto: el webhook de cada video. `video.asset.track.ready`
+/// solo guarda la transcripción y sale.
+model TrabajosGeneracionExamen {
+  id                   String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso             String                        @db.Uuid
+  estado               EstadoTrabajoGeneracionExamen @default(PENDIENTE)
+  /// Qué originó la corrida. Texto con CHECK en la base en vez de enum de
+  /// Postgres, mismo criterio que `eventos_webhook.proveedor`: los valores
+  /// los define `DISPARADORES_GENERACION`
+  /// (src/lib/examenes/generacion/tipos.ts) y un test falla si las dos
+  /// listas se separan. Agregar un disparador no debe costar un
+  /// `ALTER TYPE`.
+  disparado_por        String
+  /// Preguntas que el modelo devolvió y que además superaron
+  /// `validateFragment`. Menor que `preguntas_recibidas` cuando el modelo
+  /// citó fragmentos que no estaban en la transcripción.
+  preguntas_validadas  Int                           @default(0)
+  /// Preguntas que el modelo devolvió, antes de validar. La diferencia entre
+  /// las dos columnas es la métrica que dice si el prompt está funcionando.
+  preguntas_recibidas  Int                           @default(0)
+  /// Lecciones que terminaron con CERO preguntas validadas. Es la lista que
+  /// un administrador tiene que revisar a mano (transcripción de mala
+  /// calidad, audio con ruido, clase sin narración). Se loguea además con
+  /// `logError(..., { area: "exam-generation", videoId })`.
+  videos_sin_preguntas String[]
+  /// Mensaje del fallo cuando `estado = FALLIDO`. Null en cualquier otro
+  /// estado.
+  error                String?
+  finalizado_en        DateTime?                     @db.Timestamptz
+  creado_en            DateTime                      @default(now()) @db.Timestamptz
+  actualizado_en       DateTime                      @updatedAt @db.Timestamptz
+
+  curso Cursos @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+
+  @@index([id_curso, creado_en])
+  @@map("trabajos_generacion_examen")
 }
 
 // ============================================================
