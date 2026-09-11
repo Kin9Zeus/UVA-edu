@@ -18,7 +18,7 @@ export function ComunidadPostDetalleContent({
   const ruta = `/dashboard/comunidad/${post.slug}`;
 
   return (
-    <ComunidadLayout nav={<ComunidadCategoriaTabs sinActivo />}>
+    <ComunidadLayout nav={<ComunidadCategoriaTabs sinActivo />} ocultarNavEnMovil>
       <div className="flex flex-col gap-5">
         <ComunidadVolverBoton />
 

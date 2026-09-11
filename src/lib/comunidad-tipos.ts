@@ -49,6 +49,13 @@ export const CATEGORIA_ESTILO: Record<CategoriaComunidad, string> = {
   PREGUNTAS: "bg-uva-badge-neutral-bg text-uva-badge-neutral-fg",
 };
 
+/** Botones de texto de las filas de acciones (Fijar/Editar/Eliminar, el
+ * enlace "N respuestas") de posts y respuestas. `min-h-6`: con `p-0` y texto
+ * de 12 px medían 16 px de alto, por debajo de los 24 px mínimos de un
+ * objetivo táctil (WCAG 2.5.8). */
+export const CLASE_BOTON_ACCION_COMUNIDAD =
+  "inline-flex min-h-6 cursor-pointer items-center border-0 bg-transparent p-0 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:opacity-60";
+
 /** Viven acá (no en comunidad-adjuntos.ts, que importa `sharp`/`file-type`,
  * paquetes de Node) para que el composer — un componente cliente — pueda
  * validar el tamaño/cantidad antes de subir sin arrastrar esas librerías al

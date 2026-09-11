@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getComunidadActividadReciente, getComunidadDestacados } from "@/lib/comunidad";
 
 /** Riel derecho de Comunidad, solo desktop (`ComunidadLayout` lo oculta
- * antes de `lg`). Se auto-alimenta (componente de servidor async) para no
+ * antes de `xl`). Se auto-alimenta (componente de servidor async) para no
  * duplicar las consultas en cada página que use el layout. Ambos bloques
  * salen de datos reales ya existentes — ver `getComunidadActividadReciente`
  * y `getComunidadDestacados` en src/lib/comunidad.ts. Si no hay nada que

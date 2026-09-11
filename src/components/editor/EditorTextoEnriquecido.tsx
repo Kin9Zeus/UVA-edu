@@ -183,6 +183,9 @@ export const EditorTextoEnriquecido = forwardRef<
         </button>
         <input ref={fileInputRef} type="file" accept={ACEPTA_ADJUNTO} multiple className="hidden" onChange={elegirArchivos} />
       </div>
+      {/* `text-base sm:text-sm`, como `ui/input`: con 14 px, iOS Safari hace
+          zoom al enfocar el editor (lo hace con cualquier campo de menos de
+          16 px) y no lo deshace al salir. */}
       <div
         ref={editorRef}
         contentEditable
@@ -199,7 +202,7 @@ export const EditorTextoEnriquecido = forwardRef<
           actualizarActivos();
           onCambiar?.(!editorRef.current || editorRef.current.textContent?.trim() === "");
         }}
-        className={`${alturaMinima} max-h-64 overflow-y-auto px-3 py-2 text-sm text-uva-text caret-uva-accent outline-none empty:before:text-uva-text-faint empty:before:content-[attr(data-placeholder)] [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_li]:my-0.5`}
+        className={`${alturaMinima} max-h-64 overflow-y-auto px-3 py-2 text-base text-uva-text caret-uva-accent sm:text-sm outline-none empty:before:text-uva-text-faint empty:before:content-[attr(data-placeholder)] [&_ol]:list-decimal [&_ul]:list-disc [&_ol]:pl-5 [&_ul]:pl-5 [&_li]:my-0.5`}
       />
     </div>
   );

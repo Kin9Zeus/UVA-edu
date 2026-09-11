@@ -295,9 +295,17 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .maybeSingle();
 
+  // Un fallo de la base (p. ej. un Gateway Timeout de Supabase) no es "no
+  // existe": con `return null` la página lo pintaba como un 404 "No
+  // encontramos esta página", igual que un enlace roto. Lanzado, cae en
+  // dashboard/error.tsx (500 con "Reintentar") y `onRequestError`
+  // (instrumentation.ts) lo reporta a Sentry — por eso no pasa además por
+  // logError, que lo duplicaría. Se envuelve en un Error porque un
+  // PostgrestError es un objeto plano (ver `lanzarSiFalla` en examen.ts).
   if (error) {
-    logError("comunidad:detalle", "no se pudo leer la publicación de comunidad", error, { identificador });
-    return null;
+    throw new Error(
+      `comunidad:detalle — no se pudo leer la publicación "${identificador}": ${error.message} (code=${error.code ?? "sin código"})`,
+    );
   }
   if (!post || post.eliminado) return null;
 

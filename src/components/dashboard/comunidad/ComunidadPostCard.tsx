@@ -5,13 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pin } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
 import { ComunidadPostEditor } from "@/components/dashboard/comunidad/ComunidadPostEditor";
 import { eliminarPostComunidad } from "@/actions/comunidad/eliminar";
 import { fijarPostComunidad } from "@/actions/comunidad/fijar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
-import { CATEGORIA_LABEL, CATEGORIA_ESTILO, type ComunidadPostResumen } from "@/lib/comunidad-tipos";
+import {
+  CATEGORIA_LABEL,
+  CATEGORIA_ESTILO,
+  CLASE_BOTON_ACCION_COMUNIDAD,
+  type ComunidadPostResumen,
+} from "@/lib/comunidad-tipos";
 import { cn } from "@/lib/utils";
 
 function iniciales(nombre: string) {
@@ -43,18 +49,19 @@ export function ComunidadPostCard({
   truncar: boolean;
 }) {
   const router = useRouter();
-  const [pendienteEliminar, startTransitionEliminar] = useTransition();
   const [pendienteFijar, startTransitionFijar] = useTransition();
   const [editando, setEditando] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   const puedeEliminar = usuarioActualId === post.autorId || esAdmin;
-  const puedeEditar = usuarioActualId === post.autorId;
+  const puedeEditar = !truncar && usuarioActualId === post.autorId;
+  const hayAcciones = esAdmin || puedeEditar || puedeEliminar;
 
-  function eliminar() {
-    startTransitionEliminar(async () => {
-      await eliminarPostComunidad(post.id, ruta);
-      router.refresh();
-    });
+  // Se espera a que termine: ConfirmDialog muestra "Procesando…" mientras la
+  // promesa siga abierta y solo se cierra al resolverse.
+  async function eliminar() {
+    await eliminarPostComunidad(post.id, ruta);
+    router.refresh();
   }
 
   function alternarFijado() {
@@ -77,12 +84,17 @@ export function ComunidadPostCard({
     return <span className="text-uva-text-faint">📎 {adjunto.nombre}</span>;
   }
 
+  // `wrap-break-word` (título y contenido): una palabra larga sin espacios
+  // que no sea URL — los enlaces ya traen `break-all` — desbordaba la tarjeta.
   const Titulo = truncar ? (
-    <Link href={`/dashboard/comunidad/${post.slug}`} className="font-heading text-base text-uva-text hover:underline">
+    <Link
+      href={`/dashboard/comunidad/${post.slug}`}
+      className="font-heading text-base wrap-break-word text-uva-text hover:underline"
+    >
       {post.titulo}
     </Link>
   ) : (
-    <h1 className="font-heading text-xl text-uva-text">{post.titulo}</h1>
+    <h1 className="font-heading text-xl wrap-break-word text-uva-text">{post.titulo}</h1>
   );
 
   return (
@@ -134,18 +146,23 @@ export function ComunidadPostCard({
       ) : (
         <>
           {Titulo}
-          {/* renderizarTextoFormateado devuelve bloques (p/ul/ol/pre) reales,
-              no texto plano — en la vista truncada del feed se fuerzan a
-              inline para que `line-clamp-3` los recorte como si fuera un
-              párrafo. */}
+          {/* renderizarTextoFormateado devuelve un bloque (p/ul/ol/pre) por
+              línea. En el feed se dejan como bloques: `line-clamp-3` cuenta
+              las líneas de todos ellos y corta en la tercera. Antes se
+              forzaban a `inline` y cada salto de línea desaparecía — "para la
+              casa" + "INK: Empresa…" se leía "casaINK: Empresa…". */}
           <div
-            className={`text-sm text-uva-text-muted ${truncar ? "line-clamp-3 [&>*]:inline" : "flex flex-col gap-2"}`}
+            className={`text-sm wrap-break-word text-uva-text-muted ${truncar ? "line-clamp-3" : "flex flex-col gap-2"}`}
           >
             {renderizarTextoFormateado(post.contenido, resolverAdjunto)}
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-uva-text-faint">
-            <span>{post.tiempo}</span>
+          {/* `flex-wrap` + `whitespace-nowrap`: en una fila rígida, a 375 px
+              (admin y autora, en el detalle) "hace 3 horas" quedaba en 32 px
+              de ancho y 3 líneas. Ahora lo que no cabe baja entero a la
+              línea siguiente, y las acciones van juntas a la derecha. */}
+          <div className="flex flex-wrap items-center gap-x-4 text-xs text-uva-text-faint">
+            <span className="whitespace-nowrap">{post.tiempo}</span>
             <ComunidadReactionButton
               tipo="post"
               objetivoId={post.id}
@@ -155,45 +172,59 @@ export function ComunidadPostCard({
               usuarioActualId={usuarioActualId}
             />
             {truncar ? (
-              <Link href={`/dashboard/comunidad/${post.slug}`} className="hover:text-uva-text-muted">
+              <Link
+                href={`/dashboard/comunidad/${post.slug}`}
+                className={cn(CLASE_BOTON_ACCION_COMUNIDAD, "whitespace-nowrap")}
+              >
                 {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
               </Link>
             ) : (
-              <span>
+              <span className="whitespace-nowrap">
                 {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
               </span>
             )}
-            {esAdmin && (
-              <button
-                type="button"
-                disabled={pendienteFijar}
-                onClick={alternarFijado}
-                className="cursor-pointer border-0 bg-transparent p-0 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {post.fijado ? "Desfijar" : "Fijar"}
-              </button>
-            )}
-            {!truncar && puedeEditar && (
-              <button
-                type="button"
-                onClick={() => setEditando(true)}
-                className="cursor-pointer border-0 bg-transparent p-0 hover:text-uva-text-muted"
-              >
-                Editar
-              </button>
-            )}
-            {puedeEliminar && (
-              <button
-                type="button"
-                disabled={pendienteEliminar}
-                onClick={eliminar}
-                className="cursor-pointer border-0 bg-transparent p-0 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Eliminar
-              </button>
+            {hayAcciones && (
+              <div className="ml-auto flex items-center gap-4">
+                {esAdmin && (
+                  <button
+                    type="button"
+                    disabled={pendienteFijar}
+                    onClick={alternarFijado}
+                    className={CLASE_BOTON_ACCION_COMUNIDAD}
+                  >
+                    {post.fijado ? "Desfijar" : "Fijar"}
+                  </button>
+                )}
+                {puedeEditar && (
+                  <button type="button" onClick={() => setEditando(true)} className={CLASE_BOTON_ACCION_COMUNIDAD}>
+                    Editar
+                  </button>
+                )}
+                {puedeEliminar && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmandoEliminar(true)}
+                    className={CLASE_BOTON_ACCION_COMUNIDAD}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </>
+      )}
+
+      {/* Antes borraba al primer toque; en móvil queda al lado del ❤ y era
+          fácil tocarlo sin querer. */}
+      {puedeEliminar && (
+        <ConfirmDialog
+          open={confirmandoEliminar}
+          onOpenChange={setConfirmandoEliminar}
+          title="Eliminar publicación"
+          description="La publicación dejará de verse en la comunidad. Esta acción no se puede deshacer."
+          onConfirm={eliminar}
+        />
       )}
     </article>
   );
