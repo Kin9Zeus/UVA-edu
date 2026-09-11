@@ -17,7 +17,7 @@ import {
  * examen que no se puede regenerar si Mux está caído o si el asset se borró.
  *
  * Service Role: `transcripciones_video` no tiene política de SELECT para
- * `authenticated` salvo administradores (supabase/sql/083), y esta función la
+ * `authenticated` salvo administradores (supabase/sql/088), y esta función la
  * llama un Server Action que YA verificó el rol. Mismo patrón que el resto de
  * los Server Actions de administrador.
  *

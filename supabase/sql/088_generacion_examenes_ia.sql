@@ -2,7 +2,7 @@
 -- RLS y privilegios: transcripciones_video, trabajos_generacion_examen,
 -- y las columnas de procedencia de preguntas_examen.
 --
--- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-082, y
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-087, y
 -- después de correr la migración de Prisma que crea las dos tablas
 -- (prisma/migrations/20260909000000_generacion_examenes_ia).
 --

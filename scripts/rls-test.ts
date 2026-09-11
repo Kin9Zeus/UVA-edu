@@ -2266,7 +2266,7 @@ async function main() {
     // D-4: supresión de datos personales (075_anonimizar_usuario.sql)
     //
     // ------------------------------------------------------------------
-    // Generación de exámenes con IA (083)
+    // Generación de exámenes con IA (088)
     //
     // `transcripciones_video` es la superficie nueva que más importa cerrar:
     // guarda la clase entera en texto plano. Es el MISMO contenido por el que
@@ -2280,7 +2280,7 @@ async function main() {
     // Si alguien agrega mañana una policy de `tiene_acceso_vigente_curso`
     // sobre esta tabla, esta prueba es la que lo detecta.
     // ------------------------------------------------------------------
-    console.log("\n=== Sesión: GENERACIÓN DE EXÁMENES CON IA (083) ===\n");
+    console.log("\n=== Sesión: GENERACIÓN DE EXÁMENES CON IA (088) ===\n");
 
     const { error: errSembrarTranscripcion } = await admin
       .from("transcripciones_video")
