@@ -76,6 +76,12 @@ export default async function LeccionPlayerPage({
     notFound();
   }
 
+  // Enlace viejo con el UUID del curso o de la clase: misma URL con slugs.
+  // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  if (esUuid(cursoSlug) || esUuid(leccionSlug)) {
+    redirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}`);
+  }
+
   const comentarios = await getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null);
 
   return (

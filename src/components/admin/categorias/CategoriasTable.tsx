@@ -383,7 +383,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             {verCursosDe?.cursos.map((curso) => (
               <Link
                 key={curso.id}
-                href={`/admin/cursos/${curso.id}`}
+                href={`/admin/cursos/${curso.slug}`}
                 className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
               >
                 <span className="min-w-0 truncate">{curso.titulo}</span>

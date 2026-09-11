@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import { procesarPortada } from "@/lib/admin/portada";
 import { procesarRecurso } from "@/lib/admin/recurso";
@@ -27,6 +28,7 @@ import {
 import {
   slugificar as slugificarTexto,
   slugDisponible,
+  SLUGS_RESERVADOS_CURSO,
   SLUGS_RESERVADOS_LECCION,
 } from "@/lib/slug";
 
@@ -39,6 +41,11 @@ const slugificar = (texto: string) => slugificarTexto(texto, "curso");
  * Slug libre para `titulo`, ignorando el propio curso al editar (`exceptoId`)
  * para que reguardar sin cambiar el título no le agregue un sufijo contra sí
  * mismo. Mismo criterio que generarSlug() en actions/admin/categorias.ts.
+ *
+ * `SLUGS_RESERVADOS_CURSO` entra como ocupado por el mismo motivo que en las
+ * lecciones: la ficha del panel vive en /admin/cursos/[cursoSlug], hermana
+ * de la página estática /admin/cursos/nuevo, y un curso titulado «Nuevo»
+ * quedaría inalcanzable desde el panel.
  */
 async function generarSlugCurso(
   supabase: SupabaseClient,
@@ -51,7 +58,10 @@ async function generarSlugCurso(
   if (exceptoId) consulta = consulta.neq("id", exceptoId);
   const { data } = await consulta;
 
-  return slugDisponible(base, (data ?? []).map((fila) => fila.slug as string));
+  return slugDisponible(base, [
+    ...SLUGS_RESERVADOS_CURSO,
+    ...(data ?? []).map((fila) => fila.slug as string),
+  ]);
 }
 
 /**
@@ -283,7 +293,7 @@ export async function crearCurso(input: {
   categoriaIds: string[];
   nivel: NivelCurso;
   idsInstructores: string[];
-}): Promise<AdminActionResult & { id?: string }> {
+}): Promise<AdminActionResult & { id?: string; slug?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
@@ -318,7 +328,7 @@ export async function crearCurso(input: {
       mostrado: false,
       id_admin_creador: admin.adminId,
     })
-    .select("id")
+    .select("id, slug")
     .single();
 
   if (error) return { error: "No pudimos crear el curso." };
@@ -352,7 +362,7 @@ export async function crearCurso(input: {
   });
 
   revalidatePath("/admin/cursos");
-  return { success: true, id: data.id };
+  return { success: true, id: data.id, slug: data.slug };
 }
 
 export async function actualizarInfoCurso(
@@ -364,7 +374,7 @@ export async function actualizarInfoCurso(
     nivel: NivelCurso;
     idsInstructores: string[];
   },
-): Promise<AdminActionResult> {
+): Promise<AdminActionResult & { slug?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
@@ -379,11 +389,12 @@ export async function actualizarInfoCurso(
   const errorInstructores = await validarInstructores(admin.supabase, idsInstructores);
   if (errorInstructores) return { error: errorInstructores };
 
+  const slug = await generarSlugCurso(admin.supabase, titulo, cursoId);
   const { error } = await admin.supabase
     .from("cursos")
     .update({
       titulo,
-      slug: await generarSlugCurso(admin.supabase, titulo, cursoId),
+      slug,
       descripcion,
       nivel,
     })
@@ -433,12 +444,15 @@ export async function actualizarInfoCurso(
   );
   if (errorSincronizacion) return { error: errorSincronizacion };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
-  revalidatePath(`/cursos/${cursoId}`);
-  return { success: true };
+  revalidarCursoPublico();
+  // El slug sale del título: si cambió, la URL donde está el administrador
+  // (/admin/cursos/<slug-viejo>) ya no resuelve. CursoDetalleView usa este
+  // valor para reemplazarla sin recargar.
+  return { success: true, slug };
 }
 
 /**
@@ -508,7 +522,7 @@ export async function actualizarConfiguracionCurso(
 
   if (error) return { error: "No pudimos guardar la configuración." };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
   return { success: true };
 }
@@ -537,7 +551,7 @@ export async function alternarPublicacionCurso(cursoId: string, mostrado: boolea
   });
 
   revalidatePath("/admin/cursos");
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -597,9 +611,9 @@ export async function subirPortadaCurso(
     await admin.supabase.storage.from(BUCKET_PORTADAS).remove([rutaAnterior]);
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
-  revalidatePath(`/cursos/${cursoId}`);
+  revalidarCursoPublico();
   return { success: true, url: publicUrl };
 }
 
@@ -683,7 +697,7 @@ export async function crearModulo(cursoId: string, titulo: string): Promise<Admi
 
   if (error) return { error: "No pudimos crear el módulo." };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -702,11 +716,11 @@ export async function actualizarModulo(
   const { error } = await admin.supabase.from("modulos").update({ titulo: parseo.data }).eq("id", moduloId);
   if (error) return { error: "No pudimos renombrar el módulo." };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
-export async function eliminarModulo(moduloId: string, cursoId: string): Promise<AdminActionResult> {
+export async function eliminarModulo(moduloId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
@@ -714,7 +728,7 @@ export async function eliminarModulo(moduloId: string, cursoId: string): Promise
   const { error } = await admin.supabase.from("modulos").delete().eq("id", moduloId);
   if (error) return { error: "No pudimos eliminar el módulo." };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -773,7 +787,7 @@ export async function moverModulo(
     if (error) return { error: "No pudimos guardar el nuevo orden de los módulos." };
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -815,7 +829,7 @@ export async function crearLeccion(
 
   if (error) return { error: "No pudimos crear la lección." };
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true, id: data.id };
 }
 
@@ -865,7 +879,7 @@ export async function actualizarLeccion(
     detalles: `${curso?.titulo ?? "curso desconocido"} — ${titulo}`,
   });
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -892,7 +906,7 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
     detalles: `${curso?.titulo ?? "curso desconocido"} — ${leccion?.titulo ?? "sin título"}`,
   });
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -946,7 +960,7 @@ export async function moverLeccion(
     if (error) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }
 
@@ -1057,7 +1071,7 @@ export async function confirmarSubidaRecurso(
     return { error: "No pudimos guardar el material adicional." };
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return {
     success: true,
     recurso: {
@@ -1069,7 +1083,7 @@ export async function confirmarSubidaRecurso(
   };
 }
 
-export async function eliminarRecursoLeccion(recursoId: string, cursoId: string): Promise<AdminActionResult> {
+export async function eliminarRecursoLeccion(recursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(recursoId).success) return { error: "Material inválido." };
@@ -1087,6 +1101,6 @@ export async function eliminarRecursoLeccion(recursoId: string, cursoId: string)
     await admin.supabase.storage.from(BUCKET_MATERIALES).remove([recurso.url_archivo]);
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }

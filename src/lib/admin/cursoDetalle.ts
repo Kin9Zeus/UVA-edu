@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { estadoDeCurso, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
+import { esUuid } from "@/lib/slug";
 
 export type RecursoDetalle = {
   id: string;
@@ -96,6 +97,24 @@ export type CursoDetalle = {
   /** Solo los que siguen vigentes (ni revocados ni caducados). */
   enlacesVistaPrevia: EnlaceVistaPrevia[];
 };
+
+/**
+ * Id y slug del curso a partir de lo que llegue en la URL del panel: el slug
+ * (lo normal) o el UUID (bitácora, enlaces viejos). Es una consulta aparte y
+ * mínima porque el resto de las lecturas de la ficha —getCursoDetalle,
+ * getExamenDeCurso— trabajan con el id y corren en paralelo.
+ */
+export async function resolverCursoAdmin(
+  identificador: string,
+): Promise<{ id: string; slug: string } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cursos")
+    .select("id, slug")
+    .eq(esUuid(identificador) ? "id" : "slug", identificador)
+    .maybeSingle();
+  return data as { id: string; slug: string } | null;
+}
 
 export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | null> {
   const supabase = await createClient();

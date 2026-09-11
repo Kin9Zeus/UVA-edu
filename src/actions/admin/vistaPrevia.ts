@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
 import {
   MINUTOS_VIGENCIA_VALIDOS,
   MINUTOS_VIGENCIA_VISTA_PREVIA,
@@ -64,7 +64,7 @@ export async function crearEnlaceVistaPrevia(
     }`,
   });
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
 
   return {
     success: true,
@@ -104,6 +104,6 @@ export async function revocarEnlaceVistaPrevia(
     idEntidadAfectada: cursoId,
   });
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true };
 }

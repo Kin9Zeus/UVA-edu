@@ -47,11 +47,17 @@ export default async function ExamenPage({
     .from("cursos")
     // `cursoSlug` puede ser slug o UUID (enlaces anteriores al cambio de
     // rutas) — mismo criterio que getCursoPublico.
-    .select("id, titulo")
+    .select("id, slug, titulo")
     .eq(esUuid(cursoSlug) ? "id" : "slug", cursoSlug)
     .maybeSingle();
 
   if (!curso) notFound();
+
+  // Enlace viejo con UUID: misma pantalla con slug, conservando ?tiempo= (lo
+  // pone ExamenRendir al cortar por tiempo). Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  if (esUuid(cursoSlug)) {
+    redirect(`/cursos/${curso.slug}/examen${tiempo ? `?tiempo=${encodeURIComponent(tiempo)}` : ""}`);
+  }
 
   const situacion = await getSituacionExamen(curso.id, user.id);
 

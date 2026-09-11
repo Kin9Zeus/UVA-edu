@@ -60,6 +60,18 @@ export function slugificar(texto: string, respaldo = "categoria"): string {
 export const SLUGS_RESERVADOS_LECCION = ["examen"] as const;
 
 /**
+ * Segmentos que un CURSO no puede usar como slug, por el mismo motivo que
+ * `SLUGS_RESERVADOS_LECCION` pero en el panel: la ficha vive en
+ * `/admin/cursos/[cursoSlug]` y `nuevo` es su hermana estática
+ * (src/app/(admin)/admin/cursos/nuevo). Un curso titulado «Nuevo» abriría el
+ * formulario de creación en vez de su ficha.
+ *
+ * La ruta pública `/cursos/[cursoSlug]` no tiene hermanas estáticas hoy; si
+ * mañana se agrega una, su segmento también va acá.
+ */
+export const SLUGS_RESERVADOS_CURSO = ["nuevo"] as const;
+
+/**
  * Primer slug libre a partir de `base`, dado el conjunto de los que ya
  * están tomados: "diseno", si no, "diseno-2", "diseno-3"…
  *

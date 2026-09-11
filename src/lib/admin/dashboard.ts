@@ -9,6 +9,7 @@ type ActividadItem = {
 
 type CursoPopular = {
   id: string;
+  slug: string;
   titulo: string;
   categoria: string;
   estudiantes: number;
@@ -81,7 +82,7 @@ export async function getDashboardData() {
   const [{ data: cursos }, { data: avances }] = await Promise.all([
     supabase
       .from("cursos")
-      .select("id, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
+      .select("id, slug, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
       .order("creado_en", { ascending: false })
       .limit(20),
     supabase
@@ -117,6 +118,7 @@ export async function getDashboardData() {
 
       return {
         id: curso.id,
+        slug: curso.slug,
         titulo: curso.titulo,
         categoria: nombresCategorias.join(", ") || "Sin categoría",
         estudiantes: avance?.estudiantes ?? 0,

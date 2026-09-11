@@ -3,6 +3,7 @@ import { getInstructoresDeCursos, type InstructorPublico } from "@/lib/instructo
 
 export type CursoListado = {
   id: string;
+  slug: string;
   titulo: string;
   /** Todas las categorías del curso: `curso_categorias` es muchos-a-muchos. */
   categorias: { id: string; nombre: string }[];
@@ -21,7 +22,7 @@ export async function getCursosListado(): Promise<CursoListado[]> {
     await Promise.all([
       supabase
         .from("cursos")
-        .select("id, titulo, nivel, mostrado, fecha_creacion:creado_en")
+        .select("id, slug, titulo, nivel, mostrado, fecha_creacion:creado_en")
         .order("creado_en", { ascending: false }),
       supabase.from("inscripciones").select("id_curso, id_usuario"),
       // Un estudiante por MEMBRESÍA nunca tiene fila en `inscripciones` (la
@@ -80,6 +81,7 @@ export async function getCursosListado(): Promise<CursoListado[]> {
 
   return (cursos ?? []).map((curso) => ({
     id: curso.id,
+    slug: curso.slug,
     titulo: curso.titulo,
     categorias: categoriasPorCurso.get(curso.id) ?? [],
     instructores: instructoresPorCurso.get(curso.id) ?? [],

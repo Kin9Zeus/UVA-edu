@@ -199,7 +199,7 @@ export function LeccionEditorPanel({
     setRecursos(actualizados);
     onRecursosChange(actualizados);
 
-    const resultado = await eliminarRecursoLeccion(recurso.id, cursoId);
+    const resultado = await eliminarRecursoLeccion(recurso.id);
     if (resultado.error) {
       showToast(resultado.error, "error");
       setRecursos(recursos);

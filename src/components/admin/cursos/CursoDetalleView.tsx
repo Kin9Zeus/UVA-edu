@@ -187,6 +187,14 @@ export function CursoDetalleView({
       destacado,
       orden,
     });
+    // actualizarInfoCurso regenera el slug desde el título. Si cambió, la URL
+    // abierta (/admin/cursos/<slug-viejo>) ya no resuelve: recargar o compartir
+    // el enlace daría 404. Se reemplaza en el historial sin navegar —Next la
+    // sincroniza con su router— para no remontar la vista ni perder la pestaña.
+    const rutaActual = `/admin/cursos/${resultadoInfo.slug}`;
+    if (resultadoInfo.slug && window.location.pathname !== rutaActual) {
+      window.history.replaceState(null, "", `${rutaActual}${window.location.search}${window.location.hash}`);
+    }
     showToast("Cambios guardados.");
   }
 

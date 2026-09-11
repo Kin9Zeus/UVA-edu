@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
@@ -12,6 +12,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 import { siteUrl } from "@/lib/site-url";
+import { esUuid } from "@/lib/slug";
 
 export async function generateMetadata({
   params,
@@ -66,6 +67,18 @@ export default async function CursoDetallePage({
 
   if (!curso) {
     notFound();
+  }
+
+  // Un enlace viejo con el UUID sigue resolviendo, pero se manda a la URL
+  // con slug en vez de servir la ficha en dos direcciones: el canonical de
+  // generateMetadata solo lo arreglaba para los buscadores, y quien copiaba
+  // la URL de la barra seguía compartiendo el UUID.
+  //
+  // `redirect` (307) y no `permanentRedirect` (308): el slug se regenera al
+  // cambiar el título (actualizarInfoCurso) y un 308 lo guarda el navegador,
+  // que seguiría mandando el UUID a un slug que ya no existe.
+  if (esUuid(cursoSlug)) {
+    redirect(`/cursos/${curso.slug}`);
   }
 
   // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es

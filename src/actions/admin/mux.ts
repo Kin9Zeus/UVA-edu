@@ -1,10 +1,10 @@
 "use server";
 
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { mux } from "@/lib/mux/client";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
 import { logError } from "@/lib/log";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
@@ -133,7 +133,7 @@ export async function iniciarSubidaVideoLeccion(
     detalles: esReemplazo ? `${contexto} (asset anterior: ${leccion.id_mux_asset_id})` : contexto,
   });
 
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   return { success: true, uploadUrl: upload.url };
 }
 

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { resolverCategoria, buscarCatalogo, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
+import { esUuid } from "@/lib/slug";
 
 export async function generateMetadata({
   params,
@@ -32,6 +33,13 @@ export default async function CategoriaPage({
 
   if (!categoria) {
     notFound();
+  }
+
+  // Enlace viejo con UUID: misma página con slug, conservando la búsqueda y
+  // la página. Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  if (esUuid(categoriaSlug)) {
+    const consulta = new URLSearchParams({ ...(q ? { q } : {}), ...(page ? { page } : {}) }).toString();
+    redirect(`/catalogo/${categoria.slug}${consulta ? `?${consulta}` : ""}`);
   }
 
   const [resultado, opcionesBusqueda] = await Promise.all([

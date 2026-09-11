@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-export type CursoDeCategoria = { id: string; titulo: string; mostrado: boolean };
+export type CursoDeCategoria = { id: string; slug: string; titulo: string; mostrado: boolean };
 
 export type Categoria = {
   id: string;
@@ -24,6 +24,7 @@ type FilaCategoria = {
 
 type FilaCurso = {
   id: string;
+  slug: string;
   titulo: string;
   mostrado: boolean;
   id_categoria: string;
@@ -37,7 +38,7 @@ export async function getCategorias(): Promise<Categoria[]> {
       .from("categorias")
       .select("id, slug, nombre, descripcion, activo, admin_creador:perfiles(nombre)")
       .order("nombre", { ascending: true }),
-    supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, titulo, mostrado)"),
+    supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, slug, titulo, mostrado)"),
   ]);
 
   const cursosPorCategoria = new Map<string, FilaCurso[]>();
@@ -66,6 +67,7 @@ export async function getCategorias(): Promise<Categoria[]> {
       numeroCursos: suyos.length,
       cursos: suyos.map((curso) => ({
         id: curso.id,
+        slug: curso.slug,
         titulo: curso.titulo,
         mostrado: curso.mostrado,
       })),

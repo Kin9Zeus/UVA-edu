@@ -15,6 +15,9 @@ export type CursoDelUsuario = {
    */
   inscripcionId: string | null;
   cursoId: string;
+  /** Para enlazar la ficha del panel (/admin/cursos/<slug>). `null` si el
+   * curso ya no existe: el enlace cae al UUID y la página da 404. */
+  cursoSlug: string | null;
   titulo: string;
   progreso: number;
   /** EXAMEN_PENDIENTE: terminó todas las clases pero el curso exige examen
@@ -111,7 +114,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
-    .select("id, id_curso, tipo_acceso, activo, motivo_revocacion, curso:cursos(titulo)")
+    .select("id, id_curso, tipo_acceso, activo, motivo_revocacion, curso:cursos(titulo, slug)")
     .eq("id_usuario", usuarioId);
 
   const cursos: CursoDelUsuario[] = [];
@@ -145,6 +148,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     cursos.push({
       inscripcionId: inscripcion.id,
       cursoId: inscripcion.id_curso,
+      cursoSlug: curso?.slug ?? null,
       titulo: curso?.titulo ?? "Curso eliminado",
       progreso: porcentaje,
       // Provisional: el examen se resuelve más abajo, de una sola vez para
@@ -168,13 +172,19 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   const { data: progresoUsuario } = await supabase
     .from("progreso")
     .select(
-      "completado, actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso, curso:cursos(titulo)))",
+      "completado, actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso, curso:cursos(titulo, slug)))",
     )
     .eq("id_usuario", usuarioId);
 
   const progresoPorCursoSinInscripcion = new Map<
     string,
-    { titulo: string; total: number; completados: number; ultimaActividad: string | null }
+    {
+      titulo: string;
+      slug: string | null;
+      total: number;
+      completados: number;
+      ultimaActividad: string | null;
+    }
   >();
   for (const fila of progresoUsuario ?? []) {
     const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
@@ -183,10 +193,11 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     if (!cursoId || cursoIdsConInscripcion.has(cursoId)) continue;
 
     const cursoEmbebido = modulo?.curso;
-    const cursoTitulo = (Array.isArray(cursoEmbebido) ? cursoEmbebido[0] : cursoEmbebido)?.titulo;
+    const cursoInfo = Array.isArray(cursoEmbebido) ? cursoEmbebido[0] : cursoEmbebido;
 
     const actual = progresoPorCursoSinInscripcion.get(cursoId) ?? {
-      titulo: cursoTitulo ?? "Curso eliminado",
+      titulo: cursoInfo?.titulo ?? "Curso eliminado",
+      slug: cursoInfo?.slug ?? null,
       total: 0,
       completados: 0,
       ultimaActividad: null,
@@ -214,6 +225,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     cursos.push({
       inscripcionId: null,
       cursoId,
+      cursoSlug: datos.slug,
       titulo: datos.titulo,
       progreso: porcentaje,
       estado: porcentaje >= 100 ? "COMPLETADO" : "EN_PROGRESO",

@@ -11,7 +11,7 @@
  * que Next enchufa automáticamente (node_modules/next/dist/compiled/
  * crypto-browserify). Eso tenía dos consecuencias medidas en producción:
  *
- *  1. ~415 KB de criptografía muerta en el chunk de /admin/cursos/[id].
+ *  1. ~415 KB de criptografía muerta en el chunk de /admin/cursos/[cursoSlug].
  *  2. Una violación de CSP `script-src 'eval'` (UVA-EDU-1S), porque el
  *     polyfill arrastra a su vez `vm-browserify`, cuyo
  *     `Script.prototype.runInThisContext` es literalmente `eval(this.code)`.

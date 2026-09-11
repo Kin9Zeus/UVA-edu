@@ -346,7 +346,7 @@ export function UsuarioDetalleView({
               >
                 <div className="flex items-start justify-between gap-2">
                   <Link
-                    href={`/admin/cursos/${curso.cursoId}`}
+                    href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
                     className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}
@@ -422,7 +422,7 @@ export function UsuarioDetalleView({
               <TableRow key={curso.inscripcionId ?? curso.cursoId}>
                 <TableCell className="font-semibold">
                   <Link
-                    href={`/admin/cursos/${curso.cursoId}`}
+                    href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
                     className="text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}

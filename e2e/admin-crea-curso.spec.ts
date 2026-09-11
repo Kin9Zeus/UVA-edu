@@ -104,8 +104,14 @@ test("admin crea y publica un curso", async ({ page }) => {
     await page.locator(`#curso-instructores-${instructorId}`).click();
 
     await page.getByRole("button", { name: "Publicar curso" }).click();
-    await expect(page).toHaveURL(/\/admin\/cursos\/[0-9a-f-]{36}/, { timeout: 30_000 });
-    cursoId = page.url().split("/admin/cursos/")[1];
+    // La ficha se direcciona por slug (/admin/cursos/[cursoSlug]), así que la
+    // URL ya no trae el id: se busca en la base por el slug que slugificar()
+    // genera a partir del título.
+    const slugEsperado = `curso-e2e-${sufijo}`;
+    await expect(page).toHaveURL(new RegExp(`/admin/cursos/${slugEsperado}$`), { timeout: 30_000 });
+    const { data: creado } = await admin.from("cursos").select("id").eq("slug", slugEsperado).single();
+    cursoId = creado?.id ?? null;
+    expect(cursoId).not.toBeNull();
   });
 
   await test.step("el curso quedó publicado (mostrado = true) en la base real", async () => {

@@ -142,7 +142,7 @@ export function CrearCursoForm({
 
     setPending(null);
     showToast("Curso creado como borrador. Añade el contenido para publicarlo.");
-    router.push(`/admin/cursos/${resultado.id}`);
+    router.push(`/admin/cursos/${resultado.slug ?? resultado.id}`);
   }
 
   return (

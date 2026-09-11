@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
 import { logError } from "@/lib/log";
 import { ordenEntre, siguienteOrden } from "@/lib/orden";
 import { TAMANO_MAXIMO_CONTENIDO, type DocumentoContenido } from "@/lib/editor/tipos";
@@ -64,7 +65,7 @@ function opcionesInicialesPara(tipo: TipoPreguntaImplementado): OpcionPregunta[]
 
 /** Revalida las rutas donde el examen cambia lo que se ve. */
 function revalidarExamen(cursoId: string, cursoSlug?: string | null) {
-  revalidatePath(`/admin/cursos/${cursoId}`);
+  revalidarCursoAdmin();
   if (cursoSlug) {
     revalidatePath(`/cursos/${cursoSlug}`);
     revalidatePath(`/cursos/${cursoSlug}/examen`);

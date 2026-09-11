@@ -216,7 +216,7 @@ export function CursosTable({
               >
                 <div className="flex items-start justify-between gap-2">
                   <Link
-                    href={`/admin/cursos/${curso.id}`}
+                    href={`/admin/cursos/${curso.slug}`}
                     className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}
@@ -229,7 +229,7 @@ export function CursosTable({
                       aria-label="Editar curso"
                       title="Editar curso"
                       className="text-uva-muted-2 hover:text-uva-accent"
-                      render={<Link href={`/admin/cursos/${curso.id}`} />}
+                      render={<Link href={`/admin/cursos/${curso.slug}`} />}
                       nativeButton={false}
                     >
                       <Pencil className="size-4" />
@@ -290,7 +290,7 @@ export function CursosTable({
               {filtrados.map((curso) => (
                 <TableRow key={curso.id}>
                   <TableCell className="font-semibold">
-                    <Link href={`/admin/cursos/${curso.id}`} className="text-uva-text hover:text-uva-accent-text">
+                    <Link href={`/admin/cursos/${curso.slug}`} className="text-uva-text hover:text-uva-accent-text">
                       {curso.titulo}
                     </Link>
                   </TableCell>
@@ -332,7 +332,7 @@ export function CursosTable({
                         aria-label="Editar curso"
                         title="Editar curso"
                         className="text-uva-muted-2 hover:text-uva-accent"
-                        render={<Link href={`/admin/cursos/${curso.id}`} />}
+                        render={<Link href={`/admin/cursos/${curso.slug}`} />}
                         nativeButton={false}
                       >
                         <Pencil className="size-4" />

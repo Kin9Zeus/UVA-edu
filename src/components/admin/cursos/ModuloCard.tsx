@@ -161,7 +161,7 @@ export function ModuloCard({
   }
 
   async function handleEliminarModulo() {
-    const resultado = await eliminarModulo(modulo.id, cursoId);
+    const resultado = await eliminarModulo(modulo.id);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;

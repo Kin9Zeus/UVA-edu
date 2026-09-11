@@ -123,7 +123,7 @@ export default async function AdminDashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <Link
-                      href={`/admin/cursos/${curso.id}`}
+                      href={`/admin/cursos/${curso.slug}`}
                       className="text-sm font-medium text-uva-text hover:text-uva-accent-text"
                     >
                       {curso.titulo}
@@ -159,7 +159,7 @@ export default async function AdminDashboardPage() {
                   <TableRow key={curso.id}>
                     <TableCell>
                       <Link
-                        href={`/admin/cursos/${curso.id}`}
+                        href={`/admin/cursos/${curso.slug}`}
                         className="text-uva-text hover:text-uva-accent-text"
                       >
                         {curso.titulo}
