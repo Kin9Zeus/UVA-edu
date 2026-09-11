@@ -2291,7 +2291,10 @@ async function main() {
         id_track_mux: `rls-test-track-${sufijo}`,
         transcripcion: "la subdivisión de la luz controla el ruido de la imagen",
         idioma: "es",
-        actualizado_en: new Date().toISOString(),
+        // `actualizado_en` NO se pasa a propósito: lo pone el DEFAULT now()
+        // de la migración 20260910000000. Pasarlo era lo que ocultaba que la
+        // 088 había olvidado ese default, y el fallo salió en producción al
+        // pulsar "Generar examen" (la otra tabla, que nadie rellenaba a mano).
       });
     if (errSembrarTranscripcion) {
       throw new Error(`No pude sembrar la transcripción de prueba: ${errSembrarTranscripcion.message}`);
@@ -2334,12 +2337,36 @@ async function main() {
       clienteConAcceso.from("trabajos_generacion_examen").select("id"),
     );
 
+    // Regresión del fallo que vio el administrador al pulsar "Generar examen":
+    //
+    //   null value in column "actualizado_en" of relation
+    //   "trabajos_generacion_examen" violates not-null constraint
+    //
+    // `@updatedAt` en schema.prisma no pone nada: es del cliente de Prisma, y
+    // en tiempo de ejecución este proyecto escribe con supabase-js. La columna
+    // necesita DEFAULT now() en la base, y la 088 lo olvidó en sus dos tablas.
+    // Esta prueba inserta SIN la columna a propósito — si alguien vuelve a
+    // crear una tabla sin el default, muere aquí y no en producción.
+    const { error: errSinTimestamp } = await admin
+      .from("trabajos_generacion_examen")
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
+    registrar(
+      "se puede registrar un trabajo sin pasar actualizado_en (lo pone el DEFAULT)",
+      errSinTimestamp === null,
+      errSinTimestamp?.message ?? "ok",
+    );
+    await admin
+      .from("trabajos_generacion_examen")
+      .update({ estado: "COMPLETADO", finalizado_en: new Date().toISOString() })
+      .eq("id_curso", idCursoExamen!)
+      .eq("estado", "PENDIENTE");
+
     // Idempotencia en la BASE, no en TypeScript: dos clics simultáneos son dos
     // procesos que no se ven entre sí, así que el cerrojo tiene que ser el
     // índice parcial único y no una comprobación en la app.
     const { error: errPrimerTrabajo } = await admin
       .from("trabajos_generacion_examen")
-      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL", actualizado_en: new Date().toISOString() });
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
     registrar(
       "se registra un trabajo de generación PENDIENTE",
       errPrimerTrabajo === null,
@@ -2348,7 +2375,7 @@ async function main() {
 
     const { error: errSegundoTrabajo } = await admin
       .from("trabajos_generacion_examen")
-      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL", actualizado_en: new Date().toISOString() });
+      .insert({ id_curso: idCursoExamen!, disparado_por: "ADMIN_MANUAL" });
     registrar(
       "un SEGUNDO trabajo PENDIENTE para el mismo curso choca — es el cerrojo de idempotencia",
       errSegundoTrabajo?.code === "23505",
@@ -2365,7 +2392,7 @@ async function main() {
 
     const { error: errTercerTrabajo } = await admin
       .from("trabajos_generacion_examen")
-      .insert({ id_curso: idCursoExamen!, disparado_por: "VIDEO_AGREGADO", actualizado_en: new Date().toISOString() });
+      .insert({ id_curso: idCursoExamen!, disparado_por: "VIDEO_AGREGADO" });
     registrar(
       "cerrado el anterior, sí se puede registrar una corrida nueva (el índice es parcial)",
       errTercerTrabajo === null,
@@ -2374,7 +2401,7 @@ async function main() {
 
     const { error: errDisparadorInvalido } = await admin
       .from("trabajos_generacion_examen")
-      .insert({ id_curso: idCursoExamen!, disparado_por: "LO_QUE_SEA", actualizado_en: new Date().toISOString() });
+      .insert({ id_curso: idCursoExamen!, disparado_por: "LO_QUE_SEA" });
     registrar(
       "un disparador fuera de DISPARADORES_GENERACION se rechaza en la base",
       errDisparadorInvalido?.code === "23514",
@@ -2395,7 +2422,6 @@ async function main() {
       ],
       respuestas_aceptadas: [],
       validada: true,
-      actualizado_en: new Date().toISOString(),
     });
     registrar(
       "no se puede marcar una pregunta como validada sin decir contra qué se validó",
