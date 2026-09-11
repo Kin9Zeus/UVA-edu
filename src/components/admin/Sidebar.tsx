@@ -11,6 +11,7 @@ import {
   Ticket,
   ScrollText,
   Flag,
+  CreditCard,
   User,
   PanelLeftClose,
   PanelLeft,
@@ -26,6 +27,7 @@ const nav = [
   { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
+  { href: "/admin/planes", label: "Planes", icon: CreditCard },
   // Sin entrada "Instructores": un instructor es una cuenta con rol PROFESOR,
   // así que se gestiona desde Usuarios ("Hacer profesor" + especialidad en la
   // ficha). La sección propia y su tabla se eliminaron con la migración
