@@ -52,11 +52,59 @@ describe("construirCsp — orígenes medidos, no supuestos", () => {
 
   it("el video de Mux puede cargar: manifiestos, telemetría y worker", () => {
     const politica = csp();
-    expect(directiva(politica, "media-src")).toContain("https://stream.mux.com");
-    expect(directiva(politica, "connect-src")).toContain("https://stream.mux.com");
-    expect(directiva(politica, "connect-src")).toContain("https://stats.mux.com");
+    expect(directiva(politica, "media-src")).toContain("https://*.mux.com");
+    expect(directiva(politica, "connect-src")).toContain("https://*.mux.com");
+    expect(directiva(politica, "connect-src")).toContain("https://*.litix.io");
     // El reproductor descompone HLS en un worker creado desde un blob.
     expect(directiva(politica, "worker-src")).toContain("blob:");
+  });
+
+  /**
+   * Regresión de las violaciones que recogió la fase de observación
+   * (UVA-EDU-1J/1K/1M/1Q/1R/1T en Sentry). La política anterior enumeraba
+   * `stream.mux.com` y `stats.mux.com`, y el navegador nunca pide esos hosts:
+   * pide el PoP regional al que redirigen. Forzarla así habría dejado sin
+   * video a todo el mundo y sin subidas al administrador.
+   *
+   * Se comprueba contra los hosts REALES observados, no contra el comodín,
+   * para que la prueba siga valiendo si alguien lo cambia por otra cosa.
+   */
+  it("los PoP regionales de Mux que aparecieron en producción están cubiertos", () => {
+    const connect = directiva(csp(), "connect-src");
+    const comodinCasa = (host: string) =>
+      connect
+        .split(" ")
+        .some((fuente) =>
+          fuente.startsWith("https://*.")
+            ? host.endsWith(fuente.slice("https://*".length))
+            : fuente === `https://${host}`,
+        );
+
+    for (const host of [
+      "manifest-oci-us-phoenix-1-vop1.fastly.mux.com",
+      "chunk-oci-us-phoenix-1-vop1.fastly.mux.com",
+      "manifest-oci-us-ashburn-1-vop1.fastly.mux.com",
+      "chunk-oci-us-ashburn-1-vop1.fastly.mux.com",
+      "direct-uploads-oci-us-phoenix-1-vop1.mux.com",
+      "inferred.litix.io",
+      // Los de siempre tienen que seguir pasando.
+      "stream.mux.com",
+      "stats.mux.com",
+    ]) {
+      expect(comodinCasa(host), `${host} debería estar permitido`).toBe(true);
+    }
+  });
+
+  /**
+   * El comodín cubre subdominios de Mux, no cualquier dominio que TERMINE en
+   * algo parecido: `evilmux.com` o `mux.com.atacante.net` deben quedar fuera.
+   */
+  it("el comodín de Mux no abre dominios ajenos parecidos", () => {
+    const connect = directiva(csp(), "connect-src");
+    expect(connect).not.toContain("https://*mux.com");
+    expect(connect).toContain("https://*.mux.com");
+    // ".mux.com" como sufijo exige el punto: "evilmux.com" no lo tiene.
+    expect("evilmux.com".endsWith(".mux.com")).toBe(false);
   });
 
   it("las miniaturas de Mux y las portadas de Supabase pasan por img-src", () => {
@@ -101,7 +149,7 @@ describe("construirCsp — no puede tumbar el sitio por configuración", () => {
     // petición: este código corre en el proxy, antes que cualquier página.
     expect(() => csp({ supabaseUrl: "esto-no-es-una-url" })).not.toThrow();
     expect(directiva(csp({ supabaseUrl: "esto-no-es-una-url" }), "connect-src")).toBe(
-      "connect-src 'self' https://stream.mux.com https://stats.mux.com https://o4511972325588992.ingest.us.sentry.io",
+      "connect-src 'self' https://*.mux.com https://*.litix.io https://o4511972325588992.ingest.us.sentry.io",
     );
   });
 
