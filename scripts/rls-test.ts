@@ -2429,6 +2429,32 @@ async function main() {
       errValidadaSinOrigen?.code ?? "se insertó igual",
     );
 
+    // La migración 088 añadió tres COLUMNAS a `preguntas_examen`, y el panel
+    // las lee con la sesión del administrador (getExamenDeCurso pasa por
+    // createClient(), no por service role). Si el GRANT de esa tabla fuera por
+    // columna en vez de por tabla, las nuevas no quedarían incluidas y la
+    // pestaña de examen entera fallaría con 42501 — un fallo que ni tsc ni los
+    // tests unitarios pueden ver, porque solo existe en la base.
+    // Se comprueba junto con el embed a `lecciones`, que es como lo pide la
+    // pantalla de verdad.
+    await esperarPermitido(
+      "administrador SÍ puede leer las columnas de procedencia de preguntas_examen (088)",
+      clienteAdmin
+        .from("preguntas_examen")
+        .select(
+          "id, id_leccion_origen, fragmento_origen, validada, leccion_origen:lecciones!preguntas_examen_id_leccion_origen_fkey(titulo)",
+        )
+        .eq("id_examen", idExamenPrueba!),
+    );
+
+    // El estudiante nunca debe ver el fragmento: es texto literal de la
+    // transcripción, o sea el contenido pagado del curso, y además delata cuál
+    // es el trozo del video donde está la respuesta.
+    await esperarBloqueado(
+      "estudiante NO puede leer los fragmentos de origen de las preguntas",
+      clienteConAcceso.from("preguntas_examen").select("id, fragmento_origen"),
+    );
+
     // La base hacía imposible cumplir lo que docs/legal ya promete: diez
     // tablas referencian `perfiles` con ON DELETE RESTRICT y basta una fila
     // en `suscripciones` para volver la cuenta indeleble. Y como

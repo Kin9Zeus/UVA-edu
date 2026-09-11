@@ -129,6 +129,33 @@ export type PreguntaCompleta = {
   opciones: OpcionPregunta[] | null;
   respuestasAceptadas: string[];
   explicacion: DocumentoContenido | null;
+  /**
+   * Procedencia de la pregunta. Los tres campos van juntos porque describen
+   * una sola cosa: de dónde salió y cuánto hay que fiarse.
+   *
+   * `origen === null` es una pregunta escrita a mano por un administrador —el
+   * caso de todas las que existían antes de la generación con IA— y no lleva
+   * ninguna insignia: es lo normal, no un estado.
+   *
+   * Con origen, `validada` distingue lo único que importa al revisarla: si el
+   * fragmento citado se encontró LITERALMENTE en la transcripción de ese
+   * video (`true`) o no (`false`). Es un booleano nullable y no un
+   * `@default(false)` justamente para que "escrita a mano" no se confunda con
+   * "generada y no verificada".
+   */
+  origen: OrigenPregunta | null;
+};
+
+/** De qué video salió una pregunta generada, y con qué cita. */
+export type OrigenPregunta = {
+  leccionId: string;
+  /** Título de la lección de origen; `null` si la lección se borró después
+   *  (el FK es ON DELETE SET NULL, así que esto es alcanzable). */
+  leccionTitulo: string | null;
+  /** La frase de la transcripción en la que se apoya la pregunta. */
+  fragmento: string | null;
+  /** ¿El fragmento se encontró literalmente en esa transcripción? */
+  validada: boolean | null;
 };
 
 /**
