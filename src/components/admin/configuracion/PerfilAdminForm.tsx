@@ -4,36 +4,25 @@ import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { EditorFotoPerfil } from "@/components/perfil/EditorFotoPerfil";
 import { actualizarPerfil, type ActualizarPerfilState } from "@/actions/perfil/actualizar";
 
-function iniciales(nombre: string) {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  return partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "").join("") || "A";
-}
-
-export function PerfilAdminForm({ nombre, correo }: { nombre: string; correo: string }) {
+export function PerfilAdminForm({
+  nombre,
+  correo,
+  fotoUrl,
+}: {
+  nombre: string;
+  correo: string;
+  fotoUrl: string | null;
+}) {
   const [state, formAction, pending] = useActionState<ActualizarPerfilState, FormData>(actualizarPerfil, null);
 
   return (
     <form action={formAction} className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
-        <Avatar className="size-12 shrink-0 bg-uva-divider after:hidden">
-          <AvatarFallback className="bg-uva-divider font-heading text-sm font-bold text-uva-muted">
-            {iniciales(nombre)}
-          </AvatarFallback>
-        </Avatar>
-        {/* TODO(Fase 2): subida de avatar. El mockup dibuja el botón; hasta que
-            exista el almacenamiento, las iniciales se derivan del nombre. */}
-        <Button
-          type="button"
-          size="sm"
-          disabled
-          title="Disponible cuando se habilite la subida de imágenes"
-        >
-          Cambiar avatar
-        </Button>
-        <p className="text-xs text-uva-muted-2">Las iniciales se generan a partir de tu nombre.</p>
+        <EditorFotoPerfil nombre={nombre} fotoUrl={fotoUrl} />
+        <p className="text-xs text-uva-muted-2">Clic en la foto para cambiarla.</p>
       </div>
 
       {state?.error && (

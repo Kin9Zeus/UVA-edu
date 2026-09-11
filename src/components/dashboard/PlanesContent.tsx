@@ -72,12 +72,19 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                     : "flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-6"
                 }
               >
-                <div className="flex items-center gap-2">
-                  <div>
+                {/* min-h reserva el mismo espacio en todas las tarjetas sin
+                    importar cuánto ocupe el nombre+descripción de CADA plan
+                    (line-clamp-2 además pone un tope si un admin escribe una
+                    descripción larga) — sin esto, un plan con descripción
+                    corta empujaba el precio y el botón más arriba que uno
+                    con descripción larga, y toda la fila quedaba
+                    desalineada. */}
+                <div className="flex min-h-[70px] items-start gap-2">
+                  <div className="min-w-0">
                     <div className="font-heading text-xl text-uva-text">
                       {plan.nombre}
                     </div>
-                    <div className="text-xs text-uva-text-faint">{meta(plan)}</div>
+                    <div className="line-clamp-2 text-xs text-uva-text-faint">{meta(plan)}</div>
                   </div>
                   {badge && (
                     <span className="ml-auto shrink-0 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text">
@@ -86,7 +93,12 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                   )}
                 </div>
 
-                <div>
+                {/* Mismo criterio: la línea de "4 cuotas" solo existe en los
+                    planes anuales, así que siempre se reserva el renglón
+                    (con un espacio en blanco si no aplica) en vez de
+                    omitirlo — de lo contrario el botón "Elegir" quedaba un
+                    renglón más arriba en los planes que no la tienen. */}
+                <div className="min-h-[58px]">
                   <span className="font-heading text-[32px] text-uva-text">
                     {formatearPrecio(plan.precio_centavos, plan.moneda)}
                   </span>
@@ -94,9 +106,7 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                     {" "}
                     {periodo(plan.duracion_dias)}
                   </span>
-                  {cuotas && (
-                    <p className="mt-0.5 text-xs text-uva-text-faint">{cuotas}</p>
-                  )}
+                  <p className="mt-0.5 text-xs text-uva-text-faint">{cuotas || " "}</p>
                 </div>
 
                 <Button

@@ -5,6 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
+import { enviarCorreoComunidadModerada } from "@/lib/resend";
+import { siteUrl } from "@/lib/site-url";
+import { logError } from "@/lib/log";
 
 export type EliminarComunidadResultado = { error: string } | { success: true };
 
@@ -31,6 +34,36 @@ async function eliminarAdjuntosComunidad(
 }
 
 /**
+ * Aviso best-effort al autor moderado (mismo criterio que
+ * enviarCorreoPasswordActualizada: un fallo del correo no debe deshacer la
+ * eliminación, que ya se aplicó — solo se registra el error).
+ */
+async function avisarAutorModeracion(
+  supabase: SupabaseClient,
+  idAutor: string,
+  tipoContenido: "publicación" | "respuesta",
+  motivo: string,
+  tituloPost: string,
+) {
+  const { data: autor } = await supabase.from("perfiles").select("correo, nombre").eq("id", idAutor).single();
+  if (!autor) return;
+
+  const resultado = await enviarCorreoComunidadModerada(
+    autor.correo,
+    autor.nombre,
+    tipoContenido,
+    tituloPost,
+    motivo,
+    `${siteUrl()}/dashboard/comunidad`,
+  );
+  if (!resultado.success) {
+    logError("comunidad:moderacion", "enviarCorreoComunidadModerada falló", new Error(resultado.error), {
+      area: "email",
+    });
+  }
+}
+
+/**
  * Borrado lógico de una publicación: marca `eliminado = true` en vez de
  * DELETE, para no dejar huérfanas las respuestas (mismo criterio que
  * `eliminarComentario`, src/actions/comentarios/eliminar.ts). El trigger
@@ -40,9 +73,16 @@ async function eliminarAdjuntosComunidad(
  *
  * Si quien borra es un administrador moderando la publicación de otra
  * persona, el texto se copia antes a `comunidad_moderacion` (RLS solo-admin)
- * para no perder la evidencia de una publicación abusiva.
+ * para no perder la evidencia de una publicación abusiva, junto con el
+ * `motivo` que el admin debe escribir — obligatorio en este caso, nunca
+ * cuando el propio autor borra lo suyo — y que además se le envía por
+ * correo al autor (avisarAutorModeracion).
  */
-export async function eliminarPostComunidad(postId: string, ruta: string): Promise<EliminarComunidadResultado> {
+export async function eliminarPostComunidad(
+  postId: string,
+  ruta: string,
+  motivo?: string,
+): Promise<EliminarComunidadResultado> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -67,11 +107,15 @@ export async function eliminarPostComunidad(postId: string, ruta: string): Promi
   }
   if (!esAutor && !esAdmin) return { error: "No tienes permiso para eliminar esta publicación." };
 
+  const motivoLimpio = motivo?.trim() ?? "";
+  if (esAdmin && !motivoLimpio) return { error: "Escribe el motivo de la eliminación." };
+
   if (esAdmin) {
     const { error: errorModeracion } = await supabase.from("comunidad_moderacion").insert({
       id_post: postId,
       contenido_original: `${post.titulo}\n\n${post.contenido}`,
       id_eliminado_por: user.id,
+      motivo: motivoLimpio,
     });
     if (errorModeracion) return { error: "No pudimos eliminar la publicación." };
   }
@@ -96,8 +140,13 @@ export async function eliminarPostComunidad(postId: string, ruta: string): Promi
       accion: "Eliminó una publicación de Comunidad (moderación)",
       entidadAfectada: "comunidad_posts",
       idEntidadAfectada: postId,
-      detalles: post.titulo,
+      detalles: `${post.titulo} — motivo: ${motivoLimpio}`,
     });
+    await avisarAutorModeracion(supabase, post.id_usuario, "publicación", motivoLimpio, post.titulo);
+    // Cierra la cola de /admin/comunidad: si esta publicación tenía
+    // reportes pendientes, ya no hace falta que el admin además los
+    // descarte a mano uno por uno.
+    await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_post", postId);
   }
 
   revalidatePath(ruta);
@@ -108,6 +157,7 @@ export async function eliminarPostComunidad(postId: string, ruta: string): Promi
 export async function eliminarRespuestaComunidad(
   respuestaId: string,
   ruta: string,
+  motivo?: string,
 ): Promise<EliminarComunidadResultado> {
   const supabase = await createClient();
   const {
@@ -133,11 +183,15 @@ export async function eliminarRespuestaComunidad(
   }
   if (!esAutor && !esAdmin) return { error: "No tienes permiso para eliminar esta respuesta." };
 
+  const motivoLimpio = motivo?.trim() ?? "";
+  if (esAdmin && !motivoLimpio) return { error: "Escribe el motivo de la eliminación." };
+
   if (esAdmin) {
     const { error: errorModeracion } = await supabase.from("comunidad_moderacion").insert({
       id_respuesta: respuestaId,
       contenido_original: respuesta.contenido,
       id_eliminado_por: user.id,
+      motivo: motivoLimpio,
     });
     if (errorModeracion) return { error: "No pudimos eliminar la respuesta." };
   }
@@ -160,8 +214,15 @@ export async function eliminarRespuestaComunidad(
       accion: "Eliminó una respuesta de Comunidad (moderación)",
       entidadAfectada: "comunidad_posts",
       idEntidadAfectada: respuesta.id_post,
-      detalles: respuesta.contenido.slice(0, 140),
+      detalles: `${respuesta.contenido.slice(0, 140)} — motivo: ${motivoLimpio}`,
     });
+    const { data: post } = await supabase
+      .from("comunidad_posts")
+      .select("titulo")
+      .eq("id", respuesta.id_post)
+      .single();
+    await avisarAutorModeracion(supabase, respuesta.id_usuario, "respuesta", motivoLimpio, post?.titulo ?? "");
+    await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_respuesta", respuestaId);
   }
 
   revalidatePath(ruta);

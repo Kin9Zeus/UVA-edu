@@ -15,6 +15,20 @@ import type {
   ComunidadAdjunto,
 } from "@/lib/comunidad-tipos";
 
+/**
+ * "Diseño Paramétrico" -> "diseno parametrico" — insensible a tildes y
+ * mayúsculas para el buscador del feed. Mismo criterio de
+ * `normalize("NFD")` que slugificar() (src/lib/slug.ts), pero sin
+ * colapsar a slug: acá hace falta conservar los espacios para comparar
+ * substrings de frases completas.
+ */
+function normalizarBusqueda(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 // Cubre la duración de una vista del feed/detalle, no solo un clic —a
 // diferencia de la URL de descarga de un documento (obtenerUrlAdjuntoComunidad,
 // 300s), esta se pinta directo en un <img> y puede quedar abierta en la
@@ -108,7 +122,16 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   filas: T[],
   usuarioActualId: string | null,
 ): Promise<
-  Map<string, { autorNombre: string; totalReacciones: number; meReaccione: boolean; adjuntos: ComunidadAdjunto[] }>
+  Map<
+    string,
+    {
+      autorNombre: string;
+      autorFotoUrl: string | null;
+      totalReacciones: number;
+      meReaccione: boolean;
+      adjuntos: ComunidadAdjunto[];
+    }
+  >
 > {
   const autorIds = [...new Set(filas.map((fila) => fila.id_usuario))];
   const objetivoIds = filas.map((fila) => fila.id);
@@ -123,7 +146,7 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   const [{ data: autores }, { data: reaccionesPost }, { data: reaccionesRespuesta }, { data: adjuntosPost }, { data: adjuntosRespuesta }] =
     await Promise.all([
       autorIds.length
-        ? supabase.from("comunidad_autor_publico").select("id, nombre").in("id", autorIds)
+        ? supabase.from("comunidad_autor_publico").select("id, nombre, foto_url").in("id", autorIds)
         : Promise.resolve({ data: [] }),
       objetivoIds.length
         ? supabase.from("comunidad_reacciones").select("id_usuario, id_post").in("id_post", objetivoIds)
@@ -140,6 +163,7 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
     ]);
 
   const nombresPorId = new Map((autores ?? []).map((a) => [a.id as string, a.nombre as string]));
+  const fotosPorId = new Map((autores ?? []).map((a) => [a.id as string, a.foto_url as string | null]));
 
   const reaccionesPorObjetivo = new Map<string, string[]>();
   for (const r of reaccionesPost ?? []) {
@@ -196,12 +220,19 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
 
   const resultado = new Map<
     string,
-    { autorNombre: string; totalReacciones: number; meReaccione: boolean; adjuntos: ComunidadAdjunto[] }
+    {
+      autorNombre: string;
+      autorFotoUrl: string | null;
+      totalReacciones: number;
+      meReaccione: boolean;
+      adjuntos: ComunidadAdjunto[];
+    }
   >();
   for (const fila of filas) {
     const listaReacciones = reaccionesPorObjetivo.get(fila.id) ?? [];
     resultado.set(fila.id, {
       autorNombre: nombresPorId.get(fila.id_usuario) ?? "Usuario",
+      autorFotoUrl: fotosPorId.get(fila.id_usuario) ?? null,
       totalReacciones: listaReacciones.length,
       meReaccione: usuarioActualId ? listaReacciones.includes(usuarioActualId) : false,
       adjuntos: adjuntosPorObjetivo.get(fila.id) ?? [],
@@ -213,11 +244,20 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
 /** Feed de Comunidad, opcionalmente filtrado por categoría o restringido a
  * las publicaciones del usuario actual ("Mis publicaciones" — mutuamente
  * excluyente con la categoría, para no mezclar dos filtros en un MVP).
- * Publicaciones fijadas primero, después por fecha descendente. */
+ * Publicaciones fijadas primero siempre; dentro de cada grupo (fijadas y no
+ * fijadas), por `orden`: "reciente" (por fecha, el default) o "relevancia"
+ * (reacciones + respuestas, más comentado primero). `busqueda` filtra por
+ * coincidencia de substring en título o contenido, insensible a tildes y
+ * mayúsculas — mismo criterio de UX que el buscador del catálogo
+ * (CatalogoContent), pero en JS sobre lo que ya devolvió RLS: el feed no
+ * pagina (a diferencia del catálogo, que sí puede tener miles de cursos),
+ * así que no hace falta una función SQL de búsqueda para esto. */
 export async function getComunidadFeed(opciones?: {
   categoria?: CategoriaComunidad;
   soloPropios?: boolean;
   usuarioId?: string;
+  busqueda?: string;
+  orden?: "relevancia" | "reciente";
 }): Promise<ComunidadPostResumen[]> {
   const supabase = await createClient();
   const {
@@ -243,7 +283,15 @@ export async function getComunidadFeed(opciones?: {
     logError("comunidad:feed", "no se pudo leer el feed de comunidad", error, { opciones });
     return [];
   }
-  const filas = (posts ?? []) as FilaPost[];
+  let filas = (posts ?? []) as FilaPost[];
+
+  const textoBusqueda = opciones?.busqueda?.trim();
+  if (textoBusqueda) {
+    const q = normalizarBusqueda(textoBusqueda);
+    filas = filas.filter(
+      (fila) => normalizarBusqueda(fila.titulo).includes(q) || normalizarBusqueda(fila.contenido).includes(q),
+    );
+  }
   if (filas.length === 0) return [];
 
   const postIds = filas.map((fila) => fila.id);
@@ -256,6 +304,16 @@ export async function getComunidadFeed(opciones?: {
   for (const r of respuestas ?? []) {
     const id = r.id_post as string;
     respuestasPorPost.set(id, (respuestasPorPost.get(id) ?? 0) + 1);
+  }
+
+  if (opciones?.orden === "relevancia") {
+    filas = [...filas].sort((a, b) => {
+      if (a.fijado !== b.fijado) return a.fijado ? -1 : 1;
+      const scoreA = (enriquecido.get(a.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(a.id) ?? 0);
+      const scoreB = (enriquecido.get(b.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(b.id) ?? 0);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
+    });
   }
 
   return filas.map((fila) => {
@@ -271,6 +329,7 @@ export async function getComunidadFeed(opciones?: {
       tiempo: tiempoRelativo(fila.creado_en),
       autorId: fila.id_usuario,
       autorNombre: extra.autorNombre,
+      autorFotoUrl: extra.autorFotoUrl,
       totalRespuestas: respuestasPorPost.get(fila.id) ?? 0,
       totalReacciones: extra.totalReacciones,
       meReaccione: extra.meReaccione,
@@ -311,7 +370,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
 
   const { data: respuestasFilas, error: errorRespuestas } = await supabase
     .from("comunidad_respuestas")
-    .select("id, id_usuario, contenido, eliminado, creado_en")
+    .select("id, id_usuario, contenido, eliminado, eliminado_por_admin, creado_en")
     .eq("id_post", post.id)
     .order("creado_en", { ascending: true });
 
@@ -335,6 +394,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
     tiempo: tiempoRelativo(post.creado_en),
     autorId: post.id_usuario,
     autorNombre: extraPost.autorNombre,
+    autorFotoUrl: extraPost.autorFotoUrl,
     totalRespuestas: filasRespuestas.filter((r) => !r.eliminado).length,
     totalReacciones: extraPost.totalReacciones,
     meReaccione: extraPost.meReaccione,
@@ -345,9 +405,12 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
         id: r.id,
         contenido: r.eliminado ? "" : r.contenido,
         eliminado: r.eliminado,
+        eliminadoPorAdmin: r.eliminado_por_admin,
         tiempo: tiempoRelativo(r.creado_en),
+        creadoEn: r.creado_en,
         autorId: r.id_usuario,
         autorNombre: extra.autorNombre,
+        autorFotoUrl: extra.autorFotoUrl,
         totalReacciones: extra.totalReacciones,
         meReaccione: extra.meReaccione,
         adjuntos: r.eliminado ? [] : extra.adjuntos,

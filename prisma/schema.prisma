@@ -169,6 +169,13 @@ model Perfiles {
   slug           String       @unique
   correo         String       @unique
   celular        String?
+  /// URL pública del bucket `avatares` (091_perfiles_foto.sql), o `null` si
+  /// el usuario nunca subió una — la UI cae en las iniciales sobre un
+  /// círculo de color (mismo componente Avatar de siempre). Normalizada a
+  /// cuadrada por el servidor antes de subir (ver src/lib/perfil/foto.ts),
+  /// así que cualquier imagen de origen se ve bien recortada dentro del
+  /// círculo sin depender de que el usuario la recorte a mano.
+  foto_url       String?
   /// Derivado del selector de indicativo telefónico en "Mi perfil"
   /// (src/lib/paises.ts), no un campo libre.
   pais           String?
@@ -224,6 +231,9 @@ model Perfiles {
   comunidad_moderaciones      ComunidadModeracion[]    @relation("ComunidadModeradaPorAdmin")
   configuraciones_comunidad   ConfiguracionComunidad[] @relation("ConfiguracionComunidadActualizadaPorAdmin")
   comunidad_adjuntos          ComunidadAdjuntos[]
+  comunidad_reportes          ComunidadReportes[]      @relation("ComunidadReportadaPor")
+  notificaciones              Notificaciones[]         @relation("NotificacionesDelUsuario")
+  notificaciones_generadas    Notificaciones[]         @relation("NotificacionesGeneradasPorActor")
 
   @@map("perfiles")
 }
@@ -1408,6 +1418,10 @@ model ComunidadPosts {
   /// Borrado lógico, mismo criterio que Comentarios.eliminado: conserva el
   /// hilo de respuestas en vez de dejarlas huérfanas.
   eliminado      Boolean            @default(false)
+  /// `true` solo cuando `eliminado` lo puso un admin moderando (no el propio
+  /// autor) — distingue el placeholder en la UI. Solo se setea junto con
+  /// `eliminado`, verificado en el trigger de transiciones (089), no aquí.
+  eliminado_por_admin Boolean       @default(false)
   /// Solo ADMINISTRADOR — verificado en la policy de UPDATE (083), no aquí.
   fijado         Boolean            @default(false)
   creado_en      DateTime           @default(now()) @db.Timestamptz
@@ -1418,6 +1432,7 @@ model ComunidadPosts {
   reacciones ComunidadReacciones[]
   moderacion ComunidadModeracion[]
   adjuntos   ComunidadAdjuntos[]
+  reportes   ComunidadReportes[]
 
   @@index([categoria, creado_en])
   @@index([id_usuario])
@@ -1430,6 +1445,8 @@ model ComunidadRespuestas {
   id_usuario     String   @db.Uuid
   contenido      String
   eliminado      Boolean  @default(false)
+  /// Ver el comentario del mismo campo en ComunidadPosts.
+  eliminado_por_admin Boolean @default(false)
   creado_en      DateTime @default(now()) @db.Timestamptz
   actualizado_en DateTime @default(now()) @updatedAt @db.Timestamptz
 
@@ -1438,6 +1455,7 @@ model ComunidadRespuestas {
   reacciones ComunidadReacciones[]
   moderacion ComunidadModeracion[]
   adjuntos   ComunidadAdjuntos[]
+  reportes   ComunidadReportes[]
 
   @@index([id_post, creado_en])
   @@index([id_usuario])
@@ -1475,6 +1493,12 @@ model ComunidadModeracion {
   id_respuesta       String?  @db.Uuid
   contenido_original String
   id_eliminado_por   String   @db.Uuid
+  /// Razón que escribió el admin al moderar — obligatoria a nivel de
+  /// aplicación (eliminarPostComunidad/eliminarRespuestaComunidad) para
+  /// poder informarle el motivo al autor por correo. Nullable en la
+  /// columna, no con CHECK: filas de antes de este campo (si las hay) no
+  /// deben romper la migración.
+  motivo             String?
   creado_en          DateTime @default(now()) @db.Timestamptz
 
   post          ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
@@ -1485,6 +1509,66 @@ model ComunidadModeracion {
   @@index([id_respuesta])
   @@index([id_eliminado_por])
   @@map("comunidad_moderacion")
+}
+
+/// Denuncia de un usuario sobre un post O una respuesta ajenos (mismo patrón
+/// de exclusividad que ComunidadReacciones/ComunidadModeracion). No oculta
+/// ni afecta el contenido reportado por sí sola — solo alimenta la cola de
+/// moderación en /admin/comunidad. `revisado` lo marca un admin al
+/// descartar el reporte sin eliminar el contenido; si lo elimina, el
+/// reporte queda igual con `revisado = true` (ver resolverReporteComunidad).
+model ComunidadReportes {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post        String?  @db.Uuid
+  id_respuesta   String?  @db.Uuid
+  id_reportante  String   @db.Uuid
+  motivo         String
+  revisado       Boolean  @default(false)
+  creado_en      DateTime @default(now()) @db.Timestamptz
+
+  post       ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  respuesta  ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
+  reportante Perfiles             @relation("ComunidadReportadaPor", fields: [id_reportante], references: [id])
+
+  @@index([id_post])
+  @@index([id_respuesta])
+  @@index([id_reportante])
+  @@index([revisado, creado_en])
+  @@map("comunidad_reportes")
+}
+
+/// Notificación in-app genérica — hoy solo la dispara el trigger
+/// `comunidad_respuestas_notifica_autor` (094_comunidad_notificaciones.sql)
+/// cuando alguien responde tu post, pero el `tipo` abierto (no un enum)
+/// deja sumar más disparadores después (reacciones, anuncios) sin
+/// migración de esquema. Nunca la inserta la app directo: no hay policy de
+/// INSERT para `authenticated`, solo el trigger (SECURITY DEFINER) decide
+/// qué es una notificación legítima y para quién — mismo criterio que
+/// `intento_examen_emite_certificado` (068), nunca confiar en que el
+/// cliente diga a quién le llega un aviso.
+model Notificaciones {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario   String   @db.Uuid
+  /// 'COMUNIDAD_RESPUESTA' por ahora. Texto libre a propósito (ver el
+  /// comentario de arriba), acotado por CHECK en SQL, no por un enum de
+  /// Prisma que exigiría una migración por cada tipo nuevo.
+  tipo         String
+  /// Quién generó el aviso (quien respondió, quien reaccionó...). Puede
+  /// ser null si algún día hay un tipo sin actor (un anuncio del sistema).
+  id_actor     String?  @db.Uuid
+  /// A qué entidad de comunidad apunta el link ("comunidad_post"), y su id
+  /// — misma pareja (tipo, id) suelta que ya usa comunidad_moderacion en
+  /// vez de una FK por tabla, porque el link varía según `tipo`.
+  entidad_tipo String
+  entidad_id   String   @db.Uuid
+  leida        Boolean  @default(false)
+  creado_en    DateTime @default(now()) @db.Timestamptz
+
+  usuario Perfiles  @relation("NotificacionesDelUsuario", fields: [id_usuario], references: [id], onDelete: Cascade)
+  actor   Perfiles? @relation("NotificacionesGeneradasPorActor", fields: [id_actor], references: [id], onDelete: SetNull)
+
+  @@index([id_usuario, leida, creado_en])
+  @@map("notificaciones")
 }
 
 /// Un archivo adjunto (imagen o documento) de un post O una respuesta, nunca

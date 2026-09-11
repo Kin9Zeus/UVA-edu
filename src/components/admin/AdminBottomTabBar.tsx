@@ -11,6 +11,8 @@ import {
   Ticket,
   FolderTree,
   GraduationCap,
+  Flag,
+  CreditCard,
   ScrollText,
   Settings,
   LogOut,
@@ -33,7 +35,9 @@ const principales = [
 
 const secundarios = [
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
+  { href: "/admin/planes", label: "Planes", icon: CreditCard },
   { href: "/admin/instructores", label: "Instructores", icon: GraduationCap },
+  { href: "/admin/comunidad", label: "Comunidad", icon: Flag },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings },
 ];

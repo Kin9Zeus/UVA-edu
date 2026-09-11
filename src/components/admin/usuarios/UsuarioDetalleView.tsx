@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,6 +144,7 @@ export function UsuarioDetalleView({
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3.5">
           <Avatar className="size-[52px] shrink-0 bg-uva-divider after:hidden">
+            {usuario.fotoUrl && <AvatarImage src={usuario.fotoUrl} alt="" />}
             <AvatarFallback className="bg-uva-divider font-heading text-base font-bold text-uva-muted">
               {iniciales(usuario.nombre)}
             </AvatarFallback>

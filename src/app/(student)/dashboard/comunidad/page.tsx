@@ -13,11 +13,12 @@ function esCategoriaValida(valor: string | undefined): valor is CategoriaComunid
 export default async function ComunidadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoria?: string; mias?: string }>;
+  searchParams: Promise<{ categoria?: string; mias?: string; q?: string; orden?: string }>;
 }) {
-  const { categoria, mias } = await searchParams;
+  const { categoria, mias, q, orden } = await searchParams;
   const soloPropios = mias === "1";
   const categoriaActiva = !soloPropios && esCategoriaValida(categoria) ? categoria : undefined;
+  const ordenActivo = orden === "relevancia" ? "relevancia" : "reciente";
 
   const acceso = await resolverAccesoComunidad();
   if (!acceso.acceso) {
@@ -28,6 +29,8 @@ export default async function ComunidadPage({
     categoria: categoriaActiva,
     soloPropios,
     usuarioId: soloPropios ? acceso.usuarioId : undefined,
+    busqueda: q,
+    orden: ordenActivo,
   });
 
   return (
@@ -35,6 +38,7 @@ export default async function ComunidadPage({
       posts={posts}
       categoriaActiva={categoriaActiva}
       soloPropios={soloPropios}
+      busqueda={q?.trim() || undefined}
       usuarioActualId={acceso.usuarioId}
       esAdmin={acceso.esAdmin}
     />

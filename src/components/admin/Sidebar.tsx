@@ -10,6 +10,8 @@ import {
   FolderTree,
   Ticket,
   ScrollText,
+  Flag,
+  CreditCard,
   User,
   PanelLeftClose,
   PanelLeft,
@@ -25,11 +27,13 @@ const nav = [
   { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
+  { href: "/admin/planes", label: "Planes", icon: CreditCard },
   // Sin entrada "Instructores": un instructor es una cuenta con rol PROFESOR,
   // así que se gestiona desde Usuarios ("Hacer profesor" + especialidad en la
   // ficha). La sección propia y su tabla se eliminaron con la migración
   // 20260903000000_multi_instructores.
   { href: "/admin/codigos", label: "Códigos de invitación", icon: Ticket },
+  { href: "/admin/comunidad", label: "Comunidad", icon: Flag },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
   { href: "/admin/configuracion", label: "Perfil", icon: User },
 ];

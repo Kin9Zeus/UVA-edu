@@ -9,6 +9,7 @@ export type InstructorPublico = {
   id: string;
   nombre: string;
   especialidad: string | null;
+  fotoUrl: string | null;
 };
 
 /** Nombre que se muestra cuando un curso todavía no tiene profesor asignado. */
@@ -41,7 +42,7 @@ export async function getInstructoresDeCursos(
 
   const { data, error } = await supabase
     .from("curso_instructores_publico")
-    .select("id_curso, id_instructor, nombre, especialidad")
+    .select("id_curso, id_instructor, nombre, especialidad, foto_url")
     .in("id_curso", cursoIds);
 
   // Sin `error` revisado, una consulta rechazada devolvería `data: null` y el
@@ -54,6 +55,7 @@ export async function getInstructoresDeCursos(
       id: fila.id_instructor as string,
       nombre: fila.nombre as string,
       especialidad: (fila.especialidad as string | null) ?? null,
+      fotoUrl: (fila.foto_url as string | null) ?? null,
     });
     porCurso.set(fila.id_curso as string, lista);
   }

@@ -1,5 +1,6 @@
 import { ComunidadLayout } from "@/components/dashboard/comunidad/ComunidadLayout";
 import { ComunidadCategoriaTabs } from "@/components/dashboard/comunidad/ComunidadCategoriaTabs";
+import { ComunidadFiltros } from "@/components/dashboard/comunidad/ComunidadFiltros";
 import { ComunidadComposer } from "@/components/dashboard/comunidad/ComunidadComposer";
 import { ComunidadPostCard } from "@/components/dashboard/comunidad/ComunidadPostCard";
 import { ComunidadEmptyState } from "@/components/dashboard/comunidad/ComunidadEmptyState";
@@ -9,12 +10,14 @@ export function ComunidadFeedContent({
   posts,
   categoriaActiva,
   soloPropios,
+  busqueda,
   usuarioActualId,
   esAdmin,
 }: {
   posts: ComunidadPostResumen[];
   categoriaActiva?: CategoriaComunidad;
   soloPropios?: boolean;
+  busqueda?: string;
   usuarioActualId: string;
   esAdmin: boolean;
 }) {
@@ -34,6 +37,8 @@ export function ComunidadFeedContent({
       <div className="flex flex-col gap-5">
         <h2 className="font-heading text-lg text-uva-text">{tituloSeccion}</h2>
 
+        <ComunidadFiltros />
+
         {/* Sin selector de categoría: se publica en la pestaña donde está
             parado el usuario, así que solo tiene sentido ofrecer "crear
             publicación" dentro de una categoría concreta — "Todas" y "Mis
@@ -44,7 +49,7 @@ export function ComunidadFeedContent({
         )}
 
         {posts.length === 0 ? (
-          <ComunidadEmptyState categoria={categoriaActiva} soloPropios={soloPropios} />
+          <ComunidadEmptyState categoria={categoriaActiva} soloPropios={soloPropios} busqueda={busqueda} />
         ) : (
           <div className="flex flex-col gap-3">
             {posts.map((post) => (

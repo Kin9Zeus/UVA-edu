@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
+import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
 import { cn } from "@/lib/utils";
+import type { Notificacion } from "@/lib/notificaciones-tipos";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
 
-const MOSTRAR_PLANES = false;
-
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   const letras = partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "");
@@ -26,13 +26,17 @@ function iniciales(nombre: string) {
 
 export function Header({
   nombre,
+  fotoUrl = null,
   esAdmin = false,
   mostrarLogo = false,
   ocultarAccionesEnMobile = false,
   ocultarBuscador = false,
   diasGracia = null,
+  notificaciones = [],
+  notificacionesNoLeidas = 0,
 }: {
   nombre: string;
+  fotoUrl?: string | null;
   esAdmin?: boolean;
   /** `true`: se muestra siempre (ej. SiteHeader en /catalogo, /cursos, donde
    * no hay Sidebar con su propio logo en ningún ancho). `"solo-mobile"`: solo
@@ -51,6 +55,10 @@ export function Header({
   /** Si no es null, muestra el ícono de alerta de período de gracia (solo
    * mobile; en desktop ese aviso vive en la tarjeta fija del Sidebar). */
   diasGracia?: number | null;
+  /** Últimas notificaciones y cuántas siguen sin leer — ver
+   * getDashboardChromeData (src/lib/dashboard-chrome.ts). */
+  notificaciones?: Notificacion[];
+  notificacionesNoLeidas?: number;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
@@ -79,8 +87,9 @@ export function Header({
         )}
       </div>
 
-      {/* Oculto a pedido: "La opcion de Planes ocultala por el momento". */}
-      {MOSTRAR_PLANES && (
+      <div className="ml-auto flex items-center gap-1">
+        <NotificacionesBell notificaciones={notificaciones} noLeidas={notificacionesNoLeidas} />
+        <GraciaAlerta diasGracia={diasGracia} />
         <Link
           href="/dashboard/planes"
           className={cn(
@@ -90,15 +99,12 @@ export function Header({
         >
           Planes
         </Link>
-      )}
-
-      <div className="ml-auto flex items-center gap-1">
-        <GraciaAlerta diasGracia={diasGracia} />
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
           >
             <Avatar className="bg-uva-divider">
+              {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
               <AvatarFallback className="bg-uva-divider text-uva-text">
                 {iniciales(nombre)}
               </AvatarFallback>

@@ -100,6 +100,7 @@ export type ComunidadPostResumen = {
   tiempo: string;
   autorId: string;
   autorNombre: string;
+  autorFotoUrl: string | null;
   totalRespuestas: number;
   totalReacciones: number;
   meReaccione: boolean;
@@ -110,9 +111,18 @@ export type ComunidadRespuesta = {
   id: string;
   contenido: string;
   eliminado: boolean;
+  /** Solo relevante si `eliminado`: distingue "[respuesta eliminada por su
+   * autor]" de "[respuesta eliminada por un moderador]" en la UI. */
+  eliminadoPorAdmin: boolean;
   tiempo: string;
+  /** ISO crudo — para ordenar del lado del cliente (más reciente/antiguo)
+   * sin tener que volver a pedirle el hilo al servidor: ya está completo
+   * en memoria, la única razón de un campo aparte de `tiempo` (que es
+   * texto relativo, no comparable). */
+  creadoEn: string;
   autorId: string;
   autorNombre: string;
+  autorFotoUrl: string | null;
   totalReacciones: number;
   meReaccione: boolean;
   adjuntos: ComunidadAdjunto[];

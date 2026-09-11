@@ -20,6 +20,7 @@ export function SiteHeader({
   return (
     <DashboardHeader
       nombre={perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante"}
+      fotoUrl={perfil?.foto_url ?? null}
       esAdmin={perfil?.rol === "ADMINISTRADOR"}
       mostrarLogo
       ocultarBuscador={ocultarBuscador}

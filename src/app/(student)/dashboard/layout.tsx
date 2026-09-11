@@ -23,10 +23,8 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { nombre, esAdmin, certificadosCount, diasGracia } = await getDashboardChromeData({
-    user,
-    perfil,
-  });
+  const { nombre, fotoUrl, esAdmin, certificadosCount, diasGracia, notificaciones, notificacionesNoLeidas } =
+    await getDashboardChromeData({ user, perfil });
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -34,10 +32,13 @@ export default async function DashboardLayout({
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           nombre={nombre}
+          fotoUrl={fotoUrl}
           esAdmin={esAdmin}
           mostrarLogo="solo-mobile"
           ocultarAccionesEnMobile
           diasGracia={diasGracia}
+          notificaciones={notificaciones}
+          notificacionesNoLeidas={notificacionesNoLeidas}
         />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
         <BottomTabBar />

@@ -36,6 +36,7 @@ export type UsuarioDetalle = {
   id: string;
   nombre: string;
   correo: string;
+  fotoUrl: string | null;
   rol: "ESTUDIANTE" | "ADMINISTRADOR" | "PROFESOR";
   /**
    * Solo tiene sentido con rol PROFESOR. Es el dato que antes vivía en
@@ -90,7 +91,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("id, nombre, correo, rol, especialidad, estado, fecha_registro:creado_en")
+    .select("id, nombre, correo, foto_url, rol, especialidad, estado, fecha_registro:creado_en")
     .eq("id", usuarioId)
     .single();
 
@@ -278,6 +279,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     id: perfil.id,
     nombre: perfil.nombre,
     correo: perfil.correo,
+    fotoUrl: perfil.foto_url,
     rol: perfil.rol,
     especialidad: perfil.especialidad ?? null,
     estado: perfil.estado,

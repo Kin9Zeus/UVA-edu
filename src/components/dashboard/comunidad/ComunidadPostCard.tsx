@@ -4,12 +4,15 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pin } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
 import { ComunidadPostEditor } from "@/components/dashboard/comunidad/ComunidadPostEditor";
+import { ModerarComunidadDialog } from "@/components/dashboard/comunidad/ModerarComunidadDialog";
+import { ReportarComunidadDialog } from "@/components/dashboard/comunidad/ReportarComunidadDialog";
 import { eliminarPostComunidad } from "@/actions/comunidad/eliminar";
+import { reportarComunidad } from "@/actions/comunidad/reportar";
 import { fijarPostComunidad } from "@/actions/comunidad/fijar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
 import {
@@ -52,16 +55,56 @@ export function ComunidadPostCard({
   const [pendienteFijar, startTransitionFijar] = useTransition();
   const [editando, setEditando] = useState(false);
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
+  const [dialogoModeracionAbierto, setDialogoModeracionAbierto] = useState(false);
+  const [dialogoReporteAbierto, setDialogoReporteAbierto] = useState(false);
 
-  const puedeEliminar = usuarioActualId === post.autorId || esAdmin;
-  const puedeEditar = !truncar && usuarioActualId === post.autorId;
-  const hayAcciones = esAdmin || puedeEditar || puedeEliminar;
+  const esAutor = usuarioActualId === post.autorId;
+  const puedeEliminar = esAutor || esAdmin;
+  const puedeEditar = !truncar && esAutor;
+  // Un admin ya puede eliminar directo (con motivo) — reportar es la vía
+  // para el resto, que no tiene ninguna otra forma de escalar algo.
+  const puedeReportar = Boolean(usuarioActualId) && !esAutor && !esAdmin;
+  const hayAcciones = esAdmin || puedeEditar || puedeEliminar || puedeReportar;
+
+  async function confirmarReporte(motivo: string) {
+    const resultado = await reportarComunidad({ idPost: post.id }, motivo);
+    if ("error" in resultado) return { error: resultado.error };
+    return {};
+  }
+
+  function irAlCerrarTrasEliminar() {
+    // En el detalle (truncar=false) la propia publicación deja de existir:
+    // un refresh volvería a pedirla y el server component respondería 404.
+    // En el feed (truncar=true), en cambio, sí hace falta el refresh para
+    // que la tarjeta desaparezca de la lista.
+    if (truncar) {
+      router.refresh();
+    } else {
+      router.push("/dashboard/comunidad");
+    }
+  }
+
+  // El autor confirma en ConfirmDialog: antes borraba al primer toque, y en
+  // móvil el botón queda al lado del ❤. Un admin moderando contenido AJENO
+  // tiene que justificarlo primero (ModerarComunidadDialog), porque ese
+  // motivo se le envía al autor por correo.
+  function pedirEliminar() {
+    if (esAutor) setConfirmandoEliminar(true);
+    else setDialogoModeracionAbierto(true);
+  }
 
   // Se espera a que termine: ConfirmDialog muestra "Procesando…" mientras la
   // promesa siga abierta y solo se cierra al resolverse.
-  async function eliminar() {
+  async function eliminarPropia() {
     await eliminarPostComunidad(post.id, ruta);
-    router.refresh();
+    irAlCerrarTrasEliminar();
+  }
+
+  async function confirmarEliminacionModerada(motivo: string) {
+    const resultado = await eliminarPostComunidad(post.id, ruta, motivo);
+    if ("error" in resultado) return { error: resultado.error };
+    irAlCerrarTrasEliminar();
+    return {};
   }
 
   function alternarFijado() {
@@ -99,7 +142,17 @@ export function ComunidadPostCard({
 
   return (
     <article
-      className={`flex flex-col gap-3 rounded-uva-md border border-uva-divider p-4 ${post.fijado ? "bg-[#141417]" : "bg-uva-surface"}`}
+      className={cn(
+        "flex flex-col gap-3 rounded-uva-md border p-4",
+        // Antes solo cambiaba unos puntos el fondo (#141417 vs uva-surface)
+        // y un texto gris apenas visible — un post fijado se perdía en el
+        // feed en vez de destacar. Ahora usa el mismo tratamiento de
+        // "destacado" que ya tiene la tarjeta de plan resaltado
+        // (Pricing.tsx): borde y fondo con tinte del acento de marca.
+        post.fijado
+          ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
+          : "border-uva-divider bg-uva-surface",
+      )}
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -111,8 +164,8 @@ export function ComunidadPostCard({
           {CATEGORIA_LABEL[post.categoria]}
         </span>
         {post.fijado && (
-          <span className="inline-flex items-center gap-1 text-xs text-uva-text-faint">
-            <Pin className="size-3" strokeWidth={2} />
+          <span className="inline-flex items-center gap-1 rounded-full bg-uva-accent-soft px-2 py-0.5 text-xs font-semibold text-uva-accent-text">
+            <Pin className="size-3" strokeWidth={2.4} />
             Fijado
           </span>
         )}
@@ -120,6 +173,7 @@ export function ComunidadPostCard({
 
       <div className="flex items-center gap-2.5">
         <Avatar className="size-8 shrink-0 bg-uva-divider">
+          {post.autorFotoUrl && <AvatarImage src={post.autorFotoUrl} alt="" />}
           <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
             {iniciales(post.autorNombre)}
           </AvatarFallback>
@@ -201,12 +255,17 @@ export function ComunidadPostCard({
                   </button>
                 )}
                 {puedeEliminar && (
+                  <button type="button" onClick={pedirEliminar} className={CLASE_BOTON_ACCION_COMUNIDAD}>
+                    Eliminar
+                  </button>
+                )}
+                {puedeReportar && (
                   <button
                     type="button"
-                    onClick={() => setConfirmandoEliminar(true)}
+                    onClick={() => setDialogoReporteAbierto(true)}
                     className={CLASE_BOTON_ACCION_COMUNIDAD}
                   >
-                    Eliminar
+                    Reportar
                   </button>
                 )}
               </div>
@@ -215,15 +274,29 @@ export function ComunidadPostCard({
         </>
       )}
 
-      {/* Antes borraba al primer toque; en móvil queda al lado del ❤ y era
-          fácil tocarlo sin querer. */}
-      {puedeEliminar && (
+      {esAutor && (
         <ConfirmDialog
           open={confirmandoEliminar}
           onOpenChange={setConfirmandoEliminar}
           title="Eliminar publicación"
           description="La publicación dejará de verse en la comunidad. Esta acción no se puede deshacer."
-          onConfirm={eliminar}
+          onConfirm={eliminarPropia}
+        />
+      )}
+      {puedeEliminar && !esAutor && (
+        <ModerarComunidadDialog
+          open={dialogoModeracionAbierto}
+          onOpenChange={setDialogoModeracionAbierto}
+          tipoContenido="publicación"
+          onConfirm={confirmarEliminacionModerada}
+        />
+      )}
+      {puedeReportar && (
+        <ReportarComunidadDialog
+          open={dialogoReporteAbierto}
+          onOpenChange={setDialogoReporteAbierto}
+          tipoContenido="publicación"
+          onConfirm={confirmarReporte}
         />
       )}
     </article>

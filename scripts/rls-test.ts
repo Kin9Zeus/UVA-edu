@@ -2641,13 +2641,17 @@ async function main() {
         .select(),
     );
 
-    await esperarPermitido(
+    const anuncioComunidad = (await esperarPermitido(
       "administrador SÍ puede publicar en ANUNCIOS",
       clienteAdmin
         .from("comunidad_posts")
         .insert({ id_usuario: userAdmin.user!.id, categoria: "ANUNCIOS", titulo: `Anuncio RLS test ${sufijo}`, contenido: "x" })
-        .select(),
-    );
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!anuncioComunidad?.id) {
+      throw new Error("El anuncio de prueba no devolvió id; la prueba de notificación masiva no significa nada.");
+    }
 
     // Privilegio por columna + trigger (mismo criterio que 064/065 sobre
     // comentarios): la policy de UPDATE autoriza la FILA (es la suya), pero
@@ -2943,6 +2947,130 @@ async function main() {
     if (errCertificadoFresco) {
       throw new Error(`No pude sembrar el certificado de prueba de Comunidad: ${errCertificadoFresco.message}`);
     }
+
+    // Notificaciones (094): solo las dispara el trigger
+    // comunidad_respuestas_notifica_autor, nunca un INSERT directo de la
+    // app — por eso acá no se prueba "puede/no puede insertar", sino que el
+    // trigger hizo exactamente lo que debía.
+    await esperarBloqueado(
+      "responderte a ti mismo (postComunidad, línea de arriba) NO generó notificación",
+      admin
+        .from("notificaciones")
+        .select("*")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", postComunidad.id),
+    );
+
+    const respuestaAOtroPostAdmin = (await esperarPermitido(
+      "estudiante con acceso SÍ puede responder el post de otro usuario (admin)",
+      clienteConAcceso
+        .from("comunidad_respuestas")
+        .insert({ id_usuario: userConAcceso.user!.id, id_post: otroPostAdmin.id, contenido: "Respuesta a otro" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!respuestaAOtroPostAdmin?.id) {
+      throw new Error("La respuesta al post de otro usuario no devolvió id.");
+    }
+
+    const notificacionGenerada = (await esperarPermitido(
+      "responder el post de otro SÍ generó una notificación para su autor (trigger 094)",
+      admin
+        .from("notificaciones")
+        .select("id, tipo, id_actor, entidad_tipo, entidad_id")
+        .eq("id_usuario", userAdmin.user!.id)
+        .eq("entidad_id", otroPostAdmin.id)
+        .single(),
+    )) as { id: string; tipo: string; id_actor: string; entidad_tipo: string; entidad_id: string } | null;
+    if (
+      notificacionGenerada?.tipo !== "COMUNIDAD_RESPUESTA" ||
+      notificacionGenerada.id_actor !== userConAcceso.user!.id ||
+      notificacionGenerada.entidad_tipo !== "comunidad_post"
+    ) {
+      throw new Error("La notificación generada no tiene los datos esperados.");
+    }
+
+    await esperarPermitido(
+      "el destinatario (admin) SÍ puede leer su propia notificación",
+      clienteAdmin.from("notificaciones").select("*").eq("id", notificacionGenerada.id).single(),
+    );
+
+    await esperarBloqueado(
+      "quien generó la notificación NO puede leer la notificación ajena (es del destinatario)",
+      clienteConAcceso.from("notificaciones").select("*").eq("id", notificacionGenerada.id),
+    );
+
+    await esperarBloqueado(
+      "un estudiante no puede insertar una notificación a mano (solo el trigger)",
+      clienteConAcceso
+        .from("notificaciones")
+        .insert({
+          id_usuario: userConAcceso.user!.id,
+          tipo: "COMUNIDAD_RESPUESTA",
+          entidad_tipo: "comunidad_post",
+          entidad_id: otroPostAdmin.id,
+        })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el destinatario SÍ puede marcar su notificación como leída",
+      clienteAdmin.from("notificaciones").update({ leida: true }).eq("id", notificacionGenerada.id).select(),
+    );
+
+    await esperarBloqueado(
+      "quien generó la notificación NO puede marcarla como leída (no es suya)",
+      clienteConAcceso
+        .from("notificaciones")
+        .update({ leida: false })
+        .eq("id", notificacionGenerada.id)
+        .select(),
+    );
+
+    // 096: quitar (borrar) una notificación propia — el botón "×" del
+    // desplegable.
+    await esperarBloqueado(
+      "quien generó la notificación NO puede borrarla (no es suya)",
+      clienteConAcceso.from("notificaciones").delete().eq("id", notificacionGenerada.id).select(),
+    );
+
+    await esperarPermitido(
+      "el destinatario SÍ puede borrar (quitar) su propia notificación",
+      clienteAdmin.from("notificaciones").delete().eq("id", notificacionGenerada.id).select(),
+    );
+
+    // 095: publicar en ANUNCIOS notifica a TODOS los que tienen acceso a
+    // Comunidad — a diferencia de 094 (una sola fila), acá se verifica que
+    // llegó a quien debía (userConAcceso), NO al propio admin que lo
+    // publicó, y NO a quien no tiene acceso a Comunidad (userSinAcceso).
+    await esperarPermitido(
+      "publicar un anuncio SÍ notificó a un estudiante con acceso a Comunidad (trigger 095)",
+      admin
+        .from("notificaciones")
+        .select("id, tipo")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", anuncioComunidad.id)
+        .eq("tipo", "COMUNIDAD_ANUNCIO")
+        .single(),
+    );
+
+    await esperarBloqueado(
+      "el anuncio NO se notificó a sí mismo al admin que lo publicó",
+      admin
+        .from("notificaciones")
+        .select("*")
+        .eq("id_usuario", userAdmin.user!.id)
+        .eq("entidad_id", anuncioComunidad.id),
+    );
+
+    await esperarBloqueado(
+      "el anuncio NO se notificó a un usuario sin acceso a Comunidad",
+      admin
+        .from("notificaciones")
+        .select("*")
+        .eq("id_usuario", userSinAcceso.user!.id)
+        .eq("entidad_id", anuncioComunidad.id),
+    );
 
     await esperarBloqueado(
       "certificado emitido hace 5 días YA NO otorga acceso a comunidad_posts sin suscripción (084)",

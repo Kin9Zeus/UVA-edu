@@ -45,7 +45,11 @@ export function formatMoneda(centavos: number, moneda: string) {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency: moneda,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    // Sin esto, un monto con centavos reales (69.58) se mostraba redondeado
+    // (70) — mismo criterio que formatearPrecio (src/lib/planes.ts).
+    // `stripIfInteger` deja los centavos solo cuando de verdad existen.
+    trailingZeroDisplay: "stripIfInteger",
   }).format(centavos / 100);
 }
 

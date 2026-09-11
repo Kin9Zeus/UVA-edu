@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 import { calcularDiasGracia } from "@/lib/gracia";
+import { getNotificaciones, contarNotificacionesNoLeidas } from "@/lib/notificaciones";
 import type { getPerfilActual } from "@/lib/perfil";
 
 type PerfilActual = Awaited<ReturnType<typeof getPerfilActual>>;
@@ -20,15 +21,18 @@ export async function getDashboardChromeData({
   perfil: PerfilActual["perfil"];
 }) {
   const supabase = await createClient();
-  const [{ count: certificadosCount }, suscripcion] = await Promise.all([
+  const [{ count: certificadosCount }, suscripcion, notificaciones, notificacionesNoLeidas] = await Promise.all([
     supabase
       .from("certificados")
       .select("id", { count: "exact", head: true })
       .eq("id_usuario", user.id),
     getSuscripcionActual(user.id),
+    getNotificaciones(user.id),
+    contarNotificacionesNoLeidas(user.id),
   ]);
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
+  const fotoUrl = perfil?.foto_url ?? null;
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
   const diasGracia =
@@ -36,5 +40,13 @@ export async function getDashboardChromeData({
       ? calcularDiasGracia(suscripcion.fechaRenovacion)
       : null;
 
-  return { nombre, esAdmin, certificadosCount: certificadosCount ?? 0, diasGracia };
+  return {
+    nombre,
+    fotoUrl,
+    esAdmin,
+    certificadosCount: certificadosCount ?? 0,
+    diasGracia,
+    notificaciones,
+    notificacionesNoLeidas,
+  };
 }
