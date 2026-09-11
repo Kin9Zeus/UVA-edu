@@ -2641,13 +2641,17 @@ async function main() {
         .select(),
     );
 
-    await esperarPermitido(
+    const anuncioComunidad = (await esperarPermitido(
       "administrador SÍ puede publicar en ANUNCIOS",
       clienteAdmin
         .from("comunidad_posts")
         .insert({ id_usuario: userAdmin.user!.id, categoria: "ANUNCIOS", titulo: `Anuncio RLS test ${sufijo}`, contenido: "x" })
-        .select(),
-    );
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!anuncioComunidad?.id) {
+      throw new Error("El anuncio de prueba no devolvió id; la prueba de notificación masiva no significa nada.");
+    }
 
     // Privilegio por columna + trigger (mismo criterio que 064/065 sobre
     // comentarios): la policy de UPDATE autoriza la FILA (es la suya), pero
@@ -2971,6 +2975,39 @@ async function main() {
         .update({ leida: false })
         .eq("id", notificacionGenerada.id)
         .select(),
+    );
+
+    // 095: publicar en ANUNCIOS notifica a TODOS los que tienen acceso a
+    // Comunidad — a diferencia de 094 (una sola fila), acá se verifica que
+    // llegó a quien debía (userConAcceso), NO al propio admin que lo
+    // publicó, y NO a quien no tiene acceso a Comunidad (userSinAcceso).
+    await esperarPermitido(
+      "publicar un anuncio SÍ notificó a un estudiante con acceso a Comunidad (trigger 095)",
+      admin
+        .from("notificaciones")
+        .select("id, tipo")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", anuncioComunidad.id)
+        .eq("tipo", "COMUNIDAD_ANUNCIO")
+        .single(),
+    );
+
+    await esperarBloqueado(
+      "el anuncio NO se notificó a sí mismo al admin que lo publicó",
+      admin
+        .from("notificaciones")
+        .select("*")
+        .eq("id_usuario", userAdmin.user!.id)
+        .eq("entidad_id", anuncioComunidad.id),
+    );
+
+    await esperarBloqueado(
+      "el anuncio NO se notificó a un usuario sin acceso a Comunidad",
+      admin
+        .from("notificaciones")
+        .select("*")
+        .eq("id_usuario", userSinAcceso.user!.id)
+        .eq("entidad_id", anuncioComunidad.id),
     );
 
     await esperarBloqueado(

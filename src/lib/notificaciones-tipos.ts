@@ -11,10 +11,14 @@
 
 export type Notificacion = {
   id: string;
-  tipo: "COMUNIDAD_RESPUESTA";
+  tipo: "COMUNIDAD_RESPUESTA" | "COMUNIDAD_ANUNCIO";
   actorNombre: string;
   entidadTipo: "comunidad_post";
   entidadId: string;
+  /** Título del post al que apunta — null si se borró antes de que se
+   * cargara la notificación. Enriquece el mensaje ("...publicó «X»") sin
+   * obligar a abrirla para saber de qué se trata. */
+  entidadTitulo: string | null;
   leida: boolean;
   tiempo: string;
 };
@@ -29,9 +33,14 @@ export function urlNotificacion(notificacion: Pick<Notificacion, "entidadTipo" |
 }
 
 /** Texto de la notificación — igual, un solo lugar por tipo. */
-export function mensajeNotificacion(notificacion: Pick<Notificacion, "tipo" | "actorNombre">): string {
+export function mensajeNotificacion(
+  notificacion: Pick<Notificacion, "tipo" | "actorNombre" | "entidadTitulo">,
+): string {
+  const titulo = notificacion.entidadTitulo ? ` «${notificacion.entidadTitulo}»` : "";
   switch (notificacion.tipo) {
     case "COMUNIDAD_RESPUESTA":
-      return `${notificacion.actorNombre} respondió tu publicación`;
+      return `${notificacion.actorNombre} respondió tu publicación${titulo}`;
+    case "COMUNIDAD_ANUNCIO":
+      return `${notificacion.actorNombre} publicó un anuncio${titulo}`;
   }
 }

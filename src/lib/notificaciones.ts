@@ -33,10 +33,17 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
   if (error || !filas || filas.length === 0) return [];
 
   const idsActor = [...new Set(filas.filter((f) => f.id_actor).map((f) => f.id_actor as string))];
-  const { data: actores } = idsActor.length
-    ? await supabase.from("perfiles").select("id, nombre").in("id", idsActor)
-    : { data: [] as { id: string; nombre: string }[] };
+  const idsPost = [...new Set(filas.filter((f) => f.entidad_tipo === "comunidad_post").map((f) => f.entidad_id))];
+  const [{ data: actores }, { data: posts }] = await Promise.all([
+    idsActor.length
+      ? supabase.from("perfiles").select("id, nombre").in("id", idsActor)
+      : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
+    idsPost.length
+      ? supabase.from("comunidad_posts").select("id, titulo").in("id", idsPost)
+      : Promise.resolve({ data: [] as { id: string; titulo: string }[] }),
+  ]);
   const nombrePorActorId = new Map((actores ?? []).map((a) => [a.id, a.nombre]));
+  const tituloPorPostId = new Map((posts ?? []).map((p) => [p.id, p.titulo]));
 
   return filas.map((fila) => ({
     id: fila.id,
@@ -44,6 +51,7 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
     actorNombre: (fila.id_actor && nombrePorActorId.get(fila.id_actor)) || "Alguien",
     entidadTipo: fila.entidad_tipo as Notificacion["entidadTipo"],
     entidadId: fila.entidad_id,
+    entidadTitulo: tituloPorPostId.get(fila.entidad_id) || null,
     leida: fila.leida,
     tiempo: tiempoRelativo(fila.creado_en),
   }));
