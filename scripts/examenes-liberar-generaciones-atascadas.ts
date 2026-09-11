@@ -47,6 +47,7 @@ try {
 
 import { createClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
+import { configuracionGemini } from "../src/lib/gemini/configuracion";
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,16 +72,22 @@ const supabase = createClient(URL_SUPABASE, SERVICE_KEY, {
 /**
  * Cuánto puede tardar una generación legítima antes de considerarla muerta.
  *
- * El techo real es un curso de MAXIMO_VIDEOS_POR_LLAMADA (40) transcripciones
- * en una sola llamada a Claude Opus 5 con razonamiento adaptativo — minutos,
- * no segundos. 20 min deja margen de sobra por encima de eso.
+ * NO se lee acá con su propio valor por defecto: se toma de
+ * `configuracionGemini()`, que es quien conoce el otro lado del par —cuántos
+ * modelos, cuántos intentos y cuánto timeout puede consumir una generación— y
+ * comprueba que este umbral siga estando por encima de esa suma.
  *
- * Errar por largo es lo correcto acá: liberar de más MATA una generación que
- * estaba corriendo bien y deja que otra corrida la pise a mitad de la
- * escritura. Liberar de menos solo retrasa el arreglo hasta la siguiente
- * pasada del cron.
+ * Tenerlo duplicado era el problema: dos números que solo son correctos EN
+ * RELACIÓN al otro, en archivos distintos, sincronizados por un comentario.
+ * Bajar este de 20 a 10 desde Railway bastaba para que el barredor empezara a
+ * matar generaciones vivas, y que otra corrida pisara la escritura de la
+ * primera. Ahora eso no arranca.
+ *
+ * Errar por largo sigue siendo lo correcto: liberar de más MATA una generación
+ * que estaba corriendo bien. Liberar de menos solo retrasa el arreglo hasta la
+ * siguiente pasada del cron.
  */
-const UMBRAL_MINUTOS = Number(process.env.GENERACION_ATASCADA_UMBRAL_MINUTOS ?? 20);
+const UMBRAL_MINUTOS = configuracionGemini().umbralAtascadaMinutos;
 
 const MOTIVO =
   "Liberado automáticamente: el proceso que lo ejecutaba murió antes de terminar " +

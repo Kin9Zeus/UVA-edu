@@ -27,6 +27,7 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { PreguntaEditor } from "@/components/admin/cursos/PreguntaEditor";
+import { GenerarExamenPanel } from "@/components/admin/cursos/GenerarExamenPanel";
 import { IntentoRevisionDialog } from "@/components/admin/cursos/IntentoRevisionDialog";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
@@ -95,7 +96,7 @@ export function ExamenTab({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   if (!examen) {
-    return <ExamenVacio cursoId={cursoId} />;
+    return <ExamenVacioConGeneracion cursoId={cursoId} />;
   }
   return <ExamenExistente cursoId={cursoId} examen={examen} onDirtyChange={onDirtyChange} />;
 }
@@ -143,6 +144,22 @@ function ExamenVacio({ cursoId }: { cursoId: string }) {
         <Plus className="size-4" />
         {pending ? "Creando…" : "Crear examen final"}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Vacío + generación. Van juntos en un contenedor y no en la misma tarjeta
+ * porque son dos caminos alternativos hacia lo mismo: crear el examen a mano y
+ * escribir las preguntas uno, o dejar que salgan de las transcripciones el
+ * otro. Generar NO exige crear antes — `persistirPreguntasGeneradas` hace el
+ * upsert del examen— así que el panel funciona igual con examen y sin él.
+ */
+function ExamenVacioConGeneracion({ cursoId }: { cursoId: string }) {
+  return (
+    <div className="space-y-4">
+      <ExamenVacio cursoId={cursoId} />
+      <GenerarExamenPanel cursoId={cursoId} tieneExamen={false} preguntasGeneradas={0} />
     </div>
   );
 }
@@ -554,6 +571,17 @@ function ExamenExistente({
             {puntosTotales === 1 ? "punto" : "puntos"} en total
           </p>
         </div>
+
+        {/* Antes de la lista y no al final: regenerar reemplaza justo lo que
+            hay debajo, así que la acción tiene que verse junto a lo que
+            afecta. `preguntasGeneradas` sale del estado local y no de
+            `examen.preguntas` para que el contador de la confirmación siga a
+            lo que el administrador está viendo tras borrar una a mano. */}
+        <GenerarExamenPanel
+          cursoId={cursoId}
+          tieneExamen
+          preguntasGeneradas={preguntas.filter((pregunta) => pregunta.origen).length}
+        />
 
         {/* El aviso de navegación (useAvisoNavegacionSinGuardar, en
             CursoDetalleView) ya bloquea salir de la pantalla, pero no se ve

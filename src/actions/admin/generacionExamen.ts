@@ -13,8 +13,8 @@ import {
 import { revisarTranscripcionesCurso } from "@/lib/examenes/generacion/transcripciones";
 import { AREA_LOG } from "@/lib/examenes/generacion/generar";
 import {
-  PREGUNTAS_POR_VIDEO_MAXIMO,
-  PREGUNTAS_POR_VIDEO_MINIMO,
+  TOTAL_PREGUNTAS_MAXIMO,
+  TOTAL_PREGUNTAS_MINIMO,
 } from "@/lib/examenes/generacion/tipos";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
@@ -52,18 +52,18 @@ export type GenerarExamenResultado = AdminActionResult & {
  */
 export async function generarExamenDelCurso(
   cursoId: string,
-  preguntasPorVideo: number,
+  totalPreguntas: number,
 ): Promise<GenerarExamenResultado> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   if (
-    !Number.isInteger(preguntasPorVideo) ||
-    preguntasPorVideo < PREGUNTAS_POR_VIDEO_MINIMO ||
-    preguntasPorVideo > PREGUNTAS_POR_VIDEO_MAXIMO
+    !Number.isInteger(totalPreguntas) ||
+    totalPreguntas < TOTAL_PREGUNTAS_MINIMO ||
+    totalPreguntas > TOTAL_PREGUNTAS_MAXIMO
   ) {
     return {
-      error: `Elige entre ${PREGUNTAS_POR_VIDEO_MINIMO} y ${PREGUNTAS_POR_VIDEO_MAXIMO} preguntas por video.`,
+      error: `Elige entre ${TOTAL_PREGUNTAS_MINIMO} y ${TOTAL_PREGUNTAS_MAXIMO} preguntas para el examen.`,
     };
   }
 
@@ -97,7 +97,7 @@ export async function generarExamenDelCurso(
     accion: "GENERAR_EXAMEN_IA",
     entidadAfectada: "trabajos_generacion_examen",
     idEntidadAfectada: trabajoId,
-    detalles: `Generación disparada para el curso ${cursoId} (${preguntasPorVideo} preguntas por video).`,
+    detalles: `Generación disparada para el curso ${cursoId} (${totalPreguntas} preguntas en total).`,
   });
 
   after(async () => {
@@ -107,7 +107,7 @@ export async function generarExamenDelCurso(
     // idempotencia en un candado permanente: ese curso no se podría volver a
     // generar nunca.
     try {
-      await completarGeneracionExamenCurso(trabajoId, cursoId, preguntasPorVideo);
+      await completarGeneracionExamenCurso(trabajoId, cursoId, totalPreguntas);
     } catch (error) {
       logError("admin:generacionExamen", "la continuación de la generación se cayó", error, {
         area: AREA_LOG,

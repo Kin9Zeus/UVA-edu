@@ -12,8 +12,9 @@ export type PreguntaValidada = GeneratedQuestion & {
 
 export type ResultadoValidacion = {
   validadas: PreguntaValidada[];
-  /** Videos que quedaron con CERO preguntas validadas: los que un
-   * administrador tiene que mirar a mano. */
+  /** Videos que quedaron con CERO preguntas validadas. Con un examen más corto
+   * que el temario es lo normal —el modelo eligió—; con uno igual o más largo,
+   * es la lista que un administrador tiene que mirar a mano. */
   videosSinPreguntas: { videoId: string; title: string }[];
   descartadas: number;
 };
@@ -30,15 +31,30 @@ export type ResultadoValidacion = {
  * frase del video 7. El estudiante la ve mientras repasa el video 3 y no tiene
  * cómo responderla.
  *
- * Un video con cero preguntas validadas no falla la corrida: se registra con
- * `area: "exam-generation"` y `videoId` para que un administrador lo revise —
- * casi siempre significa que la transcripción es mala (audio con ruido, clase
- * sin narración, idioma mal detectado), no que el modelo se equivocara.
+ * Un video con cero preguntas validadas no falla la corrida.
+ *
+ * CUÁNDO ESO ES UN DEFECTO Y CUÁNDO NO
+ * ------------------------------------
+ * Depende de `totalPreguntas`, y por eso hace falta el parámetro. Si se piden
+ * 5 preguntas para un curso de 20 lecciones, que 15 queden sin ninguna es el
+ * funcionamiento correcto: el administrador pidió un examen corto y el modelo
+ * eligió. Registrar 15 errores en Sentry por cada generación así sería ruido
+ * puro, y el ruido acaba tapando las señales de verdad.
+ *
+ * Solo cuando se pidieron al menos tantas preguntas como lecciones tiene el
+ * curso —o sea, cuando TODAS deberían haber caído— una lección vacía significa
+ * algo: casi siempre que su transcripción es mala (audio con ruido, clase sin
+ * narración, idioma mal detectado).
+ *
+ * La lista se devuelve SIEMPRE, en los dos casos: el panel la enseña para que
+ * el administrador vea qué quedó fuera antes de publicar. Lo que cambia es si
+ * además se alerta.
  */
 export function validarPreguntasGeneradas(
   preguntas: GeneratedQuestion[],
   videos: VideoConTranscripcion[],
   courseId: string,
+  totalPreguntas: number,
 ): ResultadoValidacion {
   const porVideo = new Map(videos.map((video) => [video.videoId, video]));
 
@@ -83,13 +99,19 @@ export function validarPreguntasGeneradas(
     .filter((video) => !conPreguntas.has(video.videoId))
     .map((video) => ({ videoId: video.videoId, title: video.title }));
 
-  for (const video of videosSinPreguntas) {
-    logError(
-      SCOPE_LOG,
-      "el video quedó sin ninguna pregunta validada; revisar la transcripción a mano",
-      null,
-      { area: AREA_LOG, videoId: video.videoId, courseId },
-    );
+  // Ver el comentario de la función: con un examen más corto que el temario,
+  // las lecciones vacías son la consecuencia esperada de lo que se pidió.
+  const seEsperabaCubrirTodas = totalPreguntas >= videos.length;
+
+  if (seEsperabaCubrirTodas) {
+    for (const video of videosSinPreguntas) {
+      logError(
+        SCOPE_LOG,
+        "el video quedó sin ninguna pregunta validada; revisar la transcripción a mano",
+        null,
+        { area: AREA_LOG, videoId: video.videoId, courseId, totalPreguntas },
+      );
+    }
   }
 
   return { validadas, videosSinPreguntas, descartadas };

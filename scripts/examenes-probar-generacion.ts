@@ -38,17 +38,21 @@ try {
   // Sin archivo: se usan las variables ya presentes en process.env.
 }
 
-import type { Schema } from "@google/genai";
-import { crearClienteGemini, MODELO_GENERACION_EXAMEN } from "../src/lib/gemini/client";
+import { crearClienteGemini } from "../src/lib/gemini/client";
+import { configuracionGemini } from "../src/lib/gemini/configuracion";
+import { pedirConCadenaDeModelos } from "../src/lib/examenes/generacion/generar";
 import { construirMensajeUsuario, construirSystemPrompt } from "../src/lib/examenes/generacion/prompt";
 import {
-  ESQUEMA_RESPUESTA_GEMINI,
   respuestaGeneracionSchema,
   type VideoConTranscripcion,
 } from "../src/lib/examenes/generacion/tipos";
 import { validateFragment } from "../src/lib/examenes/generacion/fragmento";
 
-const PREGUNTAS_POR_VIDEO = 2;
+// Menos preguntas que videos A PROPÓSITO: es el caso que el pipeline tiene que
+// soportar desde que el parámetro pasó a ser un total (un curso de 20 lecciones
+// con un examen de 5). Con 3 preguntas y 2 videos se comprueba además el
+// reparto: el modelo debe cubrir las dos lecciones antes de repetir ninguna.
+const TOTAL_PREGUNTAS = 3;
 
 // Dos transcripciones cortas y deliberadamente DISTINTAS entre sí: si el
 // modelo mezcla conceptos de un video en la pregunta del otro, el fragmento
@@ -88,36 +92,31 @@ async function main() {
     );
   }
 
-  console.log(`\nModelo: ${MODELO_GENERACION_EXAMEN}`);
-  console.log(`Videos de prueba: ${VIDEOS.length}, ${PREGUNTAS_POR_VIDEO} preguntas por video.`);
+  const config = configuracionGemini();
+  console.log(`\nCadena de modelos: ${config.modelos.join(" → ")}`);
+  console.log(
+    `Presupuesto: hasta ${config.modelos.length} modelo(s) × ${config.intentosPorModelo} intento(s) ` +
+      `× ${config.tiempoLimiteMs / 1000}s; el barredor corta a los ${config.umbralAtascadaMinutos} min.`,
+  );
+  console.log(`Videos de prueba: ${VIDEOS.length}, ${TOTAL_PREGUNTAS} preguntas en total.`);
   console.log("Llamando a la API…\n");
 
   const cliente = crearClienteGemini();
   const inicio = Date.now();
 
-  const respuesta = await cliente.models.generateContent({
-    model: MODELO_GENERACION_EXAMEN,
-    contents: construirMensajeUsuario(VIDEOS),
-    config: {
-      systemInstruction: construirSystemPrompt(PREGUNTAS_POR_VIDEO),
-      responseMimeType: "application/json",
-      responseSchema: ESQUEMA_RESPUESTA_GEMINI as unknown as Schema,
-      maxOutputTokens: 8000,
-      thinkingConfig: { thinkingBudget: -1 },
-      temperature: 0.3,
-    },
-  });
+  // El camino real, no una copia: `pedirConCadenaDeModelos` es la misma
+  // función que usa `generateCourseExam`, así que esta prueba cubre también el
+  // paso de un modelo al siguiente, los motivos de corte y la configuración
+  // leída del entorno.
+  const texto = await pedirConCadenaDeModelos(
+    cliente,
+    construirMensajeUsuario(VIDEOS),
+    construirSystemPrompt(TOTAL_PREGUNTAS),
+    "prueba-de-humo",
+  );
 
   const segundos = ((Date.now() - inicio) / 1000).toFixed(1);
   console.log(`✅ 1/5 — La API respondió en ${segundos}s (clave y modelo válidos).`);
-
-  const motivoCorte = respuesta.candidates?.[0]?.finishReason;
-  if (motivoCorte && motivoCorte !== "STOP") {
-    fallar(`El modelo no completó la respuesta: finishReason = ${motivoCorte}`);
-  }
-
-  const texto = respuesta.text;
-  if (!texto) fallar("El modelo no devolvió contenido.");
 
   console.log("✅ 2/5 — El servidor aceptó ESQUEMA_RESPUESTA_GEMINI (sin 400).");
 
@@ -146,11 +145,11 @@ async function main() {
   let repartoOk = true;
   for (const video of VIDEOS) {
     const suyas = preguntas.filter((p) => p.videoId === video.videoId);
-    const marca = suyas.length === PREGUNTAS_POR_VIDEO ? "  " : "⚠️";
-    console.log(
-      `   ${marca} «${video.title}»: ${suyas.length}/${PREGUNTAS_POR_VIDEO} preguntas`,
-    );
-    if (suyas.length !== PREGUNTAS_POR_VIDEO) repartoOk = false;
+    // Con un total, lo que se exige no es una cuota por video sino COBERTURA:
+    // habiendo 3 preguntas para 2 lecciones, ninguna puede quedarse vacía.
+    const marca = suyas.length > 0 ? "  " : "⚠️";
+    console.log(`   ${marca} «${video.title}»: ${suyas.length} pregunta(s)`);
+    if (suyas.length === 0) repartoOk = false;
   }
 
   const idsConocidos = new Set(VIDEOS.map((v) => v.videoId));
@@ -166,8 +165,8 @@ async function main() {
 
   console.log(
     repartoOk
-      ? "✅ 4/5 — El reparto por video es exacto."
-      : "⚠️  4/5 — El reparto no fue exacto (el pipeline lo absorbe y lo registra, no falla).",
+      ? `✅ 4/5 — Las ${VIDEOS.length} lecciones quedaron cubiertas.`
+      : "⚠️  4/5 — Alguna lección quedó sin preguntas (el pipeline lo absorbe y lo registra, no falla).",
   );
 
   // Lo que de verdad decide si el sistema sirve: ¿el modelo CITA literal o

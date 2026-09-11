@@ -8,6 +8,7 @@ import {
   CursoSinVideosError,
   TranscripcionesFaltantesError,
   type DisparadorGeneracion,
+  type EstadoTrabajoGeneracion,
 } from "./tipos";
 
 const SCOPE_LOG = "examenes:generacion";
@@ -195,22 +196,23 @@ export async function reclamarGeneracionExamenCurso(
 export async function completarGeneracionExamenCurso(
   trabajoId: string,
   courseId: string,
-  questionsPerVideo: number,
+  totalPreguntas: number,
 ): Promise<ResultadoGeneracionCurso> {
   try {
     // Se leen las transcripciones dos veces —acá y dentro de
     // generateCourseExam— y es a propósito: esa función es el contrato público
-    // pedido (`courseId`, `questionsPerVideo`) y tiene que poder llamarse sola.
+    // pedido (`courseId`, `totalPreguntas`) y tiene que poder llamarse sola.
     // La segunda lectura es una consulta indexada por `id_curso` contra una
     // tabla que se escribe una vez por video; el precio es despreciable frente
     // a enredar la firma para ahorrarla.
     const videos = await obtenerVideosConTranscripcion(courseId);
-    const generadas = await generateCourseExam(courseId, questionsPerVideo);
+    const generadas = await generateCourseExam(courseId, totalPreguntas);
 
     const { validadas, videosSinPreguntas, descartadas } = validarPreguntasGeneradas(
       generadas,
       videos,
       courseId,
+      totalPreguntas,
     );
 
     const { examenId, guardadas } = await persistirPreguntasGeneradas(courseId, validadas);
@@ -280,7 +282,7 @@ export async function completarGeneracionExamenCurso(
  */
 export async function ejecutarGeneracionExamenCurso(
   courseId: string,
-  questionsPerVideo: number,
+  totalPreguntas: number,
   disparadoPor: DisparadorGeneracion,
 ): Promise<ResultadoGeneracionCurso> {
   const reclamo = await reclamarGeneracionExamenCurso(courseId, disparadoPor);
@@ -292,19 +294,24 @@ export async function ejecutarGeneracionExamenCurso(
     return { estado: "fallido", trabajoId: null, mensaje: reclamo.mensaje };
   }
 
-  return completarGeneracionExamenCurso(reclamo.trabajoId, courseId, questionsPerVideo);
+  return completarGeneracionExamenCurso(reclamo.trabajoId, courseId, totalPreguntas);
 }
 
-export type EstadoTrabajoGeneracion = {
-  trabajoId: string;
-  estado: "PENDIENTE" | "COMPLETADO" | "FALLIDO";
-  preguntasValidadas: number;
-  preguntasRecibidas: number;
-  videosSinPreguntas: string[];
-  error: string | null;
-  creadoEn: string;
-  finalizadoEn: string | null;
-};
+/**
+ * Se reexporta desde `tipos.ts`, donde vive la definición.
+ *
+ * El motivo es de empaquetado: `GenerarExamenPanel.tsx` es "use client" y
+ * necesita este tipo, pero ESTE módulo importa `createAdminClient` (service
+ * role) y, por `generar.ts`, el cliente de Gemini. Mientras el panel use
+ * `import type` no se lleva nada — pero basta que alguien quite el `type` en
+ * un futuro para arrastrar la clave de servicio al navegador.
+ *
+ * Ya pasó una vez: `EnlacesVistaPrevia.tsx` importaba dos constantes de un
+ * módulo con `node:crypto` y metió 415 KB de polyfill —y una violación de CSP
+ * por `eval`— en el paquete de /admin/cursos. Poner el tipo donde no hay nada
+ * de servidor lo vuelve imposible en vez de solo desaconsejado.
+ */
+export type { EstadoTrabajoGeneracion };
 
 /**
  * Último trabajo de generación de un curso — lo que sondea la pantalla mientras

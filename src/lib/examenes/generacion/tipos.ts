@@ -48,11 +48,31 @@ export type DisparadorGeneracion = (typeof DISPARADORES_GENERACION)[number];
 // Límites
 // ------------------------------------------------------------
 
-/** Preguntas por video que acepta pedir `generateCourseExam`. Más de 10 por
- * clase deja de ser un examen y empieza a ser un interrogatorio; menos de 1
- * no tiene sentido. */
-export const PREGUNTAS_POR_VIDEO_MINIMO = 1;
-export const PREGUNTAS_POR_VIDEO_MAXIMO = 10;
+/**
+ * Preguntas TOTALES que acepta pedir `generateCourseExam`, para el curso
+ * entero.
+ *
+ * ANTES ERA "POR VIDEO", Y NO ESCALABA
+ * ------------------------------------
+ * El parámetro era `preguntasPorVideo`, así que el tamaño del examen lo
+ * decidía el temario: un curso de 20 lecciones no podía tener menos de 20
+ * preguntas ni pidiendo el mínimo. Para un curso largo eso no es un examen,
+ * es una jornada — y el administrador no tenía ninguna forma de acortarlo.
+ *
+ * Con un total, el tamaño del examen es una decisión de producto y el modelo
+ * se encarga de elegir QUÉ preguntar: 5 preguntas de un curso de 20 lecciones
+ * salen de los 5 conceptos que más lo merecen, no de las 5 primeras clases.
+ *
+ * El mínimo es 1 y no un número "digno": un curso de una sola lección con un
+ * examen de una pregunta es legítimo, y poner el listón más arriba solo
+ * obligaría a inventar preguntas de relleno.
+ *
+ * El máximo es 60 porque por encima de eso nadie revisa el examen a mano
+ * antes de publicarlo, que es el paso que impide que una pregunta mala llegue
+ * a un estudiante.
+ */
+export const TOTAL_PREGUNTAS_MINIMO = 1;
+export const TOTAL_PREGUNTAS_MAXIMO = 60;
 
 /** Opciones por pregunta. Fijo en 4: el prompt las pide así y
  * `aOpcionesPregunta()` asume esa forma al mapear `correctAnswerIndex`. */
@@ -251,3 +271,24 @@ export class CursoSinVideosError extends Error {
     this.name = "CursoSinVideosError";
   }
 }
+
+/**
+ * Estado de un trabajo de generación, tal como lo sondea la pantalla.
+ *
+ * Vive aquí y no en `trabajo.ts` —que es quien lo produce— porque este módulo
+ * no importa nada de servidor (solo zod) y aquel importa el cliente con
+ * service role y el de Gemini. Un componente "use client" puede leer de aquí
+ * sin riesgo de arrastrarlos al navegador. Ver el comentario del reexport en
+ * `trabajo.ts`.
+ */
+export type EstadoTrabajoGeneracion = {
+  trabajoId: string;
+  estado: "PENDIENTE" | "COMPLETADO" | "FALLIDO";
+  preguntasValidadas: number;
+  preguntasRecibidas: number;
+  /** Títulos de los videos que no aportaron ni una pregunta validada. */
+  videosSinPreguntas: string[];
+  error: string | null;
+  creadoEn: string;
+  finalizadoEn: string | null;
+};
