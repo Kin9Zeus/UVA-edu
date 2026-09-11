@@ -25,10 +25,19 @@ export type CursoDeCategoria = {
   /**
    * `true` solo cuando `buscarCatalogo({ incluirProgreso: true })` lo pidió
    * (el catálogo del dashboard) y el estudiante ya completó el 100% de las
-   * lecciones LISTAS del curso. En el catálogo público siempre queda
-   * `undefined` — ver buscarCatalogo().
+   * lecciones LISTAS del curso Y, si el curso exige examen final, lo aprobó
+   * (Revf5 — mismo criterio que decide la emisión del certificado, ver
+   * lib/progreso.ts). En el catálogo público siempre queda `undefined` — ver
+   * buscarCatalogo().
    */
   completado?: boolean;
+  /**
+   * `true` cuando terminó el 100% de las clases pero el curso exige examen
+   * final y todavía no lo aprobó — el tercer estado de "Tu progreso"
+   * (ProgresoContent.tsx). `undefined` en las mismas condiciones que
+   * `completado`.
+   */
+  examenPendiente?: boolean;
 };
 
 export type CategoriaActiva = { id: string; slug: string; nombre: string };
@@ -116,8 +125,8 @@ export async function buscarCatalogo(opciones: {
   const filas = data as FilaBusqueda[];
   const totalResultados = filas[0]?.total_resultados ?? 0;
 
-  const completadoPorCurso = opciones.incluirProgreso
-    ? await getCompletadoPorCurso(
+  const progresoPorCurso = opciones.incluirProgreso
+    ? await getProgresoPorCurso(
         supabase,
         filas.map((fila) => fila.curso_id),
       )
@@ -132,7 +141,8 @@ export async function buscarCatalogo(opciones: {
     categorias: fila.categorias?.length ? fila.categorias : [{ id: "general", nombre: "General" }],
     totalClases: Number(fila.total_clases),
     imagenPortada: fila.imagen_portada,
-    completado: completadoPorCurso?.get(fila.curso_id),
+    completado: progresoPorCurso?.get(fila.curso_id)?.completado,
+    examenPendiente: progresoPorCurso?.get(fila.curso_id)?.examenPendiente,
   }));
 
   return {
@@ -144,31 +154,42 @@ export async function buscarCatalogo(opciones: {
 }
 
 /**
- * `curso_id -> completado` para el catálogo del dashboard (033). Solo trae
- * las filas de los cursos de esta página, no todo el progreso del
- * estudiante. Un curso que el estudiante nunca tocó no tiene fila en la
- * vista — el `Map` simplemente no lo incluye, y `.get()` devuelve
- * `undefined`, que en CursoCard se trata igual que `false`.
+ * `curso_id -> {completado, examenPendiente}` para el catálogo del
+ * dashboard (033/078). Solo trae las filas de los cursos de esta página, no
+ * todo el progreso del estudiante. Un curso que el estudiante nunca tocó no
+ * tiene fila en la vista — el `Map` simplemente no lo incluye, y `.get()`
+ * devuelve `undefined`, que en CursoCard se trata igual que `false`.
+ *
+ * Mismo criterio que getProgresoData() (lib/progreso.ts): el 100% de
+ * lecciones no basta si el curso exige examen final y no está aprobado
+ * (Revf5) — antes esta función solo miraba lecciones y la tarjeta del
+ * catálogo podía decir "Completado" en un curso con el examen pendiente.
  */
-async function getCompletadoPorCurso(
+async function getProgresoPorCurso(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cursoIds: string[],
-): Promise<Map<string, boolean>> {
-  if (cursoIds.length === 0) return new Map();
+): Promise<Map<string, { completado: boolean; examenPendiente: boolean }>> {
+  const progresoPorCurso = new Map<string, { completado: boolean; examenPendiente: boolean }>();
+  if (cursoIds.length === 0) return progresoPorCurso;
 
   const { data } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, lecciones_total, lecciones_completadas")
+    .select("curso_id, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado")
     .in("curso_id", cursoIds);
 
-  const completadoPorCurso = new Map<string, boolean>();
   for (const fila of data ?? []) {
-    completadoPorCurso.set(
-      fila.curso_id as string,
-      (fila.lecciones_total as number) > 0 && (fila.lecciones_completadas as number) >= (fila.lecciones_total as number),
-    );
+    const total = fila.lecciones_total as number;
+    const completadas = fila.lecciones_completadas as number;
+    const cienPorCiento = total > 0 && completadas >= total;
+    const examenRequerido = fila.examen_requerido === true;
+    const examenAprobado = fila.examen_aprobado === true;
+
+    progresoPorCurso.set(fila.curso_id as string, {
+      completado: cienPorCiento && (!examenRequerido || examenAprobado),
+      examenPendiente: cienPorCiento && examenRequerido && !examenAprobado,
+    });
   }
-  return completadoPorCurso;
+  return progresoPorCurso;
 }
 
 export type CursoOpcionBuscador = {

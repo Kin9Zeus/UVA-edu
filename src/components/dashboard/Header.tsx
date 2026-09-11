@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck } from "lucide-react";
+import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
@@ -115,6 +115,16 @@ export function Header({
             >
               <User className="size-4" />
               Ver mi perfil
+            </DropdownMenuLinkItem>
+            {/* En mobile el Sidebar (con su propio ítem de Comunidad) está
+                oculto — BottomTabBar reserva este espacio del dropdown para
+                Comunidad/Perfil/Suscripción, ver el comentario en ese archivo. */}
+            <DropdownMenuLinkItem
+              render={<Link href="/dashboard/comunidad" />}
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text md:hidden"
+            >
+              <Users className="size-4" />
+              Comunidad
             </DropdownMenuLinkItem>
             <DropdownMenuLinkItem
               render={<Link href="/dashboard/suscripcion" />}

@@ -117,11 +117,14 @@ export async function crearExamen(cursoId: string): Promise<AdminActionResult & 
     };
   }
 
+  // `idEntidadAfectada` es el CURSO, no el examen: el examen no tiene
+  // pantalla propia (vive en la pestaña "Examen" del curso), así que
+  // enlazar al curso es lo único útil desde la bitácora.
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: "Creó el examen final de un curso",
     entidadAfectada: "examenes",
-    idEntidadAfectada: data.id,
+    idEntidadAfectada: cursoId,
     detalles: curso.titulo,
   });
 
@@ -246,7 +249,7 @@ export async function alternarPublicacionExamen(
       ? "Publicó el examen final de un curso (pasa a ser obligatorio para certificar)"
       : "Despublicó el examen final de un curso (deja de ser obligatorio)",
     entidadAfectada: "examenes",
-    idEntidadAfectada: examenId,
+    idEntidadAfectada: cursoId,
     detalles: cursoDelExamen?.titulo ?? null,
   });
 
@@ -293,7 +296,7 @@ export async function eliminarExamen(examenId: string, cursoId: string): Promise
     idAdmin: admin.adminId,
     accion: "Eliminó el examen final de un curso",
     entidadAfectada: "examenes",
-    idEntidadAfectada: examenId,
+    idEntidadAfectada: cursoId,
     detalles: cursoDelExamen?.titulo ?? null,
   });
 

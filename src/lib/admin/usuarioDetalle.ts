@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
+import { estadoSuscripcionEfectivo, tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
 import {
   estadoDeCurso,
   getEstadoExamenPorCurso,
@@ -252,7 +252,13 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     especialidad: perfil.especialidad ?? null,
     estado: perfil.estado,
     fechaRegistro: perfil.fecha_registro,
-    suscripcionEstado: suscripcion?.estado ?? null,
+    // Estado EFECTIVO, no el crudo de la fila (mismo motivo que
+    // admin_listar_usuarios, ver 040_admin_listado_usa_vigencia_real.sql):
+    // una ACTIVA/PAST_DUE cuya fecha ya pasó se reporta VENCIDA aunque nada
+    // en `suscripciones` la haya actualizado todavía.
+    suscripcionEstado: suscripcion
+      ? estadoSuscripcionEfectivo({ estado: suscripcion.estado, fechaRenovacion: suscripcion.fecha_renovacion })
+      : null,
     suscripcionId: suscripcion?.id ?? null,
     suscripcionEsManual: suscripcion?.acceso_manual ?? false,
     // Sin plan pero con suscripción = acceso por código de invitación

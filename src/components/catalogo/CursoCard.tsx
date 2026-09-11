@@ -36,6 +36,15 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
               Completado
             </span>
           )}
+          {/* Tercer estado (Revf5), mismo criterio y mismo badge que "Tu
+              progreso" (ProgresoContent.tsx): terminó las clases pero el
+              curso exige examen final y todavía no lo aprobó — sin esto la
+              tarjeta decía "Completado" con el certificado sin emitir. */}
+          {!curso.completado && curso.examenPendiente && (
+            <span className="rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
+              Examen pendiente
+            </span>
+          )}
           <span className="rounded-uva-xs bg-uva-badge-neutral-bg px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-muted uppercase">
             Curso
           </span>

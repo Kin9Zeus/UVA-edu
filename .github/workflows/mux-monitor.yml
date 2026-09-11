@@ -22,8 +22,12 @@ name: Monitoreo — videos atascados en Mux
 # él en vez de a `supabase-test`.
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  # Pausado: sin uploads reales en supabase-test todavía, el cron solo
+  # generaba correos de aprobación de environment cada 30 min sin señal
+  # útil. Reactivar el `schedule` cuando haya un environment de producción
+  # real que vigilar (ver nota arriba) o uso activo de Mux en pruebas.
+  # schedule:
+  #   - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:

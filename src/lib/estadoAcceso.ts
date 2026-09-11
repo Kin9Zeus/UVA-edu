@@ -225,3 +225,27 @@ export function suscripcionDaAcceso(
 
   return (calcularDiasVigencia(suscripcion.fechaRenovacion, ahora) ?? 0) >= 0;
 }
+
+/**
+ * Estado EFECTIVO de una suscripción, para pintarlo en el panel admin: una
+ * fila ACTIVA/PAST_DUE cuyo período ya venció por fecha se reporta como
+ * VENCIDA, aunque nada en `suscripciones.estado` la haya actualizado
+ * todavía (ver `suscripcionDaAcceso` arriba). Gemela TypeScript de la rama
+ * `estado_efectivo` que ya usa `admin_listar_usuarios`
+ * (040_admin_listado_usa_vigencia_real.sql) para el listado de usuarios —
+ * la ficha de detalle (getUsuarioDetalle) leía el `estado` crudo y por eso
+ * podía mostrar "Activa" para el mismo usuario que la tabla ya reportaba
+ * "Vencida".
+ */
+export function estadoSuscripcionEfectivo(
+  suscripcion: Pick<SuscripcionActual, "estado" | "fechaRenovacion">,
+  ahora: Date = new Date(),
+): EstadoSuscripcionAdmin {
+  if (
+    (suscripcion.estado === "ACTIVA" || suscripcion.estado === "PAST_DUE") &&
+    !suscripcionDaAcceso(suscripcion, ahora)
+  ) {
+    return "VENCIDA";
+  }
+  return suscripcion.estado;
+}

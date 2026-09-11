@@ -86,14 +86,20 @@ export type CursoVistaPrevia = {
   descripcion: string;
   imagenPortada: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  /** Todas las categorías del curso — mismo dato que ve un estudiante en la ficha real. */
+  categorias: { id: string; slug: string; nombre: string }[];
+  fechaEdicion: string;
   /** 1 o más profesores; vacío si el curso todavía no tiene ninguno asignado. */
-  instructores: { id: string; nombre: string }[];
+  instructores: { id: string; nombre: string; especialidad: string | null }[];
   mostrado: boolean;
   modulos: {
     id: string;
     titulo: string;
     lecciones: { id: string; titulo: string; duracion: number | null }[];
   }[];
+  totalClases: number;
+  totalRecursos: number;
+  duracionTotalSegundos: number;
 };
 
 /**
@@ -108,7 +114,9 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
   const { data: curso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, imagen_portada, nivel, mostrado, modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion))",
+      `id, titulo, descripcion, imagen_portada, nivel, mostrado, fecha_edicion:actualizado_en,
+      curso_categorias(categoria:categorias(id, slug, nombre)),
+      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion, estado_procesamiento))`,
     )
     .eq("id", idCurso)
     .maybeSingle();
@@ -128,16 +136,27 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
   // constraint es el de la migración 20260903000000_multi_instructores.
   const { data: filasInstructores } = await supabase
     .from("curso_instructores")
-    .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre)")
+    .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre, especialidad)")
     .eq("id_curso", idCurso);
 
   const instructores = (filasInstructores ?? [])
     .map((fila) => {
       const perfil = Array.isArray(fila.perfil) ? fila.perfil[0] : fila.perfil;
-      return perfil ? { id: perfil.id as string, nombre: perfil.nombre as string } : null;
+      return perfil
+        ? { id: perfil.id as string, nombre: perfil.nombre as string, especialidad: (perfil.especialidad as string | null) ?? null }
+        : null;
     })
-    .filter((perfil): perfil is { id: string; nombre: string } => perfil !== null)
+    .filter(
+      (perfil): perfil is { id: string; nombre: string; especialidad: string | null } => perfil !== null,
+    )
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const categorias = (curso.curso_categorias ?? [])
+    .map((fila) => {
+      const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+      return categoria ? { id: categoria.id, slug: categoria.slug, nombre: categoria.nombre } : null;
+    })
+    .filter((categoria): categoria is { id: string; slug: string; nombre: string } => categoria !== null);
 
   const modulos = (curso.modulos ?? [])
     .sort((a, b) => a.orden - b.orden)
@@ -149,9 +168,26 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
         .map((leccion) => ({
           id: leccion.id,
           titulo: leccion.titulo,
-          duracion: leccion.duracion,
+          // Mismo criterio que getCursoPublico (src/lib/curso.ts): sin video
+          // LISTO, `duracion` no corresponde a un video real.
+          duracion: leccion.estado_procesamiento === "LISTO" ? leccion.duracion : null,
         })),
     }));
+
+  const totalClases = modulos.reduce((total, modulo) => total + modulo.lecciones.length, 0);
+  const duracionTotalSegundos = modulos.reduce(
+    (total, modulo) =>
+      total + modulo.lecciones.reduce((sub, leccion) => sub + (leccion.duracion ?? 0), 0),
+    0,
+  );
+  const leccionIds = modulos.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
+  const { count: totalRecursos } =
+    leccionIds.length > 0
+      ? await supabase
+          .from("recursos_descargables")
+          .select("id", { count: "exact", head: true })
+          .in("id_leccion", leccionIds)
+      : { count: 0 };
 
   return {
     id: curso.id,
@@ -159,9 +195,14 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
     descripcion: curso.descripcion,
     imagenPortada: curso.imagen_portada,
     nivel: curso.nivel,
+    categorias,
+    fechaEdicion: curso.fecha_edicion,
     instructores,
     mostrado: curso.mostrado,
     modulos,
+    totalClases,
+    totalRecursos: totalRecursos ?? 0,
+    duracionTotalSegundos,
   };
 }
 

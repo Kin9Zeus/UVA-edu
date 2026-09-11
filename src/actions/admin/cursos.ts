@@ -851,6 +851,20 @@ export async function actualizarLeccion(
 
   if (error) return { error: "No pudimos guardar la lección." };
 
+  // Un clic explícito en "Guardar cambios" (LeccionEditorPanel.tsx), no un
+  // autoguardado en cada tecla — misma cadencia que "Editó un código de
+  // invitación", así que registrarlo acá no es ruidoso. `idEntidadAfectada`
+  // es el curso (la lección no tiene pantalla propia); el nombre de la
+  // lección queda en `detalles`.
+  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle();
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó el contenido de una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoId,
+    detalles: `${curso?.titulo ?? "curso desconocido"} — ${titulo}`,
+  });
+
   revalidatePath(`/admin/cursos/${cursoId}`);
   return { success: true };
 }
@@ -860,8 +874,23 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
+  // El título hace falta ANTES del delete — después ya no hay de dónde
+  // leerlo para la bitácora.
+  const [{ data: leccion }, { data: curso }] = await Promise.all([
+    admin.supabase.from("lecciones").select("titulo").eq("id", leccionId).maybeSingle(),
+    admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
+  ]);
+
   const { error } = await admin.supabase.from("lecciones").delete().eq("id", leccionId);
   if (error) return { error: "No pudimos eliminar la lección." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Eliminó una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoId,
+    detalles: `${curso?.titulo ?? "curso desconocido"} — ${leccion?.titulo ?? "sin título"}`,
+  });
 
   revalidatePath(`/admin/cursos/${cursoId}`);
   return { success: true };

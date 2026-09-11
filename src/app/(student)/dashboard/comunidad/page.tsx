@@ -1,42 +1,42 @@
 import type { Metadata } from "next";
-import { getPerfilActual } from "@/lib/perfil";
-import { createClient } from "@/lib/supabase/server";
-import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { resolverAccesoComunidad, getComunidadFeed } from "@/lib/comunidad";
+import { CATEGORIAS_COMUNIDAD, type CategoriaComunidad } from "@/lib/comunidad-tipos";
 import { ComunidadPausada } from "@/components/dashboard/ComunidadPausada";
-import { Proximamente } from "@/components/dashboard/Proximamente";
+import { ComunidadFeedContent } from "@/components/dashboard/comunidad/ComunidadFeedContent";
 
 export const metadata: Metadata = { title: "U.V.A. — Comunidad" };
 
-export default async function ComunidadPage() {
-  const { user } = await getPerfilActual();
-  const supabase = await createClient();
+function esCategoriaValida(valor: string | undefined): valor is CategoriaComunidad {
+  return !!valor && (CATEGORIAS_COMUNIDAD as readonly string[]).includes(valor);
+}
 
-  const { data: suscripcion } = await supabase
-    .from("suscripciones")
-    .select("estado, fecha_renovacion")
-    .eq("id_usuario", user!.id)
-    .order("fecha_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+export default async function ComunidadPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ categoria?: string; mias?: string }>;
+}) {
+  const { categoria, mias } = await searchParams;
+  const soloPropios = mias === "1";
+  const categoriaActiva = !soloPropios && esCategoriaValida(categoria) ? categoria : undefined;
 
-  if (!suscripcion) {
-    return <ComunidadPausada motivo="SIN_SUSCRIPCION" />;
+  const acceso = await resolverAccesoComunidad();
+  if (!acceso.acceso) {
+    return <ComunidadPausada motivo={acceso.motivo} />;
   }
-  // Misma regla de vigencia que el reproductor: un periodo terminado
-  // cierra la comunidad aunque la fila siga en ACTIVA.
-  if (
-    !suscripcionDaAcceso({
-      estado: suscripcion.estado,
-      fechaRenovacion: suscripcion.fecha_renovacion,
-    })
-  ) {
-    return <ComunidadPausada motivo={suscripcion.estado === "CANCELADA" ? "CANCELADA" : "VENCIDA"} />;
-  }
+
+  const posts = await getComunidadFeed({
+    categoria: categoriaActiva,
+    soloPropios,
+    usuarioId: soloPropios ? acceso.usuarioId : undefined,
+  });
 
   return (
-    <Proximamente
-      titulo="Comunidad"
-      descripcion="El espacio de preguntas y respuestas del gremio todavía no está disponible."
+    <ComunidadFeedContent
+      posts={posts}
+      categoriaActiva={categoriaActiva}
+      soloPropios={soloPropios}
+      usuarioActualId={acceso.usuarioId}
+      esAdmin={acceso.esAdmin}
     />
   );
 }
