@@ -554,7 +554,12 @@ function ComentarioItem({
   return (
     <div className="flex gap-[11px]">
       <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#27272A] text-uva-muted">
-        <User className="size-[18px]" strokeWidth={2} />
+        {comentario.autorFotoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
+          <img src={comentario.autorFotoUrl} alt="" className="size-full object-cover" />
+        ) : (
+          <User className="size-[18px]" strokeWidth={2} />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         {/* Un raíz borrado se conserva como lápida (comentariosVisibles, más

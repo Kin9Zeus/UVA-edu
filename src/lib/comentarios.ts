@@ -7,6 +7,7 @@ export type ComentarioConRespuestas = {
   id: string;
   autor: string;
   iniciales: string;
+  autorFotoUrl: string | null;
   /** Código ISO en minúscula para la clase `fi-{codigo}` de flag-icons,
    * null si el autor no tiene país guardado en su perfil. */
   bandera: string | null;
@@ -77,7 +78,7 @@ export async function getComentariosDeLeccion(
   const autorIds = [...new Set((filas ?? []).map((fila) => fila.id_usuario as string))];
   const [{ data: autores }, { data: instructoresDelCurso }] = await Promise.all([
     autorIds.length
-      ? supabase.from("comentarios_autor_publico").select("id, nombre, es_profesor, pais").in("id", autorIds)
+      ? supabase.from("comentarios_autor_publico").select("id, nombre, es_profesor, pais, foto_url").in("id", autorIds)
       : Promise.resolve({ data: [] }),
     // Quién dicta ESTE curso, no solo quién tiene rol PROFESOR en general —
     // ver el comentario de `esInstructor` arriba.
@@ -96,6 +97,7 @@ export async function getComentariosDeLeccion(
       idPadre: fila.id_comentario_padre as string | null,
       autor: autor?.nombre ?? "Usuario",
       iniciales: iniciales(autor?.nombre ?? "?"),
+      autorFotoUrl: (autor?.foto_url as string | null) ?? null,
       bandera: codigoBanderaDePais((autor?.pais as string | null) ?? null),
       esInstructor: autor?.es_profesor === true && idsInstructoresDelCurso.has(fila.id_usuario as string),
       tiempo: tiempoRelativo(fila.creado_en as string),
