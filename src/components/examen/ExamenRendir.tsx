@@ -152,15 +152,19 @@ export function ExamenRendir({
       </header>
 
       {/* Barra sticky: progreso y tiempo tienen que seguir visibles al bajar
-          por un examen largo. */}
-      <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-uva-divider bg-uva-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <p className="font-mono text-[12.5px] text-uva-muted" aria-live="polite">
-          {respondidas} de {total} respondidas · necesitas {intento.notaRequerida}% para aprobar
+          por un examen largo. En móvil va en UNA fila: con la nota necesaria el
+          texto no cabía en 375 px, partía en dos líneas y empujaba el
+          cronómetro a una tercera — 124 px fijos, casi un 20 % de la pantalla.
+          La nota ya se mostró en la pantalla previa, así que ahí se omite. */}
+      <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between gap-3 border-b border-uva-divider bg-uva-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <p className="min-w-0 font-mono text-[12.5px] text-uva-muted" aria-live="polite">
+          {respondidas} de {total} respondidas
+          <span className="hidden sm:inline"> · necesitas {intento.notaRequerida}% para aprobar</span>
         </p>
 
         {segundosRestantes !== null && (
           <p
-            className={`flex items-center gap-1.5 font-mono text-[13px] font-semibold ${
+            className={`flex shrink-0 items-center gap-1.5 font-mono text-[13px] font-semibold ${
               tiempoCritico ? "text-uva-error" : "text-uva-text"
             }`}
             // Solo el minuto final se anuncia: un aria-live cada segundo

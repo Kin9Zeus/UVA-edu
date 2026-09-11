@@ -67,8 +67,11 @@ export function CursoDetalleView({
   // Las 5 etiquetas de pestaña ya no caben en el ancho de un teléfono
   // angosto — este scroll + degradado es la red de seguridad (mismo patrón
   // que los filtros de /admin/cursos) para cuando no alcanzan.
+  // El degradado va a los dos lados: tras desplazarse, "Información" queda
+  // fuera por la izquierda y nada decía que había pestañas antes.
   const tabsRef = useRef<HTMLDivElement>(null);
   const [hayMasTabs, setHayMasTabs] = useState(false);
+  const [hayTabsAntes, setHayTabsAntes] = useState(false);
 
   useEffect(() => {
     const el = tabsRef.current;
@@ -76,6 +79,7 @@ export function CursoDetalleView({
     function actualizar() {
       if (!el) return;
       setHayMasTabs(el.scrollWidth - el.scrollLeft - el.clientWidth > 4);
+      setHayTabsAntes(el.scrollLeft > 4);
     }
     actualizar();
     el.addEventListener("scroll", actualizar);
@@ -264,7 +268,19 @@ export function CursoDetalleView({
         </div>
       </div>
 
-      <Tabs defaultValue="informacion">
+      <Tabs
+        defaultValue="informacion"
+        // La pestaña tocada puede estar medio tapada por el degradado (así
+        // quedaba "Configuración"): se desplaza hasta verse entera. En el
+        // siguiente frame, cuando ya lleva `data-active`.
+        onValueChange={() =>
+          requestAnimationFrame(() =>
+            tabsRef.current
+              ?.querySelector<HTMLElement>("[data-active]")
+              ?.scrollIntoView({ block: "nearest", inline: "nearest" }),
+          )
+        }
+      >
         <div className="relative">
           <TabsList ref={tabsRef} className="overflow-x-auto">
             <TabsTrigger value="informacion">Información</TabsTrigger>
@@ -273,6 +289,12 @@ export function CursoDetalleView({
             <TabsTrigger value="estudiantes">Estudiantes</TabsTrigger>
             <TabsTrigger value="configuracion">Configuración</TabsTrigger>
           </TabsList>
+          {hayTabsAntes && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-uva-bg to-transparent"
+            />
+          )}
           {hayMasTabs && (
             <div
               aria-hidden

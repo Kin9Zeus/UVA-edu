@@ -62,6 +62,12 @@ const ETIQUETA_ESTADO_INTENTO = {
   EN_REVISION: "En revisión",
 } as const;
 
+/** Color del badge de un intento. Lo comparten la tabla (escritorio) y las
+ * tarjetas (móvil) de EstudianteFila, para que no se separen con el tiempo. */
+function tonoIntento(estado: keyof typeof ETIQUETA_ESTADO_INTENTO) {
+  return estado === "APROBADO" ? "success" : estado === "REPROBADO" ? "error" : "neutral";
+}
+
 /* Estado agregado del estudiante frente al examen — mismo criterio que
    SituacionExamen (src/lib/examen.ts), calculado del lado admin para todos a
    la vez (lib/admin/examenDetalle.ts). EN_ESPERA_LARGA es la única que
@@ -383,8 +389,10 @@ function ExamenExistente({
 
       {/* ---------------- Publicación ---------------- */}
       <section className="max-w-[640px] rounded-uva-md border border-uva-divider bg-uva-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+        {/* Sin flex-wrap: con wrap, en un teléfono el texto ocupaba la fila
+            entera y el interruptor caía debajo, pegado a la izquierda. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <p className="text-sm font-semibold text-uva-text">Examen obligatorio</p>
               <StatusBadge tone={examen.publicado ? "success" : "neutral"}>
@@ -398,6 +406,7 @@ function ExamenExistente({
             </p>
           </div>
           <Switch
+            className="shrink-0"
             checked={examen.publicado}
             onCheckedChange={handlePublicar}
             disabled={pending || bloqueadoParaPublicar}
@@ -522,26 +531,28 @@ function ExamenExistente({
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-sm text-uva-text">Barajar preguntas</p>
             <p className="text-xs text-uva-text-faint">Cada estudiante las ve en distinto orden.</p>
           </div>
           <Switch
+            className="shrink-0"
             checked={aleatorizarPreguntas}
             onCheckedChange={setAleatorizarPreguntas}
             aria-label="Barajar preguntas"
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-sm text-uva-text">Barajar opciones</p>
             <p className="text-xs text-uva-text-faint">
               El orden de las respuestas cambia en cada intento.
             </p>
           </div>
           <Switch
+            className="shrink-0"
             checked={aleatorizarOpciones}
             onCheckedChange={setAleatorizarOpciones}
             aria-label="Barajar opciones"
@@ -897,16 +908,21 @@ function EstudianteFila({
         aria-expanded={expandido}
         className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       >
-        <span className="min-w-0 flex-1 truncate text-[13.5px] text-uva-text">{estudiante.nombre}</span>
-        <span className="shrink-0 font-mono text-xs text-uva-text-faint">
-          {estudiante.intentos.length} {estudiante.intentos.length === 1 ? "intento" : "intentos"}
+        {/* En móvil el nombre va en su propia línea y los datos debajo: en una
+            sola fila, intentos + mejor puntaje + estado se comían todo el ancho
+            y el nombre quedaba en 0 px, una fila sin saber de quién era. */}
+        <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2.5">
+          <span className="min-w-0 truncate text-[13.5px] text-uva-text sm:flex-1">{estudiante.nombre}</span>
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:shrink-0">
+            <span className="font-mono text-xs text-uva-text-faint">
+              {estudiante.intentos.length} {estudiante.intentos.length === 1 ? "intento" : "intentos"}
+            </span>
+            <span className="font-mono text-xs text-uva-muted">
+              {estudiante.mejorPuntaje === null ? "—" : `mejor: ${estudiante.mejorPuntaje}%`}
+            </span>
+            <StatusBadge tone={badge.tone}>{badge.etiqueta}</StatusBadge>
+          </span>
         </span>
-        <span className="shrink-0 font-mono text-xs text-uva-muted">
-          {estudiante.mejorPuntaje === null ? "—" : `mejor: ${estudiante.mejorPuntaje}%`}
-        </span>
-        <StatusBadge tone={badge.tone} className="shrink-0">
-          {badge.etiqueta}
-        </StatusBadge>
         <ChevronDown
           className={`size-4 shrink-0 text-uva-text-faint transition-transform ${expandido ? "rotate-180" : ""}`}
         />
@@ -932,7 +948,45 @@ function EstudianteFila({
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          {/* En móvil, una tarjeta por intento: la tabla pide 480 px y en un
+              teléfono dejaba "Intento" y "Estado" fuera de la vista, con la
+              fecha partida en tres líneas. */}
+          <ul className="divide-y divide-uva-divider sm:hidden">
+            {estudiante.intentos.map((intento) => (
+              <li key={intento.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[13px] text-uva-muted">
+                      Intento {intento.numeroIntento} de {intentosMaximos ?? "∞"}
+                    </span>
+                    <StatusBadge tone={tonoIntento(intento.estado)}>
+                      {ETIQUETA_ESTADO_INTENTO[intento.estado]}
+                    </StatusBadge>
+                  </div>
+                  <p className="mt-1 text-xs text-uva-text-faint">
+                    <span className="font-mono text-uva-muted">
+                      {intento.puntajePct === null ? "—" : `${intento.puntajePct}%`}
+                    </span>
+                    {" · "}
+                    {formatFechaHora(intento.finalizadoEn ?? intento.iniciadoEn)}
+                  </p>
+                </div>
+                {intento.estado !== "EN_CURSO" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => onVerRevision(intento.id)}
+                  >
+                    Ver revisión
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[480px] text-left text-[13px]">
               <thead className="bg-uva-surface-2 text-uva-muted">
                 <tr>
@@ -950,15 +1004,7 @@ function EstudianteFila({
                       {intento.numeroIntento} de {intentosMaximos ?? "∞"}
                     </td>
                     <td className="px-3.5 py-2">
-                      <StatusBadge
-                        tone={
-                          intento.estado === "APROBADO"
-                            ? "success"
-                            : intento.estado === "REPROBADO"
-                              ? "error"
-                              : "neutral"
-                        }
-                      >
+                      <StatusBadge tone={tonoIntento(intento.estado)}>
                         {ETIQUETA_ESTADO_INTENTO[intento.estado]}
                       </StatusBadge>
                     </td>
