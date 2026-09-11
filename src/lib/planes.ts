@@ -32,8 +32,12 @@ export function formatearPrecio(centavos: number, moneda: string) {
   const formateado = new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency: moneda,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    // Sin esto, $89.900 (COP, sin centavos reales) y $69,58 (USD, con
+    // centavos reales) mostraban ambos 0 decimales — un plan a 69.58 se
+    // veía redondeado a $70. `stripIfInteger` deja los centavos cuando de
+    // verdad existen y los quita cuando el monto es un entero exacto.
+    trailingZeroDisplay: "stripIfInteger",
   }).format(centavos / 100);
   // Intl mete un espacio duro entre el símbolo y la cifra ("$ 89.900"); el
   // diseño lo muestra pegado.
