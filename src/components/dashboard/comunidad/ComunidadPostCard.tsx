@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pin } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
 import { ComunidadPostEditor } from "@/components/dashboard/comunidad/ComunidadPostEditor";
@@ -149,6 +149,7 @@ export function ComunidadPostCard({
 
       <div className="flex items-center gap-2.5">
         <Avatar className="size-8 shrink-0 bg-uva-divider">
+          {post.autorFotoUrl && <AvatarImage src={post.autorFotoUrl} alt="" />}
           <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
             {iniciales(post.autorNombre)}
           </AvatarFallback>

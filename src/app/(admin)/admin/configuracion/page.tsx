@@ -27,7 +27,7 @@ export default async function AdminConfiguracionPage() {
     <div className="flex max-w-[640px] flex-col gap-5">
       <AdminCard>
         <TituloTarjeta>Perfil del administrador</TituloTarjeta>
-        <PerfilAdminForm nombre={nombre} correo={correo} />
+        <PerfilAdminForm nombre={nombre} correo={correo} fotoUrl={perfil?.foto_url ?? null} />
       </AdminCard>
     </div>
   );

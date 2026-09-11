@@ -91,6 +91,7 @@ export type ComunidadPostResumen = {
   tiempo: string;
   autorId: string;
   autorNombre: string;
+  autorFotoUrl: string | null;
   totalRespuestas: number;
   totalReacciones: number;
   meReaccione: boolean;
@@ -107,6 +108,7 @@ export type ComunidadRespuesta = {
   tiempo: string;
   autorId: string;
   autorNombre: string;
+  autorFotoUrl: string | null;
   totalReacciones: number;
   meReaccione: boolean;
   adjuntos: ComunidadAdjunto[];

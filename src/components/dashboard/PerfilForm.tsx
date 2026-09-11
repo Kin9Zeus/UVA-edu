@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { EditorFotoPerfil } from "@/components/perfil/EditorFotoPerfil";
 import {
   Select,
   SelectContent,
@@ -21,14 +21,6 @@ import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
-
-function iniciales(nombre: string) {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  const letras = partes
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? "");
-  return letras.join("") || "U";
-}
 
 type Certificado = {
   id: string;
@@ -47,6 +39,7 @@ export function PerfilForm({
   nombre,
   correo,
   celular,
+  fotoUrl,
   insignia,
   certificados,
   estadoAcceso,
@@ -54,6 +47,7 @@ export function PerfilForm({
   nombre: string;
   correo: string;
   celular: string | null;
+  fotoUrl: string | null;
   insignia: Insignia | null;
   certificados: Certificado[];
   estadoAcceso: EstadoAcceso | null;
@@ -76,11 +70,7 @@ export function PerfilForm({
 
         <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
           <div className="flex items-center gap-4">
-            <Avatar className="size-[68px] bg-uva-divider">
-              <AvatarFallback className="bg-uva-divider font-heading text-[22px] font-bold text-uva-text">
-                {iniciales(nombre)}
-              </AvatarFallback>
-            </Avatar>
+            <EditorFotoPerfil nombre={nombre} fotoUrl={fotoUrl} size="lg" />
             <div className="min-w-0">
               <div className="font-heading text-[22px] leading-[1.15] text-uva-text">
                 {nombre}

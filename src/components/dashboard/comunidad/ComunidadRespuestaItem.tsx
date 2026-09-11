@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
 import { ModerarComunidadDialog } from "@/components/dashboard/comunidad/ModerarComunidadDialog";
@@ -77,6 +77,7 @@ export function ComunidadRespuestaItem({
   return (
     <div className="flex items-start gap-2.5 py-3">
       <Avatar className="size-7 shrink-0 bg-uva-divider">
+        {respuesta.autorFotoUrl && <AvatarImage src={respuesta.autorFotoUrl} alt="" />}
         <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
           {iniciales(respuesta.autorNombre)}
         </AvatarFallback>

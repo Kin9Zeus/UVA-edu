@@ -63,6 +63,7 @@ export default async function PerfilPage() {
         nombre={perfil?.nombre ?? "Estudiante"}
         correo={perfil?.correo ?? user!.email ?? ""}
         celular={perfil?.celular ?? null}
+        fotoUrl={perfil?.foto_url ?? null}
         insignia={insignia}
         certificados={certificados}
         estadoAcceso={estadoAcceso}

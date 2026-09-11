@@ -162,6 +162,13 @@ model Perfiles {
   nombre         String
   correo         String       @unique
   celular        String?
+  /// URL pública del bucket `avatares` (091_perfiles_foto.sql), o `null` si
+  /// el usuario nunca subió una — la UI cae en las iniciales sobre un
+  /// círculo de color (mismo componente Avatar de siempre). Normalizada a
+  /// cuadrada por el servidor antes de subir (ver src/lib/perfil/foto.ts),
+  /// así que cualquier imagen de origen se ve bien recortada dentro del
+  /// círculo sin depender de que el usuario la recorte a mano.
+  foto_url       String?
   /// Derivado del selector de indicativo telefónico en "Mi perfil"
   /// (src/lib/paises.ts), no un campo libre.
   pais           String?

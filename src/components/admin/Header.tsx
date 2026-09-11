@@ -6,7 +6,7 @@ import { ChevronDown, LayoutDashboard, LogOut, Search, User } from "lucide-react
 import { Input } from "@/components/ui/input";
 import { useAdminSearch } from "@/components/admin/SearchContext";
 import { BuscadorMovilDialog } from "@/components/admin/BuscadorMovilDialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +49,7 @@ function iniciales(nombre: string) {
   return letras.join("") || "A";
 }
 
-export function Header({ nombre }: { nombre: string }) {
+export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: string | null }) {
   const pathname = usePathname();
   const { query, setQuery } = useAdminSearch();
   const placeholder = buscadorDeSeccion(pathname);
@@ -92,6 +92,7 @@ export function Header({ nombre }: { nombre: string }) {
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]">
             {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}
             <Avatar className="size-[34px] bg-uva-divider after:hidden">
+              {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
               <AvatarFallback className="bg-uva-divider font-heading text-[12px] font-bold text-uva-muted">
                 {iniciales(nombre)}
               </AvatarFallback>

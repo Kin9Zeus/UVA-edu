@@ -95,7 +95,7 @@ export default async function CursoDetallePage({
   // dashboard (Sidebar desktop / BottomTabBar mobile): a diferencia del
   // reproductor (que sí se queda inmersivo, sin chrome), esta es una página
   // de exploración de curso, igual que /dashboard/catalogo.
-  const { nombre, esAdmin, certificadosCount, diasGracia } = await getDashboardChromeData({
+  const { nombre, fotoUrl, esAdmin, certificadosCount, diasGracia } = await getDashboardChromeData({
     user,
     perfil: perfilActual.perfil,
   });
@@ -106,6 +106,7 @@ export default async function CursoDetallePage({
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           nombre={nombre}
+          fotoUrl={fotoUrl}
           esAdmin={esAdmin}
           mostrarLogo="solo-mobile"
           ocultarAccionesEnMobile

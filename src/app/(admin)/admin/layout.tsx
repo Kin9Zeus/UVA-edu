@@ -49,6 +49,7 @@ export default async function AdminLayout({
   }
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";
+  const fotoUrl = perfil?.foto_url ?? null;
 
   return (
     <AdminToastProvider>
@@ -56,7 +57,7 @@ export default async function AdminLayout({
         <div className="flex min-h-screen">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
-            <Header nombre={nombre} />
+            <Header nombre={nombre} fotoUrl={fotoUrl} />
             {/* `main` del mockup: padding 28px / clamp / 60px y ancho maximo
                 de 1360px alineado a la izquierda, no centrado. */}
             <main className="flex-1 px-[clamp(20px,3vw,36px)] pt-7 pb-[calc(env(safe-area-inset-bottom)+88px)] md:pb-15">

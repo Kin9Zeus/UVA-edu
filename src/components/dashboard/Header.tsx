@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ function iniciales(nombre: string) {
 
 export function Header({
   nombre,
+  fotoUrl = null,
   esAdmin = false,
   mostrarLogo = false,
   ocultarAccionesEnMobile = false,
@@ -33,6 +34,7 @@ export function Header({
   diasGracia = null,
 }: {
   nombre: string;
+  fotoUrl?: string | null;
   esAdmin?: boolean;
   /** `true`: se muestra siempre (ej. SiteHeader en /catalogo, /cursos, donde
    * no hay Sidebar con su propio logo en ningún ancho). `"solo-mobile"`: solo
@@ -99,6 +101,7 @@ export function Header({
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
           >
             <Avatar className="bg-uva-divider">
+              {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
               <AvatarFallback className="bg-uva-divider text-uva-text">
                 {iniciales(nombre)}
               </AvatarFallback>

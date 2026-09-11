@@ -106,7 +106,16 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   filas: T[],
   usuarioActualId: string | null,
 ): Promise<
-  Map<string, { autorNombre: string; totalReacciones: number; meReaccione: boolean; adjuntos: ComunidadAdjunto[] }>
+  Map<
+    string,
+    {
+      autorNombre: string;
+      autorFotoUrl: string | null;
+      totalReacciones: number;
+      meReaccione: boolean;
+      adjuntos: ComunidadAdjunto[];
+    }
+  >
 > {
   const autorIds = [...new Set(filas.map((fila) => fila.id_usuario))];
   const objetivoIds = filas.map((fila) => fila.id);
@@ -121,7 +130,7 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   const [{ data: autores }, { data: reaccionesPost }, { data: reaccionesRespuesta }, { data: adjuntosPost }, { data: adjuntosRespuesta }] =
     await Promise.all([
       autorIds.length
-        ? supabase.from("comunidad_autor_publico").select("id, nombre").in("id", autorIds)
+        ? supabase.from("comunidad_autor_publico").select("id, nombre, foto_url").in("id", autorIds)
         : Promise.resolve({ data: [] }),
       objetivoIds.length
         ? supabase.from("comunidad_reacciones").select("id_usuario, id_post").in("id_post", objetivoIds)
@@ -138,6 +147,7 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
     ]);
 
   const nombresPorId = new Map((autores ?? []).map((a) => [a.id as string, a.nombre as string]));
+  const fotosPorId = new Map((autores ?? []).map((a) => [a.id as string, a.foto_url as string | null]));
 
   const reaccionesPorObjetivo = new Map<string, string[]>();
   for (const r of reaccionesPost ?? []) {
@@ -194,12 +204,19 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
 
   const resultado = new Map<
     string,
-    { autorNombre: string; totalReacciones: number; meReaccione: boolean; adjuntos: ComunidadAdjunto[] }
+    {
+      autorNombre: string;
+      autorFotoUrl: string | null;
+      totalReacciones: number;
+      meReaccione: boolean;
+      adjuntos: ComunidadAdjunto[];
+    }
   >();
   for (const fila of filas) {
     const listaReacciones = reaccionesPorObjetivo.get(fila.id) ?? [];
     resultado.set(fila.id, {
       autorNombre: nombresPorId.get(fila.id_usuario) ?? "Usuario",
+      autorFotoUrl: fotosPorId.get(fila.id_usuario) ?? null,
       totalReacciones: listaReacciones.length,
       meReaccione: usuarioActualId ? listaReacciones.includes(usuarioActualId) : false,
       adjuntos: adjuntosPorObjetivo.get(fila.id) ?? [],
@@ -268,6 +285,7 @@ export async function getComunidadFeed(opciones?: {
       tiempo: tiempoRelativo(fila.creado_en),
       autorId: fila.id_usuario,
       autorNombre: extra.autorNombre,
+      autorFotoUrl: extra.autorFotoUrl,
       totalRespuestas: respuestasPorPost.get(fila.id) ?? 0,
       totalReacciones: extra.totalReacciones,
       meReaccione: extra.meReaccione,
@@ -321,6 +339,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
     tiempo: tiempoRelativo(post.creado_en),
     autorId: post.id_usuario,
     autorNombre: extraPost.autorNombre,
+    autorFotoUrl: extraPost.autorFotoUrl,
     totalRespuestas: filasRespuestas.filter((r) => !r.eliminado).length,
     totalReacciones: extraPost.totalReacciones,
     meReaccione: extraPost.meReaccione,
@@ -335,6 +354,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
         tiempo: tiempoRelativo(r.creado_en),
         autorId: r.id_usuario,
         autorNombre: extra.autorNombre,
+        autorFotoUrl: extra.autorFotoUrl,
         totalReacciones: extra.totalReacciones,
         meReaccione: extra.meReaccione,
         adjuntos: r.eliminado ? [] : extra.adjuntos,

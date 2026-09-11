@@ -29,6 +29,7 @@ export async function getDashboardChromeData({
   ]);
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
+  const fotoUrl = perfil?.foto_url ?? null;
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
   const diasGracia =
@@ -36,5 +37,5 @@ export async function getDashboardChromeData({
       ? calcularDiasGracia(suscripcion.fechaRenovacion)
       : null;
 
-  return { nombre, esAdmin, certificadosCount: certificadosCount ?? 0, diasGracia };
+  return { nombre, fotoUrl, esAdmin, certificadosCount: certificadosCount ?? 0, diasGracia };
 }
