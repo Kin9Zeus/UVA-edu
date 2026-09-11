@@ -136,8 +136,17 @@ async function main() {
     .select("id")
     .eq("rol", "ADMINISTRADOR")
     .limit(1)
-    .single();
-  if (errAdminPerfil || !adminPerfil) {
+    .maybeSingle();
+  // Un error de la consulta (clave inválida, permisos, esquema) no es "no hay
+  // admin": antes los dos casos daban el mismo mensaje y en CI no había forma
+  // de distinguirlos. `maybeSingle` y no `single`: con `single`, cero filas
+  // también llega como error (PGRST116) y los volvía a mezclar.
+  if (errAdminPerfil) {
+    throw new Error(
+      `No pude buscar un perfil ADMINISTRADOR: ${errAdminPerfil.code ?? "sin código"} ${errAdminPerfil.message}`,
+    );
+  }
+  if (!adminPerfil) {
     throw new Error("No hay ningún perfil ADMINISTRADOR en la base (corre prisma/seed.ts primero).");
   }
 
