@@ -88,6 +88,8 @@ export function Header({
       </div>
 
       <div className="ml-auto flex items-center gap-1">
+        <NotificacionesBell notificaciones={notificaciones} noLeidas={notificacionesNoLeidas} />
+        <GraciaAlerta diasGracia={diasGracia} />
         <Link
           href="/dashboard/planes"
           className={cn(
@@ -97,8 +99,6 @@ export function Header({
         >
           Planes
         </Link>
-        <GraciaAlerta diasGracia={diasGracia} />
-        <NotificacionesBell notificaciones={notificaciones} noLeidas={notificacionesNoLeidas} />
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
