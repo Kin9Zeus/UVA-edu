@@ -14,6 +14,8 @@ type ComunidadModeradaEmailProps = {
   nombre: string;
   /** "publicación" o "respuesta" — varía el copy sin duplicar la plantilla. */
   tipoContenido: "publicación" | "respuesta";
+  /** Título de la publicación afectada — o donde vivía la respuesta afectada. */
+  tituloPost: string;
   motivo: string;
   urlComunidad: string;
 };
@@ -21,6 +23,7 @@ type ComunidadModeradaEmailProps = {
 export function ComunidadModeradaEmail({
   nombre,
   tipoContenido,
+  tituloPost,
   motivo,
   urlComunidad,
 }: ComunidadModeradaEmailProps) {
@@ -37,7 +40,15 @@ export function ComunidadModeradaEmail({
           <Section style={content}>
             <Text style={heading}>Hola, {nombre}</Text>
             <Text style={paragraph}>
-              Un administrador eliminó tu {tipoContenido} en la Comunidad de U.V.A. por lo siguiente:
+              Un administrador eliminó tu {tipoContenido}{" "}
+              {tituloPost ? (
+                <>
+                  en <strong>&ldquo;{tituloPost}&rdquo;</strong>
+                </>
+              ) : (
+                "en Comunidad"
+              )}{" "}
+              por lo siguiente:
             </Text>
             <Text style={motivoTexto}>&ldquo;{motivo}&rdquo;</Text>
             <Text style={paragraph}>

@@ -25,10 +25,6 @@ export type ReporteComunidadPendiente = {
   postId: string;
   autorNombre: string;
   preview: string;
-  /** El post/respuesta ya se eliminó (por este reporte o por otra vía) —
-   * la fila sigue en la tabla (no hay FK ON DELETE que la borre a ella,
-   * solo al reporte si se borrara el post) pero ya no hay nada que hacer. */
-  contenidoEliminado: boolean;
 };
 
 export async function getReportesComunidadPendientes(): Promise<ReporteComunidadPendiente[]> {
@@ -72,17 +68,28 @@ export async function getReportesComunidadPendientes(): Promise<ReporteComunidad
     : { data: [] as { id: string; nombre: string }[] };
   const nombresPorId = new Map((perfiles ?? []).map((p) => [p.id, p.nombre]));
 
-  return reportes.flatMap((r): ReporteComunidadPendiente[] => {
+  // El post/respuesta reportado pudo haberse borrado por fuera de este
+  // reporte (el propio autor, u otro reporte ya resuelto) — antes esto se
+  // mostraba como una fila muerta ("Ya se eliminó por otra vía.") sin
+  // ningún botón para sacarla de la cola, así que quedaba pendiente para
+  // siempre. Ahora se auto-resuelve acá: no hay nada que un admin pueda
+  // hacer con un reporte sobre contenido que ya no existe.
+  const idsAAutoResolver: string[] = [];
+
+  const resultado = reportes.flatMap((r): ReporteComunidadPendiente[] => {
     const esPost = Boolean(r.id_post);
     const post = r.id_post ? postsPorId.get(r.id_post) : undefined;
     const respuesta = r.id_respuesta ? respuestasPorId.get(r.id_respuesta) : undefined;
-    // El post/respuesta pudo haberse borrado por fuera de este reporte
-    // (otro reporte, o el propio autor) — la fila del reporte sigue viva.
     if (esPost && !post) return [];
     if (!esPost && !respuesta) return [];
 
-    const autorId = esPost ? post!.id_usuario : respuesta!.id_usuario;
     const contenidoEliminado = esPost ? post!.eliminado : respuesta!.eliminado;
+    if (contenidoEliminado) {
+      idsAAutoResolver.push(r.id);
+      return [];
+    }
+
+    const autorId = esPost ? post!.id_usuario : respuesta!.id_usuario;
     const preview = esPost ? `${post!.titulo}\n${post!.contenido}`.slice(0, 200) : respuesta!.contenido.slice(0, 200);
 
     return [
@@ -96,8 +103,13 @@ export async function getReportesComunidadPendientes(): Promise<ReporteComunidad
         postId: esPost ? r.id_post! : respuesta!.id_post,
         autorNombre: nombresPorId.get(autorId) ?? "Usuario eliminado",
         preview,
-        contenidoEliminado,
       },
     ];
   });
+
+  if (idsAAutoResolver.length > 0) {
+    await supabase.from("comunidad_reportes").update({ revisado: true }).in("id", idsAAutoResolver);
+  }
+
+  return resultado;
 }

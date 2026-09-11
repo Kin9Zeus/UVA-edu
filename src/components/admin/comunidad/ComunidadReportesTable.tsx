@@ -89,27 +89,23 @@ export function ComunidadReportesTable({ reportes }: { reportes: ReporteComunida
               {reporte.motivo}
             </div>
 
-            {reporte.contenidoEliminado ? (
-              <p className="m-0 text-[12.5px] text-uva-text-faint italic">Ya se eliminó por otra vía.</p>
-            ) : (
-              <div className="flex items-center gap-4 text-[13px]">
-                <button
-                  type="button"
-                  onClick={() => setReporteEnDialogo(reporte)}
-                  className="cursor-pointer border-0 bg-transparent p-0 text-uva-badge-danger-fg hover:underline"
-                >
-                  Eliminar
-                </button>
-                <button
-                  type="button"
-                  disabled={pendienteDescarte}
-                  onClick={() => descartar(reporte.id)}
-                  className="cursor-pointer border-0 bg-transparent p-0 text-uva-muted hover:text-uva-text disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Descartar
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-4 text-[13px]">
+              <button
+                type="button"
+                onClick={() => setReporteEnDialogo(reporte)}
+                className="cursor-pointer border-0 bg-transparent p-0 text-uva-badge-danger-fg hover:underline"
+              >
+                Eliminar
+              </button>
+              <button
+                type="button"
+                disabled={pendienteDescarte}
+                onClick={() => descartar(reporte.id)}
+                className="cursor-pointer border-0 bg-transparent p-0 text-uva-muted hover:text-uva-text disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Descartar
+              </button>
+            </div>
           </AdminCard>
         ))}
       </div>

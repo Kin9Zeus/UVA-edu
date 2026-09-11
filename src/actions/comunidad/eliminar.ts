@@ -43,6 +43,7 @@ async function avisarAutorModeracion(
   idAutor: string,
   tipoContenido: "publicación" | "respuesta",
   motivo: string,
+  tituloPost: string,
 ) {
   const { data: autor } = await supabase.from("perfiles").select("correo, nombre").eq("id", idAutor).single();
   if (!autor) return;
@@ -51,6 +52,7 @@ async function avisarAutorModeracion(
     autor.correo,
     autor.nombre,
     tipoContenido,
+    tituloPost,
     motivo,
     `${siteUrl()}/dashboard/comunidad`,
   );
@@ -140,7 +142,7 @@ export async function eliminarPostComunidad(
       idEntidadAfectada: postId,
       detalles: `${post.titulo} — motivo: ${motivoLimpio}`,
     });
-    await avisarAutorModeracion(supabase, post.id_usuario, "publicación", motivoLimpio);
+    await avisarAutorModeracion(supabase, post.id_usuario, "publicación", motivoLimpio, post.titulo);
     // Cierra la cola de /admin/comunidad: si esta publicación tenía
     // reportes pendientes, ya no hace falta que el admin además los
     // descarte a mano uno por uno.
@@ -214,7 +216,12 @@ export async function eliminarRespuestaComunidad(
       idEntidadAfectada: respuesta.id_post,
       detalles: `${respuesta.contenido.slice(0, 140)} — motivo: ${motivoLimpio}`,
     });
-    await avisarAutorModeracion(supabase, respuesta.id_usuario, "respuesta", motivoLimpio);
+    const { data: post } = await supabase
+      .from("comunidad_posts")
+      .select("titulo")
+      .eq("id", respuesta.id_post)
+      .single();
+    await avisarAutorModeracion(supabase, respuesta.id_usuario, "respuesta", motivoLimpio, post?.titulo ?? "");
     await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_respuesta", respuestaId);
   }
 

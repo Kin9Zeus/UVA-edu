@@ -121,6 +121,7 @@ export async function enviarCorreoComunidadModerada(
   destinatario: string,
   nombre: string,
   tipoContenido: "publicación" | "respuesta",
+  tituloPost: string,
   motivo: string,
   urlComunidad: string,
 ): Promise<EnviarCorreoResultado> {
@@ -129,7 +130,7 @@ export async function enviarCorreoComunidadModerada(
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: `Un administrador eliminó tu ${tipoContenido} en Comunidad`,
-      react: ComunidadModeradaEmail({ nombre, tipoContenido, motivo, urlComunidad }),
+      react: ComunidadModeradaEmail({ nombre, tipoContenido, tituloPost, motivo, urlComunidad }),
     });
 
     if (error) {
