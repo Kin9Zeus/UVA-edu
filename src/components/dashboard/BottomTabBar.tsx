@@ -2,17 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, TrendingUp, Award, type LucideIcon } from "lucide-react";
+import { Home, Compass, Users, TrendingUp, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Mismos 4 accesos que el Sidebar de escritorio (Inicio/Catálogo/Progreso/
-// Certificados). Comunidad, Perfil y Suscripción quedan en el dropdown del
-// avatar (Header) — no caben cómodos en una barra de 4-5 ítems.
+// Cuatro accesos, en el mismo orden e íconos que el Sidebar de escritorio.
+// Certificados, Perfil y Suscripción quedan en el dropdown del avatar
+// (Header). Certificados cedió su lugar a Comunidad: solo se visita al
+// terminar un curso, y también se llega desde el Perfil. Un quinto ítem no
+// cabe: con "Comunidad" y "Certificados" juntos la burbuja mide 395 px y a
+// 375 se sale de la pantalla.
 const items: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
+  { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
   { href: "/dashboard/progreso", label: "Progreso", icon: TrendingUp },
-  { href: "/dashboard/certificados", label: "Certificados", icon: Award },
 ];
 
 export function BottomTabBar() {
