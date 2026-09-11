@@ -160,6 +160,13 @@ enum EstadoIntentoExamen {
 model Perfiles {
   id             String       @id @db.Uuid
   nombre         String
+  /// Identificador legible para la ficha del panel (/admin/usuarios/andres-escobar
+  /// en vez del UUID). Lo genera la BASE, no la app: la fila la inserta
+  /// private.handle_new_user() al registrarse. Se regenera cuando cambia
+  /// `nombre` (así, al anonimizar, deja de contener el nombre real) y nadie lo
+  /// escribe a mano — trigger perfiles_asigna_slug, migración
+  /// 20260911020000_slug_perfiles_y_comunidad_posts.
+  slug           String       @unique
   correo         String       @unique
   celular        String?
   /// Derivado del selector de indicativo telefónico en "Mi perfil"
@@ -1393,6 +1400,10 @@ model ComunidadPosts {
   id_usuario     String             @db.Uuid
   categoria      CategoriaComunidad
   titulo         String
+  /// URL del hilo (/dashboard/comunidad/<slug>). Sale del título al publicar y
+  /// NO cambia al editarlo, para no romper enlaces compartidos. Lo pone el
+  /// trigger comunidad_posts_asigna_slug (misma migración que Perfiles.slug).
+  slug           String             @unique
   contenido      String
   /// Borrado lógico, mismo criterio que Comentarios.eliminado: conserva el
   /// hilo de respuestas en vez de dejarlas huérfanas.

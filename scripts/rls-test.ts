@@ -2620,7 +2620,7 @@ async function main() {
         })
         .select()
         .single(),
-    )) as { id: string } | null;
+    )) as { id: string; slug: string } | null;
     if (!postComunidad?.id) {
       throw new Error("El post de prueba de Comunidad no devolvió id; las pruebas de UPDATE de abajo no significan nada.");
     }
@@ -2667,6 +2667,56 @@ async function main() {
         .update({ titulo: "Título editado", contenido: "Contenido editado" })
         .eq("id", postComunidad.id)
         .select(),
+    );
+
+    // Slugs (migración 20260911020000_slug_perfiles_y_comunidad_posts): los
+    // pone la base, nunca quien escribe. Editar el título no cambia la URL del
+    // hilo, y ni el autor de un post ni el dueño de un perfil pueden elegir
+    // el slug a mano — el trigger descarta el valor en silencio.
+    const { data: postTrasEditar } = await admin
+      .from("comunidad_posts")
+      .select("slug")
+      .eq("id", postComunidad.id)
+      .single();
+    registrar(
+      "editar el título NO cambia el slug de la publicación (los enlaces compartidos siguen sirviendo)",
+      !!postComunidad.slug && postTrasEditar?.slug === postComunidad.slug,
+      `${postComunidad.slug} -> ${postTrasEditar?.slug}`,
+    );
+
+    await clienteConAcceso
+      .from("comunidad_posts")
+      .update({ slug: `slug-a-mano-${sufijo}` })
+      .eq("id", postComunidad.id);
+    const { data: postTrasForzar } = await admin
+      .from("comunidad_posts")
+      .select("slug")
+      .eq("id", postComunidad.id)
+      .single();
+    registrar(
+      "el autor NO puede reescribir el slug de su publicación",
+      postTrasForzar?.slug === postComunidad.slug,
+      `${postComunidad.slug} -> ${postTrasForzar?.slug}`,
+    );
+
+    const { data: perfilAntes } = await admin
+      .from("perfiles")
+      .select("slug")
+      .eq("id", userConAcceso.user!.id)
+      .single();
+    await clienteConAcceso
+      .from("perfiles")
+      .update({ slug: `slug-a-mano-${sufijo}` })
+      .eq("id", userConAcceso.user!.id);
+    const { data: perfilDespues } = await admin
+      .from("perfiles")
+      .select("slug")
+      .eq("id", userConAcceso.user!.id)
+      .single();
+    registrar(
+      "un usuario NO puede elegir su propio slug (sale de su nombre)",
+      !!perfilAntes?.slug && perfilDespues?.slug === perfilAntes.slug,
+      `${perfilAntes?.slug} -> ${perfilDespues?.slug}`,
     );
 
     await esperarBloqueado(
