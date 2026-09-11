@@ -114,21 +114,30 @@ export async function Pricing({
                     {badge}
                   </span>
                 )}
-                <h3 className="mb-1 font-heading text-xl font-bold text-uva-text">
-                  {plan.nombre}
-                </h3>
-                <p className="mb-3 text-[12.5px] text-uva-text-faint sm:mb-5">
-                  {meta(plan)}
-                </p>
-                <p className="mb-0.5 font-mono text-[28px] tabular-nums text-uva-text">
-                  {formatearPrecio(plan.precio_centavos, plan.moneda)}{" "}
-                  <span className="font-sans text-[13px] text-uva-text-muted">
-                    {periodo(plan.duracion_dias)}
-                  </span>
-                </p>
-                {cuotas && (
-                  <p className="mb-3 text-xs text-uva-text-faint sm:mb-7">{cuotas}</p>
-                )}
+                {/* min-h + line-clamp reservan el mismo espacio en toda tarjeta
+                    sin importar cuánto ocupe el nombre+descripción de CADA
+                    plan — sin esto, una descripción corta empujaba el precio
+                    y el botón más arriba que una larga, y la fila de
+                    tarjetas quedaba desalineada. */}
+                <div className="mb-3 min-h-[64px] sm:mb-5">
+                  <h3 className="mb-1 font-heading text-xl font-bold text-uva-text">
+                    {plan.nombre}
+                  </h3>
+                  <p className="line-clamp-2 text-[12.5px] text-uva-text-faint">{meta(plan)}</p>
+                </div>
+                <div className="mb-3 min-h-[58px] sm:mb-7">
+                  <p className="mb-0.5 font-mono text-[28px] tabular-nums text-uva-text">
+                    {formatearPrecio(plan.precio_centavos, plan.moneda)}{" "}
+                    <span className="font-sans text-[13px] text-uva-text-muted">
+                      {periodo(plan.duracion_dias)}
+                    </span>
+                  </p>
+                  {/* Mismo criterio: la línea de "4 cuotas" solo existe en los
+                      planes anuales — se reserva igual (espacio en blanco si
+                      no aplica) para que el botón no quede un renglón más
+                      arriba en los planes que no la tienen. */}
+                  <p className="text-xs text-uva-text-faint">{cuotas || " "}</p>
+                </div>
 
                 <ul className="mb-4 flex flex-1 flex-col gap-1.5 sm:mb-9 sm:gap-2.5">
                   {sharedBenefits.map((benefit, index) => {

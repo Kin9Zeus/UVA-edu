@@ -137,13 +137,20 @@ export function PlanFormDialog({
                 <Input
                   id="plan-precio"
                   type="number"
-                  min="1"
-                  step="1"
+                  min="0.01"
+                  step="0.01"
                   value={precio}
                   onChange={(event) => setPrecio(event.target.value)}
-                  placeholder="89900"
+                  placeholder="89900 o 69.99"
                   required
                 />
+                {/* step="0.01" (no "1"): un COP como 89900 no necesita
+                    centavos, pero un USD como 69.99 sí — el input HTML
+                    valida contra `step` al enviar, así que con step="1" el
+                    navegador rechazaba cualquier valor con decimales antes
+                    de que la Server Action (que sí los acepta, ver
+                    validar() en actions/admin/planes.ts) llegara a verlo. */}
+                <p className="mt-1 text-[11px] text-uva-text-faint">Admite centavos: 69.99, 89900, etc.</p>
               </div>
               <div>
                 <Label htmlFor="plan-moneda">Moneda</Label>
