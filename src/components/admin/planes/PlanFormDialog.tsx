@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { crearPlan, actualizarPlan, MONEDAS_PLAN, NIVELES_ACCESO_PLAN, type PlanInput } from "@/actions/admin/planes";
+import { crearPlan, actualizarPlan } from "@/actions/admin/planes";
+import { MONEDAS_PLAN, NIVELES_ACCESO_PLAN, type PlanInput } from "@/lib/admin/planes-tipos";
 import { useAdminToast } from "@/components/admin/Toast";
 import type { PlanAdmin } from "@/lib/admin/planes";
 

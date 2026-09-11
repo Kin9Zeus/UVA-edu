@@ -4,22 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import type { AdminActionResult } from "@/actions/admin/categorias";
-
-export const MONEDAS_PLAN = ["COP", "USD"] as const;
-export const NIVELES_ACCESO_PLAN = ["TOTAL", "BASICO"] as const;
-
-export type PlanInput = {
-  nombre: string;
-  descripcion: string;
-  /** En la unidad completa de la moneda (pesos, dólares) — nunca centavos:
-   * eso es un detalle de almacenamiento que no tiene por qué pedírsele al
-   * admin. Se multiplica por 100 antes de guardar. */
-  precio: number;
-  moneda: (typeof MONEDAS_PLAN)[number];
-  duracionDias: number;
-  nivelAcceso: (typeof NIVELES_ACCESO_PLAN)[number];
-  orden: number;
-};
+import { MONEDAS_PLAN, NIVELES_ACCESO_PLAN, type PlanInput } from "@/lib/admin/planes-tipos";
 
 function validar(input: PlanInput): string | null {
   if (!input.nombre.trim()) return "El nombre es obligatorio.";
