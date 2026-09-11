@@ -30,7 +30,17 @@ const ENTIDAD_INFO: Record<string, { etiqueta: string; ruta?: (id: string) => st
   // `perfiles`. Quitarla dejaría esas filas viejas sin etiqueta.
   instructores: { etiqueta: "Instructor" },
   codigos_invitacion: { etiqueta: "Código de invitación", ruta: () => "/admin/codigos" },
-  lecciones: { etiqueta: "Lección" },
+  // Ni la lección ni el examen tienen pantalla propia en el panel — ambos
+  // se editan dentro de las pestañas del curso — así que `idEntidadAfectada`
+  // para estas dos entidades es el CURSO (ver src/actions/admin/mux.ts y
+  // src/actions/admin/examenes.ts), y el enlace lleva ahí. El nombre
+  // específico de la lección/examen queda en la columna "Detalle".
+  lecciones: { etiqueta: "Lección", ruta: (id) => `/admin/cursos/${id}` },
+  examenes: { etiqueta: "Examen", ruta: (id) => `/admin/cursos/${id}` },
+  intentos_examen: { etiqueta: "Intento de examen", ruta: (id) => `/admin/usuarios/${id}` },
+  // El admin ya tiene acceso a Comunidad por rol (084_comunidad_gate_sin_requisito_temporal.sql),
+  // así que enlazar directo a la vista del estudiante funciona igual acá.
+  comunidad_posts: { etiqueta: "Comunidad", ruta: (id) => `/dashboard/comunidad/${id}` },
 };
 
 /** Tono según si la acción suena reversible/informativa (neutral), o de corte de acceso (error/warning). */
@@ -117,9 +127,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.usuarioAfectadoId
-                ? info?.ruta?.(entrada.usuarioAfectadoId)
-                : undefined;
+              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
 
               return (
                 <div
@@ -132,8 +140,15 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                       una sola fila sin envolver, un teléfono angosto se
                       desbordaba — acá la fecha simplemente baja a su propia
                       línea cuando no caben las dos. */}
-                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                    <StatusBadge tone={tonoAccion(entrada.accion)}>{entrada.accion}</StatusBadge>
+                  <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                    {/* `whitespace-normal` pisa el `whitespace-nowrap` fijo
+                        de StatusBadge: acá el texto es libre y largo
+                        ("Publicó el examen final de un curso (pasa a ser
+                        obligatorio...)"), y sin esto el badge se salía del
+                        ancho de la tarjeta en vez de envolver. */}
+                    <StatusBadge tone={tonoAccion(entrada.accion)} className="whitespace-normal">
+                      {entrada.accion}
+                    </StatusBadge>
                     <span className="shrink-0 font-mono text-[11.5px] text-uva-muted-2 tabular-nums">
                       {formatFechaHora(entrada.creadoEn)}
                     </span>
@@ -164,22 +179,30 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
 
         {resultado.entradas.length > 0 && (
         <Table className="hidden pointer-fine:md:table">
-          <TableHeader>
+          {/* Encabezado con más presencia: `bg-uva-hover` (el mismo tono
+              que ya usa el resto del panel para "esto está resaltado", ej.
+              el hover de la Sidebar) separa visualmente la fila de
+              títulos del cuerpo de la tabla en vez de flotar sobre el
+              mismo fondo, y `text-uva-muted` reemplaza el `text-uva-muted-2`
+              por defecto de `TableHead` (src/components/ui/table.tsx),
+              demasiado apagado en una tabla con tanto texto suelto. Ambos
+              son overrides locales a esta tabla, no un cambio del
+              componente compartido — las demás tablas del panel no
+              pidieron este ajuste. */}
+          <TableHeader className="bg-uva-hover">
             <TableRow>
-              <TableHead>Cuándo</TableHead>
-              <TableHead>Administrador</TableHead>
-              <TableHead>Acción</TableHead>
-              <TableHead>Sobre</TableHead>
-              <TableHead>Detalle</TableHead>
+              <TableHead className="text-uva-muted">Cuándo</TableHead>
+              <TableHead className="text-uva-muted">Administrador</TableHead>
+              <TableHead className="text-uva-muted">Acción</TableHead>
+              <TableHead className="text-uva-muted">Sobre</TableHead>
+              <TableHead className="text-uva-muted">Detalle</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.usuarioAfectadoId
-                ? info?.ruta?.(entrada.usuarioAfectadoId)
-                : undefined;
+              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
 
               return (
                 <TableRow key={entrada.id}>
@@ -194,8 +217,15 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <StatusBadge tone={tonoAccion(entrada.accion)}>{entrada.accion}</StatusBadge>
+                  {/* Mismo criterio que la celda de Detalle: `accion` es
+                      texto libre y a veces largo, así que la columna tiene
+                      un ancho tope y el badge envuelve (`whitespace-normal`
+                      pisa el `whitespace-nowrap` fijo de StatusBadge) en
+                      vez de forzar una sola línea. */}
+                  <TableCell className="max-w-[220px] align-top">
+                    <StatusBadge tone={tonoAccion(entrada.accion)} className="whitespace-normal">
+                      {entrada.accion}
+                    </StatusBadge>
                   </TableCell>
                   <TableCell className="text-[13px]">
                     {ruta ? (
@@ -206,7 +236,15 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                       <span className="text-uva-muted">{nombreSujeto}</span>
                     )}
                   </TableCell>
-                  <TableCell className="max-w-[320px] text-[12.5px] text-uva-muted-2">
+                  {/* `whitespace-normal` pisa el `whitespace-nowrap` por
+                      defecto de `TableCell`: acá el texto puede ser largo
+                      ("2 curso(s) movidos a...", nombre + curso de un
+                      intento de examen, etc.) y antes se cortaba en una
+                      sola línea en vez de crecer la fila. `align-top`
+                      porque el resto de columnas de la fila siguen en una
+                      línea — sin esto, una celda de 2-3 líneas quedaba
+                      centrada verticalmente contra celdas de una sola. */}
+                  <TableCell className="max-w-[320px] align-top text-[12.5px] whitespace-normal text-uva-muted-2">
                     {entrada.detalles ?? "—"}
                   </TableCell>
                 </TableRow>

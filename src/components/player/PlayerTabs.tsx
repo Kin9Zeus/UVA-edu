@@ -1,20 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import {
-  Download,
-  Loader2,
-  BadgeCheck,
-  User,
-  Heart,
-  Reply,
-  Send,
-  Bold,
-  Italic,
-  Underline,
-  List,
-  ListOrdered,
-} from "lucide-react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { Download, Loader2, BadgeCheck, User, Heart, Reply, Send } from "lucide-react";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import { crearComentario } from "@/actions/comentarios/crear";
@@ -24,6 +11,15 @@ import type { RecursoLeccion } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
 import type { DocumentoContenido } from "@/lib/editor/tipos";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
+import {
+  type FormatoId,
+  BOTONES_FORMATO,
+  COMANDO_FORMATO,
+  alternarFormato,
+  manejarEnterEnLista,
+  serializarEditor,
+  renderizarTextoFormateado,
+} from "@/lib/formato-texto";
 
 export type TabPlayer = "recursos" | "resumen" | "comentarios";
 
@@ -178,244 +174,6 @@ export function contarComentarios(comentarios: ComentarioConRespuestas[]): numbe
     (total, comentario) => total + 1 + comentario.respuestas.length,
     0,
   );
-}
-
-type FormatoId = "bold" | "italic" | "underline" | "list" | "list-ordered";
-
-const BOTONES_FORMATO: { tipo: FormatoId; icono: typeof Bold; etiqueta: string }[] = [
-  { tipo: "bold", icono: Bold, etiqueta: "Negrita" },
-  { tipo: "italic", icono: Italic, etiqueta: "Cursiva" },
-  { tipo: "underline", icono: Underline, etiqueta: "Subrayado" },
-  { tipo: "list", icono: List, etiqueta: "Lista con viñetas" },
-  { tipo: "list-ordered", icono: ListOrdered, etiqueta: "Lista numerada" },
-];
-
-/** Comando nativo de `execCommand` detrás de cada botón — el editor es un
- * `contenteditable`, así que negrita/cursiva/listas se aplican en vivo sobre
- * la selección, en vez de insertar marcadores de texto que el usuario
- * tendría que ver. La numeración/viñeta la sigue pintando el navegador
- * (por eso alcanza con CSS `list-decimal`/`list-disc` en el editor); la
- * continuación al dar Enter, en cambio, la controlamos a mano en
- * `manejarEnterEnLista` — el comportamiento nativo de Chrome para "Enter al
- * final de un `<li>`" resultó inconsistente en pruebas manuales (a veces
- * degradaba un `<ol>` de un solo item a un `<ul>` en vez de continuar la
- * numeración). */
-const COMANDO_FORMATO: Record<FormatoId, string> = {
-  bold: "bold",
-  italic: "italic",
-  underline: "underline",
-  list: "insertUnorderedList",
-  "list-ordered": "insertOrderedList",
-};
-
-function alternarFormato(editor: HTMLDivElement, tipo: FormatoId) {
-  editor.focus();
-  document.execCommand(COMANDO_FORMATO[tipo]);
-}
-
-function ubicarCursorAlInicio(nodo: Node) {
-  const rango = document.createRange();
-  rango.selectNodeContents(nodo);
-  rango.collapse(true);
-  const seleccion = window.getSelection();
-  seleccion?.removeAllRanges();
-  seleccion?.addRange(rango);
-}
-
-/**
- * Reemplaza el Enter nativo dentro de un `<li>`: en un item con contenido,
- * crea el siguiente `<li>` (el navegador solo se encarga de pintar el
- * número/viñeta vía CSS); en un item vacío, sale de la lista y vuelve a un
- * párrafo normal — el patrón estándar de "Enter, Enter para salir".
- */
-function manejarEnterEnLista(evento: KeyboardEvent, editor: HTMLDivElement) {
-  if (evento.key !== "Enter" || evento.shiftKey) return;
-  const seleccion = window.getSelection();
-  if (!seleccion || seleccion.rangeCount === 0) return;
-  let nodo: Node | null = seleccion.anchorNode;
-  let li: HTMLLIElement | null = null;
-  while (nodo && nodo !== editor) {
-    if (nodo instanceof HTMLLIElement) {
-      li = nodo;
-      break;
-    }
-    nodo = nodo.parentNode;
-  }
-  if (!li) return;
-
-  evento.preventDefault();
-  const lista = li.parentElement;
-  if (!lista) return;
-
-  if (li.textContent?.trim() === "") {
-    const parrafo = document.createElement("div");
-    parrafo.appendChild(document.createElement("br"));
-    lista.after(parrafo);
-    li.remove();
-    if (lista.children.length === 0) lista.remove();
-    ubicarCursorAlInicio(parrafo);
-    return;
-  }
-
-  const nuevoLi = document.createElement("li");
-  nuevoLi.appendChild(document.createElement("br"));
-  li.after(nuevoLi);
-  ubicarCursorAlInicio(nuevoLi);
-}
-
-/**
- * Convierte el HTML del editor `contenteditable` al texto plano que se
- * guarda en la base de datos, usando los mismos marcadores que interpreta
- * `renderizarComentario` más abajo (**negrita**, *cursiva*, ++subrayado++,
- * "- item" y "1. item"). Mantener ambas funciones en sincronía.
- */
-function serializarEditor(raiz: HTMLElement): string {
-  const lineas: string[] = [];
-
-  function textoConEstilos(nodo: ChildNode): string {
-    if (nodo.nodeType === Node.TEXT_NODE) return nodo.textContent ?? "";
-    if (nodo.nodeType !== Node.ELEMENT_NODE) return "";
-    const el = nodo as HTMLElement;
-    const contenido = Array.from(el.childNodes).map(textoConEstilos).join("");
-    switch (el.tagName) {
-      case "B":
-      case "STRONG":
-        return `**${contenido}**`;
-      case "I":
-      case "EM":
-        return `*${contenido}*`;
-      case "U":
-        return `++${contenido}++`;
-      case "BR":
-        return "\n";
-      default:
-        return contenido;
-    }
-  }
-
-  function procesarBloque(nodo: ChildNode) {
-    if (nodo.nodeType === Node.TEXT_NODE) {
-      const texto = nodo.textContent ?? "";
-      if (texto) lineas.push(texto);
-      return;
-    }
-    if (nodo.nodeType !== Node.ELEMENT_NODE) return;
-    const el = nodo as HTMLElement;
-    if (el.tagName === "UL" || el.tagName === "OL") {
-      Array.from(el.children).forEach((item, i) => {
-        const contenido = Array.from(item.childNodes).map(textoConEstilos).join("");
-        lineas.push(el.tagName === "UL" ? `- ${contenido}` : `${i + 1}. ${contenido}`);
-      });
-      return;
-    }
-    if (el.tagName === "BR") {
-      lineas.push("");
-      return;
-    }
-    if (el.tagName === "DIV" || el.tagName === "P") {
-      lineas.push(Array.from(el.childNodes).map(textoConEstilos).join(""));
-      return;
-    }
-    lineas.push(textoConEstilos(el));
-  }
-
-  Array.from(raiz.childNodes).forEach(procesarBloque);
-  return lineas.join("\n").trim();
-}
-
-/** Interpreta negrita/cursiva/subrayado/código dentro de una línea. Formatos no anidables. */
-function analizarLinea(linea: string): ReactNode[] {
-  const patron = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|\+\+([^+]+)\+\+/g;
-  const partes: ReactNode[] = [];
-  let ultimo = 0;
-  let clave = 0;
-  let match: RegExpExecArray | null;
-  while ((match = patron.exec(linea))) {
-    if (match.index > ultimo) partes.push(linea.slice(ultimo, match.index));
-    if (match[1] !== undefined) {
-      partes.push(
-        <code key={clave++} className="rounded-uva-xs bg-[#27272A] px-1.5 py-0.5 font-mono text-[12px]">
-          {match[1]}
-        </code>,
-      );
-    } else if (match[2] !== undefined) {
-      partes.push(<strong key={clave++}>{match[2]}</strong>);
-    } else if (match[3] !== undefined) {
-      partes.push(<em key={clave++}>{match[3]}</em>);
-    } else {
-      partes.push(
-        <u key={clave++}>{match[4]}</u>,
-      );
-    }
-    ultimo = patron.lastIndex;
-  }
-  if (ultimo < linea.length) partes.push(linea.slice(ultimo));
-  return partes;
-}
-
-/** Convierte el texto plano guardado (con los marcadores de `aplicarFormato`) en JSX. */
-function renderizarComentario(texto: string): ReactNode {
-  const segmentos = texto.split(/```([\s\S]*?)```/);
-  const bloques: ReactNode[] = [];
-
-  segmentos.forEach((segmento, indiceSegmento) => {
-    if (indiceSegmento % 2 === 1) {
-      bloques.push(
-        <pre
-          key={`c${indiceSegmento}`}
-          className="my-1.5 overflow-x-auto rounded-uva-md bg-[#27272A] p-2.5 font-mono text-[12px] text-uva-text"
-        >
-          <code>{segmento.trim()}</code>
-        </pre>,
-      );
-      return;
-    }
-
-    const lineas = segmento.split("\n").filter((linea) => linea.trim() !== "");
-    let i = 0;
-    let clave = 0;
-    while (i < lineas.length) {
-      const linea = lineas[i];
-      if (linea.startsWith("- ")) {
-        const items: string[] = [];
-        while (i < lineas.length && lineas[i].startsWith("- ")) {
-          items.push(lineas[i].slice(2));
-          i++;
-        }
-        bloques.push(
-          <ul key={`u${indiceSegmento}-${clave++}`} className="my-1 list-disc space-y-0.5 pl-5">
-            {items.map((item, j) => (
-              <li key={j}>{analizarLinea(item)}</li>
-            ))}
-          </ul>,
-        );
-        continue;
-      }
-      if (/^\d+\.\s/.test(linea)) {
-        const items: string[] = [];
-        while (i < lineas.length && /^\d+\.\s/.test(lineas[i])) {
-          items.push(lineas[i].replace(/^\d+\.\s/, ""));
-          i++;
-        }
-        bloques.push(
-          <ol key={`o${indiceSegmento}-${clave++}`} className="my-1 list-decimal space-y-0.5 pl-5">
-            {items.map((item, j) => (
-              <li key={j}>{analizarLinea(item)}</li>
-            ))}
-          </ol>,
-        );
-        continue;
-      }
-      bloques.push(
-        <p key={`p${indiceSegmento}-${clave++}`} className="my-0.5">
-          {analizarLinea(linea)}
-        </p>,
-      );
-      i++;
-    }
-  });
-
-  return bloques;
 }
 
 type OrdenComentarios = "relevantes" | "recientes" | "antiguos";
@@ -834,7 +592,7 @@ function ComentarioItem({
         <div
           className={`mt-2 mb-2.5 text-sm leading-6 ${comentario.eliminado ? "text-uva-text-faint italic" : "text-uva-text opacity-90"}`}
         >
-          {comentario.eliminado ? comentario.texto : renderizarComentario(comentario.texto)}
+          {comentario.eliminado ? comentario.texto : renderizarTextoFormateado(comentario.texto)}
         </div>
         <div className="flex flex-wrap items-center gap-4 text-[12px] font-semibold text-uva-text opacity-60">
           <button

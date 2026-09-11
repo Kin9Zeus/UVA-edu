@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Compass,
+  Users,
   TrendingUp,
   Award,
   User,
@@ -19,10 +20,10 @@ import { cn } from "@/lib/utils";
 import { GraciaCard } from "@/components/dashboard/GraciaCard";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Comunidad se oculta hasta después del MVP (la feature aún no está activa).
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
+  { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
 ];
 
 const navProgreso = [

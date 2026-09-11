@@ -59,6 +59,20 @@ export function VideoPlayer({
   >({ tipo: "cargando" });
 
   const mediaRef = useRef<MuxPlayerElement | null>(null);
+  // Congela el punto de partida en el primer render: `segundoActual` sigue
+  // llegando como prop en cada re-render de este componente (mismo `key`,
+  // nunca se remonta) porque `PlayerContent` llama `router.refresh()` al
+  // marcar la clase completada, y eso trae un `data.segundoActual` nuevo
+  // del servidor — hasta 10s más viejo que la posición real (el guardado
+  // periódico tiene throttle, ver INTERVALO_GUARDADO_MS). Si `startTime` se
+  // leyera directo de la prop en el JSX de abajo, ese valor desactualizado
+  // llegaría al `<MuxPlayer>` ya reproduciéndose y el reproductor saltaba
+  // hacia atrás a esa posición vieja en pleno video — se veía como que "el
+  // video se reinicia y se pierden los últimos segundos" justo al llegar al
+  // umbral de completado, que es exactamente cuando dispara el refresh.
+  // Con `useState` (no `useRef`) el valor inicial es estable entre renders
+  // sin depender de la prop después del primero.
+  const [tiempoInicio] = useState(segundoActual);
   // Última posición conocida, actualizada en CADA timeupdate (sin
   // throttle): es lo que usan el guardado al salir y el beacon, que
   // necesitan el dato más fresco posible, no el del último guardado
@@ -260,7 +274,7 @@ export function VideoPlayer({
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
       className="aspect-video w-full"
-      startTime={segundoActual > 0 ? segundoActual : undefined}
+      startTime={tiempoInicio > 0 ? tiempoInicio : undefined}
       onTimeUpdate={handleTimeUpdate}
       onEnded={handleEnded}
     />

@@ -2517,6 +2517,362 @@ async function main() {
       perfilRepetido?.anonimizado_en === fechaPrimeraSupresion,
       `antes=${fechaPrimeraSupresion} despues=${perfilRepetido?.anonimizado_en}`,
     );
+
+    // ------------------------------------------------------------------
+    // Comunidad (F1 del plan, supabase/sql/083_comunidad.sql +
+    // 084_comunidad_gate_sin_requisito_temporal.sql)
+    //
+    // Por decisión de negocio, el gate quedó reducido a "suscripción
+    // vigente O administrador", sin ventana de tiempo ni certificado — ver
+    // 084. Lo que se prueba acá: que sigue exigiendo suscripción de verdad
+    // (no basta con estar autenticado), que el bypass de admin sigue
+    // funcionando, y que un certificado por sí solo YA NO otorga acceso
+    // (regresión: antes de 084 sí lo hacía).
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: COMUNIDAD (083/084) ===\n");
+
+    await esperarBloqueado("anon no puede leer comunidad_posts", clienteAnonimo.from("comunidad_posts").select("*"));
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no puede leer comunidad_posts",
+      clienteSinAcceso.from("comunidad_posts").select("*"),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no puede publicar en comunidad_posts",
+      clienteSinAcceso
+        .from("comunidad_posts")
+        .insert({ id_usuario: userSinAcceso.user!.id, categoria: "PREGUNTAS", titulo: "x", contenido: "x" })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "estudiante con suscripción vigente SÍ puede leer comunidad_posts",
+      clienteConAcceso.from("comunidad_posts").select("*"),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede leer comunidad_posts sin suscripción ni certificado (bypass)",
+      clienteAdmin.from("comunidad_posts").select("*"),
+    );
+
+    const postComunidad = (await esperarPermitido(
+      "estudiante con acceso SÍ puede publicar en una categoría normal",
+      clienteConAcceso
+        .from("comunidad_posts")
+        .insert({
+          id_usuario: userConAcceso.user!.id,
+          categoria: "PROYECTOS",
+          titulo: `Post RLS test ${sufijo}`,
+          contenido: "Contenido de prueba",
+        })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!postComunidad?.id) {
+      throw new Error("El post de prueba de Comunidad no devolvió id; las pruebas de UPDATE de abajo no significan nada.");
+    }
+
+    await esperarBloqueado(
+      "estudiante con acceso NO puede publicar en ANUNCIOS (solo admin)",
+      clienteConAcceso
+        .from("comunidad_posts")
+        .insert({ id_usuario: userConAcceso.user!.id, categoria: "ANUNCIOS", titulo: "x", contenido: "x" })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "estudiante con acceso NO puede crear un post ya fijado",
+      clienteConAcceso
+        .from("comunidad_posts")
+        .insert({ id_usuario: userConAcceso.user!.id, categoria: "PROYECTOS", titulo: "x", contenido: "x", fijado: true })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede publicar en ANUNCIOS",
+      clienteAdmin
+        .from("comunidad_posts")
+        .insert({ id_usuario: userAdmin.user!.id, categoria: "ANUNCIOS", titulo: `Anuncio RLS test ${sufijo}`, contenido: "x" })
+        .select(),
+    );
+
+    // Privilegio por columna + trigger (mismo criterio que 064/065 sobre
+    // comentarios): la policy de UPDATE autoriza la FILA (es la suya), pero
+    // ni fijar ni revivir son transiciones que le correspondan al propio
+    // autor. Reescribir contenido/título SÍ, desde 087 — es la edición real
+    // pedida por el usuario — pero solo mientras el post siga vivo y solo
+    // el propio autor, nunca un admin (087_comunidad_editar_publicacion.sql).
+    await esperarBloqueado(
+      "el autor NO puede fijar su propio post",
+      clienteConAcceso.from("comunidad_posts").update({ fijado: true }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "el autor SÍ puede editar el título y el contenido de su propio post (087)",
+      clienteConAcceso
+        .from("comunidad_posts")
+        .update({ titulo: "Título editado", contenido: "Contenido editado" })
+        .eq("id", postComunidad.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un administrador NO puede reescribir el contenido de la publicación de otro (solo vaciarlo al moderar)",
+      clienteAdmin.from("comunidad_posts").update({ contenido: "texto puesto por el admin" }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "el autor SÍ puede eliminar (lógicamente) su propio post",
+      clienteConAcceso.from("comunidad_posts").update({ eliminado: true }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarBloqueado(
+      "el autor NO puede revivir su propio post eliminado (moderación irreversible para él)",
+      clienteConAcceso.from("comunidad_posts").update({ eliminado: false }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarBloqueado(
+      "el contenido de un post ELIMINADO no se puede reescribir, ni por su propio autor",
+      clienteConAcceso.from("comunidad_posts").update({ contenido: "texto reescrito" }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede fijar el post de otro usuario",
+      clienteAdmin.from("comunidad_posts").update({ fijado: true }).eq("id", postComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede restaurar el post eliminado de otro usuario",
+      clienteAdmin.from("comunidad_posts").update({ eliminado: false }).eq("id", postComunidad.id).select(),
+    );
+
+    // Reacciones: una por usuario por objetivo, y a exactamente un post O una
+    // respuesta — nunca ambos ni ninguno (constraint check, no policy).
+    await esperarPermitido(
+      "estudiante con acceso SÍ puede reaccionar a un post",
+      clienteConAcceso
+        .from("comunidad_reacciones")
+        .insert({ id_usuario: userConAcceso.user!.id, id_post: postComunidad.id })
+        .select(),
+    );
+
+    const { error: errReaccionDuplicada } = await clienteConAcceso
+      .from("comunidad_reacciones")
+      .insert({ id_usuario: userConAcceso.user!.id, id_post: postComunidad.id });
+    registrar(
+      "reaccionar dos veces al mismo post por el mismo usuario choca con el índice único",
+      errReaccionDuplicada?.code === "23505",
+      errReaccionDuplicada ? `${errReaccionDuplicada.code}` : "el insert pasó: el índice único parcial no está",
+    );
+
+    const { error: errReaccionSinObjetivo } = await clienteConAcceso
+      .from("comunidad_reacciones")
+      .insert({ id_usuario: userConAcceso.user!.id });
+    registrar(
+      "una reacción sin post ni respuesta se rechaza (CHECK num_nonnulls)",
+      errReaccionSinObjetivo?.code === "23514",
+      errReaccionSinObjetivo ? `${errReaccionSinObjetivo.code}` : "el insert pasó: el CHECK de exclusividad no está",
+    );
+
+    await esperarPermitido(
+      "estudiante con acceso SÍ puede quitar su propia reacción",
+      clienteConAcceso
+        .from("comunidad_reacciones")
+        .delete()
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("id_post", postComunidad.id),
+    );
+
+    // Respuestas: mismo gate que los posts, sin `fijado`.
+    const respuestaComunidad = (await esperarPermitido(
+      "estudiante con acceso SÍ puede responder un post",
+      clienteConAcceso
+        .from("comunidad_respuestas")
+        .insert({ id_usuario: userConAcceso.user!.id, id_post: postComunidad.id, contenido: "Respuesta de prueba" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!respuestaComunidad?.id) {
+      throw new Error("La respuesta de prueba de Comunidad no devolvió id.");
+    }
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no puede responder un post",
+      clienteSinAcceso
+        .from("comunidad_respuestas")
+        .insert({ id_usuario: userSinAcceso.user!.id, id_post: postComunidad.id, contenido: "x" })
+        .select(),
+    );
+
+    // Adjuntos (086): un archivo o imagen por post/respuesta, solo sobre lo
+    // propio, borrable por el autor o por un administrador moderando.
+    await esperarBloqueado(
+      "estudiante sin suscripción no puede leer comunidad_adjuntos",
+      clienteSinAcceso.from("comunidad_adjuntos").select("*"),
+    );
+
+    const otroPostAdmin = (await esperarPermitido(
+      "administrador SÍ puede publicar en ANUNCIOS (post ajeno para la prueba de adjuntos)",
+      clienteAdmin
+        .from("comunidad_posts")
+        .insert({ id_usuario: userAdmin.user!.id, categoria: "ANUNCIOS", titulo: `Otro anuncio RLS ${sufijo}`, contenido: "x" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!otroPostAdmin?.id) {
+      throw new Error("El segundo post de prueba (admin) no devolvió id; las pruebas de adjuntos no significan nada.");
+    }
+
+    await esperarBloqueado(
+      "estudiante con acceso NO puede adjuntar un archivo al post de otro usuario",
+      clienteConAcceso
+        .from("comunidad_adjuntos")
+        .insert({
+          id_post: otroPostAdmin.id,
+          id_usuario: userConAcceso.user!.id,
+          ruta_storage: `${userConAcceso.user!.id}/intruso.webp`,
+          nombre_original: "intruso.webp",
+          tipo_archivo: "image/webp",
+          es_imagen: true,
+          tamano_bytes: 1,
+        })
+        .select(),
+    );
+
+    const adjuntoComunidad = (await esperarPermitido(
+      "estudiante con acceso SÍ puede adjuntar un archivo a su propio post",
+      clienteConAcceso
+        .from("comunidad_adjuntos")
+        .insert({
+          id_post: postComunidad.id,
+          id_usuario: userConAcceso.user!.id,
+          ruta_storage: `${userConAcceso.user!.id}/${postComunidad.id}.webp`,
+          nombre_original: "captura.webp",
+          tipo_archivo: "image/webp",
+          es_imagen: true,
+          ancho: 800,
+          alto: 600,
+          tamano_bytes: 12_345,
+        })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!adjuntoComunidad?.id) {
+      throw new Error("El adjunto de prueba de Comunidad no devolvió id; las pruebas de abajo no significan nada.");
+    }
+
+    // Desde que se decidió permitir varias imágenes/archivos incrustados en
+    // el mismo post (uno por cada `[[adjunto:id]]` en el texto), un segundo
+    // adjunto en el mismo post ya no debe chocar con nada — el único índice
+    // único parcial que existió para esto se quitó explícitamente en 086.
+    await esperarPermitido(
+      "un segundo adjunto en el mismo post SÍ se puede insertar (ya no hay límite de uno por post)",
+      clienteConAcceso
+        .from("comunidad_adjuntos")
+        .insert({
+          id_post: postComunidad.id,
+          id_usuario: userConAcceso.user!.id,
+          ruta_storage: `${userConAcceso.user!.id}/${postComunidad.id}/segunda.webp`,
+          nombre_original: "segunda.webp",
+          tipo_archivo: "image/webp",
+          es_imagen: true,
+          ancho: 400,
+          alto: 300,
+          tamano_bytes: 1,
+        })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un estudiante que no es el autor ni admin NO puede borrar el adjunto de otro",
+      clienteSinAcceso.from("comunidad_adjuntos").delete().eq("id", adjuntoComunidad.id),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede borrar el adjunto de otro usuario (moderación)",
+      clienteAdmin.from("comunidad_adjuntos").delete().eq("id", adjuntoComunidad.id),
+    );
+
+    // Moderación: evidencia sensible, cerrada a todo el que no sea admin —
+    // mismo criterio que comentario_moderacion (065), calcado.
+    await esperarBloqueado(
+      "estudiante con acceso no puede leer comunidad_moderacion",
+      clienteConAcceso.from("comunidad_moderacion").select("*"),
+    );
+
+    await esperarBloqueado(
+      "estudiante con acceso no puede insertar en comunidad_moderacion ni con su propio id",
+      clienteConAcceso
+        .from("comunidad_moderacion")
+        .insert({ id_post: postComunidad.id, contenido_original: "x", id_eliminado_por: userConAcceso.user!.id })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "administrador NO puede firmar una moderación con el id de otro usuario",
+      clienteAdmin
+        .from("comunidad_moderacion")
+        .insert({ id_post: postComunidad.id, contenido_original: "x", id_eliminado_por: userConAcceso.user!.id })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "administrador SÍ puede insertar en comunidad_moderacion firmando con su propio id",
+      clienteAdmin
+        .from("comunidad_moderacion")
+        .insert({ id_post: postComunidad.id, contenido_original: "Contenido de prueba", id_eliminado_por: userAdmin.user!.id })
+        .select(),
+    );
+
+    // Regresión de 084: un certificado reciente YA NO otorga acceso por sí
+    // solo (antes de 084 sí lo hacía, vía private.comunidad_activo_por_certificado,
+    // que sigue existiendo sin usarse). Se siembra directo (service role),
+    // no por el trigger de emisión — lo que se prueba es el gate, no el
+    // flujo de emisión (eso ya lo cubre la sesión de 047-050).
+    const { error: errCertificadoFresco } = await admin.from("certificados").insert({
+      id_usuario: userSinAcceso.user!.id,
+      id_curso: cursoReproduccion.id,
+      codigo_verificacion: `RLSCOM${sufijo}`,
+      nombre_estudiante: "RLS Test Comunidad",
+      nombre_curso: "RLS Test Comunidad",
+      fecha_emision: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+    });
+    if (errCertificadoFresco) {
+      throw new Error(`No pude sembrar el certificado de prueba de Comunidad: ${errCertificadoFresco.message}`);
+    }
+
+    await esperarBloqueado(
+      "certificado emitido hace 5 días YA NO otorga acceso a comunidad_posts sin suscripción (084)",
+      clienteSinAcceso.from("comunidad_posts").select("*"),
+    );
+
+    // cuenta_activa() (019) en la escritura: mismo cinturón de seguridad que
+    // el resto del proyecto exige en todo INSERT/UPDATE, ahora también en
+    // Comunidad. Se suspende y se restaura al propio usuario de prueba
+    // (nunca la fila compartida de configuración) para no dejar el efecto
+    // secundario a medio camino si una aserción de más abajo fallara.
+    const { error: errSuspender } = await admin
+      .from("perfiles")
+      .update({ estado: "SUSPENDIDO" })
+      .eq("id", userConAcceso.user!.id);
+    if (errSuspender) throw new Error(`No pude suspender al usuario de prueba: ${errSuspender.message}`);
+
+    await esperarBloqueado(
+      "un usuario suspendido no puede publicar en comunidad_posts aunque tenga suscripción vigente",
+      clienteConAcceso
+        .from("comunidad_posts")
+        .insert({ id_usuario: userConAcceso.user!.id, categoria: "PROYECTOS", titulo: "x", contenido: "x" })
+        .select(),
+    );
+
+    const { error: errReactivarComunidad } = await admin
+      .from("perfiles")
+      .update({ estado: "ACTIVO" })
+      .eq("id", userConAcceso.user!.id);
+    if (errReactivarComunidad) {
+      throw new Error(`No pude reactivar al usuario de prueba: ${errReactivarComunidad.message}`);
+    }
   } finally {
     console.log("\nLimpiando datos de prueba...");
 
@@ -2547,6 +2903,17 @@ async function main() {
       await admin.storage.from("certificados").remove([`${userConAcceso.user!.id}/${idCertificadoPrueba}.pdf`]);
     }
     for (const usuario of usuariosDePrueba) {
+      // Comunidad (083): moderación y reacciones antes que respuestas y
+      // posts, aunque casi todo esto ya cascadea desde comunidad_posts — no
+      // se depende de esa cascada, mismo criterio que el resto de este
+      // bucle. `id_eliminado_por` es la única columna de moderación que un
+      // usuario de prueba puede tener (solo el admin firma moderaciones);
+      // `id_post`/`id_respuesta` no hacen falta acá porque cascadean con el
+      // post/respuesta cuando se borra más abajo.
+      await admin.from("comunidad_moderacion").delete().eq("id_eliminado_por", usuario.id);
+      await admin.from("comunidad_reacciones").delete().eq("id_usuario", usuario.id);
+      await admin.from("comunidad_respuestas").delete().eq("id_usuario", usuario.id);
+      await admin.from("comunidad_posts").delete().eq("id_usuario", usuario.id);
       await admin.from("certificados").delete().eq("id_usuario", usuario.id);
       await admin.from("progreso").delete().eq("id_usuario", usuario.id);
       await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);

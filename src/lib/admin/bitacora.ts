@@ -69,8 +69,11 @@ export type EntradaBitacora = {
   accion: string;
   entidadAfectada: string;
   detalles: string | null;
+  /** El id crudo tal como quedó guardado — sirve para armar el enlace
+   * "Sobre" de CUALQUIER entidad (curso, examen, lección, comunidad...),
+   * no solo las de usuario. */
+  idEntidadAfectada: string | null;
   /** Solo cuando `entidadAfectada` es de usuario y se pudo resolver el nombre — ver ENTIDADES_DE_USUARIO. */
-  usuarioAfectadoId: string | null;
   usuarioAfectadoNombre: string | null;
 };
 
@@ -155,7 +158,7 @@ export async function getBitacora(
       accion: fila.accion,
       entidadAfectada: fila.entidad_afectada,
       detalles: fila.detalles,
-      usuarioAfectadoId: esDeUsuario ? (fila.id_entidad_afectada as string) : null,
+      idEntidadAfectada: (fila.id_entidad_afectada as string | null) ?? null,
       usuarioAfectadoNombre: esDeUsuario
         ? (nombresPorId.get(fila.id_entidad_afectada as string) ?? "Usuario eliminado")
         : null,

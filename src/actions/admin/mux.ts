@@ -54,11 +54,10 @@ export async function iniciarSubidaVideoLeccion(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { data: leccion } = await admin.supabase
-    .from("lecciones")
-    .select("id, id_mux_asset_id")
-    .eq("id", leccionId)
-    .maybeSingle();
+  const [{ data: leccion }, { data: curso }] = await Promise.all([
+    admin.supabase.from("lecciones").select("id, titulo, id_mux_asset_id").eq("id", leccionId).maybeSingle(),
+    admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
+  ]);
   if (!leccion) return { error: "La lección no existe." };
   // Si ya había un asset de Mux, esto es un reemplazo (no la primera
   // subida) — la bitácora y el mensaje de auditoría lo distinguen.
@@ -120,12 +119,18 @@ export async function iniciarSubidaVideoLeccion(
 
   if (error) return { error: "No pudimos registrar la subida en la lección." };
 
+  // `idEntidadAfectada` apunta al CURSO, no a la lección: una lección no
+  // tiene pantalla propia en el panel (se edita dentro de la pestaña de
+  // contenido del curso), así que enlazar a la lección no llevaría a
+  // ningún lado. El nombre del curso y de la lección quedan en `detalles`
+  // para que la fila diga de dónde es, en vez de solo "una lección".
+  const contexto = `${curso?.titulo ?? "curso desconocido"} — ${leccion.titulo ?? "sin título"}`;
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: esReemplazo ? "Inició el reemplazo del video de una lección" : "Inició la subida del video de una lección",
     entidadAfectada: "lecciones",
-    idEntidadAfectada: leccionId,
-    detalles: esReemplazo ? `Asset de Mux anterior: ${leccion.id_mux_asset_id}` : undefined,
+    idEntidadAfectada: cursoId,
+    detalles: esReemplazo ? `${contexto} (asset anterior: ${leccion.id_mux_asset_id})` : contexto,
   });
 
   revalidatePath(`/admin/cursos/${cursoId}`);

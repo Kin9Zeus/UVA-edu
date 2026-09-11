@@ -39,6 +39,16 @@ enum EstadoSuscripcion {
   CANCELADA
 }
 
+/// Categorías fijas del feed de Comunidad (F1 del plan — ver conversación de
+/// diseño). ANUNCIOS solo la usa un ADMINISTRADOR al crear el post — la
+/// restricción vive en la policy de INSERT (supabase/sql/083), no aquí.
+enum CategoriaComunidad {
+  ANUNCIOS
+  PROYECTOS
+  PREGUNTAS
+  EMPLEO
+}
+
 /// REEMBOLSADO y REVERSADO existen desde el diseño, aunque hoy ninguna
 /// pasarela esté conectada: sin ellos, registrar una devolución obligaría a
 /// mutar la fila del pago original y destruir el rastro contable. El
@@ -201,6 +211,12 @@ model Perfiles {
   comentarios_moderados       ComentarioModeracion[]
   cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
   intentos_examen             IntentosExamen[]
+  comunidad_posts             ComunidadPosts[]
+  comunidad_respuestas        ComunidadRespuestas[]
+  comunidad_reacciones        ComunidadReacciones[]
+  comunidad_moderaciones      ComunidadModeracion[]    @relation("ComunidadModeradaPorAdmin")
+  configuraciones_comunidad   ConfiguracionComunidad[] @relation("ConfiguracionComunidadActualizadaPorAdmin")
+  comunidad_adjuntos          ComunidadAdjuntos[]
 
   @@map("perfiles")
 }
@@ -1339,4 +1355,155 @@ model RecursosDescargables {
 
   @@index([id_leccion])
   @@map("recursos_descargables")
+}
+
+// ============================================================
+// Comunidad — F1 del plan (ver conversación de diseño, sept. 2026)
+//
+// Gate de acceso: private.comunidad_tiene_acceso() en supabase/sql/083, no
+// aquí — mismo criterio que curso_esta_completo (068): una sola fuente de
+// verdad en SQL, la app la consulta por el wrapper público, nunca reimplementa
+// la regla en TypeScript.
+// ============================================================
+
+/// Fila única (id = 1, forzado por CHECK en 083) que fijaba cuándo terminaba
+/// la ventana de "comunidad abierta a cualquier suscriptor" (bootstrap) y se
+/// pasaba a exigir curso completado en los últimos 30 días.
+///
+/// PARQUEADA desde 084_comunidad_gate_sin_requisito_temporal.sql: por
+/// decisión de negocio, el gate quedó reducido a "suscripción vigente O
+/// administrador", sin ventana de tiempo, mientras la comunidad no tenga
+/// masa crítica. La tabla y su RLS siguen existiendo sin usarse — no se
+/// borra nada — para poder reintroducir el requisito más adelante sin
+/// rediseñar el esquema, solo reescribiendo esa función.
+model ConfiguracionComunidad {
+  id              Int      @id @default(1)
+  fin_bootstrap   DateTime @db.Timestamptz
+  actualizado_en  DateTime @default(now()) @updatedAt @db.Timestamptz
+  actualizado_por String?  @db.Uuid
+
+  admin_actualizo Perfiles? @relation("ConfiguracionComunidadActualizadaPorAdmin", fields: [actualizado_por], references: [id])
+
+  @@index([actualizado_por])
+  @@map("configuracion_comunidad")
+}
+
+model ComunidadPosts {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario     String             @db.Uuid
+  categoria      CategoriaComunidad
+  titulo         String
+  contenido      String
+  /// Borrado lógico, mismo criterio que Comentarios.eliminado: conserva el
+  /// hilo de respuestas en vez de dejarlas huérfanas.
+  eliminado      Boolean            @default(false)
+  /// Solo ADMINISTRADOR — verificado en la policy de UPDATE (083), no aquí.
+  fijado         Boolean            @default(false)
+  creado_en      DateTime           @default(now()) @db.Timestamptz
+  actualizado_en DateTime           @default(now()) @updatedAt @db.Timestamptz
+
+  usuario    Perfiles              @relation(fields: [id_usuario], references: [id])
+  respuestas ComunidadRespuestas[]
+  reacciones ComunidadReacciones[]
+  moderacion ComunidadModeracion[]
+  adjuntos   ComunidadAdjuntos[]
+
+  @@index([categoria, creado_en])
+  @@index([id_usuario])
+  @@map("comunidad_posts")
+}
+
+model ComunidadRespuestas {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post        String   @db.Uuid
+  id_usuario     String   @db.Uuid
+  contenido      String
+  eliminado      Boolean  @default(false)
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  post       ComunidadPosts        @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  usuario    Perfiles              @relation(fields: [id_usuario], references: [id])
+  reacciones ComunidadReacciones[]
+  moderacion ComunidadModeracion[]
+  adjuntos   ComunidadAdjuntos[]
+
+  @@index([id_post, creado_en])
+  @@index([id_usuario])
+  @@map("comunidad_respuestas")
+}
+
+/// Reacciona a un post O a una respuesta, nunca a ambos — la exclusividad y
+/// el índice único (por usuario + objeto) viven como SQL crudo en 083, mismo
+/// motivo que las dos parciales de Suscripciones: Prisma no soporta CHECK ni
+/// unique con WHERE de forma nativa.
+model ComunidadReacciones {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post      String?  @db.Uuid
+  id_respuesta String?  @db.Uuid
+  id_usuario   String   @db.Uuid
+  creado_en    DateTime @default(now()) @db.Timestamptz
+
+  post      ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  respuesta ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
+  usuario   Perfiles             @relation(fields: [id_usuario], references: [id])
+
+  @@index([id_post])
+  @@index([id_respuesta])
+  @@index([id_usuario])
+  @@map("comunidad_reacciones")
+}
+
+/// Igual que ComentarioModeracion: evidencia del texto que un ADMINISTRADOR
+/// borró por moderación (no el propio autor), porque el borrado lógico ya
+/// vacía `contenido`/`ComunidadRespuestas.contenido`. Apunta a un post O a una
+/// respuesta, mismo patrón de exclusividad que ComunidadReacciones.
+model ComunidadModeracion {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post            String?  @db.Uuid
+  id_respuesta       String?  @db.Uuid
+  contenido_original String
+  id_eliminado_por   String   @db.Uuid
+  creado_en          DateTime @default(now()) @db.Timestamptz
+
+  post          ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  respuesta     ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
+  eliminado_por Perfiles             @relation("ComunidadModeradaPorAdmin", fields: [id_eliminado_por], references: [id])
+
+  @@index([id_post])
+  @@index([id_respuesta])
+  @@index([id_eliminado_por])
+  @@map("comunidad_moderacion")
+}
+
+/// Un archivo adjunto (imagen o documento) de un post O una respuesta, nunca
+/// ambos — mismo patrón de exclusividad que ComunidadReacciones. Puede haber
+/// varios por post/respuesta: cada uno corresponde a un marcador
+/// `[[adjunto:<id>]]` en el `contenido` de ese post/respuesta (src/lib/
+/// formato-texto.tsx), en el punto exacto donde el autor lo insertó al
+/// escribir. Inmutable: no hay UPDATE, se elimina y se vuelve a adjuntar.
+/// `ancho`/`alto` solo aplican a `es_imagen = true` — el feed los usa para
+/// reservar el espacio antes de que la imagen cargue.
+model ComunidadAdjuntos {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post         String?  @db.Uuid
+  id_respuesta    String?  @db.Uuid
+  id_usuario      String   @db.Uuid
+  ruta_storage    String
+  nombre_original String
+  tipo_archivo    String
+  es_imagen       Boolean
+  ancho           Int?
+  alto            Int?
+  tamano_bytes    Int
+  creado_en       DateTime @default(now()) @db.Timestamptz
+
+  post      ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  respuesta ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
+  usuario   Perfiles             @relation(fields: [id_usuario], references: [id])
+
+  @@index([id_post])
+  @@index([id_respuesta])
+  @@index([id_usuario])
+  @@map("comunidad_adjuntos")
 }

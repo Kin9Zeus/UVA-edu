@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcularDiasVigencia,
   calcularEstadoAcceso,
+  estadoSuscripcionEfectivo,
   suscripcionDaAcceso,
   tipoAccesoGratuito,
   type EstadoAcceso,
@@ -222,5 +223,42 @@ describe("suscripcionDaAcceso", () => {
     expect(
       suscripcionDaAcceso({ estado: "CANCELADA", fechaRenovacion: "2026-12-31T05:00:00Z" }, ahora),
     ).toBe(false);
+  });
+});
+
+describe("estadoSuscripcionEfectivo", () => {
+  const ahora = new Date("2026-09-03T20:00:00Z"); // 15:00 del 3 de septiembre en Bogotá
+
+  it("ACTIVA con la fecha ya pasada se reporta VENCIDA (el caso de la ficha de usuario)", () => {
+    expect(
+      estadoSuscripcionEfectivo({ estado: "ACTIVA", fechaRenovacion: "2026-09-02T23:00:00Z" }, ahora),
+    ).toBe("VENCIDA");
+  });
+
+  it("PAST_DUE pasada la gracia se reporta VENCIDA", () => {
+    expect(
+      estadoSuscripcionEfectivo({ estado: "PAST_DUE", fechaRenovacion: "2026-08-20T20:00:00Z" }, ahora),
+    ).toBe("VENCIDA");
+  });
+
+  it("ACTIVA todavía dentro de la fecha se mantiene ACTIVA", () => {
+    expect(
+      estadoSuscripcionEfectivo({ estado: "ACTIVA", fechaRenovacion: "2026-09-03T12:00:00Z" }, ahora),
+    ).toBe("ACTIVA");
+  });
+
+  it("PAST_DUE dentro de la gracia se mantiene PAST_DUE", () => {
+    expect(
+      estadoSuscripcionEfectivo({ estado: "PAST_DUE", fechaRenovacion: "2026-09-01T20:00:00Z" }, ahora),
+    ).toBe("PAST_DUE");
+  });
+
+  it("VENCIDA y CANCELADA pasan tal cual", () => {
+    expect(
+      estadoSuscripcionEfectivo({ estado: "VENCIDA", fechaRenovacion: "2026-12-31T05:00:00Z" }, ahora),
+    ).toBe("VENCIDA");
+    expect(
+      estadoSuscripcionEfectivo({ estado: "CANCELADA", fechaRenovacion: "2026-12-31T05:00:00Z" }, ahora),
+    ).toBe("CANCELADA");
   });
 });
