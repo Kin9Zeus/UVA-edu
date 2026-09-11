@@ -78,7 +78,7 @@ export function ComunidadPostCard({
   }
 
   const Titulo = truncar ? (
-    <Link href={`/dashboard/comunidad/${post.id}`} className="font-heading text-base text-uva-text hover:underline">
+    <Link href={`/dashboard/comunidad/${post.slug}`} className="font-heading text-base text-uva-text hover:underline">
       {post.titulo}
     </Link>
   ) : (
@@ -155,7 +155,7 @@ export function ComunidadPostCard({
               usuarioActualId={usuarioActualId}
             />
             {truncar ? (
-              <Link href={`/dashboard/comunidad/${post.id}`} className="hover:text-uva-text-muted">
+              <Link href={`/dashboard/comunidad/${post.slug}`} className="hover:text-uva-text-muted">
                 {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
               </Link>
             ) : (

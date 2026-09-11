@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluarToken, hashToken, type EstadoTokenVistaPrevia } from "@/lib/vistaPrevia";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
+import { esUuid } from "@/lib/slug";
 
 /**
  * ⚠️  ÚNICO punto de la aplicación que lee un curso NO publicado sin sesión.
@@ -95,7 +96,7 @@ export type CursoVistaPrevia = {
   modulos: {
     id: string;
     titulo: string;
-    lecciones: { id: string; titulo: string; duracion: number | null }[];
+    lecciones: { id: string; slug: string; titulo: string; duracion: number | null }[];
   }[];
   totalClases: number;
   totalRecursos: number;
@@ -116,7 +117,7 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
     .select(
       `id, titulo, descripcion, imagen_portada, nivel, mostrado, fecha_edicion:actualizado_en,
       curso_categorias(categoria:categorias(id, slug, nombre)),
-      modulos(id, titulo, orden, lecciones(id, titulo, orden, duracion, estado_procesamiento))`,
+      modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, estado_procesamiento))`,
     )
     .eq("id", idCurso)
     .maybeSingle();
@@ -167,6 +168,7 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
         .sort((a, b) => a.orden - b.orden)
         .map((leccion) => ({
           id: leccion.id,
+          slug: leccion.slug,
           titulo: leccion.titulo,
           // Mismo criterio que getCursoPublico (src/lib/curso.ts): sin video
           // LISTO, `duracion` no corresponde a un video real.
@@ -209,6 +211,7 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
 /** Una clase dentro de la lista "Clases y progreso" de la vista previa del reproductor. */
 export type LeccionEnListaVistaPrevia = {
   id: string;
+  slug: string;
   numero: number;
   titulo: string;
   duracion: number | null;
@@ -222,6 +225,7 @@ export type LeccionVistaPrevia = {
   cursoTitulo: string;
   publicado: boolean;
   leccionId: string;
+  leccionSlug: string;
   leccionTitulo: string;
   numero: number;
   totalClases: number;
@@ -230,14 +234,15 @@ export type LeccionVistaPrevia = {
   lecciones: LeccionEnListaVistaPrevia[];
   anteriorId: string | null;
   siguienteId: string | null;
+  siguienteSlug: string | null;
 };
 
 /**
  * Lee una clase de un enlace de vista previa.
  *
  * `idCurso` DEBE venir de resolverTokenVistaPrevia(), igual que en
- * getCursoVistaPrevia() (regla 2 de la cabecera). `leccionId` sí es del
- * visitante (viene de qué clase del temario clickeó), pero nunca toca la
+ * getCursoVistaPrevia() (regla 2 de la cabecera). `identificadorLeccion` (el slug, o el UUID
+ * de un enlace viejo) sí es del visitante (viene de qué clase del temario clickeó), pero nunca toca la
  * base sin antes verificar —vía el propio getCursoVistaPrevia(idCurso), que
  * ya está acotado por el token— que esa clase pertenece a este curso: el
  * `findIndex` de abajo es esa verificación. Si no aparece en `plano`, es que
@@ -246,7 +251,7 @@ export type LeccionVistaPrevia = {
  */
 export async function getLeccionVistaPrevia(
   idCurso: string,
-  leccionId: string,
+  identificadorLeccion: string,
 ): Promise<LeccionVistaPrevia | null> {
   const curso = await getCursoVistaPrevia(idCurso);
   if (!curso) return null;
@@ -254,9 +259,12 @@ export async function getLeccionVistaPrevia(
   const plano = curso.modulos.flatMap((modulo) =>
     modulo.lecciones.map((leccion) => ({ ...leccion, moduloId: modulo.id, moduloTitulo: modulo.titulo })),
   );
-  const indice = plano.findIndex((leccion) => leccion.id === leccionId);
+  const indice = plano.findIndex(
+    (leccion) => (esUuid(identificadorLeccion) ? leccion.id : leccion.slug) === identificadorLeccion,
+  );
   if (indice === -1) return null;
   const actual = plano[indice];
+  const leccionId = actual.id;
 
   const supabase = createAdminClient();
 
@@ -274,6 +282,7 @@ export async function getLeccionVistaPrevia(
     cursoTitulo: curso.titulo,
     publicado: curso.mostrado,
     leccionId: actual.id,
+    leccionSlug: actual.slug,
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases: plano.length,
@@ -286,6 +295,7 @@ export async function getLeccionVistaPrevia(
     })),
     lecciones: plano.map((leccion, i) => ({
       id: leccion.id,
+      slug: leccion.slug,
       numero: i + 1,
       titulo: leccion.titulo,
       duracion: leccion.duracion,
@@ -294,5 +304,6 @@ export async function getLeccionVistaPrevia(
     })),
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
     siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
+    siguienteSlug: indice < plano.length - 1 ? plano[indice + 1].slug : null,
   };
 }

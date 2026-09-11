@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { revalidarUsuarioAdmin } from "@/lib/admin/revalidarUsuario";
 import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
@@ -47,7 +48,7 @@ export async function suspenderActivarUsuario(
   });
 
   revalidatePath("/admin/usuarios");
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   return { success: true };
 }
 
@@ -94,7 +95,7 @@ export async function cambiarRolProfesor(
   });
 
   revalidatePath("/admin/usuarios");
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   revalidatePath("/admin/cursos");
   return { success: true };
 }
@@ -159,7 +160,7 @@ export async function actualizarEspecialidadProfesor(
     detalles: valor || "(sin especialidad)",
   });
 
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   // El nombre y la especialidad del profesor salen en el detalle público de
   // cada curso que dicta.
   revalidatePath("/catalogo");
@@ -247,7 +248,7 @@ export async function otorgarMembresia(usuarioId: string, planId: string): Promi
     detalles: `Plan: ${plan.nombre}`,
   });
 
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   revalidatePath("/admin/usuarios");
   return { success: true };
 }
@@ -302,7 +303,7 @@ export async function ofrecerCortesia(usuarioId: string, cursoId: string): Promi
     detalles: `Curso: ${cursoId}`,
   });
 
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   return { success: true };
 }
 
@@ -350,7 +351,7 @@ export async function quitarCortesia(
     detalles: motivoLimpio,
   });
 
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   return { success: true };
 }
 
@@ -406,7 +407,7 @@ export async function revocarMembresia(
     detalles: motivoLimpio,
   });
 
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   revalidatePath("/admin/usuarios");
   return { success: true };
 }
@@ -477,6 +478,6 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
   });
 
   revalidatePath("/admin/usuarios");
-  revalidatePath(`/admin/usuarios/${usuarioId}`);
+  revalidarUsuarioAdmin();
   return { success: true };
 }

@@ -61,6 +61,16 @@ export const BITACORA_POR_PAGINA = 30;
  */
 const ENTIDADES_DE_USUARIO = new Set(["perfiles", "suscripciones", "inscripciones"]);
 
+/**
+ * Qué ficha abre el enlace de cada entidad, para resolver su SLUG y que ningún
+ * enlace de la bitácora lleve un UUID. `intentos_examen` enlaza al usuario
+ * aunque no muestre su nombre; lecciones y exámenes guardan el id del CURSO
+ * (ver BitacoraTable).
+ */
+const ENTIDADES_CON_FICHA_DE_USUARIO: ReadonlySet<string> = new Set([...ENTIDADES_DE_USUARIO, "intentos_examen"]);
+const ENTIDADES_CON_FICHA_DE_CURSO: ReadonlySet<string> = new Set(["cursos", "lecciones", "examenes"]);
+const ENTIDADES_CON_FICHA_DE_POST: ReadonlySet<string> = new Set(["comunidad_posts"]);
+
 export type EntradaBitacora = {
   id: string;
   creadoEn: string;
@@ -73,6 +83,10 @@ export type EntradaBitacora = {
    * "Sobre" de CUALQUIER entidad (curso, examen, lección, comunidad...),
    * no solo las de usuario. */
   idEntidadAfectada: string | null;
+  /** Slug de la ficha a la que enlaza la fila (curso, usuario o publicación).
+   * `null` si la entidad no tiene ficha o ya no existe: el enlace cae al id, y
+   * la ficha redirige al slug o da 404. */
+  slugEntidad: string | null;
   /** Solo cuando `entidadAfectada` es de usuario y se pudo resolver el nombre — ver ENTIDADES_DE_USUARIO. */
   usuarioAfectadoNombre: string | null;
 };
@@ -128,24 +142,41 @@ export async function getBitacora(
     return { entradas: [], total: 0, pagina: paginaSegura, totalPaginas: 1 };
   }
 
-  // Segunda consulta, no un join: `id_entidad_afectada` no es una FK real
-  // hacia `perfiles` (según la fila, apunta a perfiles, suscripciones,
-  // cursos...), así que PostgREST no puede resolverlo en el embed de
-  // arriba. Se resuelve a mano solo para las entidades donde SÍ es un id de
-  // usuario, en un solo IN() para toda la página.
-  const idsUsuario = [
+  // Consultas aparte, no un join: `id_entidad_afectada` no es una FK real
+  // (según la fila apunta a perfiles, suscripciones, cursos...), así que
+  // PostgREST no puede resolverlo en el embed de arriba. Se resuelve a mano
+  // con un IN() por tipo de ficha para toda la página: el nombre del usuario
+  // afectado y el slug con el que se enlaza cada ficha.
+  const idsDe = (entidades: ReadonlySet<string>) => [
     ...new Set(
       data
-        .filter((fila) => ENTIDADES_DE_USUARIO.has(fila.entidad_afectada) && fila.id_entidad_afectada)
+        .filter((fila) => entidades.has(fila.entidad_afectada) && fila.id_entidad_afectada)
         .map((fila) => fila.id_entidad_afectada as string),
     ),
   ];
+  const idsUsuario = idsDe(ENTIDADES_CON_FICHA_DE_USUARIO);
+  const idsCurso = idsDe(ENTIDADES_CON_FICHA_DE_CURSO);
+  const idsPost = idsDe(ENTIDADES_CON_FICHA_DE_POST);
+
+  const [{ data: perfiles }, { data: cursos }, { data: posts }] = await Promise.all([
+    idsUsuario.length
+      ? supabase.from("perfiles").select("id, nombre, slug").in("id", idsUsuario)
+      : Promise.resolve({ data: [] as { id: string; nombre: string; slug: string }[] }),
+    idsCurso.length
+      ? supabase.from("cursos").select("id, slug").in("id", idsCurso)
+      : Promise.resolve({ data: [] as { id: string; slug: string }[] }),
+    idsPost.length
+      ? supabase.from("comunidad_posts").select("id, slug").in("id", idsPost)
+      : Promise.resolve({ data: [] as { id: string; slug: string }[] }),
+  ]);
 
   const nombresPorId = new Map<string, string>();
-  if (idsUsuario.length > 0) {
-    const { data: perfiles } = await supabase.from("perfiles").select("id, nombre").in("id", idsUsuario);
-    for (const perfil of perfiles ?? []) nombresPorId.set(perfil.id, perfil.nombre);
+  const slugPorId = new Map<string, string>();
+  for (const perfil of perfiles ?? []) {
+    nombresPorId.set(perfil.id, perfil.nombre);
+    slugPorId.set(perfil.id, perfil.slug);
   }
+  for (const fila of [...(cursos ?? []), ...(posts ?? [])]) slugPorId.set(fila.id, fila.slug);
 
   const entradas: EntradaBitacora[] = data.map((fila) => {
     const admin = Array.isArray(fila.admin) ? fila.admin[0] : fila.admin;
@@ -159,6 +190,7 @@ export async function getBitacora(
       entidadAfectada: fila.entidad_afectada,
       detalles: fila.detalles,
       idEntidadAfectada: (fila.id_entidad_afectada as string | null) ?? null,
+      slugEntidad: fila.id_entidad_afectada ? (slugPorId.get(fila.id_entidad_afectada as string) ?? null) : null,
       usuarioAfectadoNombre: esDeUsuario
         ? (nombresPorId.get(fila.id_entidad_afectada as string) ?? "Usuario eliminado")
         : null,

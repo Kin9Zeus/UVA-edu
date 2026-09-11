@@ -35,7 +35,11 @@ export function LeccionVistaPreviaContent({
   const [tab, setTab] = useState<TabPlayer>("recursos");
   const [temarioOpen, setTemarioOpen] = useState(false);
 
-  const hrefLeccion = (leccionId: string) => `/vista-previa/${token}/${leccionId}`;
+  // Las URLs llevan el slug de la clase, nunca su id. El Temario (TemarioDrawer,
+  // compartido con el reproductor) sigue entregando ids, así que se traducen
+  // acá — mismo patrón que PlayerContent.
+  const slugPorLeccionId = new Map(data.lecciones.map((leccion) => [leccion.id, leccion.slug]));
+  const hrefLeccion = (leccionSlug: string) => `/vista-previa/${token}/${leccionSlug}`;
 
   return (
     <div className="mx-auto max-w-[1320px] px-[clamp(20px,3vw,44px)] py-6">
@@ -58,9 +62,9 @@ export function LeccionVistaPreviaContent({
           >
             Temario
           </button>
-          {data.siguienteId ? (
+          {data.siguienteSlug ? (
             <Link
-              href={hrefLeccion(data.siguienteId)}
+              href={hrefLeccion(data.siguienteSlug)}
               className="inline-flex items-center rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
             >
               Siguiente clase →
@@ -132,7 +136,7 @@ export function LeccionVistaPreviaContent({
               return (
                 <Link
                   key={leccion.id}
-                  href={hrefLeccion(leccion.id)}
+                  href={hrefLeccion(leccion.slug)}
                   className={`flex items-center gap-[11px] rounded-uva-md border-0 px-[11px] py-[9px] text-left no-underline ${
                     esActual ? "bg-uva-accent/14" : "bg-transparent hover:bg-uva-text/5"
                   }`}
@@ -161,7 +165,7 @@ export function LeccionVistaPreviaContent({
         porcentaje={0}
         onIrALeccion={(leccionId) => {
           setTemarioOpen(false);
-          router.push(hrefLeccion(leccionId));
+          router.push(hrefLeccion(slugPorLeccionId.get(leccionId) ?? leccionId));
         }}
       />
     </div>

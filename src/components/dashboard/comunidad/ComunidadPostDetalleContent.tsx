@@ -15,7 +15,7 @@ export function ComunidadPostDetalleContent({
   usuarioActualId: string;
   esAdmin: boolean;
 }) {
-  const ruta = `/dashboard/comunidad/${post.id}`;
+  const ruta = `/dashboard/comunidad/${post.slug}`;
 
   return (
     <ComunidadLayout nav={<ComunidadCategoriaTabs sinActivo />}>

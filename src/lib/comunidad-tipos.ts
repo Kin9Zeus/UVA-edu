@@ -83,6 +83,8 @@ export type AccesoComunidad =
 
 export type ComunidadPostResumen = {
   id: string;
+  /** URL del hilo (/dashboard/comunidad/<slug>); fijo aunque se edite el título. */
+  slug: string;
   categoria: CategoriaComunidad;
   titulo: string;
   contenido: string;
@@ -118,6 +120,7 @@ export type ComunidadPostDetalle = ComunidadPostResumen & {
  * palabra, calificaba como "actividad" y volvía la lista ruidosa). */
 export type ComunidadActividadItem = {
   id: string;
+  slug: string;
   titulo: string;
   autorNombre: string;
   tiempo: string;
@@ -126,6 +129,7 @@ export type ComunidadActividadItem = {
 /** Una entrada del riel "Más respondidas esta semana". */
 export type ComunidadDestacadoItem = {
   id: string;
+  slug: string;
   titulo: string;
   totalRespuestas: number;
 };

@@ -83,7 +83,7 @@ export function PlayerContent({
   }, [data.leccionId]);
 
   // `data.anteriorId`/`data.siguienteId` y el Temario (TemarioDrawer, también
-  // usado por LeccionVistaPreviaContent con lecciones que no tienen slug)
+  // usado por LeccionVistaPreviaContent)
   // siguen navegando por id — esta tabla los traduce al slug real de la
   // lección justo antes de construir la URL.
   const slugPorLeccionId = new Map(data.lecciones.map((leccion) => [leccion.id, leccion.slug]));

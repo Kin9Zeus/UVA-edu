@@ -278,7 +278,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
               >
                 <div className="flex items-center justify-between gap-3">
                   <Link
-                    href={`/admin/usuarios/${usuario.id}`}
+                    href={`/admin/usuarios/${usuario.slug}`}
                     className="flex min-w-0 items-center gap-2.5"
                   >
                     <Avatar className="size-[30px] shrink-0 bg-uva-divider after:hidden">
@@ -353,7 +353,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                   </TableCell>
                   <TableCell className="font-semibold">
                     <Link
-                      href={`/admin/usuarios/${usuario.id}`}
+                      href={`/admin/usuarios/${usuario.slug}`}
                       className="text-uva-text hover:text-uva-accent-text"
                     >
                       {usuario.nombre}

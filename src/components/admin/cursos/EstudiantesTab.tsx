@@ -120,7 +120,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
               >
                 <div className="flex items-center justify-between gap-3">
                   <Link
-                    href={`/admin/usuarios/${estudiante.usuarioId}`}
+                    href={`/admin/usuarios/${estudiante.usuarioSlug}`}
                     className="flex min-w-0 items-center gap-2.5"
                   >
                     <Avatar size="sm" className="shrink-0 bg-uva-divider">
@@ -167,7 +167,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
               {filtrados.map((estudiante) => (
                 <TableRow key={estudiante.inscripcionId ?? estudiante.usuarioId}>
                   <TableCell>
-                    <Link href={`/admin/usuarios/${estudiante.usuarioId}`} className="flex items-center gap-2.5">
+                    <Link href={`/admin/usuarios/${estudiante.usuarioSlug}`} className="flex items-center gap-2.5">
                       <Avatar size="sm" className="bg-uva-divider">
                         <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
                           {iniciales(estudiante.nombre)}

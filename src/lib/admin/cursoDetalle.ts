@@ -52,6 +52,8 @@ export type EstudianteDeCurso = {
    */
   inscripcionId: string | null;
   usuarioId: string;
+  /** Para enlazar la ficha del panel sin el UUID. */
+  usuarioSlug: string;
   nombre: string;
   progreso: number;
   /** EXAMEN_PENDIENTE: terminó todas las clases pero el curso exige examen
@@ -194,7 +196,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     // Hint de FK explícito: inscripciones tiene dos relaciones hacia perfiles
     // (id_usuario y otorgado_por), así que `perfiles(nombre)` sin desambiguar
     // es un embed ambiguo para PostgREST y la query falla en silencio.
-    .select("id, id_usuario, tipo_acceso, activo, usuario:perfiles!inscripciones_id_usuario_fkey(nombre)")
+    .select("id, id_usuario, tipo_acceso, activo, usuario:perfiles!inscripciones_id_usuario_fkey(nombre, slug)")
     .eq("id_curso", cursoId);
 
   const { data: progreso } =
@@ -267,6 +269,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     return {
       inscripcionId: inscripcion.id,
       usuarioId: inscripcion.id_usuario,
+      usuarioSlug: usuario?.slug ?? inscripcion.id_usuario,
       nombre: usuario?.nombre ?? "Usuario eliminado",
       progreso: porcentaje,
       estado:
@@ -293,7 +296,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   if (usuarioIdsSinInscripcion.length > 0) {
     const { data: perfilesSinInscripcion } = await supabase
       .from("perfiles")
-      .select("id, nombre")
+      .select("id, nombre, slug")
       .in("id", usuarioIdsSinInscripcion);
 
     for (const usuarioId of usuarioIdsSinInscripcion) {
@@ -304,6 +307,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       estudiantes.push({
         inscripcionId: null,
         usuarioId,
+        usuarioSlug: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.slug ?? usuarioId,
         nombre: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.nombre ?? "Usuario eliminado",
         progreso: porcentaje,
         estado:

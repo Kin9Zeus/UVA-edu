@@ -8,6 +8,7 @@ export type EstadoSuscripcionListado = "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANC
 
 export type UsuarioListado = {
   id: string;
+  slug: string;
   nombre: string;
   correo: string;
   rol: "ESTUDIANTE" | "ADMINISTRADOR" | "PROFESOR";
@@ -105,9 +106,20 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
 
   const total = Number(filas[0]?.total_resultados ?? 0);
 
+  // El slug no viene en el RPC a propósito: cambiar las columnas que devuelve
+  // `admin_listar_usuarios` obliga a DROP + CREATE, y `db:rls` vuelve a correr
+  // sus versiones anteriores (037, 040, 054, 074) con el tipo viejo — fallaría
+  // en cada aplicación. Es una consulta más, acotada a los ids de esta página.
+  const ids = filas.map((fila) => fila.id);
+  const { data: slugs } = ids.length
+    ? await supabase.from("perfiles").select("id, slug").in("id", ids)
+    : { data: [] as { id: string; slug: string }[] };
+  const slugPorId = new Map((slugs ?? []).map((fila) => [fila.id as string, fila.slug as string]));
+
   return {
     usuarios: filas.map((fila) => ({
       id: fila.id,
+      slug: slugPorId.get(fila.id) ?? fila.id,
       nombre: fila.nombre,
       correo: fila.correo,
       rol: fila.rol,

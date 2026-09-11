@@ -127,7 +127,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
+              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.slugEntidad ?? entrada.idEntidadAfectada) : undefined;
 
               return (
                 <div
@@ -202,7 +202,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
+              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.slugEntidad ?? entrada.idEntidadAfectada) : undefined;
 
               return (
                 <TableRow key={entrada.id}>

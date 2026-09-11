@@ -117,7 +117,7 @@ export function ContenidoVistaPrevia({
                     {modulo.lecciones.map((leccion, index) => (
                       <Link
                         key={leccion.id}
-                        href={`/vista-previa/${token}/${leccion.id}`}
+                        href={`/vista-previa/${token}/${leccion.slug}`}
                         className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
@@ -156,7 +156,7 @@ export function ContenidoVistaPrevia({
         <div className="order-3 lg:order-none">
           {primeraLeccion ? (
             <Link
-              href={`/vista-previa/${token}/${primeraLeccion.id}`}
+              href={`/vista-previa/${token}/${primeraLeccion.slug}`}
               className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent px-4 text-[14px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
             >
               Comenzar curso

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { esUuid } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tiempoRelativo, extensionArchivo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
@@ -73,6 +74,7 @@ export async function resolverAccesoComunidad(): Promise<AccesoComunidad> {
 
 type FilaPost = {
   id: string;
+  slug: string;
   id_usuario: string;
   categoria: CategoriaComunidad;
   titulo: string;
@@ -224,7 +226,7 @@ export async function getComunidadFeed(opciones?: {
 
   let consulta = supabase
     .from("comunidad_posts")
-    .select("id, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
+    .select("id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
     .eq("eliminado", false)
     .order("fijado", { ascending: false })
     .order("creado_en", { ascending: false });
@@ -260,6 +262,7 @@ export async function getComunidadFeed(opciones?: {
     const extra = enriquecido.get(fila.id)!;
     return {
       id: fila.id,
+      slug: fila.slug,
       categoria: fila.categoria,
       titulo: fila.titulo,
       contenido: fila.contenido,
@@ -277,8 +280,10 @@ export async function getComunidadFeed(opciones?: {
 }
 
 /** Un post con su hilo de respuestas, para la pantalla de detalle.
- * `null` si no existe o está eliminado (la página responde con 404). */
-export async function getComunidadPost(postId: string): Promise<ComunidadPostDetalle | null> {
+ * `identificador` es el slug de la URL, o el UUID de un enlace viejo (la
+ * página redirige ese caso al slug). `null` si no existe o está eliminado
+ * (la página responde con 404). */
+export async function getComunidadPost(identificador: string): Promise<ComunidadPostDetalle | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -286,12 +291,12 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
 
   const { data: post, error } = await supabase
     .from("comunidad_posts")
-    .select("id, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
-    .eq("id", postId)
+    .select("id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
+    .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .maybeSingle();
 
   if (error) {
-    logError("comunidad:detalle", "no se pudo leer la publicación de comunidad", error, { postId });
+    logError("comunidad:detalle", "no se pudo leer la publicación de comunidad", error, { identificador });
     return null;
   }
   if (!post || post.eliminado) return null;
@@ -299,11 +304,11 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
   const { data: respuestasFilas, error: errorRespuestas } = await supabase
     .from("comunidad_respuestas")
     .select("id, id_usuario, contenido, eliminado, creado_en")
-    .eq("id_post", postId)
+    .eq("id_post", post.id)
     .order("creado_en", { ascending: true });
 
   if (errorRespuestas) {
-    logError("comunidad:detalle", "no se pudieron leer las respuestas", errorRespuestas, { postId });
+    logError("comunidad:detalle", "no se pudieron leer las respuestas", errorRespuestas, { postId: post.id });
   }
   const filasRespuestas = respuestasFilas ?? [];
 
@@ -313,6 +318,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
 
   return {
     id: post.id,
+    slug: post.slug,
     categoria: post.categoria,
     titulo: post.titulo,
     contenido: post.contenido,
@@ -353,7 +359,7 @@ export async function getComunidadActividadReciente(): Promise<ComunidadActivida
 
   const { data: posts, error } = await supabase
     .from("comunidad_posts")
-    .select("id, id_usuario, titulo, creado_en")
+    .select("id, slug, id_usuario, titulo, creado_en")
     .eq("eliminado", false)
     .order("creado_en", { ascending: false })
     .limit(6);
@@ -375,6 +381,7 @@ export async function getComunidadActividadReciente(): Promise<ComunidadActivida
 
   return filas.map((p) => ({
     id: p.id as string,
+    slug: p.slug as string,
     titulo: p.titulo as string,
     autorNombre: nombrePorAutorId.get(p.id_usuario as string) ?? "Usuario",
     tiempo: tiempoRelativo(p.creado_en as string),
@@ -390,7 +397,7 @@ export async function getComunidadDestacados(): Promise<ComunidadDestacadoItem[]
 
   const { data: posts, error } = await supabase
     .from("comunidad_posts")
-    .select("id, titulo")
+    .select("id, slug, titulo")
     .eq("eliminado", false)
     .gte("creado_en", hace7Dias);
 
@@ -415,7 +422,7 @@ export async function getComunidadDestacados(): Promise<ComunidadDestacadoItem[]
   }
 
   return filas
-    .map((p) => ({ id: p.id as string, titulo: p.titulo as string, totalRespuestas: conteoPorPost.get(p.id as string) ?? 0 }))
+    .map((p) => ({ id: p.id as string, slug: p.slug as string, titulo: p.titulo as string, totalRespuestas: conteoPorPost.get(p.id as string) ?? 0 }))
     .filter((p) => p.totalRespuestas > 0)
     .sort((a, b) => b.totalRespuestas - a.totalRespuestas)
     .slice(0, 4);

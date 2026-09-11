@@ -5,6 +5,7 @@ import {
   getEstadoExamenPorCurso,
   type EstadoCursoConExamen,
 } from "@/lib/examenes/estadoPorCurso";
+import { esUuid } from "@/lib/slug";
 
 export type CursoDelUsuario = {
   /**
@@ -66,6 +67,23 @@ export type UsuarioDetalle = {
     ultimaActividad: string | null;
   };
 };
+
+/**
+ * Id y slug del usuario a partir de lo que llegue en la URL del panel: el slug
+ * (lo normal) o el UUID (bitácora, enlaces viejos). Mismo criterio que
+ * resolverCursoAdmin (lib/admin/cursoDetalle.ts).
+ */
+export async function resolverUsuarioAdmin(
+  identificador: string,
+): Promise<{ id: string; slug: string } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("perfiles")
+    .select("id, slug")
+    .eq(esUuid(identificador) ? "id" : "slug", identificador)
+    .maybeSingle();
+  return data as { id: string; slug: string } | null;
+}
 
 export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetalle | null> {
   const supabase = await createClient();

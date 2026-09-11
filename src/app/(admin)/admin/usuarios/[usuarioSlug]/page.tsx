@@ -1,20 +1,32 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getUsuarioDetalle } from "@/lib/admin/usuarioDetalle";
+import { getUsuarioDetalle, resolverUsuarioAdmin } from "@/lib/admin/usuarioDetalle";
+import { esUuid } from "@/lib/slug";
 import { UsuarioDetalleView } from "@/components/admin/usuarios/UsuarioDetalleView";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de usuario",
 };
 
+/**
+ * Ficha del usuario, direccionada por slug (/admin/usuarios/andres-escobar).
+ *
+ * Sigue aceptando el UUID —la bitácora guarda ids, y circulan enlaces
+ * viejos— pero redirige a la versión con slug para que la barra del
+ * navegador nunca muestre el id. 307 y no 308 por lo mismo que en /cursos/[cursoSlug]/page.tsx: el slug puede cambiar.
+ */
 export default async function AdminUsuarioDetallePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ usuarioSlug: string }>;
 }) {
-  const { id } = await params;
-  const usuario = await getUsuarioDetalle(id);
+  const { usuarioSlug } = await params;
+  const referencia = await resolverUsuarioAdmin(usuarioSlug);
+  if (!referencia) notFound();
+  if (esUuid(usuarioSlug)) redirect(`/admin/usuarios/${referencia.slug}`);
+
+  const usuario = await getUsuarioDetalle(referencia.id);
   if (!usuario) notFound();
 
   const supabase = await createClient();
