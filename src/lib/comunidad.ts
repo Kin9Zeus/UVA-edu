@@ -14,6 +14,20 @@ import type {
   ComunidadAdjunto,
 } from "@/lib/comunidad-tipos";
 
+/**
+ * "Diseño Paramétrico" -> "diseno parametrico" — insensible a tildes y
+ * mayúsculas para el buscador del feed. Mismo criterio de
+ * `normalize("NFD")` que slugificar() (src/lib/slug.ts), pero sin
+ * colapsar a slug: acá hace falta conservar los espacios para comparar
+ * substrings de frases completas.
+ */
+function normalizarBusqueda(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 // Cubre la duración de una vista del feed/detalle, no solo un clic —a
 // diferencia de la URL de descarga de un documento (obtenerUrlAdjuntoComunidad,
 // 300s), esta se pinta directo en un <img> y puede quedar abierta en la
@@ -228,11 +242,20 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
 /** Feed de Comunidad, opcionalmente filtrado por categoría o restringido a
  * las publicaciones del usuario actual ("Mis publicaciones" — mutuamente
  * excluyente con la categoría, para no mezclar dos filtros en un MVP).
- * Publicaciones fijadas primero, después por fecha descendente. */
+ * Publicaciones fijadas primero siempre; dentro de cada grupo (fijadas y no
+ * fijadas), por `orden`: "reciente" (por fecha, el default) o "relevancia"
+ * (reacciones + respuestas, más comentado primero). `busqueda` filtra por
+ * coincidencia de substring en título o contenido, insensible a tildes y
+ * mayúsculas — mismo criterio de UX que el buscador del catálogo
+ * (CatalogoContent), pero en JS sobre lo que ya devolvió RLS: el feed no
+ * pagina (a diferencia del catálogo, que sí puede tener miles de cursos),
+ * así que no hace falta una función SQL de búsqueda para esto. */
 export async function getComunidadFeed(opciones?: {
   categoria?: CategoriaComunidad;
   soloPropios?: boolean;
   usuarioId?: string;
+  busqueda?: string;
+  orden?: "relevancia" | "reciente";
 }): Promise<ComunidadPostResumen[]> {
   const supabase = await createClient();
   const {
@@ -258,7 +281,15 @@ export async function getComunidadFeed(opciones?: {
     logError("comunidad:feed", "no se pudo leer el feed de comunidad", error, { opciones });
     return [];
   }
-  const filas = (posts ?? []) as FilaPost[];
+  let filas = (posts ?? []) as FilaPost[];
+
+  const textoBusqueda = opciones?.busqueda?.trim();
+  if (textoBusqueda) {
+    const q = normalizarBusqueda(textoBusqueda);
+    filas = filas.filter(
+      (fila) => normalizarBusqueda(fila.titulo).includes(q) || normalizarBusqueda(fila.contenido).includes(q),
+    );
+  }
   if (filas.length === 0) return [];
 
   const postIds = filas.map((fila) => fila.id);
@@ -271,6 +302,16 @@ export async function getComunidadFeed(opciones?: {
   for (const r of respuestas ?? []) {
     const id = r.id_post as string;
     respuestasPorPost.set(id, (respuestasPorPost.get(id) ?? 0) + 1);
+  }
+
+  if (opciones?.orden === "relevancia") {
+    filas = [...filas].sort((a, b) => {
+      if (a.fijado !== b.fijado) return a.fijado ? -1 : 1;
+      const scoreA = (enriquecido.get(a.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(a.id) ?? 0);
+      const scoreB = (enriquecido.get(b.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(b.id) ?? 0);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
+    });
   }
 
   return filas.map((fila) => {

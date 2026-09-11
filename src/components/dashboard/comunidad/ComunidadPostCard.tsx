@@ -128,7 +128,17 @@ export function ComunidadPostCard({
 
   return (
     <article
-      className={`flex flex-col gap-3 rounded-uva-md border border-uva-divider p-4 ${post.fijado ? "bg-[#141417]" : "bg-uva-surface"}`}
+      className={cn(
+        "flex flex-col gap-3 rounded-uva-md border p-4",
+        // Antes solo cambiaba unos puntos el fondo (#141417 vs uva-surface)
+        // y un texto gris apenas visible — un post fijado se perdía en el
+        // feed en vez de destacar. Ahora usa el mismo tratamiento de
+        // "destacado" que ya tiene la tarjeta de plan resaltado
+        // (Pricing.tsx): borde y fondo con tinte del acento de marca.
+        post.fijado
+          ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
+          : "border-uva-divider bg-uva-surface",
+      )}
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -140,8 +150,8 @@ export function ComunidadPostCard({
           {CATEGORIA_LABEL[post.categoria]}
         </span>
         {post.fijado && (
-          <span className="inline-flex items-center gap-1 text-xs text-uva-text-faint">
-            <Pin className="size-3" strokeWidth={2} />
+          <span className="inline-flex items-center gap-1 rounded-full bg-uva-accent-soft px-2 py-0.5 text-xs font-semibold text-uva-accent-text">
+            <Pin className="size-3" strokeWidth={2.4} />
             Fijado
           </span>
         )}
