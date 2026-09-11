@@ -225,6 +225,8 @@ model Perfiles {
   configuraciones_comunidad   ConfiguracionComunidad[] @relation("ConfiguracionComunidadActualizadaPorAdmin")
   comunidad_adjuntos          ComunidadAdjuntos[]
   comunidad_reportes          ComunidadReportes[]      @relation("ComunidadReportadaPor")
+  notificaciones              Notificaciones[]         @relation("NotificacionesDelUsuario")
+  notificaciones_generadas    Notificaciones[]         @relation("NotificacionesGeneradasPorActor")
 
   @@map("perfiles")
 }
@@ -1522,6 +1524,40 @@ model ComunidadReportes {
   @@index([id_reportante])
   @@index([revisado, creado_en])
   @@map("comunidad_reportes")
+}
+
+/// Notificación in-app genérica — hoy solo la dispara el trigger
+/// `comunidad_respuestas_notifica_autor` (094_comunidad_notificaciones.sql)
+/// cuando alguien responde tu post, pero el `tipo` abierto (no un enum)
+/// deja sumar más disparadores después (reacciones, anuncios) sin
+/// migración de esquema. Nunca la inserta la app directo: no hay policy de
+/// INSERT para `authenticated`, solo el trigger (SECURITY DEFINER) decide
+/// qué es una notificación legítima y para quién — mismo criterio que
+/// `intento_examen_emite_certificado` (068), nunca confiar en que el
+/// cliente diga a quién le llega un aviso.
+model Notificaciones {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario   String   @db.Uuid
+  /// 'COMUNIDAD_RESPUESTA' por ahora. Texto libre a propósito (ver el
+  /// comentario de arriba), acotado por CHECK en SQL, no por un enum de
+  /// Prisma que exigiría una migración por cada tipo nuevo.
+  tipo         String
+  /// Quién generó el aviso (quien respondió, quien reaccionó...). Puede
+  /// ser null si algún día hay un tipo sin actor (un anuncio del sistema).
+  id_actor     String?  @db.Uuid
+  /// A qué entidad de comunidad apunta el link ("comunidad_post"), y su id
+  /// — misma pareja (tipo, id) suelta que ya usa comunidad_moderacion en
+  /// vez de una FK por tabla, porque el link varía según `tipo`.
+  entidad_tipo String
+  entidad_id   String   @db.Uuid
+  leida        Boolean  @default(false)
+  creado_en    DateTime @default(now()) @db.Timestamptz
+
+  usuario Perfiles  @relation("NotificacionesDelUsuario", fields: [id_usuario], references: [id], onDelete: Cascade)
+  actor   Perfiles? @relation("NotificacionesGeneradasPorActor", fields: [id_actor], references: [id], onDelete: SetNull)
+
+  @@index([id_usuario, leida, creado_en])
+  @@map("notificaciones")
 }
 
 /// Un archivo adjunto (imagen o documento) de un post O una respuesta, nunca

@@ -5,7 +5,9 @@ import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
+import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
 import { cn } from "@/lib/utils";
+import type { Notificacion } from "@/lib/notificaciones";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +32,8 @@ export function Header({
   ocultarAccionesEnMobile = false,
   ocultarBuscador = false,
   diasGracia = null,
+  notificaciones = [],
+  notificacionesNoLeidas = 0,
 }: {
   nombre: string;
   fotoUrl?: string | null;
@@ -51,6 +55,10 @@ export function Header({
   /** Si no es null, muestra el ícono de alerta de período de gracia (solo
    * mobile; en desktop ese aviso vive en la tarjeta fija del Sidebar). */
   diasGracia?: number | null;
+  /** Últimas notificaciones y cuántas siguen sin leer — ver
+   * getDashboardChromeData (src/lib/dashboard-chrome.ts). */
+  notificaciones?: Notificacion[];
+  notificacionesNoLeidas?: number;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
@@ -90,6 +98,7 @@ export function Header({
           Planes
         </Link>
         <GraciaAlerta diasGracia={diasGracia} />
+        <NotificacionesBell notificaciones={notificaciones} noLeidas={notificacionesNoLeidas} />
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
