@@ -3,24 +3,27 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { Popover } from "@base-ui/react/popover";
 import {
   marcarNotificacionLeida,
   marcarTodasNotificacionesLeidas,
+  eliminarNotificacion,
 } from "@/actions/notificaciones";
 import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones-tipos";
 
 /**
  * Campana de notificaciones del header — mismo Popover que ya usaba
- * GraciaAlerta para el aviso de período de gracia, pero genérico: hoy solo
- * dispara "te respondieron un post" (comunidad_respuestas_notifica_autor,
- * 094_comunidad_notificaciones.sql), pero la UI ya no asume un único tipo.
+ * GraciaAlerta para el aviso de período de gracia, pero genérico: hoy
+ * dispara "te respondieron un post" y "nuevo anuncio" (094/095), pero la UI
+ * ya no asume un único tipo.
  *
  * El conteo/lista llegan ya resueltos del servidor (getDashboardChromeData)
  * en cada carga de página — sin tiempo real por ahora, mismo alcance MVP
- * que el resto de Comunidad. `router.refresh()` tras marcar leído vuelve a
- * pedir esos datos para que el punto rojo se actualice.
+ * que el resto de Comunidad. Se copian a estado local (`locales`) para que
+ * quitar una con "×" se sienta inmediato sin esperar el roundtrip;
+ * `router.refresh()` igual corre por detrás para que el punto rojo y el
+ * resto de la app vean el conteo real.
  */
 export function NotificacionesBell({
   notificaciones,
@@ -32,6 +35,18 @@ export function NotificacionesBell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [locales, setLocales] = useState(notificaciones);
+  // Ajustar estado a partir de props DURANTE el render (patrón recomendado
+  // de React, no un useEffect) — sin esto, tras cada router.refresh() la
+  // lista se quedaría congelada en el valor con el que se montó el
+  // componente la primera vez: una notificación nueva que llegó mientras
+  // el popover estaba cerrado nunca aparecería sin recargar la página
+  // entera.
+  const [prevNotificaciones, setPrevNotificaciones] = useState(notificaciones);
+  if (notificaciones !== prevNotificaciones) {
+    setPrevNotificaciones(notificaciones);
+    setLocales(notificaciones);
+  }
 
   function alAbrirNotificacion(notificacion: Notificacion) {
     setOpen(false);
@@ -46,6 +61,14 @@ export function NotificacionesBell({
   function marcarTodo() {
     startTransition(async () => {
       await marcarTodasNotificacionesLeidas();
+      router.refresh();
+    });
+  }
+
+  function quitar(notificacion: Notificacion) {
+    setLocales((actuales) => actuales.filter((n) => n.id !== notificacion.id));
+    startTransition(async () => {
+      await eliminarNotificacion(notificacion.id);
       router.refresh();
     });
   }
@@ -79,30 +102,48 @@ export function NotificacionesBell({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {notificaciones.length === 0 ? (
+              {locales.length === 0 ? (
                 <p className="px-3.5 py-6 text-center text-[13px] text-uva-text-faint">
                   No tienes notificaciones todavía.
                 </p>
               ) : (
-                notificaciones.map((notificacion) => (
-                  <Link
+                locales.map((notificacion) => (
+                  // Fila con dos hijos hermanos (Link + botón "×"), nunca un
+                  // botón anidado dentro del Link: dos elementos
+                  // interactivos uno dentro del otro es HTML inválido y
+                  // complica que el clic en "×" no dispare también la
+                  // navegación del Link.
+                  <div
                     key={notificacion.id}
-                    href={urlNotificacion(notificacion)}
-                    onClick={() => alAbrirNotificacion(notificacion)}
-                    className="block border-b border-uva-divider px-3.5 py-2.5 text-[13px] text-uva-text last:border-b-0 hover:bg-uva-hover"
+                    className="group flex items-start gap-1 border-b border-uva-divider last:border-b-0 hover:bg-uva-hover"
                   >
-                    <span className="flex items-start gap-2">
-                      {!notificacion.leida && (
-                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-uva-accent" aria-hidden />
-                      )}
-                      <span className={notificacion.leida ? "text-uva-text-muted" : "text-uva-text"}>
-                        {mensajeNotificacion(notificacion)}
+                    <Link
+                      href={urlNotificacion(notificacion)}
+                      onClick={() => alAbrirNotificacion(notificacion)}
+                      className="min-w-0 flex-1 px-3.5 py-2.5 text-[13px] text-uva-text"
+                    >
+                      <span className="flex items-start gap-2">
+                        {!notificacion.leida && (
+                          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-uva-accent" aria-hidden />
+                        )}
+                        <span className={notificacion.leida ? "text-uva-text-muted" : "text-uva-text"}>
+                          {mensajeNotificacion(notificacion)}
+                        </span>
                       </span>
-                    </span>
-                    <span className="mt-0.5 block pl-3.5 font-mono text-[11px] text-uva-text-faint">
-                      {notificacion.tiempo}
-                    </span>
-                  </Link>
+                      <span className="mt-0.5 block pl-3.5 font-mono text-[11px] text-uva-text-faint">
+                        {notificacion.tiempo}
+                      </span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => quitar(notificacion)}
+                      aria-label="Quitar notificación"
+                      title="Quitar notificación"
+                      className="mt-2 mr-2 shrink-0 rounded-uva-sm p-1 text-uva-text-faint opacity-0 hover:text-uva-text group-hover:opacity-100 pointer-coarse:opacity-100"
+                    >
+                      <X className="size-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

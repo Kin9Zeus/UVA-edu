@@ -2977,6 +2977,18 @@ async function main() {
         .select(),
     );
 
+    // 096: quitar (borrar) una notificación propia — el botón "×" del
+    // desplegable.
+    await esperarBloqueado(
+      "quien generó la notificación NO puede borrarla (no es suya)",
+      clienteConAcceso.from("notificaciones").delete().eq("id", notificacionGenerada.id).select(),
+    );
+
+    await esperarPermitido(
+      "el destinatario SÍ puede borrar (quitar) su propia notificación",
+      clienteAdmin.from("notificaciones").delete().eq("id", notificacionGenerada.id).select(),
+    );
+
     // 095: publicar en ANUNCIOS notifica a TODOS los que tienen acceso a
     // Comunidad — a diferencia de 094 (una sola fila), acá se verifica que
     // llegó a quien debía (userConAcceso), NO al propio admin que lo

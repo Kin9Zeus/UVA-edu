@@ -393,6 +393,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
         eliminado: r.eliminado,
         eliminadoPorAdmin: r.eliminado_por_admin,
         tiempo: tiempoRelativo(r.creado_en),
+        creadoEn: r.creado_en,
         autorId: r.id_usuario,
         autorNombre: extra.autorNombre,
         autorFotoUrl: extra.autorFotoUrl,
