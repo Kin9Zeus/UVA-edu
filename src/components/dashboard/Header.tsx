@@ -79,17 +79,16 @@ export function Header({
         )}
       </div>
 
-      <Link
-        href="/dashboard/planes"
-        className={cn(
-          "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
-          ocultarAccionesEnMobile && "hidden md:inline-block",
-        )}
-      >
-        Planes
-      </Link>
-
       <div className="ml-auto flex items-center gap-1">
+        <Link
+          href="/dashboard/planes"
+          className={cn(
+            "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
+            ocultarAccionesEnMobile && "hidden md:inline-block",
+          )}
+        >
+          Planes
+        </Link>
         <GraciaAlerta diasGracia={diasGracia} />
         <DropdownMenu>
           <DropdownMenuTrigger
