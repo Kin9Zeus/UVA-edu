@@ -1568,6 +1568,7 @@ model Notificaciones {
   actor   Perfiles? @relation("NotificacionesGeneradasPorActor", fields: [id_actor], references: [id], onDelete: SetNull)
 
   @@index([id_usuario, leida, creado_en])
+  @@index([id_actor])
   @@map("notificaciones")
 }
 
