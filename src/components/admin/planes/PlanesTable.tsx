@@ -77,8 +77,10 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                     acciones={["Activar plan", "Desactivar plan"]}
                   />
                 </div>
+                {plan.descripcion && <p className="text-xs text-uva-muted">{plan.descripcion}</p>}
                 <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
                   {formatMoneda(plan.precioCentavos, plan.moneda)} · {plan.duracionDias} días
+                  {plan.nivelAcceso ? ` · ${plan.nivelAcceso}` : ""}
                 </p>
                 {plan.suscripcionesVigentes > 0 && (
                   <p className="text-xs text-uva-muted">
@@ -96,10 +98,10 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Descripción</TableHead>
                 <TableHead>Precio</TableHead>
-                <TableHead>Duración</TableHead>
                 <TableHead>Nivel</TableHead>
-                <TableHead>Suscripciones vigentes</TableHead>
+                <TableHead>Vigentes</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead />
               </TableRow>
@@ -111,18 +113,24 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                     <button
                       type="button"
                       onClick={() => abrirEditar(plan)}
-                      className="text-left font-semibold text-uva-text hover:text-uva-accent-text"
+                      className="text-left font-semibold whitespace-nowrap text-uva-text hover:text-uva-accent-text"
                     >
                       {plan.nombre}
                     </button>
-                    {plan.descripcion && (
-                      <p className="mt-0.5 max-w-[260px] text-[12px] text-uva-muted-2">{plan.descripcion}</p>
-                    )}
                   </TableCell>
-                  <TableCell className="font-mono tabular-nums">
-                    {formatMoneda(plan.precioCentavos, plan.moneda)}
+                  {/* Columna propia, no apilada bajo el nombre (mismo criterio
+                      que CategoriasTable): una descripción larga como la del
+                      Trimestral necesitaba su propio ancho para envolver en
+                      varias líneas en vez de comprimirse contra el nombre. */}
+                  <TableCell className="text-uva-muted whitespace-normal">{plan.descripcion ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="font-mono tabular-nums text-uva-text">
+                      {formatMoneda(plan.precioCentavos, plan.moneda)}
+                    </span>
+                    <span className="ml-1.5 font-mono text-[12px] tabular-nums text-uva-muted-2">
+                      / {plan.duracionDias}d
+                    </span>
                   </TableCell>
-                  <TableCell className="font-mono tabular-nums">{plan.duracionDias} días</TableCell>
                   <TableCell className="text-uva-muted">{plan.nivelAcceso ?? "—"}</TableCell>
                   <TableCell className="font-mono tabular-nums">{plan.suscripcionesVigentes}</TableCell>
                   <TableCell>
