@@ -9,7 +9,7 @@ import {
   marcarNotificacionLeida,
   marcarTodasNotificacionesLeidas,
 } from "@/actions/notificaciones";
-import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones";
+import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones-tipos";
 
 /**
  * Campana de notificaciones del header — mismo Popover que ya usaba

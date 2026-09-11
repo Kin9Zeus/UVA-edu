@@ -1,15 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { tiempoRelativo } from "@/lib/admin/format";
+import type { Notificacion } from "@/lib/notificaciones-tipos";
 
-export type Notificacion = {
-  id: string;
-  tipo: "COMUNIDAD_RESPUESTA";
-  actorNombre: string;
-  entidadTipo: "comunidad_post";
-  entidadId: string;
-  leida: boolean;
-  tiempo: string;
-};
+export type { Notificacion };
 
 /** Cuántas notificaciones sin leer tiene el usuario actual — para el punto
  * rojo de la campana. Liviano a propósito (`head: true`, sin traer filas):
@@ -54,21 +47,4 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
     leida: fila.leida,
     tiempo: tiempoRelativo(fila.creado_en),
   }));
-}
-
-/** A dónde lleva el clic en una notificación — un solo lugar para no
- * repetir el switch en cada componente que la muestre. */
-export function urlNotificacion(notificacion: Pick<Notificacion, "entidadTipo" | "entidadId">): string {
-  switch (notificacion.entidadTipo) {
-    case "comunidad_post":
-      return `/dashboard/comunidad/${notificacion.entidadId}`;
-  }
-}
-
-/** Texto de la notificación — igual, un solo lugar por tipo. */
-export function mensajeNotificacion(notificacion: Pick<Notificacion, "tipo" | "actorNombre">): string {
-  switch (notificacion.tipo) {
-    case "COMUNIDAD_RESPUESTA":
-      return `${notificacion.actorNombre} respondió tu publicación`;
-  }
 }

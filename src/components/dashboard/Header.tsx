@@ -7,7 +7,7 @@ import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
 import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
 import { cn } from "@/lib/utils";
-import type { Notificacion } from "@/lib/notificaciones";
+import type { Notificacion } from "@/lib/notificaciones-tipos";
 import {
   DropdownMenu,
   DropdownMenuContent,
