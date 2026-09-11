@@ -52,6 +52,10 @@ export async function crearPlan(input: PlanInput): Promise<AdminActionResult> {
   revalidatePath("/admin/planes");
   revalidatePath("/planes");
   revalidatePath("/dashboard/planes");
+  // La sección de precios del home (src/components/home/Pricing.tsx) lee
+  // los mismos planes — sin esto, un cambio de precio tardaba hasta la
+  // expiración natural de caché de esa ruta en reflejarse ahí.
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -80,6 +84,10 @@ export async function actualizarPlan(id: string, input: PlanInput): Promise<Admi
   revalidatePath("/admin/planes");
   revalidatePath("/planes");
   revalidatePath("/dashboard/planes");
+  // La sección de precios del home (src/components/home/Pricing.tsx) lee
+  // los mismos planes — sin esto, un cambio de precio tardaba hasta la
+  // expiración natural de caché de esa ruta en reflejarse ahí.
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -101,5 +109,9 @@ export async function toggleActivoPlan(id: string, activo: boolean): Promise<Adm
   revalidatePath("/admin/planes");
   revalidatePath("/planes");
   revalidatePath("/dashboard/planes");
+  // La sección de precios del home (src/components/home/Pricing.tsx) lee
+  // los mismos planes — sin esto, un cambio de precio tardaba hasta la
+  // expiración natural de caché de esa ruta en reflejarse ahí.
+  revalidatePath("/");
   return { success: true };
 }
