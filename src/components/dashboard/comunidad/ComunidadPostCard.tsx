@@ -53,7 +53,15 @@ export function ComunidadPostCard({
   function eliminar() {
     startTransitionEliminar(async () => {
       await eliminarPostComunidad(post.id, ruta);
-      router.refresh();
+      // En el detalle (truncar=false) la propia publicación deja de existir:
+      // un refresh volvería a pedirla y el server component respondería 404.
+      // En el feed (truncar=true), en cambio, sí hace falta el refresh para
+      // que la tarjeta desaparezca de la lista.
+      if (truncar) {
+        router.refresh();
+      } else {
+        router.push("/dashboard/comunidad");
+      }
     });
   }
 

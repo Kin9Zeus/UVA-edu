@@ -43,6 +43,20 @@ const ENTIDAD_INFO: Record<string, { etiqueta: string; ruta?: (id: string) => st
   comunidad_posts: { etiqueta: "Comunidad", ruta: (id) => `/dashboard/comunidad/${id}` },
 };
 
+/**
+ * Ruta a la que enlaza "Sobre", o `undefined` si esta fila no debe enlazar.
+ * Caso especial: al eliminar una publicación de Comunidad, la publicación
+ * queda `eliminado = true` (borrado lógico) y su página responde 404 —
+ * a diferencia de fijar/desfijar o eliminar una RESPUESTA (ambas dejan la
+ * publicación viva), acá el enlace siempre estaría muerto, así que esta
+ * fila se muestra sin enlace en vez de mandar al admin a un 404.
+ */
+function resolverRutaBitacora(entrada: ResultadoBitacora["entradas"][number]): string | undefined {
+  if (entrada.accion === "Eliminó una publicación de Comunidad (moderación)") return undefined;
+  if (!entrada.idEntidadAfectada) return undefined;
+  return ENTIDAD_INFO[entrada.entidadAfectada]?.ruta?.(entrada.idEntidadAfectada);
+}
+
 /** Tono según si la acción suena reversible/informativa (neutral), o de corte de acceso (error/warning). */
 function tonoAccion(accion: string): "neutral" | "warning" | "error" {
   if (/revocó|canceló|suspendió|quitó/i.test(accion)) return "error";
@@ -127,7 +141,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
+              const ruta = resolverRutaBitacora(entrada);
 
               return (
                 <div
@@ -202,7 +216,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
-              const ruta = entrada.idEntidadAfectada ? info?.ruta?.(entrada.idEntidadAfectada) : undefined;
+              const ruta = resolverRutaBitacora(entrada);
 
               return (
                 <TableRow key={entrada.id}>
