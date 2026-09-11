@@ -10,6 +10,7 @@ import {
   FolderTree,
   Ticket,
   ScrollText,
+  Flag,
   User,
   PanelLeftClose,
   PanelLeft,
@@ -30,6 +31,7 @@ const nav = [
   // ficha). La sección propia y su tabla se eliminaron con la migración
   // 20260903000000_multi_instructores.
   { href: "/admin/codigos", label: "Códigos de invitación", icon: Ticket },
+  { href: "/admin/comunidad", label: "Comunidad", icon: Flag },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },
   { href: "/admin/configuracion", label: "Perfil", icon: User },
 ];

@@ -298,7 +298,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
 
   const { data: respuestasFilas, error: errorRespuestas } = await supabase
     .from("comunidad_respuestas")
-    .select("id, id_usuario, contenido, eliminado, creado_en")
+    .select("id, id_usuario, contenido, eliminado, eliminado_por_admin, creado_en")
     .eq("id_post", postId)
     .order("creado_en", { ascending: true });
 
@@ -331,6 +331,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
         id: r.id,
         contenido: r.eliminado ? "" : r.contenido,
         eliminado: r.eliminado,
+        eliminadoPorAdmin: r.eliminado_por_admin,
         tiempo: tiempoRelativo(r.creado_en),
         autorId: r.id_usuario,
         autorNombre: extra.autorNombre,

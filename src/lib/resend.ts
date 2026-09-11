@@ -2,6 +2,7 @@ import { resend } from "@/lib/resend/client";
 import { WelcomeEmail } from "@/emails/welcome";
 import { CertificadoEmitidoEmail } from "@/emails/certificado-emitido";
 import { ContrasenaActualizadaEmail } from "@/emails/contrasena-actualizada";
+import { ComunidadModeradaEmail } from "@/emails/comunidad-moderada";
 
 export { resend };
 
@@ -92,6 +93,43 @@ export async function enviarCorreoPasswordActualizada(
       to: destinatario,
       subject: "Tu contraseña fue actualizada",
       react: ContrasenaActualizadaEmail(),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, id: data.id };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al enviar el correo.",
+    };
+  }
+}
+
+/**
+ * Aviso al autor cuando un admin elimina su publicación/respuesta por
+ * moderación (nunca cuando el propio autor borra lo suyo — ver
+ * eliminarPostComunidad/eliminarRespuestaComunidad, único llamador). El
+ * motivo es obligatorio en esa Server Action antes de llegar acá.
+ */
+export async function enviarCorreoComunidadModerada(
+  destinatario: string,
+  nombre: string,
+  tipoContenido: "publicación" | "respuesta",
+  motivo: string,
+  urlComunidad: string,
+): Promise<EnviarCorreoResultado> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL!,
+      to: destinatario,
+      subject: `Un administrador eliminó tu ${tipoContenido} en Comunidad`,
+      react: ComunidadModeradaEmail({ nombre, tipoContenido, motivo, urlComunidad }),
     });
 
     if (error) {

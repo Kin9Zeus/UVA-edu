@@ -101,6 +101,9 @@ export type ComunidadRespuesta = {
   id: string;
   contenido: string;
   eliminado: boolean;
+  /** Solo relevante si `eliminado`: distingue "[respuesta eliminada por su
+   * autor]" de "[respuesta eliminada por un moderador]" en la UI. */
+  eliminadoPorAdmin: boolean;
   tiempo: string;
   autorId: string;
   autorNombre: string;

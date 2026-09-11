@@ -202,6 +202,7 @@ model Perfiles {
   comunidad_moderaciones      ComunidadModeracion[]    @relation("ComunidadModeradaPorAdmin")
   configuraciones_comunidad   ConfiguracionComunidad[] @relation("ConfiguracionComunidadActualizadaPorAdmin")
   comunidad_adjuntos          ComunidadAdjuntos[]
+  comunidad_reportes          ComunidadReportes[]      @relation("ComunidadReportadaPor")
 
   @@map("perfiles")
 }
@@ -1231,6 +1232,10 @@ model ComunidadPosts {
   /// Borrado lógico, mismo criterio que Comentarios.eliminado: conserva el
   /// hilo de respuestas en vez de dejarlas huérfanas.
   eliminado      Boolean            @default(false)
+  /// `true` solo cuando `eliminado` lo puso un admin moderando (no el propio
+  /// autor) — distingue el placeholder en la UI. Solo se setea junto con
+  /// `eliminado`, verificado en el trigger de transiciones (089), no aquí.
+  eliminado_por_admin Boolean       @default(false)
   /// Solo ADMINISTRADOR — verificado en la policy de UPDATE (083), no aquí.
   fijado         Boolean            @default(false)
   creado_en      DateTime           @default(now()) @db.Timestamptz
@@ -1241,6 +1246,7 @@ model ComunidadPosts {
   reacciones ComunidadReacciones[]
   moderacion ComunidadModeracion[]
   adjuntos   ComunidadAdjuntos[]
+  reportes   ComunidadReportes[]
 
   @@index([categoria, creado_en])
   @@index([id_usuario])
@@ -1253,6 +1259,8 @@ model ComunidadRespuestas {
   id_usuario     String   @db.Uuid
   contenido      String
   eliminado      Boolean  @default(false)
+  /// Ver el comentario del mismo campo en ComunidadPosts.
+  eliminado_por_admin Boolean @default(false)
   creado_en      DateTime @default(now()) @db.Timestamptz
   actualizado_en DateTime @default(now()) @updatedAt @db.Timestamptz
 
@@ -1261,6 +1269,7 @@ model ComunidadRespuestas {
   reacciones ComunidadReacciones[]
   moderacion ComunidadModeracion[]
   adjuntos   ComunidadAdjuntos[]
+  reportes   ComunidadReportes[]
 
   @@index([id_post, creado_en])
   @@index([id_usuario])
@@ -1298,6 +1307,12 @@ model ComunidadModeracion {
   id_respuesta       String?  @db.Uuid
   contenido_original String
   id_eliminado_por   String   @db.Uuid
+  /// Razón que escribió el admin al moderar — obligatoria a nivel de
+  /// aplicación (eliminarPostComunidad/eliminarRespuestaComunidad) para
+  /// poder informarle el motivo al autor por correo. Nullable en la
+  /// columna, no con CHECK: filas de antes de este campo (si las hay) no
+  /// deben romper la migración.
+  motivo             String?
   creado_en          DateTime @default(now()) @db.Timestamptz
 
   post          ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
@@ -1308,6 +1323,32 @@ model ComunidadModeracion {
   @@index([id_respuesta])
   @@index([id_eliminado_por])
   @@map("comunidad_moderacion")
+}
+
+/// Denuncia de un usuario sobre un post O una respuesta ajenos (mismo patrón
+/// de exclusividad que ComunidadReacciones/ComunidadModeracion). No oculta
+/// ni afecta el contenido reportado por sí sola — solo alimenta la cola de
+/// moderación en /admin/comunidad. `revisado` lo marca un admin al
+/// descartar el reporte sin eliminar el contenido; si lo elimina, el
+/// reporte queda igual con `revisado = true` (ver resolverReporteComunidad).
+model ComunidadReportes {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post        String?  @db.Uuid
+  id_respuesta   String?  @db.Uuid
+  id_reportante  String   @db.Uuid
+  motivo         String
+  revisado       Boolean  @default(false)
+  creado_en      DateTime @default(now()) @db.Timestamptz
+
+  post       ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
+  respuesta  ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
+  reportante Perfiles             @relation("ComunidadReportadaPor", fields: [id_reportante], references: [id])
+
+  @@index([id_post])
+  @@index([id_respuesta])
+  @@index([id_reportante])
+  @@index([revisado, creado_en])
+  @@map("comunidad_reportes")
 }
 
 /// Un archivo adjunto (imagen o documento) de un post O una respuesta, nunca

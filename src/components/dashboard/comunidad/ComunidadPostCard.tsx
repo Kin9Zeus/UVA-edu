@@ -8,7 +8,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
 import { ComunidadPostEditor } from "@/components/dashboard/comunidad/ComunidadPostEditor";
+import { ModerarComunidadDialog } from "@/components/dashboard/comunidad/ModerarComunidadDialog";
+import { ReportarComunidadDialog } from "@/components/dashboard/comunidad/ReportarComunidadDialog";
 import { eliminarPostComunidad } from "@/actions/comunidad/eliminar";
+import { reportarComunidad } from "@/actions/comunidad/reportar";
 import { fijarPostComunidad } from "@/actions/comunidad/fijar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
 import { CATEGORIA_LABEL, CATEGORIA_ESTILO, type ComunidadPostResumen } from "@/lib/comunidad-tipos";
@@ -46,23 +49,53 @@ export function ComunidadPostCard({
   const [pendienteEliminar, startTransitionEliminar] = useTransition();
   const [pendienteFijar, startTransitionFijar] = useTransition();
   const [editando, setEditando] = useState(false);
+  const [dialogoModeracionAbierto, setDialogoModeracionAbierto] = useState(false);
+  const [dialogoReporteAbierto, setDialogoReporteAbierto] = useState(false);
 
-  const puedeEliminar = usuarioActualId === post.autorId || esAdmin;
-  const puedeEditar = usuarioActualId === post.autorId;
+  const esAutor = usuarioActualId === post.autorId;
+  const puedeEliminar = esAutor || esAdmin;
+  const puedeEditar = esAutor;
+  // Un admin ya puede eliminar directo (con motivo) — reportar es la vía
+  // para el resto, que no tiene ninguna otra forma de escalar algo.
+  const puedeReportar = Boolean(usuarioActualId) && !esAutor && !esAdmin;
 
+  async function confirmarReporte(motivo: string) {
+    const resultado = await reportarComunidad({ idPost: post.id }, motivo);
+    if ("error" in resultado) return { error: resultado.error };
+    return {};
+  }
+
+  function irAlCerrarTrasEliminar() {
+    // En el detalle (truncar=false) la propia publicación deja de existir:
+    // un refresh volvería a pedirla y el server component respondería 404.
+    // En el feed (truncar=true), en cambio, sí hace falta el refresh para
+    // que la tarjeta desaparezca de la lista.
+    if (truncar) {
+      router.refresh();
+    } else {
+      router.push("/dashboard/comunidad");
+    }
+  }
+
+  // El propio autor borra en un clic, sin motivo. Un admin moderando
+  // contenido AJENO tiene que justificarlo primero (ModerarComunidadDialog),
+  // porque ese motivo se le envía al autor por correo.
   function eliminar() {
+    if (!esAutor) {
+      setDialogoModeracionAbierto(true);
+      return;
+    }
     startTransitionEliminar(async () => {
       await eliminarPostComunidad(post.id, ruta);
-      // En el detalle (truncar=false) la propia publicación deja de existir:
-      // un refresh volvería a pedirla y el server component respondería 404.
-      // En el feed (truncar=true), en cambio, sí hace falta el refresh para
-      // que la tarjeta desaparezca de la lista.
-      if (truncar) {
-        router.refresh();
-      } else {
-        router.push("/dashboard/comunidad");
-      }
+      irAlCerrarTrasEliminar();
     });
+  }
+
+  async function confirmarEliminacionModerada(motivo: string) {
+    const resultado = await eliminarPostComunidad(post.id, ruta, motivo);
+    if ("error" in resultado) return { error: resultado.error };
+    irAlCerrarTrasEliminar();
+    return {};
   }
 
   function alternarFijado() {
@@ -200,8 +233,34 @@ export function ComunidadPostCard({
                 Eliminar
               </button>
             )}
+            {puedeReportar && (
+              <button
+                type="button"
+                onClick={() => setDialogoReporteAbierto(true)}
+                className="cursor-pointer border-0 bg-transparent p-0 hover:text-uva-text-muted"
+              >
+                Reportar
+              </button>
+            )}
           </div>
         </>
+      )}
+
+      {!esAutor && (
+        <ModerarComunidadDialog
+          open={dialogoModeracionAbierto}
+          onOpenChange={setDialogoModeracionAbierto}
+          tipoContenido="publicación"
+          onConfirm={confirmarEliminacionModerada}
+        />
+      )}
+      {puedeReportar && (
+        <ReportarComunidadDialog
+          open={dialogoReporteAbierto}
+          onOpenChange={setDialogoReporteAbierto}
+          tipoContenido="publicación"
+          onConfirm={confirmarReporte}
+        />
       )}
     </article>
   );
