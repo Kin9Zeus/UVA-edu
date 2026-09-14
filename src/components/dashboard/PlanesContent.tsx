@@ -1,4 +1,6 @@
-import { BotonSuscribirse } from "@/components/dashboard/BotonSuscribirse";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { slugificar } from "@/lib/slug";
 import {
   type PlanRow,
   sharedBenefits,
@@ -109,11 +111,21 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                   <p className="mt-0.5 text-xs text-uva-text-faint">{cuotas || " "}</p>
                 </div>
 
-                <BotonSuscribirse
-                  idPlan={plan.id}
-                  nombrePlan={plan.nombre}
-                  destacado={featured}
-                />
+                {/* Un enlace, no un botón que cobra: elegir plan ya no
+                    dispara nada, lleva a la confirmación donde viven el cupón
+                    y el resumen. Por eso la tarjeta vuelve a tener una altura
+                    fija — antes el formulario de cupón se desplegaba aquí
+                    dentro y desalineaba toda la fila, que es justo lo que los
+                    `min-h` de arriba estaban peleando. */}
+                <Link
+                  href={`/dashboard/checkout?plan=${slugificar(plan.nombre, "plan")}`}
+                  className={buttonVariants({
+                    variant: featured ? "uva-primary" : "uva-secondary",
+                    size: "uva",
+                  })}
+                >
+                  Elegir {plan.nombre}
+                </Link>
 
                 <div className="flex flex-col gap-1.5 text-[12.5px]">
                   {sharedBenefits.map((benefit, index) => {
@@ -148,9 +160,14 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
         </div>
       )}
 
+      {/* Decía "Renovación automática; puedes pausar o cancelar cuando
+          quieras", y era falso: Wompi no cobra recurrente sobre PSE ni Nequi,
+          así que el acceso se compra por períodos. El recibo y el aviso de
+          vencimiento ya lo decían bien (src/emails/), y esta línea los
+          contradecía en la pantalla donde el estudiante decide. */}
       <p className="mt-[18px] text-center text-[11.5px] text-uva-text-faint opacity-45">
-        Los precios se muestran en la moneda de tu país. Renovación
-        automática; puedes pausar o cancelar cuando quieras.
+        Pago único por el período elegido. No se renueva solo: te avisamos por
+        correo unos días antes de que termine.
       </p>
     </div>
   );

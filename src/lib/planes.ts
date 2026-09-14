@@ -92,3 +92,34 @@ export function ahorroPorcentaje(plan: PlanRow, referencia: PlanRow) {
 
   return porcentaje >= 1 ? `Ahorra ${porcentaje}%` : null;
 }
+
+/**
+ * Hasta cuándo llega el acceso que se compra HOY con este plan, ya formateado
+ * en el calendario colombiano.
+ *
+ * Vive aquí y no en la pantalla de checkout por dos razones:
+ *
+ *   1. `Date.now()` en el cuerpo de un componente es impuro y
+ *      `react-hooks/purity` lo rechaza — el valor cambiaría en cada
+ *      re-render.
+ *   2. Es la misma cuenta que hace `aplicar_pago_wompi` al crear la
+ *      suscripción (`now() + make_interval(days => duracion_dias)`, ver
+ *      supabase/sql/101). Se calcula en el servidor y viaja ya formateada
+ *      para que el render del servidor y el del navegador no puedan caer en
+ *      días distintos.
+ *
+ * Es una estimación mostrada ANTES de pagar: la fecha real la fija el RPC en
+ * el instante en que Wompi aprueba. Entre una y otra hay minutos, no días.
+ */
+const FORMATO_FECHA_LARGA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "America/Bogota",
+});
+
+export function vigenciaAlComprar(duracionDias: number, ahora: Date = new Date()): string {
+  return FORMATO_FECHA_LARGA.format(
+    new Date(ahora.getTime() + duracionDias * 86_400_000),
+  );
+}

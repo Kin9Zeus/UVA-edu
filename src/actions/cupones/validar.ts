@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { calcularDesglose, validarCupon, MENSAJE_CUPON_INVALIDO } from "@/lib/pagos/descuento";
+import { calcularDesglose } from "@/lib/pagos/descuento";
+import { buscarCuponVigente } from "@/lib/pagos/cupones";
 import { formatearPrecio } from "@/lib/planes";
 
 export type ValidarCuponResult =
@@ -32,13 +33,10 @@ export type DesgloseVisible = {
  * (supabase/sql/101). Un estudiante que valida un código y abandona el
  * checkout no le gasta un uso a nadie.
  *
- * PENDIENTE (agrupado con el resto del SQL): rate limit por usuario, al estilo
- * de `verificar_limite_canjear_codigo` (supabase/sql/023, hallazgo P2-2 de
- * AUDIT-2026-09-04). Es un endpoint autenticado que permite probar códigos a
- * ciegas. El riesgo es menor que el de los códigos de invitación —un cupón da
- * descuento, no acceso gratis— pero es el mismo patrón y merece la misma
- * guarda. No se hace ahora para no sumar otra corrida de `npm run db:rls`
- * mientras otra rama está trabajando sobre la misma base.
+ * El cupón se busca con `buscarCuponVigente`, que consulta con Service Role:
+ * `cupones` tiene RLS de solo-administrador y con el cliente del estudiante
+ * la tabla se ve vacía. Ver el encabezado de src/lib/pagos/cupones.ts, donde
+ * también queda anotado el rate limit pendiente.
  */
 export async function validarCodigoCupon(
   idPlan: string,
@@ -70,25 +68,12 @@ export async function validarCodigoCupon(
     return { ok: false, error: "Ese plan ya no está disponible." };
   }
 
-  const { data: cupon } = await supabase
-    .from("cupones")
-    .select("tipo_descuento, valor, fecha_vencimiento, limite_usos, veces_usado")
-    .eq("codigo", codigo)
-    .maybeSingle();
-
-  if (!cupon) {
-    return { ok: false, error: "Ese cupón no existe." };
+  const busqueda = await buscarCuponVigente(codigo);
+  if (!busqueda.ok) {
+    return { ok: false, error: busqueda.error };
   }
 
-  const motivo = validarCupon(cupon);
-  if (motivo) {
-    return { ok: false, error: MENSAJE_CUPON_INVALIDO[motivo] };
-  }
-
-  const desglose = calcularDesglose(Number(plan.precio_centavos), {
-    tipo_descuento: cupon.tipo_descuento,
-    valor: Number(cupon.valor),
-  });
+  const desglose = calcularDesglose(Number(plan.precio_centavos), busqueda.cupon);
 
   if (desglose.totalCentavos <= 0) {
     return {

@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buscarMembresiaVigente } from "@/lib/admin/membresiaManual";
-import { calcularDesglose, validarCupon, MENSAJE_CUPON_INVALIDO } from "@/lib/pagos/descuento";
+import { calcularDesglose, type CuponAplicable } from "@/lib/pagos/descuento";
+import { buscarCuponVigente } from "@/lib/pagos/cupones";
 import { generarReferencia, leerConfig, urlCheckout } from "@/lib/pagos/wompi";
 import { normalizarMoneda } from "@/lib/pagos/proveedores";
 import { simuladorActivo } from "@/lib/pagos/simulador";
@@ -91,28 +92,26 @@ export async function iniciarCheckout(
   }
 
   // ---- Cupón (opcional) -------------------------------------------------
+  // Se busca con Service Role, igual que en `validarCodigoCupon`: `cupones`
+  // tiene RLS de solo-administrador, así que el cliente del estudiante ve la
+  // tabla vacía y todo código válido se leería como inexistente. El porqué
+  // completo está en src/lib/pagos/cupones.ts.
+  //
+  // Se vuelve a validar aquí aunque la pantalla ya lo haya hecho: entre que
+  // el estudiante aplicó el cupón y le dio a pagar, el código pudo vencer o
+  // agotarse. La pantalla informa; esto decide.
   let idCupon: string | null = null;
-  let cuponAplicable = null;
+  let cuponAplicable: CuponAplicable | null = null;
 
   const codigo = codigoCupon?.trim();
   if (codigo) {
-    const { data: cupon } = await supabase
-      .from("cupones")
-      .select("id, tipo_descuento, valor, fecha_vencimiento, limite_usos, veces_usado")
-      .eq("codigo", codigo)
-      .maybeSingle();
-
-    if (!cupon) {
-      return { error: "Ese cupón no existe." };
+    const busqueda = await buscarCuponVigente(codigo);
+    if (!busqueda.ok) {
+      return { error: busqueda.error };
     }
 
-    const motivo = validarCupon(cupon);
-    if (motivo) {
-      return { error: MENSAJE_CUPON_INVALIDO[motivo] };
-    }
-
-    idCupon = cupon.id;
-    cuponAplicable = { tipo_descuento: cupon.tipo_descuento, valor: Number(cupon.valor) };
+    idCupon = busqueda.cupon.id;
+    cuponAplicable = busqueda.cupon;
   }
 
   // El MISMO cálculo que ve el estudiante en pantalla (lo comparte
