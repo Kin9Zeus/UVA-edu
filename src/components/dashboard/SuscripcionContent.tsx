@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +34,28 @@ const ESTADO_PAGO_LABEL: Record<PagoItem["estado"], string> = {
   REEMBOLSADO: "Reembolsado",
   REVERSADO: "Reversado",
 };
+
+/**
+ * Qué decir bajo el nombre del plan cuando el acceso ya no está en pie.
+ *
+ * `fecha_renovacion` es cuándo TERMINABA el período, no cuándo alguien
+ * canceló. Para una VENCIDA las dos cosas coinciden y la fecha es el dato
+ * útil. Para una CANCELADA no: un admin que revoca antes de tiempo deja esa
+ * fecha en el futuro, y la tarjeta llegaba a decir "Cancelada desde el 3 de
+ * octubre de 2026" un 14 de septiembre — una fecha que todavía no ha pasado.
+ *
+ * Ninguna columna guarda cuándo se canceló, así que se omite en vez de
+ * inventarla con la única fecha que hay a mano.
+ */
+function leyendaSinAcceso(
+  estado: SuscripcionActual["estado"],
+  fechaRenovacion: string | null,
+): string {
+  if (estado === "CANCELADA") return ESTADO_LABEL.CANCELADA;
+  return fechaRenovacion
+    ? `${ESTADO_LABEL[estado]} el ${formatFecha(fechaRenovacion)}`
+    : ESTADO_LABEL[estado];
+}
 
 function porcentajeTranscurrido(fechaInicio: string, fechaRenovacion: string | null) {
   if (!fechaRenovacion) return 0;
@@ -115,9 +138,7 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
                   ese acceso ya no está en curso, así que la fecha pasa a ser
                   solo un dato histórico. */}
               {!accesoVigente
-                ? `${ESTADO_LABEL[estadoMostrado]}${
-                    suscripcion.fechaRenovacion ? ` desde el ${formatFecha(suscripcion.fechaRenovacion)}` : ""
-                  }`
+                ? leyendaSinAcceso(estadoMostrado, suscripcion.fechaRenovacion)
                 : suscripcion.fechaRenovacion
                   ? // Un acceso manual (código/cortesía) no se renueva solo: se
                     // vence y punto, no hay cobro automático detrás. "Renovación"
@@ -127,23 +148,21 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
                   : "Sin fecha de vencimiento"}
             </p>
           </div>
-          <div className="ml-auto text-right">
-            {/* "X días restantes" solo tiene sentido con acceso vigente: una
-                CANCELADA con fecha de renovación todavía futura (el admin
-                revocó antes de que terminara el periodo) seguía mostrando
-                "quedan 12 días" — que leía como suscripción activa cuando ya
-                no lo estaba. */}
-            {accesoVigente && dias !== null ? (
-              <>
-                <p className="font-heading text-2xl text-uva-accent">{dias}</p>
-                <p className="text-[11.5px] text-uva-text-muted">días restantes</p>
-              </>
-            ) : (
-              <Badge variant={accesoVigente ? "default" : estadoMostrado === "CANCELADA" ? "secondary" : "destructive"}>
-                {ESTADO_LABEL[estadoMostrado]}
-              </Badge>
-            )}
-          </div>
+          {/* "X días restantes" solo tiene sentido con acceso vigente: una
+              CANCELADA con fecha de renovación todavía futura (el admin revocó
+              antes de que terminara el periodo) seguía mostrando "quedan 12
+              días" — que leía como suscripción activa cuando ya no lo estaba.
+
+              Sin días que mostrar, este bloque ya NO cae a un badge: el estado
+              lo pinta el badge de abajo, y tener los dos hacía que una
+              suscripción cancelada dijera "Cancelada" dos veces en la misma
+              tarjeta. */}
+          {accesoVigente && dias !== null && (
+            <div className="ml-auto text-right">
+              <p className="font-heading text-2xl text-uva-accent">{dias}</p>
+              <p className="text-[11.5px] text-uva-text-muted">días restantes</p>
+            </div>
+          )}
         </div>
         {accesoVigente && suscripcion.fechaRenovacion && (
           <div className="h-[7px] rounded-full bg-black/25">
@@ -204,6 +223,34 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
           antes de comprobar el índice único (038_vigencia_por_fecha.sql).
           A quien sí tiene acceso vigente no se le ofrece: se rechazaría con
           'ya_tiene_suscripcion'. */}
+      {/* Dos caminos para recuperar el acceso, no uno. El formulario de
+          código estaba solo, así que a quien se le venció la invitación y NO
+          tiene otro código la pantalla se le acababa ahí: ninguna salida
+          hacia los planes, justo en el momento en que más sentido tiene
+          ofrecérselos. Va primero el de pago porque es el camino que el
+          producto quiere, y el código queda como la alternativa. */}
+      {!accesoVigente && (
+        <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+          <h2 className="flex items-center gap-2 text-base text-uva-text">
+            <CreditCard className="size-4 text-uva-accent" aria-hidden />
+            Elige un plan
+          </h2>
+          <p className="mt-1 text-[13px] text-uva-text-muted">
+            Recupera el acceso a los 180+ cursos, las plantillas descargables y
+            los certificados.
+          </p>
+          <Button
+            render={<Link href="/dashboard/planes" />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="mt-4 w-auto px-6"
+          >
+            Ver planes
+          </Button>
+        </div>
+      )}
+
       {!accesoVigente && <CanjearCodigoForm tieneSuscripcion />}
     </div>
   );
