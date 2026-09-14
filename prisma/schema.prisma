@@ -1413,6 +1413,15 @@ model ComunidadPosts {
   eliminado_por_admin Boolean       @default(false)
   /// Solo ADMINISTRADOR — verificado en la policy de UPDATE (083), no aquí.
   fijado         Boolean            @default(false)
+  /// Campos propios de la categoría EMPLEO — null en cualquier otra
+  /// categoría, obligatorios (salvo ubicación) en EMPLEO. Coherencia con
+  /// `categoria` verificada por CHECK en 098_comunidad_empleo_campos.sql,
+  /// no aquí. `empleo_modalidad` es texto libre acotado por CHECK (mismo
+  /// criterio que `notificaciones.tipo`), no un enum de Prisma.
+  empleo_empresa    String?
+  empleo_modalidad  String?
+  empleo_ubicacion  String?
+  empleo_enlace     String?
   creado_en      DateTime           @default(now()) @db.Timestamptz
   actualizado_en DateTime           @default(now()) @updatedAt @db.Timestamptz
 

@@ -4,10 +4,13 @@ import { ComunidadFiltros } from "@/components/dashboard/comunidad/ComunidadFilt
 import { ComunidadComposer } from "@/components/dashboard/comunidad/ComunidadComposer";
 import { ComunidadPostCard } from "@/components/dashboard/comunidad/ComunidadPostCard";
 import { ComunidadEmptyState } from "@/components/dashboard/comunidad/ComunidadEmptyState";
+import { ComunidadPaginacion } from "@/components/dashboard/comunidad/ComunidadPaginacion";
 import { CATEGORIA_LABEL, type CategoriaComunidad, type ComunidadPostResumen } from "@/lib/comunidad-tipos";
 
 export function ComunidadFeedContent({
   posts,
+  pagina,
+  totalPaginas,
   categoriaActiva,
   soloPropios,
   busqueda,
@@ -15,6 +18,8 @@ export function ComunidadFeedContent({
   esAdmin,
 }: {
   posts: ComunidadPostResumen[];
+  pagina: number;
+  totalPaginas: number;
   categoriaActiva?: CategoriaComunidad;
   soloPropios?: boolean;
   busqueda?: string;
@@ -64,6 +69,8 @@ export function ComunidadFeedContent({
             ))}
           </div>
         )}
+
+        <ComunidadPaginacion pagina={pagina} totalPaginas={totalPaginas} />
       </div>
     </ComunidadLayout>
   );

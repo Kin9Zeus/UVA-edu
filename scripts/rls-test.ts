@@ -2903,12 +2903,20 @@ async function main() {
     // app — por eso acá no se prueba "puede/no puede insertar", sino que el
     // trigger hizo exactamente lo que debía.
     await esperarBloqueado(
-      "responderte a ti mismo (postComunidad, línea de arriba) NO generó notificación",
+      "responderte a ti mismo (postComunidad, línea de arriba) NO generó notificación de respuesta",
       admin
         .from("notificaciones")
         .select("*")
         .eq("id_usuario", userConAcceso.user!.id)
-        .eq("entidad_id", postComunidad.id),
+        .eq("entidad_id", postComunidad.id)
+        // Filtrado por tipo (no solo entidad_id): la moderación de prueba
+        // sobre este mismo post ("administrador SÍ puede insertar en
+        // comunidad_moderacion firmando con su propio id", arriba) SÍ
+        // genera legítimamente una notificación COMUNIDAD_MODERACION para
+        // userConAcceso desde 110 — lo que esta prueba verifica es que
+        // responderse a sí mismo específicamente no dispara
+        // COMUNIDAD_RESPUESTA (094).
+        .eq("tipo", "COMUNIDAD_RESPUESTA"),
     );
 
     const respuestaAOtroPostAdmin = (await esperarPermitido(
@@ -3020,6 +3028,83 @@ async function main() {
         .select("*")
         .eq("id_usuario", userSinAcceso.user!.id)
         .eq("entidad_id", anuncioComunidad.id),
+    );
+
+    // 099: moderar (INSERT en comunidad_moderacion) notifica in-app al autor
+    // real del contenido — antes solo se enteraba por correo. Reusa el
+    // registro de comunidad_moderacion sobre postComunidad insertado más
+    // arriba ("administrador SÍ puede insertar en comunidad_moderacion
+    // firmando con su propio id"), cuyo autor es userConAcceso.
+    await esperarPermitido(
+      "moderar el post de otro SÍ notificó in-app a su autor (trigger 110, rama id_post)",
+      admin
+        .from("notificaciones")
+        .select("id, tipo, id_actor, entidad_tipo, entidad_id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_MODERACION")
+        .eq("id_actor", userAdmin.user!.id)
+        .single(),
+    );
+
+    // Rama id_respuesta: moderar una RESPUESTA debe notificar a quien la
+    // escribió (userConAcceso, autor de respuestaAOtroPostAdmin) con
+    // entidad_id apuntando al POST padre (otroPostAdmin), no a la respuesta
+    // — mismo criterio que ya usa registrarBitacora en eliminar.ts.
+    await esperarPermitido(
+      "administrador SÍ puede insertar en comunidad_moderacion sobre una respuesta",
+      clienteAdmin
+        .from("comunidad_moderacion")
+        .insert({
+          id_respuesta: respuestaAOtroPostAdmin.id,
+          contenido_original: "Respuesta de prueba",
+          id_eliminado_por: userAdmin.user!.id,
+        })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "moderar la respuesta de otro SÍ notificó a su autor con entidad_id = post padre (trigger 110, rama id_respuesta)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", otroPostAdmin.id)
+        .eq("tipo", "COMUNIDAD_MODERACION")
+        .single(),
+    );
+
+    // 099: cerrar un reporte (revisado false -> true) notifica al
+    // reportante. userAdmin reporta el post de userConAcceso (admin SÍ
+    // tiene acceso a Comunidad por bypass, y no es su autor) y luego el
+    // propio admin lo resuelve — lo que importa acá es que el trigger
+    // dispara sin que ninguna Server Action tenga que pedirlo.
+    const reporteComunidad = (await esperarPermitido(
+      "administrador SÍ puede reportar el post de otro (tiene acceso, no es su autor)",
+      clienteAdmin
+        .from("comunidad_reportes")
+        .insert({ id_post: postComunidad.id, id_reportante: userAdmin.user!.id, motivo: "Prueba RLS" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!reporteComunidad?.id) {
+      throw new Error("El reporte de prueba no devolvió id; la prueba de cierre de ciclo no significa nada.");
+    }
+
+    await esperarPermitido(
+      "administrador SÍ puede marcar un reporte como revisado",
+      clienteAdmin.from("comunidad_reportes").update({ revisado: true }).eq("id", reporteComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "resolver el reporte SÍ notificó al reportante (trigger 110)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userAdmin.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_REPORTE_RESUELTO")
+        .single(),
     );
 
     await esperarBloqueado(

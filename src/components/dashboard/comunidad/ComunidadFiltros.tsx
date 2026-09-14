@@ -44,6 +44,10 @@ export function ComunidadFiltros() {
       if (valor) params.set(clave, valor);
       else params.delete(clave);
     }
+    // Cambiar la búsqueda o el orden vuelve a la página 1 — mismo criterio
+    // que BitacoraTable.actualizarUrl: la página en la que estabas puede no
+    // existir en el resultado nuevo.
+    params.delete("page");
     startTransition(() => {
       router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
     });

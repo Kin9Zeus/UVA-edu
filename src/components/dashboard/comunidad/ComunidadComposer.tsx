@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EditorTextoEnriquecido, type EditorTextoEnriquecidoHandle } from "@/components/editor/EditorTextoEnriquecido";
+import {
+  ComunidadCamposEmpleo,
+  VALORES_EMPLEO_VACIOS,
+  faltanCamposEmpleoObligatorios,
+  type ValoresEmpleo,
+} from "@/components/dashboard/comunidad/ComunidadCamposEmpleo";
 import { crearPostComunidad } from "@/actions/comunidad/crear";
 import { CATEGORIA_LABEL, CATEGORIA_ESTILO, armarFormDataAdjuntos, type CategoriaComunidad } from "@/lib/comunidad-tipos";
 import { cn } from "@/lib/utils";
@@ -27,16 +33,25 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
   const [expandido, setExpandido] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [contenidoVacio, setContenidoVacio] = useState(true);
+  const [datosEmpleo, setDatosEmpleo] = useState<ValoresEmpleo>(VALORES_EMPLEO_VACIOS);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editorRef = useRef<EditorTextoEnriquecidoHandle>(null);
+  const esEmpleo = categoria === "EMPLEO";
 
   function publicar() {
     const contenido = editorRef.current?.obtenerTexto() ?? "";
     const adjuntos = armarFormDataAdjuntos(editorRef.current?.obtenerAdjuntosPendientes() ?? new Map());
     setError(null);
     startTransition(async () => {
-      const resultado = await crearPostComunidad(categoria, titulo, contenido, ruta, adjuntos);
+      const resultado = await crearPostComunidad(
+        categoria,
+        titulo,
+        contenido,
+        ruta,
+        adjuntos,
+        esEmpleo ? datosEmpleo : undefined,
+      );
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -44,6 +59,7 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
       setTitulo("");
       editorRef.current?.limpiar();
       setContenidoVacio(true);
+      setDatosEmpleo(VALORES_EMPLEO_VACIOS);
       setExpandido(false);
       router.refresh();
     });
@@ -87,6 +103,8 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
         onErrorAdjunto={setError}
       />
 
+      {esEmpleo && <ComunidadCamposEmpleo valores={datosEmpleo} onCambiar={setDatosEmpleo} />}
+
       {error && <p className="text-sm text-uva-error">{error}</p>}
 
       <div className="flex justify-end gap-2">
@@ -104,7 +122,7 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
           variant="uva-primary"
           className="w-auto px-6"
           onClick={publicar}
-          disabled={pending || !titulo.trim() || contenidoVacio}
+          disabled={pending || !titulo.trim() || contenidoVacio || (esEmpleo && faltanCamposEmpleoObligatorios(datosEmpleo))}
         >
           {pending ? "Publicando…" : "Publicar"}
         </Button>

@@ -26,3 +26,24 @@ export const contenidoRespuestaSchema = z
   .trim()
   .min(1, "Escribe algo antes de responder.")
   .max(2000, "La respuesta es demasiado larga.");
+
+/** Los 4 de abajo son exclusivos de la categoría EMPLEO (crear.ts/editar.ts
+ * los exige solo ahí) — mismo CHECK reflejado en la base
+ * (110_comunidad_empleo_campos.sql), esto solo mejora el mensaje. */
+export const empleoEmpresaSchema = z
+  .string()
+  .trim()
+  .min(1, "Escribe el nombre de la empresa.")
+  .max(120, "El nombre de la empresa es demasiado largo.");
+
+export const EMPLEO_MODALIDADES = ["PRESENCIAL", "REMOTO", "HIBRIDO"] as const;
+export type EmpleoModalidad = (typeof EMPLEO_MODALIDADES)[number];
+export const empleoModalidadSchema = z.enum(EMPLEO_MODALIDADES, { message: "Selecciona una modalidad." });
+
+export const empleoUbicacionSchema = z.string().trim().max(120, "La ubicación es demasiado larga.").optional();
+
+export const empleoEnlaceSchema = z
+  .string()
+  .trim()
+  .url("Ingresa un enlace válido (debe empezar con http:// o https://).")
+  .max(500, "El enlace es demasiado largo.");

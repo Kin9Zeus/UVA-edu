@@ -11,7 +11,7 @@
 
 export type Notificacion = {
   id: string;
-  tipo: "COMUNIDAD_RESPUESTA" | "COMUNIDAD_ANUNCIO";
+  tipo: "COMUNIDAD_RESPUESTA" | "COMUNIDAD_ANUNCIO" | "COMUNIDAD_MODERACION" | "COMUNIDAD_REPORTE_RESUELTO";
   actorNombre: string;
   entidadTipo: "comunidad_post";
   entidadId: string;
@@ -42,5 +42,13 @@ export function mensajeNotificacion(
       return `${notificacion.actorNombre} respondió tu publicación${titulo}`;
     case "COMUNIDAD_ANUNCIO":
       return `${notificacion.actorNombre} publicó un anuncio${titulo}`;
+    // Genérico a propósito, sin distinguir publicación/respuesta: `entidad_id`
+    // siempre apunta al post (el propio, o su padre si lo moderado/reportado
+    // fue una respuesta — ver 097_comunidad_notificaciones_moderacion_reportes.sql),
+    // pero el tipo de Notificacion no trae esa distinción.
+    case "COMUNIDAD_MODERACION":
+      return `Un administrador moderó tu contenido en Comunidad${titulo}.`;
+    case "COMUNIDAD_REPORTE_RESUELTO":
+      return `Tu reporte en Comunidad fue revisado${titulo}.`;
   }
 }
