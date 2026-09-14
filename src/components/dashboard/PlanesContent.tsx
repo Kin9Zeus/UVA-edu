@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { BotonSuscribirse } from "@/components/dashboard/BotonSuscribirse";
 import {
   type PlanRow,
   sharedBenefits,
@@ -109,13 +109,11 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                   <p className="mt-0.5 text-xs text-uva-text-faint">{cuotas || " "}</p>
                 </div>
 
-                <Button
-                  type="button"
-                  variant={featured ? "uva-primary" : "uva-secondary"}
-                  size="uva"
-                >
-                  Elegir {plan.nombre}
-                </Button>
+                <BotonSuscribirse
+                  idPlan={plan.id}
+                  nombrePlan={plan.nombre}
+                  destacado={featured}
+                />
 
                 <div className="flex flex-col gap-1.5 text-[12.5px]">
                   {sharedBenefits.map((benefit, index) => {

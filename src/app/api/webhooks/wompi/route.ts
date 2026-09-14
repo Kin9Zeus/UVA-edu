@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
+import { conciliarTransaccion, leerTransaccion } from "@/lib/pagos/conciliacion";
+import { esEventoSimulado } from "@/lib/pagos/simulador";
 import { logError } from "@/lib/log";
 
 /**
@@ -97,14 +99,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no se pudo registrar el evento" }, { status: 500 });
   }
 
-  // TODO: lógica de negocio por evento.event — transaction.updated con
-  // status APPROVED activa la Suscripción y registra el Pago; DECLINED/VOIDED
-  // la dejan sin activar (functional-spec.md Flujo 06). Pendiente por lo mismo
-  // que Stripe: no existe todavía el checkout que crea la transacción, así que
-  // no hay contra qué conciliar. Va AQUÍ, con firma e idempotencia ya
-  // resueltas arriba.
-  console.log("[webhook:wompi] evento verificado", { evento: evento.event });
+  // Lógica de negocio. Llega aquí solo con la firma verificada y el evento
+  // registrado como nuevo (o como reintento de uno que no se completó).
+  //
+  // Wompi manda un solo tipo de evento para esto: `transaction.updated`. Se
+  // ignora cualquier otro en vez de fallar — un tipo nuevo no debe hacer que
+  // Wompi reintente para siempre algo que no sabemos procesar.
+  if (evento.event !== "transaction.updated") {
+    await marcarProcesado("wompi", checksumRecibido);
+    return NextResponse.json({ received: true, ignorado: evento.event ?? "sin tipo" });
+  }
 
+  const transaccion = leerTransaccion(evento.data);
+  if (!transaccion) {
+    // La firma era válida pero el cuerpo no tiene la forma esperada. No es
+    // reintentable: 200 para que Wompi deje de mandarlo, y queda registrado.
+    logError("webhook:wompi", "transaction.updated sin transacción utilizable", null, {
+      area: "webhook",
+      checksum: checksumRecibido,
+    });
+    await marcarProcesado("wompi", checksumRecibido);
+    return NextResponse.json({ received: true, ignorado: "cuerpo inesperado" });
+  }
+
+  const resultado = await conciliarTransaccion(transaccion, {
+    // El simulador local (src/app/api/dev/wompi) crea transacciones que no
+    // existen del lado de Wompi: consultarlas devolvería 404 y nada se
+    // aplicaría nunca. Solo se salta la comprobación fuera de producción.
+    verificarContraWompi: !esEventoSimulado(request),
+  });
+
+  if (resultado.estado === "error") {
+    // 5xx a propósito: Wompi reintenta hasta que se pueda aplicar. El evento
+    // NO se marca procesado, así que el reintento vuelve a entrar aquí.
+    logError("webhook:wompi", "no se pudo conciliar la transacción", null, {
+      area: "webhook",
+      mensaje: resultado.mensaje,
+      referencia: transaccion.reference,
+    });
+    return NextResponse.json({ error: "no se pudo procesar" }, { status: 500 });
+  }
+
+  // `pendiente` también se marca procesado: ESTE evento ya se atendió, y el
+  // cambio de estado llegará como un evento distinto (otro checksum).
   await marcarProcesado("wompi", checksumRecibido);
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ received: true, resultado: resultado.estado });
 }

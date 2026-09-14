@@ -3,6 +3,7 @@ import { WelcomeEmail } from "@/emails/welcome";
 import { CertificadoEmitidoEmail } from "@/emails/certificado-emitido";
 import { ContrasenaActualizadaEmail } from "@/emails/contrasena-actualizada";
 import { ComunidadModeradaEmail } from "@/emails/comunidad-moderada";
+import { ReciboPagoEmail } from "@/emails/recibo-pago";
 
 export { resend };
 
@@ -145,6 +146,49 @@ export async function enviarCorreoComunidadModerada(
         error instanceof Error
           ? error.message
           : "Error desconocido al enviar el correo.",
+    };
+  }
+}
+
+/**
+ * Recibo de un pago aprobado.
+ *
+ * La llama la conciliación del webhook (src/lib/pagos/conciliacion.ts) DESPUÉS
+ * de que el pago quedó aplicado, y siempre en modo best-effort: si Resend
+ * falla, el estudiante ya tiene su acceso y no se revierte nada — misma regla
+ * que `canjearCodigoInvitacion` y que docs/Correos.md ("un fallo de Resend
+ * nunca debe romper el registro del usuario").
+ */
+export async function enviarCorreoReciboPago(
+  destinatario: string,
+  datos: {
+    nombre: string;
+    planNombre: string;
+    montoFormateado: string;
+    fechaPago: string;
+    vigenteHasta: string;
+    referencia: string;
+    urlSuscripcion: string;
+  },
+): Promise<EnviarCorreoResultado> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL!,
+      to: destinatario,
+      subject: `Recibimos tu pago — acceso activo hasta el ${datos.vigenteHasta}`,
+      react: ReciboPagoEmail(datos),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, id: data.id };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Error desconocido al enviar el correo.",
     };
   }
 }

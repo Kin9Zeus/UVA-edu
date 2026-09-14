@@ -211,6 +211,7 @@ model Perfiles {
   lotes_codigos_creados       LotesCodigosInvitacion[] @relation("LotesCodigosCreadosPorAdmin")
   tokens_vista_previa_creados TokensVistaPrevia[]      @relation("TokensVistaPreviaCreadosPorAdmin")
   suscripciones               Suscripciones[]          @relation("SuscripcionesDelUsuario")
+  intentos_pago               IntentosPago[]           @relation("IntentosPagoDelUsuario")
   suscripciones_otorgadas     Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
   suscripciones_canceladas    Suscripciones[]          @relation("SuscripcionesCanceladasPorAdmin")
   progreso                    Progreso[]
@@ -266,6 +267,7 @@ model Planes {
 
   suscripciones Suscripciones[]
   precios       PlanesPrecios[]
+  intentos_pago IntentosPago[]
 
   @@map("planes")
 }
@@ -366,6 +368,18 @@ model Suscripciones {
   /// con fecha y motivo"). Null mientras la suscripción nunca se canceló a
   /// mano. La fecha es `actualizado_en` — ya se refresca en cada UPDATE, no
   /// hace falta una columna aparte solo para el momento de la revocación.
+  /// Cuándo se le avisó al estudiante de que su acceso está por vencer.
+  /// NULL = todavía no se le ha avisado de ESTE período.
+  ///
+  /// Es un outbox, mismo patrón que `certificados.notificado_en`: sin él,
+  /// `scripts/pagos-avisar-vencimientos.ts` mandaría el mismo aviso en cada
+  /// corrida —siete correos en la semana previa al vencimiento— porque la
+  /// condición que lo dispara (quedan <= 7 días) sigue siendo cierta todos
+  /// los días.
+  ///
+  /// Se limpia al renovar: la suscripción nueva es otra fila, así que nace
+  /// en NULL sola.
+  aviso_vencimiento_en   DateTime?         @db.Timestamptz
   motivo_cancelacion     String?
   /// Quién ejecutó la cancelación manual (revocarMembresia). Null si la
   /// suscripción nunca se canceló, o si se cerró sola por vencimiento de
@@ -448,6 +462,91 @@ model Pagos {
   @@unique([proveedor, ref_transaccion_externa])
   @@index([id_suscripcion])
   @@map("pagos")
+}
+
+/// Un intento de cobro que todavía no terminó: lo que el estudiante eligió
+/// ANTES de irse a la pasarela, guardado para poder conciliar el webhook.
+///
+/// Por qué existe en vez de reutilizar `Pagos`
+/// -------------------------------------------
+/// Dos razones que no se pueden esquivar:
+///
+///   1. `pagos.id_suscripcion` es NOT NULL, y en una primera compra la
+///      suscripción todavía NO existe cuando el estudiante empieza a pagar
+///      — se crea justo cuando el pago se aprueba. No hay a qué apuntar.
+///   2. El webhook de Wompi llega con la `reference` que inventamos nosotros
+///      y el monto, nada más. Sin una fila previa no hay forma de saber qué
+///      plan compró ni qué cupón aplicó. Y Wompi **no permite consultar una
+///      transacción por referencia** (solo por `transaction_id`), así que
+///      tampoco se puede preguntar después: o se guardó antes, o se perdió.
+///
+/// La tercera razón es de seguridad: `monto_centavos` se calcula en el
+/// servidor a partir del precio del plan y se guarda AQUÍ antes de firmar.
+/// El navegador nunca propone un monto — solo elige un plan y un cupón.
+model IntentosPago {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  /// La `reference` que viaja a Wompi y vuelve en el webhook: la clave de
+  /// conciliación de todo este flujo, y por eso UNIQUE.
+  ///
+  /// ALEATORIA, nunca secuencial: entra en el hash de integridad junto al
+  /// monto, y una referencia adivinable deja a cualquiera correlacionar
+  /// compras ajenas o sondear referencias que no son suyas.
+  referencia String @unique
+
+  id_usuario String  @db.Uuid
+  id_plan    String  @db.Uuid
+  /// El cupón que el estudiante aplicó, si aplicó alguno. Se guarda desde el
+  /// inicio porque `veces_usado` solo se incrementa cuando el pago se
+  /// APRUEBA (ver `aplicar_pago_wompi`): un checkout abandonado no puede
+  /// consumir un cupón de uso limitado.
+  id_cupon   String? @db.Uuid
+
+  /// El total YA con el descuento aplicado — lo mismo que se firmó y lo
+  /// mismo que Wompi debe reportar. El webhook compara contra este valor y
+  /// rechaza el evento si no coincide.
+  ///
+  /// BigInt por el mismo techo de $21.474.836 COP que el resto de columnas
+  /// de dinero: un INTEGER de 4 bytes en centavos no alcanza, y Postgres no
+  /// trunca, lanza 22003.
+  monto_centavos BigInt
+  /// ISO-4217 en mayúsculas. CHECK en supabase/sql/100, igual que las demás
+  /// columnas de moneda del esquema.
+  moneda         String
+
+  /// PENDIENTE -> APROBADO | RECHAZADO. CHECK en supabase/sql/100.
+  ///
+  /// No es un enum de Postgres por el mismo criterio que `proveedor` (ver la
+  /// cabecera de supabase/sql/042): es una etiqueta de procedencia de una
+  /// tabla operativa, no una máquina de estados sobre la que el producto
+  /// ramifique de forma exhaustiva, y un valor de enum no se puede eliminar
+  /// nunca.
+  estado String @default("PENDIENTE")
+
+  /// El `id` de la transacción del lado de Wompi. Null mientras el intento
+  /// sigue PENDIENTE — lo llena el webhook al conciliar, y es el valor que
+  /// termina en `pagos.ref_transaccion_externa`.
+  id_transaccion_wompi String?
+
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
+
+  usuario Perfiles @relation("IntentosPagoDelUsuario", fields: [id_usuario], references: [id])
+  /// Restrict, no Cascade: un plan que ya generó intentos de cobro no se
+  /// borra sin decidir antes qué pasa con ellos. Mismo criterio que
+  /// `planes_precios`.
+  plan    Planes   @relation(fields: [id_plan], references: [id], onDelete: Restrict)
+  cupon   Cupones? @relation(fields: [id_cupon], references: [id])
+
+  /// "Mis intentos de pago" — lo consulta la pantalla de retorno del
+  /// checkout, que llega con `?ref=` y pregunta por el estado.
+  @@index([id_usuario])
+  /// Para barrer los PENDIENTE viejos (un checkout abandonado nunca recibe
+  /// webhook y se queda así para siempre).
+  @@index([estado])
+  @@index([id_plan])
+  @@index([id_cupon])
+  @@map("intentos_pago")
 }
 
 // ============================================================
@@ -1199,6 +1298,7 @@ model Cupones {
   actualizado_en    DateTime      @updatedAt @db.Timestamptz
 
   suscripciones Suscripciones[]
+  intentos_pago IntentosPago[]
 
   @@map("cupones")
 }
