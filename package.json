@@ -30,6 +30,7 @@
     "examenes:probar-generacion": "tsx scripts/examenes-probar-generacion.ts",
     "verificar:migraciones-reversibles": "tsx scripts/verificar-migraciones-reversibles.ts",
     "certificados:notificar": "tsx scripts/certificados-enviar-notificaciones.ts",
+    "certificados:regenerar-pdf": "tsx scripts/certificados-regenerar-pdf.ts",
     "rate-limit:limpiar": "tsx scripts/limpiar-intentos-rate-limit.ts",
     "test:e2e": "playwright test",
     "audit:lighthouse": "tsx scripts/audit/lighthouse-audit.ts",
