@@ -35,8 +35,12 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
   const idsActor = [...new Set(filas.filter((f) => f.id_actor).map((f) => f.id_actor as string))];
   const idsPost = [...new Set(filas.filter((f) => f.entidad_tipo === "comunidad_post").map((f) => f.entidad_id))];
   const [{ data: actores }, { data: posts }] = await Promise.all([
+    // `perfiles` directo respondía null: perfiles_select_propio (001) solo
+    // deja leer la fila propia (o admin), así que un estudiante viendo la
+    // notificación de otro nunca veía el nombre del actor. Misma vista
+    // pública que usa el feed para el nombre del autor (085_comunidad_vistas_publicas.sql).
     idsActor.length
-      ? supabase.from("perfiles").select("id, nombre").in("id", idsActor)
+      ? supabase.from("comunidad_autor_publico").select("id, nombre").in("id", idsActor)
       : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
     idsPost.length
       ? supabase.from("comunidad_posts").select("id, titulo").in("id", idsPost)
