@@ -3112,6 +3112,184 @@ async function main() {
       clienteSinAcceso.from("comunidad_posts").select("*"),
     );
 
+    // ============================================================
+    // curso_calificaciones + curso_calificacion_reacciones (130) — estrellas,
+    // comentario y "me gusta" en la ficha pública de un curso. `cursoNoPublicado`
+    // (mostrado = false) sigue sin ser visible para userSinAcceso/anon en este
+    // punto, y userConAcceso sigue con su CORTESIA vigente (línea ~685).
+    // ============================================================
+    await esperarBloqueado(
+      "estudiante sin acceso NO puede calificar un curso",
+      clienteSinAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userSinAcceso.user!.id, puntuacion: 5 })
+        .select(),
+    );
+
+    const calificacionCreada = (await esperarPermitido(
+      "estudiante con acceso SÍ puede calificar el curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 4, comentario: "Buen curso" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!calificacionCreada) throw new Error("No se pudo crear la calificación de prueba.");
+    const idCalificacionPrueba = calificacionCreada.id;
+
+    await esperarBloqueado(
+      "un segundo INSERT del mismo usuario para el mismo curso choca con el índice único parcial",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 2 })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un visitante anónimo NO puede leer reseñas de un curso sin acceso",
+      clienteAnonimo.from("curso_calificaciones").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+
+    await esperarPermitido(
+      "el estudiante con acceso SÍ puede leer las reseñas del curso (la suya incluida)",
+      clienteConAcceso.from("curso_calificaciones").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+
+    await esperarPermitido(
+      "el propio autor SÍ puede editar su reseña",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .update({ puntuacion: 5, comentario: "Editado" })
+        .eq("id", idCalificacionPrueba)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "otro estudiante NO puede editar una reseña ajena",
+      clienteSinAcceso.from("curso_calificaciones").update({ puntuacion: 1 }).eq("id", idCalificacionPrueba).select(),
+    );
+
+    // Reproduce el bug reportado por el usuario: el propio autor NO podía
+    // eliminar su reseña. Causa (confirmada con EXPLAIN contra la base real):
+    // Postgres combina la policy de SELECT con el WITH CHECK del UPDATE, y
+    // "curso_calificaciones_select_publico" filtraba `not eliminado` sin
+    // excepción para el propio autor — al poner `eliminado = true`, la fila
+    // resultante dejaba de ser "visible" según esa policy y el UPDATE se
+    // rechazaba con "new row violates row-level security policy", aunque la
+    // policy de UPDATE en sí misma (auth.uid() = id_usuario) sí lo permitía.
+    await esperarPermitido(
+      "el propio autor SÍ puede eliminar (borrado lógico) su propia reseña",
+      clienteConAcceso.from("curso_calificaciones").update({ eliminado: true }).eq("id", idCalificacionPrueba).select(),
+    );
+
+    await esperarBloqueado(
+      "una reseña autoeliminada ya no la puede leer OTRO estudiante (no autor, no admin)",
+      clienteSinAcceso.from("curso_calificaciones").select("id").eq("id", idCalificacionPrueba),
+    );
+
+    await esperarPermitido(
+      "tras autoeliminarse, el estudiante SÍ puede volver a calificar el mismo curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 4, comentario: "Segunda reseña" })
+        .select()
+        .single(),
+    );
+
+    const { data: segundaCalificacion } = await clienteConAcceso
+      .from("curso_calificaciones")
+      .select("id")
+      .eq("id_curso", cursoNoPublicado.id)
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("eliminado", false)
+      .single();
+    if (!segundaCalificacion) throw new Error("No se pudo recuperar la segunda calificación de prueba.");
+    const idSegundaCalificacion = segundaCalificacion.id as string;
+
+    await esperarBloqueado(
+      "un usuario sin acceso al curso NO puede reaccionar a una reseña que no puede ver",
+      clienteSinAcceso
+        .from("curso_calificacion_reacciones")
+        .insert({ id_calificacion: idSegundaCalificacion, id_usuario: userSinAcceso.user!.id })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede reaccionar ('me gusta') a la reseña",
+      clienteAdmin
+        .from("curso_calificacion_reacciones")
+        .insert({ id_calificacion: idSegundaCalificacion, id_usuario: userAdmin.user!.id })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede quitar su propia reacción",
+      clienteAdmin
+        .from("curso_calificacion_reacciones")
+        .delete()
+        .eq("id_calificacion", idSegundaCalificacion)
+        .eq("id_usuario", userAdmin.user!.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un estudiante que no es admin NO puede moderar (eliminar) la reseña de otro",
+      clienteSinAcceso
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userSinAcceso.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un admin NO puede firmar la moderación de una reseña con el id de otro usuario",
+      clienteAdmin
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userConAcceso.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede moderar (eliminar) la reseña de otro, firmando con su propio id",
+      clienteAdmin
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userAdmin.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "una reseña moderada por un admin ya no la puede leer OTRO estudiante (no autor, no admin)",
+      clienteSinAcceso.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ sigue viendo la reseña eliminada (para auditoría/moderación)",
+      clienteAdmin.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      // A propósito: el propio autor SIGUE viendo su fila aunque esté
+      // eliminada — no porque la app se la vaya a listar (getCalificacionesCurso
+      // filtra `eliminado = false` aparte), sino porque la policy de SELECT
+      // necesita dejarlo pasar para que el UPDATE que pone `eliminado = true`
+      // no se rompa: Postgres combina el SELECT de la tabla con el WITH CHECK
+      // del UPDATE (para garantizar que la fila resultante siga siendo visible
+      // para quien la modifica) — sin esta rama, un autor NUNCA podría borrar
+      // su propia reseña. Confirmado con EXPLAIN contra la base real.
+      "el propio autor SÍ sigue viendo su reseña aunque esté eliminada (lo exige poder borrarla)",
+      clienteConAcceso.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      "tras eliminarse, el estudiante SÍ puede volver a calificar el mismo curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 3 })
+        .select(),
+    );
+
     // cuenta_activa() (019) en la escritura: mismo cinturón de seguridad que
     // el resto del proyecto exige en todo INSERT/UPDATE, ahora también en
     // Comunidad. Se suspende y se restaura al propio usuario de prueba

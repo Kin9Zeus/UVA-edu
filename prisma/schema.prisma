@@ -197,36 +197,39 @@ model Perfiles {
   creado_en      DateTime     @default(now()) @db.Timestamptz
   actualizado_en DateTime     @updatedAt @db.Timestamptz
 
-  cursos_creados              Cursos[]                 @relation("CursosCreadosPorAdmin")
-  categorias_creadas          Categorias[]             @relation("CategoriasCreadasPorAdmin")
-  instructores_creados        Instructores[]           @relation("InstructoresCreadosPorAdmin")
-  codigos_invitacion_creados  CodigosInvitacion[]      @relation("CodigosInvitacionCreadosPorAdmin")
-  lotes_codigos_creados       LotesCodigosInvitacion[] @relation("LotesCodigosCreadosPorAdmin")
-  tokens_vista_previa_creados TokensVistaPrevia[]      @relation("TokensVistaPreviaCreadosPorAdmin")
-  suscripciones               Suscripciones[]          @relation("SuscripcionesDelUsuario")
-  suscripciones_otorgadas     Suscripciones[]          @relation("SuscripcionesOtorgadasPorAdmin")
-  suscripciones_canceladas    Suscripciones[]          @relation("SuscripcionesCanceladasPorAdmin")
-  progreso                    Progreso[]
-  certificados                Certificados[]
-  inscripciones               Inscripciones[]          @relation("InscripcionesDelUsuario")
-  inscripciones_otorgadas     Inscripciones[]          @relation("InscripcionesOtorgadasPorAdmin")
-  inscripciones_revocadas     Inscripciones[]          @relation("InscripcionesRevocadasPorAdmin")
-  acciones_bitacora           BitacoraAdministrativa[]
-  instructor_vinculado        Instructores?            @relation("InstructorEsPerfil")
-  comentarios                 Comentarios[]
-  comentario_likes            ComentarioLikes[]
-  comentarios_moderados       ComentarioModeracion[]
-  cursos_dictados             CursoInstructores[]      @relation("CursoInstructoresPerfil")
-  intentos_examen             IntentosExamen[]
-  comunidad_posts             ComunidadPosts[]
-  comunidad_respuestas        ComunidadRespuestas[]
-  comunidad_reacciones        ComunidadReacciones[]
-  comunidad_moderaciones      ComunidadModeracion[]    @relation("ComunidadModeradaPorAdmin")
-  configuraciones_comunidad   ConfiguracionComunidad[] @relation("ConfiguracionComunidadActualizadaPorAdmin")
-  comunidad_adjuntos          ComunidadAdjuntos[]
-  comunidad_reportes          ComunidadReportes[]      @relation("ComunidadReportadaPor")
-  notificaciones              Notificaciones[]         @relation("NotificacionesDelUsuario")
-  notificaciones_generadas    Notificaciones[]         @relation("NotificacionesGeneradasPorActor")
+  cursos_creados                 Cursos[]                      @relation("CursosCreadosPorAdmin")
+  categorias_creadas             Categorias[]                  @relation("CategoriasCreadasPorAdmin")
+  instructores_creados           Instructores[]                @relation("InstructoresCreadosPorAdmin")
+  codigos_invitacion_creados     CodigosInvitacion[]           @relation("CodigosInvitacionCreadosPorAdmin")
+  lotes_codigos_creados          LotesCodigosInvitacion[]      @relation("LotesCodigosCreadosPorAdmin")
+  tokens_vista_previa_creados    TokensVistaPrevia[]           @relation("TokensVistaPreviaCreadosPorAdmin")
+  suscripciones                  Suscripciones[]               @relation("SuscripcionesDelUsuario")
+  suscripciones_otorgadas        Suscripciones[]               @relation("SuscripcionesOtorgadasPorAdmin")
+  suscripciones_canceladas       Suscripciones[]               @relation("SuscripcionesCanceladasPorAdmin")
+  progreso                       Progreso[]
+  certificados                   Certificados[]
+  inscripciones                  Inscripciones[]               @relation("InscripcionesDelUsuario")
+  inscripciones_otorgadas        Inscripciones[]               @relation("InscripcionesOtorgadasPorAdmin")
+  inscripciones_revocadas        Inscripciones[]               @relation("InscripcionesRevocadasPorAdmin")
+  acciones_bitacora              BitacoraAdministrativa[]
+  instructor_vinculado           Instructores?                 @relation("InstructorEsPerfil")
+  comentarios                    Comentarios[]
+  comentario_likes               ComentarioLikes[]
+  comentarios_moderados          ComentarioModeracion[]
+  cursos_dictados                CursoInstructores[]           @relation("CursoInstructoresPerfil")
+  intentos_examen                IntentosExamen[]
+  comunidad_posts                ComunidadPosts[]
+  comunidad_respuestas           ComunidadRespuestas[]
+  comunidad_reacciones           ComunidadReacciones[]
+  comunidad_moderaciones         ComunidadModeracion[]         @relation("ComunidadModeradaPorAdmin")
+  configuraciones_comunidad      ConfiguracionComunidad[]      @relation("ConfiguracionComunidadActualizadaPorAdmin")
+  comunidad_adjuntos             ComunidadAdjuntos[]
+  comunidad_reportes             ComunidadReportes[]           @relation("ComunidadReportadaPor")
+  curso_calificaciones           CursoCalificaciones[]
+  curso_calificaciones_moderadas CursoCalificaciones[]         @relation("CursoCalificacionModeradaPorAdmin")
+  curso_calificacion_reacciones  CursoCalificacionReacciones[]
+  notificaciones                 Notificaciones[]              @relation("NotificacionesDelUsuario")
+  notificaciones_generadas       Notificaciones[]              @relation("NotificacionesGeneradasPorActor")
 
   @@map("perfiles")
 }
@@ -600,6 +603,7 @@ model Cursos {
   examen              Examenes?
   transcripciones     TranscripcionesVideo[]
   trabajos_generacion TrabajosGeneracionExamen[]
+  calificaciones      CursoCalificaciones[]
 
   @@index([id_instructor])
   @@index([id_admin_creador])
@@ -1399,31 +1403,31 @@ model ConfiguracionComunidad {
 }
 
 model ComunidadPosts {
-  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_usuario     String             @db.Uuid
-  categoria      CategoriaComunidad
-  titulo         String
-  contenido      String
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario          String             @db.Uuid
+  categoria           CategoriaComunidad
+  titulo              String
+  contenido           String
   /// Borrado lógico, mismo criterio que Comentarios.eliminado: conserva el
   /// hilo de respuestas en vez de dejarlas huérfanas.
-  eliminado      Boolean            @default(false)
+  eliminado           Boolean            @default(false)
   /// `true` solo cuando `eliminado` lo puso un admin moderando (no el propio
   /// autor) — distingue el placeholder en la UI. Solo se setea junto con
   /// `eliminado`, verificado en el trigger de transiciones (089), no aquí.
-  eliminado_por_admin Boolean       @default(false)
+  eliminado_por_admin Boolean            @default(false)
   /// Solo ADMINISTRADOR — verificado en la policy de UPDATE (083), no aquí.
-  fijado         Boolean            @default(false)
+  fijado              Boolean            @default(false)
   /// Campos propios de la categoría EMPLEO — null en cualquier otra
   /// categoría, obligatorios (salvo ubicación) en EMPLEO. Coherencia con
   /// `categoria` verificada por CHECK en 098_comunidad_empleo_campos.sql,
   /// no aquí. `empleo_modalidad` es texto libre acotado por CHECK (mismo
   /// criterio que `notificaciones.tipo`), no un enum de Prisma.
-  empleo_empresa    String?
-  empleo_modalidad  String?
-  empleo_ubicacion  String?
-  empleo_enlace     String?
-  creado_en      DateTime           @default(now()) @db.Timestamptz
-  actualizado_en DateTime           @default(now()) @updatedAt @db.Timestamptz
+  empleo_empresa      String?
+  empleo_modalidad    String?
+  empleo_ubicacion    String?
+  empleo_enlace       String?
+  creado_en           DateTime           @default(now()) @db.Timestamptz
+  actualizado_en      DateTime           @default(now()) @updatedAt @db.Timestamptz
 
   usuario    Perfiles              @relation(fields: [id_usuario], references: [id])
   respuestas ComunidadRespuestas[]
@@ -1438,15 +1442,15 @@ model ComunidadPosts {
 }
 
 model ComunidadRespuestas {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_post        String   @db.Uuid
-  id_usuario     String   @db.Uuid
-  contenido      String
-  eliminado      Boolean  @default(false)
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post             String   @db.Uuid
+  id_usuario          String   @db.Uuid
+  contenido           String
+  eliminado           Boolean  @default(false)
   /// Ver el comentario del mismo campo en ComunidadPosts.
-  eliminado_por_admin Boolean @default(false)
-  creado_en      DateTime @default(now()) @db.Timestamptz
-  actualizado_en DateTime @default(now()) @updatedAt @db.Timestamptz
+  eliminado_por_admin Boolean  @default(false)
+  creado_en           DateTime @default(now()) @db.Timestamptz
+  actualizado_en      DateTime @default(now()) @updatedAt @db.Timestamptz
 
   post       ComunidadPosts        @relation(fields: [id_post], references: [id], onDelete: Cascade)
   usuario    Perfiles              @relation(fields: [id_usuario], references: [id])
@@ -1516,13 +1520,13 @@ model ComunidadModeracion {
 /// descartar el reporte sin eliminar el contenido; si lo elimina, el
 /// reporte queda igual con `revisado = true` (ver resolverReporteComunidad).
 model ComunidadReportes {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_post        String?  @db.Uuid
-  id_respuesta   String?  @db.Uuid
-  id_reportante  String   @db.Uuid
-  motivo         String
-  revisado       Boolean  @default(false)
-  creado_en      DateTime @default(now()) @db.Timestamptz
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_post       String?  @db.Uuid
+  id_respuesta  String?  @db.Uuid
+  id_reportante String   @db.Uuid
+  motivo        String
+  revisado      Boolean  @default(false)
+  creado_en     DateTime @default(now()) @db.Timestamptz
 
   post       ComunidadPosts?      @relation(fields: [id_post], references: [id], onDelete: Cascade)
   respuesta  ComunidadRespuestas? @relation(fields: [id_respuesta], references: [id], onDelete: Cascade)
@@ -1599,4 +1603,54 @@ model ComunidadAdjuntos {
   @@index([id_respuesta])
   @@index([id_usuario])
   @@map("comunidad_adjuntos")
+}
+
+/// Calificación con estrellas (1-5) y comentario opcional de un estudiante
+/// sobre un curso — una fila por (curso, usuario), editable (upsert), nunca
+/// duplicada: la unicidad vive como índice parcial `where not eliminado` en
+/// 130_curso_calificaciones.sql (mismo motivo que las parciales de
+/// Comunidad/Suscripciones: Prisma no expresa `unique ... where` nativo).
+/// A diferencia de Comunidad, el catálogo de cursos SÍ es público sin
+/// sesión (`basePath="/catalogo"` en CursoDetalleContent) — las reseñas
+/// también lo son, es contenido de marketing, no de una comunidad cerrada.
+model CursoCalificaciones {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_curso            String   @db.Uuid
+  id_usuario          String   @db.Uuid
+  puntuacion          Int
+  comentario          String?
+  /// Borrado lógico, mismo criterio que ComunidadPosts.eliminado —
+  /// `eliminado_por_admin`/`id_eliminado_por` solo se llenan cuando fue un
+  /// admin moderando (no el propio autor borrando la suya).
+  eliminado           Boolean  @default(false)
+  eliminado_por_admin Boolean  @default(false)
+  id_eliminado_por    String?  @db.Uuid
+  creado_en           DateTime @default(now()) @db.Timestamptz
+  actualizado_en      DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  curso         Cursos                        @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+  usuario       Perfiles                      @relation(fields: [id_usuario], references: [id])
+  eliminado_por Perfiles?                     @relation("CursoCalificacionModeradaPorAdmin", fields: [id_eliminado_por], references: [id])
+  reacciones    CursoCalificacionReacciones[]
+
+  @@index([id_curso, creado_en])
+  @@index([id_usuario])
+  @@map("curso_calificaciones")
+}
+
+/// "Me gusta" a una reseña de curso — mismo patrón que ComunidadReacciones,
+/// sin la exclusividad post/respuesta porque solo hay un tipo de objetivo.
+model CursoCalificacionReacciones {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_calificacion String   @db.Uuid
+  id_usuario      String   @db.Uuid
+  creado_en       DateTime @default(now()) @db.Timestamptz
+
+  calificacion CursoCalificaciones @relation(fields: [id_calificacion], references: [id], onDelete: Cascade)
+  usuario      Perfiles            @relation(fields: [id_usuario], references: [id])
+
+  @@unique([id_calificacion, id_usuario])
+  @@index([id_calificacion])
+  @@index([id_usuario])
+  @@map("curso_calificacion_reacciones")
 }
