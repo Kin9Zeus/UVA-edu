@@ -46,6 +46,12 @@ begin
     check (tipo in ('COMUNIDAD_RESPUESTA', 'COMUNIDAD_ANUNCIO', 'COMUNIDAD_MODERACION', 'COMUNIDAD_REPORTE_RESUELTO'));
 exception
   when duplicate_object then null;
+  -- Ver el comentario equivalente en 094/095: este pipeline reaplica todos
+  -- los archivos contra la base ya viva. 131 reemplaza 'COMUNIDAD_REPORTE_RESUELTO'
+  -- por dos tipos más específicos y reclasifica las filas existentes DESPUÉS
+  -- de este archivo, en la misma transacción — inofensivo, el CHECK final
+  -- que deja 131 es el que importa.
+  when check_violation then null;
 end;
 $$;
 

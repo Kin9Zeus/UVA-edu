@@ -25,6 +25,13 @@ begin
     check (tipo in ('COMUNIDAD_RESPUESTA', 'COMUNIDAD_ANUNCIO'));
 exception
   when duplicate_object then null;
+  -- Ver el comentario equivalente en 094: este pipeline reaplica todos los
+  -- archivos contra la base ya viva, así que puede haber filas reales con
+  -- tipos más nuevos (110/131 los agregan después, en la misma
+  -- transacción) para cuando este ADD CONSTRAINT corre. Inofensivo — el
+  -- archivo que amplía de verdad la lista corre después y deja el CHECK
+  -- final correcto de todas formas.
+  when check_violation then null;
 end;
 $$;
 

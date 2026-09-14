@@ -3097,13 +3097,64 @@ async function main() {
     );
 
     await esperarPermitido(
-      "resolver el reporte SÍ notificó al reportante (trigger 110)",
+      // El post sigue vivo (esta prueba solo marca `revisado`, nunca lo
+      // elimina) — el veredicto correcto es DESCARTADO, no ELIMINADO
+      // (131_comunidad_reporte_resuelto_con_veredicto.sql: el trigger lee
+      // `comunidad_posts.eliminado` en el momento en que dispara).
+      "resolver el reporte sin eliminar el contenido SÍ notificó 'descartado' al reportante (trigger 131)",
       admin
         .from("notificaciones")
         .select("id")
         .eq("id_usuario", userAdmin.user!.id)
         .eq("entidad_id", postComunidad.id)
-        .eq("tipo", "COMUNIDAD_REPORTE_RESUELTO")
+        .eq("tipo", "COMUNIDAD_REPORTE_DESCARTADO")
+        .single(),
+    );
+
+    // Mismo trigger, otra rama: si para cuando `revisado` pasa a true el
+    // post YA está eliminado (como deja eliminarPostComunidad, que marca
+    // `eliminado` ANTES de marcar el reporte), el veredicto debe ser
+    // ELIMINADO. Se simula el orden exacto de esa Server Action con el
+    // cliente admin (service role): primero `eliminado = true`, después
+    // un segundo reporte + su cierre.
+    const { error: errEliminarPostPrueba } = await admin
+      .from("comunidad_posts")
+      .update({ eliminado: true, titulo: "", contenido: "" })
+      .eq("id", postComunidad.id);
+    if (errEliminarPostPrueba) throw new Error(`No pude marcar el post de prueba como eliminado: ${errEliminarPostPrueba.message}`);
+
+    // Reportante distinto al primer reporte (userAdmin ya reportó este post
+    // arriba — comunidad_reportes_post_unico_por_reportante no deja un
+    // segundo reporte del mismo reportante sobre el mismo post).
+    const segundoReporteComunidad = (await esperarPermitido(
+      "estudiante con acceso SÍ puede reportar un post ya eliminado (para la prueba del veredicto)",
+      admin
+        .from("comunidad_reportes")
+        .insert({
+          id_post: postComunidad.id,
+          id_reportante: userConAcceso.user!.id,
+          motivo: "Prueba RLS — veredicto eliminado",
+        })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!segundoReporteComunidad?.id) {
+      throw new Error("El segundo reporte de prueba no devolvió id.");
+    }
+
+    await esperarPermitido(
+      "administrador SÍ puede marcar el segundo reporte como revisado",
+      admin.from("comunidad_reportes").update({ revisado: true }).eq("id", segundoReporteComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "resolver el reporte de un post YA eliminado SÍ notificó 'eliminado' al reportante (trigger 131)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_REPORTE_ELIMINADO")
         .single(),
     );
 

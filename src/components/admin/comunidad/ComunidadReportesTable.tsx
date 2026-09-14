@@ -26,9 +26,9 @@ export function ComunidadReportesTable({ reportes }: { reportes: ReporteComunida
   const [pendienteDescarte, startTransition] = useTransition();
   const [reporteEnDialogo, setReporteEnDialogo] = useState<ReporteComunidadPendiente | null>(null);
 
-  function descartar(id: string) {
+  function descartar(reporte: ReporteComunidadPendiente) {
     startTransition(async () => {
-      const resultado = await descartarReporteComunidad(id);
+      const resultado = await descartarReporteComunidad(reporte.id, reporte.motivo);
       if (resultado.error) {
         showToast(resultado.error, "error");
         return;
@@ -100,7 +100,7 @@ export function ComunidadReportesTable({ reportes }: { reportes: ReporteComunida
               <button
                 type="button"
                 disabled={pendienteDescarte}
-                onClick={() => descartar(reporte.id)}
+                onClick={() => descartar(reporte)}
                 className="cursor-pointer border-0 bg-transparent p-0 text-uva-muted hover:text-uva-text disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Descartar

@@ -356,6 +356,10 @@ export async function getComunidadFeed(opciones?: {
         contenido: fila.contenido,
         fijado: fila.fijado,
         eliminado: fila.eliminado,
+        // El feed ya filtra `eliminado = false` arriba, así que esto nunca
+        // es relevante acá — solo lo necesita el detalle de un post
+        // eliminado (getComunidadPost), que sí trae la columna real.
+        eliminadoPorAdmin: false,
         tiempo: tiempoRelativo(fila.creado_en),
         autorId: fila.id_usuario,
         autorNombre: extra.autorNombre,
@@ -381,7 +385,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
   const { data: post, error } = await supabase
     .from("comunidad_posts")
     .select(
-      "id, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en, empleo_empresa, empleo_modalidad, empleo_ubicacion, empleo_enlace",
+      "id, id_usuario, categoria, titulo, contenido, fijado, eliminado, eliminado_por_admin, creado_en, empleo_empresa, empleo_modalidad, empleo_ubicacion, empleo_enlace",
     )
     .eq("id", postId)
     .maybeSingle();
@@ -390,7 +394,44 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
     logError("comunidad:detalle", "no se pudo leer la publicación de comunidad", error, { postId });
     return null;
   }
-  if (!post || post.eliminado) return null;
+  if (!post) return null;
+
+  // Un post eliminado (por su autor o por moderación) ya no aparece en el
+  // feed, pero un enlace directo — o justo la notificación de "tu reporte
+  // fue revisado" (110_comunidad_notificaciones_moderacion_reportes.sql,
+  // que apunta acá) — sí puede llegar a esta URL. Antes esto devolvía
+  // `null` y la página mandaba a un 404 genérico sin explicar qué pasó;
+  // ahora se arma un objeto mínimo (sin respuestas ni reacciones: ya no hay
+  // nada que ver) para que ComunidadPostDetalleContent pueda mostrar un
+  // placeholder claro, mismo criterio que ya usan las respuestas eliminadas
+  // dentro de un hilo (nunca 404, un texto "[respuesta eliminada]").
+  if (post.eliminado) {
+    const { data: autor } = await supabase
+      .from("comunidad_autor_publico")
+      .select("nombre, foto_url")
+      .eq("id", post.id_usuario)
+      .maybeSingle();
+
+    return {
+      id: post.id,
+      categoria: post.categoria,
+      titulo: "",
+      contenido: "",
+      fijado: false,
+      eliminado: true,
+      eliminadoPorAdmin: post.eliminado_por_admin,
+      tiempo: tiempoRelativo(post.creado_en),
+      autorId: post.id_usuario,
+      autorNombre: autor?.nombre ?? "Estudiante UVA",
+      autorFotoUrl: autor?.foto_url ?? null,
+      totalRespuestas: 0,
+      totalReacciones: 0,
+      meReaccione: false,
+      adjuntos: [],
+      datosEmpleo: null,
+      respuestas: [],
+    };
+  }
 
   const { data: respuestasFilas, error: errorRespuestas } = await supabase
     .from("comunidad_respuestas")
@@ -414,6 +455,7 @@ export async function getComunidadPost(postId: string): Promise<ComunidadPostDet
     contenido: post.contenido,
     fijado: post.fijado,
     eliminado: post.eliminado,
+    eliminadoPorAdmin: post.eliminado_por_admin,
     tiempo: tiempoRelativo(post.creado_en),
     autorId: post.id_usuario,
     autorNombre: extraPost.autorNombre,

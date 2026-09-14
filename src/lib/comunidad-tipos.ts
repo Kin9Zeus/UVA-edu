@@ -101,6 +101,10 @@ export type ComunidadPostResumen = {
   contenido: string;
   fijado: boolean;
   eliminado: boolean;
+  /** Solo relevante si `eliminado`: distingue "eliminó su publicación" de
+   * "un admin la eliminó por moderación" en la vista de detalle — mismo
+   * criterio que ComunidadRespuesta.eliminadoPorAdmin. */
+  eliminadoPorAdmin: boolean;
   tiempo: string;
   autorId: string;
   autorNombre: string;
