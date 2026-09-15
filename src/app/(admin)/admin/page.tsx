@@ -51,10 +51,10 @@ export default async function AdminDashboardPage() {
    * decía por ninguna parte: cuánta gente está adentro y cuánta de esa está
    * pagando.
    *
-   * Solo la primera va en magenta. Las cuatro en `accent` era el
-   * comportamiento por defecto de MetricaCard, y cuatro acentos idénticos en
-   * fila no jerarquizan nada — además de gastar en un conteo el color que
-   * CLAUDE.md §3.3 reserva para CTAs, estados activos y progreso.
+   * El magenta va en los 4 iconos por igual —es un adorno, no una jerarquía
+   * de "cuál importa más"— y la jerarquía real se ve al pasar el mouse:
+   * la cifra de una tarjeta con destino se pone magenta, la de "Cortesías
+   * activas" (sin `href`, no hay a dónde ir) no reacciona.
    */
   const tarjetas = [
     {
@@ -62,7 +62,6 @@ export default async function AdminDashboardPage() {
       valor: metricas.usuariosRegistrados,
       detalle: `${metricas.usuariosActivos7d} vieron contenido esta semana`,
       icon: Users,
-      tono: "accent" as const,
       href: "/admin/usuarios",
     },
     {
@@ -70,7 +69,6 @@ export default async function AdminDashboardPage() {
       valor: metricas.conAcceso,
       detalle: `${metricas.accesoDePago} de pago · ${metricas.accesoSinCobro} sin cobro`,
       icon: UserCheck,
-      tono: "neutral" as const,
       href: "/admin/usuarios",
     },
     {
@@ -78,7 +76,6 @@ export default async function AdminDashboardPage() {
       valor: metricas.cursosTotal,
       detalle: `${metricas.cursosPublicados} publicados · ${metricas.cursosBorrador} en borrador`,
       icon: BookOpen,
-      tono: "neutral" as const,
       href: "/admin/cursos",
     },
     {
@@ -92,7 +89,6 @@ export default async function AdminDashboardPage() {
       valor: metricas.cortesiasActivas,
       detalle: "cursos sueltos otorgados por un admin",
       icon: Gift,
-      tono: "neutral" as const,
     },
   ];
 
@@ -102,13 +98,23 @@ export default async function AdminDashboardPage() {
         Resumen general de la plataforma.
       </p>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {/* El mockup solo pinta etiqueta y valor; el icono es un añadido del
-            panel, así que va como acento en la esquina para no romper esa
-            lectura de arriba abajo. El markup vive en MetricaCard para que
-            esta pantalla y /admin/usuarios se lean igual. */}
+      {/* El mockup solo pinta etiqueta y valor; el icono es un añadido del
+          panel, así que va como acento en la esquina para no romper esa
+          lectura de arriba abajo. El markup vive en MetricaCard para que
+          esta pantalla y /admin/usuarios se lean igual.
+
+          Sin caja: son 4 cifras de la misma fila, no 4 objetos aparte, así
+          que se separan con un divisor en vez de con 4 tarjetas — el
+          dashboard ya trae 2 tarjetas más abajo (Actividad, Cursos
+          populares) y iba a abrir con 6 cajas antes de decir nada. El
+          selector `nth-child` arma la cuadrícula 2×2 del móvil (divisor a la
+          derecha en la columna par, arriba en la fila de abajo) y `lg:`
+          la aplana a una sola fila. */}
+      <div
+        className="grid grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0"
+      >
         {tarjetas.map((tarjeta) => (
-          <MetricaCard key={tarjeta.label} {...tarjeta} />
+          <MetricaCard key={tarjeta.label} {...tarjeta} variant="flush" />
         ))}
       </div>
 
