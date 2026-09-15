@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
-import { GraciaAlerta } from "@/components/dashboard/GraciaAlerta";
 import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
 import { cn } from "@/lib/utils";
 import type { Notificacion } from "@/lib/notificaciones-tipos";
@@ -52,8 +51,9 @@ export function Header({
    * real — a diferencia del resto de páginas con este header, donde sí
    * hace falta. */
   ocultarBuscador?: boolean;
-  /** Si no es null, muestra el ícono de alerta de período de gracia (solo
-   * mobile; en desktop ese aviso vive en la tarjeta fija del Sidebar). */
+  /** Si no es null, antepone el aviso de período de gracia dentro del
+   * popover de NotificacionesBell (solo relevante en mobile; en desktop
+   * ese aviso vive en la tarjeta fija del Sidebar). */
   diasGracia?: number | null;
   /** Últimas notificaciones y cuántas siguen sin leer — ver
    * getDashboardChromeData (src/lib/dashboard-chrome.ts). */
@@ -88,8 +88,11 @@ export function Header({
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        <NotificacionesBell notificaciones={notificaciones} noLeidas={notificacionesNoLeidas} />
-        <GraciaAlerta diasGracia={diasGracia} />
+        <NotificacionesBell
+          notificaciones={notificaciones}
+          noLeidas={notificacionesNoLeidas}
+          diasGracia={diasGracia}
+        />
         <Link
           href="/dashboard/planes"
           className={cn(

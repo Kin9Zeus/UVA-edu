@@ -11,6 +11,7 @@ import {
   eliminarNotificacion,
 } from "@/actions/notificaciones";
 import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones-tipos";
+import { GraciaCard } from "@/components/dashboard/GraciaCard";
 
 /** Ícono + tono por tipo — mismos 4 tonos que ya usan las categorías de
  * Comunidad (CATEGORIA_ESTILO, comunidad-tipos.ts), no una paleta nueva.
@@ -34,10 +35,16 @@ const CLASES_TONO: Record<"success" | "warn" | "danger" | "neutral", string> = {
 };
 
 /**
- * Campana de notificaciones del header — mismo Popover que ya usaba
- * GraciaAlerta para el aviso de período de gracia, pero genérico: hoy
- * dispara "te respondieron un post" y "nuevo anuncio" (094/095), pero la UI
- * ya no asume un único tipo.
+ * Campana de notificaciones del header. Genérica: hoy dispara "te
+ * respondieron un post" y "nuevo anuncio" (094/095), pero la UI ya no asume
+ * un único tipo.
+ *
+ * En mobile es también la única campana: antes el aviso de período de
+ * gracia (`diasGracia`) vivía en su propio ícono aparte (GraciaAlerta,
+ * eliminado), así que por debajo de `md` aparecían dos campanas casi
+ * idénticas en el header. Ahora, si hay período de gracia activo, su
+ * tarjeta (GraciaCard — misma que la fija del Sidebar en desktop) se
+ * antepone dentro de este mismo popover.
  *
  * El conteo/lista llegan ya resueltos del servidor (getDashboardChromeData)
  * en cada carga de página — sin tiempo real por ahora, mismo alcance MVP
@@ -49,9 +56,14 @@ const CLASES_TONO: Record<"success" | "warn" | "danger" | "neutral", string> = {
 export function NotificacionesBell({
   notificaciones,
   noLeidas,
+  diasGracia = null,
 }: {
   notificaciones: Notificacion[];
   noLeidas: number;
+  /** Si no es null, antepone el aviso de período de gracia al popover
+   * (solo relevante en mobile: en desktop ese aviso ya vive en la tarjeta
+   * fija del Sidebar, ver Header.tsx). */
+  diasGracia?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -94,20 +106,45 @@ export function NotificacionesBell({
     });
   }
 
+  const graciaVencida = diasGracia !== null && diasGracia <= 0;
+  const etiquetaGracia =
+    diasGracia === null
+      ? null
+      : graciaVencida
+        ? "tu plan venció"
+        : `quedan ${diasGracia} ${diasGracia === 1 ? "día" : "días"} de tu período de gracia`;
+  const etiquetaNoLeidas = noLeidas > 0 ? `${noLeidas} sin leer` : null;
+  const ariaLabel =
+    [etiquetaGracia, etiquetaNoLeidas].filter(Boolean).length > 0
+      ? `Notificaciones — ${[etiquetaGracia, etiquetaNoLeidas].filter(Boolean).join(", ")}`
+      : "Notificaciones";
+
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
-        aria-label={noLeidas > 0 ? `Notificaciones — ${noLeidas} sin leer` : "Notificaciones"}
+        aria-label={ariaLabel}
         className="relative flex size-9 shrink-0 items-center justify-center rounded-uva-sm text-uva-text hover:bg-[#1C1C20]"
       >
         <Bell className="size-5" strokeWidth={1.9} />
-        {noLeidas > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex size-2 rounded-full bg-uva-accent ring-2 ring-uva-bg" />
+        {(diasGracia !== null || noLeidas > 0) && (
+          <span
+            className={`absolute top-1.5 right-1.5 flex size-2 rounded-full ring-2 ring-uva-bg ${
+              graciaVencida ? "bg-uva-badge-danger-fg" : diasGracia !== null ? "bg-uva-accent-2" : "bg-uva-accent"
+            }`}
+          />
         )}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner className="isolate z-50 outline-none" sideOffset={8} align="end">
           <Popover.Popup className="flex w-[320px] max-h-[420px] flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface shadow-lg outline-none">
+            {diasGracia !== null && (
+              // md:hidden: en desktop este mismo aviso ya vive en la
+              // tarjeta fija del Sidebar — repetirlo aquí sería redundante.
+              <div className="border-b border-uva-divider p-3.5 md:hidden">
+                <GraciaCard diasGracia={diasGracia} />
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-b border-uva-divider px-3.5 py-2.5">
               <span className="text-sm font-semibold text-uva-text">Notificaciones</span>
               {noLeidas > 0 && (
