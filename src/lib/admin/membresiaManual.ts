@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
 
 /**
  * La suscripción que ya ocupa el cupo único ACTIVA/PAST_DUE del usuario
@@ -63,13 +64,26 @@ export async function buscarMembresiaVigente(
   // una la base ya está corrupta y no es este el sitio donde detectarlo.
   const { data } = await supabase
     .from("suscripciones")
-    .select("estado, acceso_manual, plan:planes(nombre)")
+    .select("estado, fecha_renovacion, acceso_manual, plan:planes(nombre)")
     .eq("id_usuario", usuarioId)
     .in("estado", ["ACTIVA", "PAST_DUE"])
     .limit(1)
     .maybeSingle();
 
   if (!data) return null;
+
+  // `estado` en ACTIVA/PAST_DUE no basta: un período que ya terminó por
+  // fecha sigue guardado así hasta que algo lo cierre explícitamente (nada
+  // lo hace solo — mismo hecho que documenta SuscripcionContent.tsx sobre
+  // "estadoMostrado"). Sin este chequeo, un estudiante cuyo acceso venció
+  // pero cuya fila nadie cerró todavía entraba en un callejón sin salida:
+  // el checkout lo veía "vigente" y lo rebotaba a /dashboard/suscripcion,
+  // que a su vez lo mandaba de vuelta a comprar un plan. Mismo criterio de
+  // vigencia que el resto de la plataforma (suscripcionDaAcceso), para que
+  // esta puerta nunca contradiga lo que ya se le mostró al estudiante.
+  if (!suscripcionDaAcceso({ estado: data.estado, fechaRenovacion: data.fecha_renovacion })) {
+    return null;
+  }
 
   const plan = Array.isArray(data.plan) ? data.plan[0] : data.plan;
 
