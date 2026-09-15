@@ -1,13 +1,12 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import type { CategoriaChip } from "@/lib/categoria";
+import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 
 export type CursoConProgreso = {
   cursoId: string;
   cursoSlug: string;
   titulo: string;
   imagenPortada: string;
-  /** Todas las categorías del curso — ver CategoriaChip en lib/categoria.ts. */
-  categorias: CategoriaChip[];
   leccionesCompletadas: number;
   leccionesTotal: number;
   porcentaje: number;
@@ -20,6 +19,20 @@ export type CursoConProgreso = {
    * Centralizada acá para que la tarjeta, el filtro y el badge no la
    * recombinen cada uno por su cuenta. */
   completado: boolean;
+  /**
+   * Dónde quedó: el frame firmado y el segundo exacto. `null` cuando no hay
+   * nada que reanudar —curso terminado, o empezado sin llegar a darle play—
+   * y entonces se muestra la portada de siempre.
+   */
+  reanudarEn: {
+    url: string;
+    /** Segundo exacto donde quedó. */
+    segundo: number;
+    /** Duración de esa lección, en segundos. `null` si el esquema no la tiene
+     *  (`lecciones.duracion` es nullable): sin ella no hay contra qué medir el
+     *  avance dentro del video, así que no se dibuja la barra. */
+    duracion: number | null;
+  } | null;
 };
 
 export type ProgresoData = {
@@ -44,26 +57,9 @@ export async function getProgresoData(): Promise<ProgresoData> {
     )
     .order("ultima_actividad", { ascending: false });
 
-  const cursoIds = (filas ?? []).map((fila) => fila.curso_id as string);
-
-  // Consulta chica y acotada a los cursos ya tocados (no a todo el
-  // catálogo): traer las categorías de cada uno es justo el tipo de
-  // consulta liviana que la vista de arriba no necesita cubrir.
-  const { data: categoriasPorCurso } = cursoIds.length
-    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(id, nombre)").in("id_curso", cursoIds)
-    : { data: [] };
-
-  // Todas las categorías del curso, no solo la primera — mismo criterio que
-  // buscarCatalogo() (lib/categoria.ts, 059): `curso_categorias` es
-  // muchos-a-muchos.
-  const categoriasPorCursoMap = new Map<string, CategoriaChip[]>();
-  for (const fila of categoriasPorCurso ?? []) {
-    const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
-    if (!categoria) continue;
-    const lista = categoriasPorCursoMap.get(fila.id_curso as string) ?? [];
-    lista.push({ id: categoria.id as string, nombre: categoria.nombre as string });
-    categoriasPorCursoMap.set(fila.id_curso as string, lista);
-  }
+  // Ya no se consultan las categorías: la tarjeta de Progreso dejó de
+  // mostrarlas (ver el comentario en ProgresoContent), y era una ida entera
+  // a `curso_categorias` por cada carga de la pantalla.
 
   const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
     const total = fila.lecciones_total as number;
@@ -77,7 +73,6 @@ export async function getProgresoData(): Promise<ProgresoData> {
       cursoSlug: fila.curso_slug as string,
       titulo: fila.titulo as string,
       imagenPortada: fila.imagen_portada as string,
-      categorias: categoriasPorCursoMap.get(fila.curso_id as string) ?? [{ id: "general", nombre: "General" }],
       leccionesCompletadas: completadas,
       leccionesTotal: total,
       porcentaje,
@@ -87,8 +82,118 @@ export async function getProgresoData(): Promise<ProgresoData> {
       // al 100% de clases con el examen sin aprobar NO está completo: no tiene
       // certificado, así que tampoco puede decir "Completado".
       completado: porcentaje === 100 && (!examenRequerido || examenAprobado),
+      reanudarEn: null as CursoConProgreso["reanudarEn"],
     };
   });
 
+  // Solo para los cursos SIN terminar: uno terminado vuelve a su portada,
+  // que es como debe quedar archivado.
+  const reanudar = await resolverReanudacion(
+    supabase,
+    cursos.filter((curso) => !curso.completado).map((curso) => curso.cursoId),
+  );
+  for (const curso of cursos) {
+    curso.reanudarEn = reanudar.get(curso.cursoId) ?? null;
+  }
+
   return { cursos };
+}
+
+/**
+ * Miniatura del segundo exacto donde quedó cada curso a medias.
+ *
+ * Es la diferencia entre una rejilla de portadas —todas iguales, sin decir
+ * nada— y una que muestra dónde se quedó uno: la portada identifica el
+ * curso, el frame identifica el momento.
+ *
+ * Tres consultas planas en vez de un embed anidado
+ * (`progreso -> lecciones -> modulos`): supabase-js no sabe estrechar ese
+ * tipo y obliga a castear el resultado entero, que es peor que dos viajes
+ * más en un camino que ya es asíncrono. Mismo criterio que `enviarRecibo`
+ * en lib/pagos/conciliacion.ts.
+ *
+ * Nada de esto puede romper la pantalla: sin credenciales de Mux, con un
+ * video que todavía se procesa o si falla la firma, se devuelve el mapa sin
+ * esa entrada y la tarjeta cae a la portada.
+ */
+async function resolverReanudacion(
+  supabase: SupabaseClient,
+  cursoIds: string[],
+): Promise<Map<string, NonNullable<CursoConProgreso["reanudarEn"]>>> {
+  const vacio = new Map<string, NonNullable<CursoConProgreso["reanudarEn"]>>();
+  if (cursoIds.length === 0) return vacio;
+
+  const permitidos = new Set(cursoIds);
+
+  // RLS ya acota `progreso` a las filas del usuario de la sesión, así que no
+  // hace falta filtrar por usuario.
+  //
+  // NO se exige `completado = false`. Ese filtro parecía el correcto —"la
+  // lección que dejó a medias"— pero se cumple casi nunca: lo normal es
+  // terminar una clase y volver otro día, no abandonarla a mitad. Medido
+  // sobre una cuenta real: 7 filas de progreso, 3 con segundo guardado, y
+  // las 3 completadas — o sea cero miniaturas. Lo que importa es el último
+  // frame que la persona vio en ese curso, esté la clase terminada o no.
+  const { data: avances } = await supabase
+    .from("progreso")
+    .select("id_leccion, segundo_actual")
+    .gt("segundo_actual", 0)
+    .order("actualizado_en", { ascending: false });
+
+  if (!avances?.length) return vacio;
+
+  const { data: lecciones } = await supabase
+    .from("lecciones")
+    .select("id, id_modulo, id_video_mux, estado_procesamiento, duracion")
+    .in(
+      "id",
+      avances.map((avance) => avance.id_leccion as string),
+    );
+
+  if (!lecciones?.length) return vacio;
+
+  const { data: modulos } = await supabase
+    .from("modulos")
+    .select("id, id_curso")
+    .in(
+      "id",
+      lecciones.map((leccion) => leccion.id_modulo as string),
+    );
+
+  const cursoDeModulo = new Map(
+    (modulos ?? []).map((modulo) => [modulo.id as string, modulo.id_curso as string]),
+  );
+  const leccionPorId = new Map(lecciones.map((leccion) => [leccion.id as string, leccion]));
+
+  // `avances` viene ordenado por actividad reciente, así que el primero que
+  // aparece de cada curso es el último que estuvo viendo.
+  const elegido = new Map<
+    string,
+    { playbackId: string; segundo: number; duracion: number | null }
+  >();
+  for (const avance of avances) {
+    const leccion = leccionPorId.get(avance.id_leccion as string);
+    if (!leccion?.id_video_mux || leccion.estado_procesamiento !== "LISTO") continue;
+
+    const cursoId = cursoDeModulo.get(leccion.id_modulo as string);
+    if (!cursoId || !permitidos.has(cursoId) || elegido.has(cursoId)) continue;
+
+    elegido.set(cursoId, {
+      playbackId: leccion.id_video_mux as string,
+      segundo: avance.segundo_actual as number,
+      duracion: (leccion.duracion as number | null) ?? null,
+    });
+  }
+
+  const firmadas = await Promise.all(
+    [...elegido].map(async ([cursoId, { playbackId, segundo, duracion }]) => {
+      const url = await getMiniaturaUrl(playbackId, segundo);
+      return [cursoId, url, segundo, duracion] as const;
+    }),
+  );
+
+  for (const [cursoId, url, segundo, duracion] of firmadas) {
+    if (url) vacio.set(cursoId, { url, segundo, duracion });
+  }
+  return vacio;
 }

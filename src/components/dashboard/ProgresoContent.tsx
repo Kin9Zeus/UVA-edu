@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -11,7 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AnilloProgreso } from "@/components/dashboard/AnilloProgreso";
 import { esPortadaReal } from "@/lib/media";
+import { formatDuracion } from "@/lib/admin/format";
 import type { ProgresoData } from "@/lib/progreso";
 
 const PORTADA_TRAMA = {
@@ -28,6 +29,15 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: "en_progreso", etiqueta: "En progreso" },
   { valor: "completados", etiqueta: "Completados" },
 ];
+
+/**
+ * Qué porcentaje del video lleva visto. Acotado a 100 porque el reproductor
+ * puede guardar un segundo mayor que la duración declarada por un redondeo.
+ */
+function porcentajeVisto(reanudar: { segundo: number; duracion: number | null }): number {
+  if (!reanudar.duracion || reanudar.duracion <= 0) return 0;
+  return Math.min(100, Math.round((reanudar.segundo / reanudar.duracion) * 100));
+}
 
 export function ProgresoContent({ data }: { data: ProgresoData }) {
   const { cursos } = data;
@@ -52,10 +62,10 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
   }, [cursos, filtro, orden]);
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
+    <div className="flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
       <h1 className="text-2xl text-uva-text">Tu progreso</h1>
 
-      <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+      <div>
         {cursos.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <div className="flex gap-1 rounded-full border border-uva-divider p-1">
@@ -87,7 +97,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
         )}
 
         {cursos.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <div className="flex flex-col items-center gap-3 rounded-uva-md border border-uva-divider bg-uva-surface px-6 py-12 text-center">
             <p className="text-sm text-uva-text-muted">
               Todavía no has empezado ningún curso. Explora el catálogo para arrancar.
             </p>
@@ -108,20 +118,38 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
               <Link
                 key={curso.cursoId}
                 href={`/cursos/${curso.cursoSlug}`}
-                className="group flex flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-bg hover:border-uva-text-faint"
+                className="group flex flex-col gap-2.5"
               >
+                {/* El frame donde quedó manda sobre la portada: una rejilla
+                    de portadas identifica cursos, una de frames identifica
+                    MOMENTOS — "voy por acá". Un curso terminado no tiene
+                    lección a medias, así que `reanudarEn` viene null y vuelve
+                    sola a su portada. */}
                 <div
-                  className="relative aspect-video"
-                  style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}
+                  className="relative aspect-video overflow-hidden rounded-uva-md bg-uva-surface-2 ring-1 ring-uva-divider transition-[box-shadow] group-hover:ring-uva-text-faint"
+                  style={
+                    !curso.reanudarEn && !esPortadaReal(curso.imagenPortada)
+                      ? PORTADA_TRAMA
+                      : undefined
+                  }
                 >
-                  {esPortadaReal(curso.imagenPortada) && (
-                    <Image
-                      src={curso.imagenPortada}
+                  {curso.reanudarEn ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
+                    <img
+                      src={curso.reanudarEn.url}
                       alt=""
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover"
+                      className="absolute inset-0 size-full object-cover"
                     />
+                  ) : (
+                    esPortadaReal(curso.imagenPortada) && (
+                      <Image
+                        src={curso.imagenPortada}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
+                      />
+                    )
                   )}
                   {/* Franja negra de siempre abajo de la portada (mismo
                       recurso que CursoCard.tsx del catálogo): "Completado" en
@@ -145,28 +173,78 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                       </span>
                     </div>
                   )}
+
+                  {/* Dónde va DENTRO del video, igual que la barra del
+                      reproductor: posición y duración. Va arriba a la derecha
+                      para no chocar con el badge de estado ni con la barra.
+
+                      Ojo con la distinción: esto NO es el avance del curso
+                      —ese es "2/7 · 28%" en la línea de abajo— sino el minuto
+                      exacto de la clase que dejó a medias. Un "00:22" suelto
+                      no dice nada si no se sabe si el video dura uno o
+                      cuarenta minutos, de ahí el "/ 04:15". */}
+                  {curso.reanudarEn && (
+                    <span className="absolute top-2 right-2 rounded-uva-xs bg-black/75 px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums text-white">
+                      {formatDuracion(curso.reanudarEn.segundo)}
+                      {curso.reanudarEn.duracion
+                        ? ` / ${formatDuracion(curso.reanudarEn.duracion)}`
+                        : ""}
+                    </span>
+                  )}
+
+                  {/* La barra del reproductor, a ras de la miniatura: de
+                      borde a borde y pegada abajo, como en un reproductor de
+                      verdad. El `overflow-hidden` del contenedor le recorta
+                      las puntas con el mismo radio del frame, así que sigue
+                      la forma de la imagen en vez de sobresalir. */}
+                  {curso.reanudarEn && !!curso.reanudarEn.duracion && (
+                    <div
+                      className="absolute inset-x-0 bottom-0 h-[5px] bg-black/55"
+                      role="progressbar"
+                      aria-valuenow={porcentajeVisto(curso.reanudarEn)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`Vas en el ${porcentajeVisto(curso.reanudarEn)}% de la clase`}
+                    >
+                      <div
+                        className="h-full bg-uva-accent"
+                        style={{ width: `${porcentajeVisto(curso.reanudarEn)}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-col gap-2 p-3.5">
-                  {/* min-h reserva 2 líneas completas de chips (19.5px cada
-                      una + 4px de gap-1, medido en DOM): un curso con 1
-                      sola categoría no debe dejar la barra de progreso más
-                      arriba que una vecina con 2 categorías que envuelven. */}
-                  <div className="flex min-h-[43px] flex-wrap items-start gap-1">
-                    {curso.categorias.map((categoria) => (
-                      <span
-                        key={categoria.id}
-                        className="rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 text-[10px] whitespace-nowrap text-uva-accent-text"
-                      >
-                        {categoria.nombre}
-                      </span>
-                    ))}
+                {/* Sin chip de categoría, a propósito. La categoría sirve
+                    para DECIDIR qué tomar, que es el trabajo del Catálogo;
+                    aquí ya son tus cursos y no estás eligiendo, estás
+                    retomando. Además era el magenta más grande de la tarjeta
+                    sin ser ni acción, ni estado activo, ni progreso — los
+                    tres únicos usos que CLAUDE.md §3.3 le permite al acento. */}
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <p className="line-clamp-2 text-[13.5px] leading-snug font-bold text-uva-text transition-colors group-hover:text-uva-accent">
+                      {curso.titulo}
+                    </p>
+                    {/* Sin anillo en los completados: el badge COMPLETADO de
+                        la miniatura ya lo dice, y un aro lleno de magenta al
+                        lado repetía el mismo dato gritando. Misma razón por la
+                        que tampoco llevan barra. */}
+                    {curso.leccionesTotal > 0 && !curso.completado && (
+                      <AnilloProgreso
+                        porcentaje={curso.porcentaje}
+                        etiqueta={`${curso.leccionesCompletadas} de ${curso.leccionesTotal} clases`}
+                      />
+                    )}
                   </div>
-                  <p className="line-clamp-2 min-h-[2.75em] text-[13.5px] leading-snug font-bold text-uva-text">
-                    {curso.titulo}
-                  </p>
-                  <Progress value={curso.porcentaje} />
-                  <p className="font-mono text-[11px] text-uva-text-faint tabular-nums">
-                    {curso.leccionesCompletadas}/{curso.leccionesTotal} · {curso.porcentaje}%
+
+                  {/* Sin el "%": lo dice el anillo de al lado. Lo que el
+                      anillo NO puede decir es de cuántas clases van, ni que
+                      falta el examen. */}
+                  {/* Pegado al título, sin `mt-auto`: ya no hace falta
+                      empujarlo al fondo para alinear tarjetas vecinas —sin
+                      marco, un borde inferior desparejo no se ve— y el conteo
+                      pertenece al título, no al pie. */}
+                  <p className="-mt-0.5 font-mono text-[11px] text-uva-text-faint tabular-nums">
+                    {curso.leccionesCompletadas}/{curso.leccionesTotal} clases
                     {curso.examenRequerido && !curso.examenAprobado && " · falta el examen"}
                   </p>
                 </div>

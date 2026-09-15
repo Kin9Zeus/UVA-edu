@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { canjearCodigoInvitacion } from "@/actions/codigos-invitacion/canjear";
@@ -30,7 +31,25 @@ function formatearEspera(segundos: number): string {
  * "no tienes suscripción" a mostrar el plan recién otorgado, sin recargar
  * ni navegar a otro sitio.
  */
-export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: boolean }) {
+export function CanjearCodigoForm({
+  tieneSuscripcion,
+  embebido = false,
+}: {
+  tieneSuscripcion: boolean;
+  /**
+   * `true` cuando esto ya vive DENTRO de otra sección con su propio marco y
+   * su propio encabezado — hoy, "¿Cómo quieres recuperar el acceso?" en
+   * SuscripcionContent.
+   *
+   * Un componente no debería decidir su propio marco: el borde y el relleno
+   * dicen "esto es un objeto aparte", y eso solo lo sabe quien lo coloca.
+   * Enmarcado dentro de otro marco, el canje leía como una tercera cosa
+   * independiente en vez de como una de las dos salidas de una misma
+   * decisión. Además baja el título a `h3`, que es el nivel que le
+   * corresponde bajo el de la sección.
+   */
+  embebido?: boolean;
+}) {
   const [codigo, setCodigo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -92,15 +111,19 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
     router.refresh();
   }
 
-  return (
-    <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
-      <h2 className="flex items-center gap-2 text-base text-uva-text">
+  // Capitalizada para que JSX la trate como componente y no como etiqueta
+  // literal. El nivel depende de si hay un encabezado de sección por encima.
+  const Titulo = (embebido ? "h3" : "h2") as "h2" | "h3";
+
+  const contenido = (
+    <>
+      <Titulo className={cn("flex items-center gap-2 text-uva-text", embebido ? "text-sm font-semibold" : "text-base")}>
         <Ticket className="size-4 text-uva-accent" aria-hidden />
-        {tieneSuscripcion ? "Reactivar con un código" : "¿Tienes un código de invitación?"}
-      </h2>
+        {tieneSuscripcion ? "¿Tienes un código?" : "¿Tienes un código de invitación?"}
+      </Titulo>
       <p className="mt-1 text-[13px] text-uva-text-muted">
         {tieneSuscripcion
-          ? "Tu suscripción anterior terminó. Si tienes un código, canjéalo para recuperar el acceso."
+          ? "Canjéalo y recuperas el acceso, sin ningún cobro."
           : "Canjéalo aquí y tendrás acceso completo al catálogo, sin ningún cobro."}
       </p>
 
@@ -149,6 +172,12 @@ export function CanjearCodigoForm({ tieneSuscripcion }: { tieneSuscripcion: bool
           </div>
         </div>
       </form>
-    </div>
+    </>
+  );
+
+  if (embebido) return contenido;
+
+  return (
+    <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">{contenido}</div>
   );
 }

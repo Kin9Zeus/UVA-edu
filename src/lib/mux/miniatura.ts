@@ -16,11 +16,29 @@ const DURACION_TOKEN = "6h";
  * `null` si no se pudo firmar — el llamador debe tratarlo igual que "sin
  * miniatura" (el cuadro oscuro de siempre), nunca como error fatal.
  */
-export async function getMiniaturaUrl(playbackId: string): Promise<string | null> {
+export async function getMiniaturaUrl(
+  playbackId: string,
+  /**
+   * Segundo exacto del video que se quiere como imagen. Sin él, Mux devuelve
+   * el frame por defecto del asset.
+   *
+   * Va DENTRO del token, no como parámetro suelto de la URL: para un
+   * playback ID firmado, image.mux.com exige que cada parámetro de la
+   * petición esté también en el JWT — uno pegado solo al query string se
+   * ignora o da 403. Por eso viaja en `params`.
+   */
+  segundo?: number,
+): Promise<string | null> {
   try {
+    const enSegundos =
+      segundo !== undefined && Number.isFinite(segundo) && segundo > 0
+        ? Math.floor(segundo)
+        : undefined;
+
     const token = await mux.jwt.signPlaybackId(playbackId, {
       type: "thumbnail",
       expiration: DURACION_TOKEN,
+      ...(enSegundos !== undefined ? { params: { time: String(enSegundos) } } : {}),
     });
     return `https://image.mux.com/${playbackId}/thumbnail.jpg?token=${token}`;
   } catch (error) {

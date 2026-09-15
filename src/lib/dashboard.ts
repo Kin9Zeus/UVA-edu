@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
+import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import type { CategoriaChip } from "@/lib/categoria";
 
 export type ClaseEnProgreso = {
@@ -19,6 +20,15 @@ export type ClaseEnProgreso = {
   clasesCompletadas: number;
   totalClases: number;
   progreso: number;
+  /**
+   * Frame donde quedó esa clase, firmado, y el segundo exacto. `null` si no
+   * le dio play todavía: ahí la tarjeta usa la portada del curso.
+   *
+   * La clase a retomar suele ser justo la que dejó a medias —`siguiente` es
+   * la primera sin completar del temario—, así que en la práctica este es el
+   * mismo frame que muestra la pantalla de Progreso.
+   */
+  reanudarEn: { url: string; segundo: number; duracion: number | null } | null;
 };
 
 export type CategoriaConConteo = {
@@ -88,7 +98,9 @@ export async function getInicioData() {
     // tabla por separado.
     const { data: moduloRows } = await supabase
       .from("modulos")
-      .select("orden, titulo, lecciones(id, slug, orden, duracion, estado_procesamiento, progreso(completado))")
+      .select(
+        "orden, titulo, lecciones(id, slug, orden, duracion, id_video_mux, estado_procesamiento, progreso(completado, segundo_actual, actualizado_en))",
+      )
       .eq("id_curso", curso.curso_id)
       .order("orden");
 
@@ -104,7 +116,10 @@ export async function getInicioData() {
             id: leccion.id as string,
             slug: leccion.slug as string,
             duracion: leccion.duracion as number | null,
+            idVideoMux: (leccion.id_video_mux as string | null) ?? null,
             completada: !!leccion.progreso?.[0]?.completado,
+            segundoActual: (leccion.progreso?.[0]?.segundo_actual as number | undefined) ?? 0,
+            vistaEn: (leccion.progreso?.[0]?.actualizado_en as string | undefined) ?? null,
             moduloTitulo: modulo.titulo as string,
           })),
       );
@@ -122,6 +137,34 @@ export async function getInicioData() {
       0,
     );
 
+    // El frame sale de la última clase VISTA del curso, terminada o no —la
+    // misma regla que la pantalla de Progreso—, no de `siguiente`.
+    //
+    // No es una contradicción con que el enlace apunte a `siguiente`: el
+    // título de esta tarjeta es el del CURSO, así que el frame responde
+    // "¿por dónde iba en este curso?" y el enlace responde "¿qué sigue?".
+    // Atarlo a `siguiente` dejaba la tarjeta en la portada genérica cada vez
+    // que alguien terminaba una clase completa, que es el caso normal.
+    const ultimaVista = leccionesOrdenadas
+      .filter((leccion) => leccion.idVideoMux && leccion.segundoActual > 0)
+      .sort((a, b) => (b.vistaEn ?? "").localeCompare(a.vistaEn ?? ""))[0];
+
+    // Se firma ANTES del push y solo si hay algo que mostrar: `getMiniaturaUrl`
+    // devuelve null cuando falta la credencial o falla la firma, y una url
+    // vacía pintaría un <img> roto en vez de caer a la portada.
+    const miniatura = ultimaVista
+      ? await getMiniaturaUrl(ultimaVista.idVideoMux!, ultimaVista.segundoActual)
+      : null;
+
+    const reanudarEn =
+      miniatura && ultimaVista
+        ? {
+            url: miniatura,
+            segundo: ultimaVista.segundoActual,
+            duracion: ultimaVista.duracion,
+          }
+        : null;
+
     sigueAprendiendo.push({
       leccionId: siguiente.id,
       leccionSlug: siguiente.slug,
@@ -137,6 +180,7 @@ export async function getInicioData() {
       clasesCompletadas: completadas,
       totalClases: leccionesOrdenadas.length,
       progreso: Math.round((completadas / leccionesOrdenadas.length) * 100),
+      reanudarEn,
     });
   }
 

@@ -143,7 +143,7 @@ export function CheckoutContent({
 
   return (
     <div className="px-[clamp(20px,3vw,44px)] py-8">
-      <div className="mx-auto max-w-[1000px]">
+      <div className="max-w-[1000px]">
         <Link
           href="/dashboard/planes"
           className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-uva-text-muted underline-offset-2 hover:text-uva-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
@@ -152,7 +152,7 @@ export function CheckoutContent({
           Volver a los planes
         </Link>
 
-        <h1 className="mb-6 font-heading text-[28px] text-uva-text">
+        <h1 className="mb-6 text-2xl text-uva-text">
           Confirma tu suscripción
         </h1>
 
@@ -160,7 +160,7 @@ export function CheckoutContent({
           {/* ---------- Izquierda: plan y contenido ---------- */}
           <div className="flex flex-col gap-5">
             <fieldset className="m-0 border-0 p-0">
-              <legend className="mb-3 text-sm font-semibold text-uva-text">
+              <legend className="mb-4 text-base text-uva-text">
                 Elige tu plan
               </legend>
 
@@ -231,8 +231,15 @@ export function CheckoutContent({
               </div>
             </fieldset>
 
-            <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-              <h2 className="m-0 mb-3 text-sm font-semibold text-uva-text">Qué incluye</h2>
+            {/* Sin marco, a propósito: esto es el detalle de lo que trae el
+                plan que acabas de elegir, no un objeto aparte. Enmarcado
+                competía con las tarjetas de plan de arriba y con el Resumen
+                —que sí gana su marco, por ser el bloque fijo con el que se
+                interactúa— y dejaba la columna izquierda pareja, sin nada que
+                indicara qué es principal y qué es apoyo. Una línea separa
+                igual de bien. */}
+            <div className="border-t border-uva-divider pt-5">
+              <h2 className="m-0 mb-4 text-base text-uva-text">Qué incluye</h2>
               <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px]">
                 {sharedBenefits.map((beneficio, indice) => {
                   const incluido = indice < incluidos;
@@ -261,7 +268,7 @@ export function CheckoutContent({
 
           {/* ---------- Derecha: resumen ---------- */}
           <aside className="rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky lg:top-6">
-            <h2 className="m-0 font-heading text-lg text-uva-text">Resumen</h2>
+            <h2 className="m-0 text-base text-uva-text">Resumen</h2>
 
             {/* aria-live: aplicar o quitar un cupón cambia estas cifras sin
                 que nada reciba el foco, así que un lector de pantalla no se

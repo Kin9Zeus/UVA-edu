@@ -11,7 +11,7 @@ export type CertificadoItem = {
 
 export function CertificadosContent({ certificados }: { certificados: CertificadoItem[] }) {
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
+    <div className="flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
       <h1 className="text-2xl text-uva-text">Mis certificados</h1>
 
       {certificados.length === 0 ? (

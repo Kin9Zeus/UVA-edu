@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { formatHoras } from "@/lib/admin/format";
+import { AnilloProgreso } from "@/components/dashboard/AnilloProgreso";
+import { formatDuracion } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
 import type { CursoDestacado } from "@/lib/cursoDestacado";
@@ -47,61 +48,89 @@ export function InicioContent({
       {sigueAprendiendo.length > 0 && (
         <section>
           <h2 className="mb-4 text-base text-uva-text">Sigue aprendiendo</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sigueAprendiendo.map((clase) => (
               <Link
                 key={clase.leccionId}
                 href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
-                className="group flex flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
+                className="group flex flex-col gap-2.5"
               >
+                {/* Mismo tratamiento que la tarjeta de Progreso: sin marco,
+                    la miniatura sostiene la pieza y la barra va a ras de
+                    ella. Sin chip "En curso" —la sección se titula "Sigue
+                    aprendiendo", decirlo otra vez en cada tarjeta sobra— ni
+                    chips de categoría: aquí ya son tus cursos, no estás
+                    eligiendo cuál tomar. */}
                 <div
-                  className="relative aspect-video overflow-hidden rounded-uva-sm"
-                  style={esPortadaReal(clase.imagenPortada) ? undefined : PORTADA_TRAMA}
+                  className="relative aspect-video overflow-hidden rounded-uva-md bg-uva-surface-2 ring-1 ring-uva-divider transition-[box-shadow] group-hover:ring-uva-text-faint"
+                  style={
+                    !clase.reanudarEn && !esPortadaReal(clase.imagenPortada)
+                      ? PORTADA_TRAMA
+                      : undefined
+                  }
                 >
-                  {esPortadaReal(clase.imagenPortada) && (
-                    <Image
-                      src={clase.imagenPortada}
+                  {clase.reanudarEn ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
+                    <img
+                      src={clase.reanudarEn.url}
                       alt=""
-                      fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-cover"
+                      className="absolute inset-0 size-full object-cover"
                     />
+                  ) : (
+                    esPortadaReal(clase.imagenPortada) && (
+                      <Image
+                        src={clase.imagenPortada}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
+                      />
+                    )
                   )}
-                  <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
-                    En curso
-                  </span>
-                </div>
-                <div className="mt-2">
-                  <Progress value={clase.progreso} />
-                </div>
-                {/* Mismo patrón que CursoCard/ProgresoContent: categorías en
-                    chip (no texto plano) con altura mínima reservada para 2
-                    líneas, y título a altura fija — así "nivel · duración" y
-                    "clases" quedan a la misma posición en las 4 tarjetas de
-                    la fila, sin importar cuántas categorías o qué tan largo
-                    sea cada título. */}
-                <div className="mt-2 flex min-h-[38px] flex-wrap items-start gap-1">
-                  {clase.categorias.map((categoria) => (
-                    <span
-                      key={categoria.id}
-                      className="rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 text-[10px] whitespace-nowrap text-uva-accent-text"
-                    >
-                      {categoria.nombre}
+                  {clase.reanudarEn && (
+                    <span className="absolute top-2 right-2 rounded-uva-xs bg-black/75 px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums text-white">
+                      {formatDuracion(clase.reanudarEn.segundo)}
+                      {clase.reanudarEn.duracion
+                        ? ` / ${formatDuracion(clase.reanudarEn.duracion)}`
+                        : ""}
                     </span>
-                  ))}
+                  )}
+                  {clase.progreso > 0 && (
+                    <div
+                      className="absolute inset-x-0 bottom-0 h-[5px] bg-black/55"
+                      role="progressbar"
+                      aria-valuenow={clase.progreso}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${clase.clasesCompletadas} de ${clase.totalClases} clases`}
+                    >
+                      <div
+                        className="h-full bg-uva-accent"
+                        style={{ width: `${clase.progreso}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <h3 className="mt-1 line-clamp-2 min-h-[2.75em] text-sm leading-snug text-uva-text">
-                  {clase.cursoTitulo}
-                </h3>
-                <p className="truncate text-xs text-uva-text-muted">{clase.moduloTitulo}</p>
-                <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] tracking-[.06em] text-uva-text-faint uppercase">
-                  <span>{NIVEL_LABEL[clase.nivel]}</span>
-                  <span aria-hidden>·</span>
-                  <span>{formatHoras(clase.duracionTotalCursoSegundos)}</span>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <h3 className="line-clamp-2 text-sm leading-snug text-uva-text transition-colors group-hover:text-uva-accent">
+                      {clase.cursoTitulo}
+                    </h3>
+                    <AnilloProgreso
+                      porcentaje={clase.progreso}
+                      etiqueta={`${clase.clasesCompletadas} de ${clase.totalClases} clases`}
+                    />
+                  </div>
+                  {/* Un solo renglón de apoyo, igual que en Progreso. Antes
+                      eran tres —módulo, y aparte nivel · duración · clases— y
+                      leídos en columna estrecha parecían datos sueltos sin
+                      relación. Nivel y duración salieron: son datos para
+                      ELEGIR curso, y aquí ya lo elegiste. */}
+                  <p className="-mt-0.5 truncate font-mono text-[11px] text-uva-text-faint tabular-nums">
+                    {clase.moduloTitulo} · {clase.clasesCompletadas}/{clase.totalClases} clases
+                  </p>
                 </div>
-                <p className="mt-1 font-mono text-[11px] text-uva-text-faint tabular-nums">
-                  {clase.clasesCompletadas}/{clase.totalClases} clases
-                </p>
               </Link>
             ))}
           </div>

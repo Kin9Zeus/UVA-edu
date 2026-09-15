@@ -125,7 +125,7 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
       })();
 
   return (
-    <div className="mx-auto flex max-w-[820px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
+    <div className="flex max-w-[820px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
       <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
 
       <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-accent-soft p-6">
@@ -223,35 +223,48 @@ export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionAc
           antes de comprobar el índice único (038_vigencia_por_fecha.sql).
           A quien sí tiene acceso vigente no se le ofrece: se rechazaría con
           'ya_tiene_suscripcion'. */}
-      {/* Dos caminos para recuperar el acceso, no uno. El formulario de
-          código estaba solo, así que a quien se le venció la invitación y NO
-          tiene otro código la pantalla se le acababa ahí: ninguna salida
-          hacia los planes, justo en el momento en que más sentido tiene
-          ofrecérselos. Va primero el de pago porque es el camino que el
-          producto quiere, y el código queda como la alternativa. */}
+      {/* UNA sección con dos salidas, no dos tarjetas.
+          Pagar y canjear un código no son dos objetos distintos: son las dos
+          respuestas a la misma pregunta. Enmarcadas por separado pesaban
+          visualmente lo mismo que la suscripción de arriba —que sí es el
+          sujeto de la pantalla— y dejaban tres cajas grises idénticas
+          apiladas, sin nada que dijera qué mirar primero.
+          El plan va antes que el código porque es el camino que el producto
+          quiere; el código es la alternativa, no un igual. */}
       {!accesoVigente && (
-        <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
-          <h2 className="flex items-center gap-2 text-base text-uva-text">
-            <CreditCard className="size-4 text-uva-accent" aria-hidden />
-            Elige un plan
+        <section className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+          <h2 className="mb-5 text-base text-uva-text">
+            ¿Cómo quieres recuperar el acceso?
           </h2>
-          <p className="mt-1 text-[13px] text-uva-text-muted">
-            Recupera el acceso a los 180+ cursos, las plantillas descargables y
-            los certificados.
-          </p>
-          <Button
-            render={<Link href="/dashboard/planes" />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="mt-4 w-auto px-6"
-          >
-            Ver planes
-          </Button>
-        </div>
-      )}
 
-      {!accesoVigente && <CanjearCodigoForm tieneSuscripcion />}
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-uva-text">
+              <CreditCard className="size-4 text-uva-accent" aria-hidden />
+              Elige un plan
+            </h3>
+            <p className="mt-1 text-[13px] text-uva-text-muted">
+              Recupera el acceso a los 180+ cursos, las plantillas descargables
+              y los certificados.
+            </p>
+            <Button
+              render={<Link href="/dashboard/planes" />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="mt-3 w-auto px-6"
+            >
+              Ver planes
+            </Button>
+          </div>
+
+          {/* Una línea basta para separar las dos opciones. Un marco completo
+              alrededor de cada una decía "son cosas aparte", que es justo lo
+              que no son. */}
+          <div className="mt-6 border-t border-uva-divider pt-6">
+            <CanjearCodigoForm tieneSuscripcion embebido />
+          </div>
+        </section>
+      )}
     </div>
   );
 }
