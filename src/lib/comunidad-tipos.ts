@@ -9,6 +9,9 @@
  * separa `tipos.ts` de la lógica de servidor.
  */
 
+import type { EmpleoModalidad } from "@/lib/comunidad-validacion";
+export type { EmpleoModalidad } from "@/lib/comunidad-validacion";
+
 /**
  * Arma el `FormData` que esperan crearPostComunidad/responderPostComunidad/
  * editarPostComunidad a partir del mapa que devuelve
@@ -88,6 +91,16 @@ export type AccesoComunidad =
   | { acceso: true; usuarioId: string; esAdmin: boolean }
   | { acceso: false; motivo: MotivoBloqueoComunidad };
 
+/** Datos propios de un post de categoría EMPLEO — `null` en cualquier otra
+ * categoría (ver 111_comunidad_empleo_campos.sql). `ubicacion` puede ser
+ * `null` incluso en un post de Empleo (no aplica igual a un puesto remoto). */
+export type ComunidadDatosEmpleo = {
+  empresa: string;
+  modalidad: EmpleoModalidad;
+  ubicacion: string | null;
+  enlace: string;
+};
+
 export type ComunidadPostResumen = {
   id: string;
   /** URL del hilo (/dashboard/comunidad/<slug>); fijo aunque se edite el título. */
@@ -97,6 +110,10 @@ export type ComunidadPostResumen = {
   contenido: string;
   fijado: boolean;
   eliminado: boolean;
+  /** Solo relevante si `eliminado`: distingue "eliminó su publicación" de
+   * "un admin la eliminó por moderación" en la vista de detalle — mismo
+   * criterio que ComunidadRespuesta.eliminadoPorAdmin. */
+  eliminadoPorAdmin: boolean;
   tiempo: string;
   autorId: string;
   autorNombre: string;
@@ -105,6 +122,7 @@ export type ComunidadPostResumen = {
   totalReacciones: number;
   meReaccione: boolean;
   adjuntos: ComunidadAdjunto[];
+  datosEmpleo: ComunidadDatosEmpleo | null;
 };
 
 export type ComunidadRespuesta = {
@@ -130,6 +148,19 @@ export type ComunidadRespuesta = {
 
 export type ComunidadPostDetalle = ComunidadPostResumen & {
   respuestas: ComunidadRespuesta[];
+};
+
+/** Tope de publicaciones por página del feed (`getComunidadFeed`). El
+ * recorte pasa DESPUÉS de filtrar/ordenar (búsqueda y `orden=relevancia`
+ * siguen resolviéndose en memoria, ver comentario en comunidad.ts) — esto
+ * no reduce lectura de la base por página todavía, solo lo que se renderiza,
+ * que es el problema real de hoy (una sola página que crece sin límite). */
+export const COMUNIDAD_POSTS_POR_PAGINA = 20;
+
+export type ComunidadFeedResultado = {
+  posts: ComunidadPostResumen[];
+  pagina: number;
+  totalPaginas: number;
 };
 
 /** Una entrada del riel "Publicaciones recientes" — solo publicaciones

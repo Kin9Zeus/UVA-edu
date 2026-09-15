@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ShieldCheck, ShieldX } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientIp } from "@/lib/clientIp";
@@ -132,6 +133,17 @@ export default async function VerificarCertificadoPage({
             <p className="text-sm text-uva-text-muted">Intenta de nuevo en unos minutos.</p>
           </>
         )}
+
+        {/* Página pública sin header/sidebar (quien la abre suele venir de un
+            enlace o un QR, no de navegar el sitio) — sin esto no había
+            ninguna forma de salir de acá más que el botón "atrás" del
+            navegador. */}
+        <Link
+          href="/"
+          className="mt-6 inline-block text-sm text-uva-accent-text hover:underline"
+        >
+          Volver al inicio
+        </Link>
       </div>
     </div>
   );

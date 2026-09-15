@@ -2962,12 +2962,20 @@ async function main() {
     // app — por eso acá no se prueba "puede/no puede insertar", sino que el
     // trigger hizo exactamente lo que debía.
     await esperarBloqueado(
-      "responderte a ti mismo (postComunidad, línea de arriba) NO generó notificación",
+      "responderte a ti mismo (postComunidad, línea de arriba) NO generó notificación de respuesta",
       admin
         .from("notificaciones")
         .select("*")
         .eq("id_usuario", userConAcceso.user!.id)
-        .eq("entidad_id", postComunidad.id),
+        .eq("entidad_id", postComunidad.id)
+        // Filtrado por tipo (no solo entidad_id): la moderación de prueba
+        // sobre este mismo post ("administrador SÍ puede insertar en
+        // comunidad_moderacion firmando con su propio id", arriba) SÍ
+        // genera legítimamente una notificación COMUNIDAD_MODERACION para
+        // userConAcceso desde 110 — lo que esta prueba verifica es que
+        // responderse a sí mismo específicamente no dispara
+        // COMUNIDAD_RESPUESTA (094).
+        .eq("tipo", "COMUNIDAD_RESPUESTA"),
     );
 
     const respuestaAOtroPostAdmin = (await esperarPermitido(
@@ -3081,9 +3089,315 @@ async function main() {
         .eq("entidad_id", anuncioComunidad.id),
     );
 
+    // 099: moderar (INSERT en comunidad_moderacion) notifica in-app al autor
+    // real del contenido — antes solo se enteraba por correo. Reusa el
+    // registro de comunidad_moderacion sobre postComunidad insertado más
+    // arriba ("administrador SÍ puede insertar en comunidad_moderacion
+    // firmando con su propio id"), cuyo autor es userConAcceso.
+    await esperarPermitido(
+      "moderar el post de otro SÍ notificó in-app a su autor (trigger 110, rama id_post)",
+      admin
+        .from("notificaciones")
+        .select("id, tipo, id_actor, entidad_tipo, entidad_id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_MODERACION")
+        .eq("id_actor", userAdmin.user!.id)
+        .single(),
+    );
+
+    // Rama id_respuesta: moderar una RESPUESTA debe notificar a quien la
+    // escribió (userConAcceso, autor de respuestaAOtroPostAdmin) con
+    // entidad_id apuntando al POST padre (otroPostAdmin), no a la respuesta
+    // — mismo criterio que ya usa registrarBitacora en eliminar.ts.
+    await esperarPermitido(
+      "administrador SÍ puede insertar en comunidad_moderacion sobre una respuesta",
+      clienteAdmin
+        .from("comunidad_moderacion")
+        .insert({
+          id_respuesta: respuestaAOtroPostAdmin.id,
+          contenido_original: "Respuesta de prueba",
+          id_eliminado_por: userAdmin.user!.id,
+        })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "moderar la respuesta de otro SÍ notificó a su autor con entidad_id = post padre (trigger 110, rama id_respuesta)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", otroPostAdmin.id)
+        .eq("tipo", "COMUNIDAD_MODERACION")
+        .single(),
+    );
+
+    // 099: cerrar un reporte (revisado false -> true) notifica al
+    // reportante. userAdmin reporta el post de userConAcceso (admin SÍ
+    // tiene acceso a Comunidad por bypass, y no es su autor) y luego el
+    // propio admin lo resuelve — lo que importa acá es que el trigger
+    // dispara sin que ninguna Server Action tenga que pedirlo.
+    const reporteComunidad = (await esperarPermitido(
+      "administrador SÍ puede reportar el post de otro (tiene acceso, no es su autor)",
+      clienteAdmin
+        .from("comunidad_reportes")
+        .insert({ id_post: postComunidad.id, id_reportante: userAdmin.user!.id, motivo: "Prueba RLS" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!reporteComunidad?.id) {
+      throw new Error("El reporte de prueba no devolvió id; la prueba de cierre de ciclo no significa nada.");
+    }
+
+    await esperarPermitido(
+      "administrador SÍ puede marcar un reporte como revisado",
+      clienteAdmin.from("comunidad_reportes").update({ revisado: true }).eq("id", reporteComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      // El post sigue vivo (esta prueba solo marca `revisado`, nunca lo
+      // elimina) — el veredicto correcto es DESCARTADO, no ELIMINADO
+      // (131_comunidad_reporte_resuelto_con_veredicto.sql: el trigger lee
+      // `comunidad_posts.eliminado` en el momento en que dispara).
+      "resolver el reporte sin eliminar el contenido SÍ notificó 'descartado' al reportante (trigger 131)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userAdmin.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_REPORTE_DESCARTADO")
+        .single(),
+    );
+
+    // Mismo trigger, otra rama: si para cuando `revisado` pasa a true el
+    // post YA está eliminado (como deja eliminarPostComunidad, que marca
+    // `eliminado` ANTES de marcar el reporte), el veredicto debe ser
+    // ELIMINADO. Se simula el orden exacto de esa Server Action con el
+    // cliente admin (service role): primero `eliminado = true`, después
+    // un segundo reporte + su cierre.
+    const { error: errEliminarPostPrueba } = await admin
+      .from("comunidad_posts")
+      .update({ eliminado: true, titulo: "", contenido: "" })
+      .eq("id", postComunidad.id);
+    if (errEliminarPostPrueba) throw new Error(`No pude marcar el post de prueba como eliminado: ${errEliminarPostPrueba.message}`);
+
+    // Reportante distinto al primer reporte (userAdmin ya reportó este post
+    // arriba — comunidad_reportes_post_unico_por_reportante no deja un
+    // segundo reporte del mismo reportante sobre el mismo post).
+    const segundoReporteComunidad = (await esperarPermitido(
+      "estudiante con acceso SÍ puede reportar un post ya eliminado (para la prueba del veredicto)",
+      admin
+        .from("comunidad_reportes")
+        .insert({
+          id_post: postComunidad.id,
+          id_reportante: userConAcceso.user!.id,
+          motivo: "Prueba RLS — veredicto eliminado",
+        })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!segundoReporteComunidad?.id) {
+      throw new Error("El segundo reporte de prueba no devolvió id.");
+    }
+
+    await esperarPermitido(
+      "administrador SÍ puede marcar el segundo reporte como revisado",
+      admin.from("comunidad_reportes").update({ revisado: true }).eq("id", segundoReporteComunidad.id).select(),
+    );
+
+    await esperarPermitido(
+      "resolver el reporte de un post YA eliminado SÍ notificó 'eliminado' al reportante (trigger 131)",
+      admin
+        .from("notificaciones")
+        .select("id")
+        .eq("id_usuario", userConAcceso.user!.id)
+        .eq("entidad_id", postComunidad.id)
+        .eq("tipo", "COMUNIDAD_REPORTE_ELIMINADO")
+        .single(),
+    );
+
     await esperarBloqueado(
       "certificado emitido hace 5 días YA NO otorga acceso a comunidad_posts sin suscripción (084)",
       clienteSinAcceso.from("comunidad_posts").select("*"),
+    );
+
+    // ============================================================
+    // curso_calificaciones + curso_calificacion_reacciones (130) — estrellas,
+    // comentario y "me gusta" en la ficha pública de un curso. `cursoNoPublicado`
+    // (mostrado = false) sigue sin ser visible para userSinAcceso/anon en este
+    // punto, y userConAcceso sigue con su CORTESIA vigente (línea ~685).
+    // ============================================================
+    await esperarBloqueado(
+      "estudiante sin acceso NO puede calificar un curso",
+      clienteSinAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userSinAcceso.user!.id, puntuacion: 5 })
+        .select(),
+    );
+
+    const calificacionCreada = (await esperarPermitido(
+      "estudiante con acceso SÍ puede calificar el curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 4, comentario: "Buen curso" })
+        .select()
+        .single(),
+    )) as { id: string } | null;
+    if (!calificacionCreada) throw new Error("No se pudo crear la calificación de prueba.");
+    const idCalificacionPrueba = calificacionCreada.id;
+
+    await esperarBloqueado(
+      "un segundo INSERT del mismo usuario para el mismo curso choca con el índice único parcial",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 2 })
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un visitante anónimo NO puede leer reseñas de un curso sin acceso",
+      clienteAnonimo.from("curso_calificaciones").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+
+    await esperarPermitido(
+      "el estudiante con acceso SÍ puede leer las reseñas del curso (la suya incluida)",
+      clienteConAcceso.from("curso_calificaciones").select("id").eq("id_curso", cursoNoPublicado.id),
+    );
+
+    await esperarPermitido(
+      "el propio autor SÍ puede editar su reseña",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .update({ puntuacion: 5, comentario: "Editado" })
+        .eq("id", idCalificacionPrueba)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "otro estudiante NO puede editar una reseña ajena",
+      clienteSinAcceso.from("curso_calificaciones").update({ puntuacion: 1 }).eq("id", idCalificacionPrueba).select(),
+    );
+
+    // Reproduce el bug reportado por el usuario: el propio autor NO podía
+    // eliminar su reseña. Causa (confirmada con EXPLAIN contra la base real):
+    // Postgres combina la policy de SELECT con el WITH CHECK del UPDATE, y
+    // "curso_calificaciones_select_publico" filtraba `not eliminado` sin
+    // excepción para el propio autor — al poner `eliminado = true`, la fila
+    // resultante dejaba de ser "visible" según esa policy y el UPDATE se
+    // rechazaba con "new row violates row-level security policy", aunque la
+    // policy de UPDATE en sí misma (auth.uid() = id_usuario) sí lo permitía.
+    await esperarPermitido(
+      "el propio autor SÍ puede eliminar (borrado lógico) su propia reseña",
+      clienteConAcceso.from("curso_calificaciones").update({ eliminado: true }).eq("id", idCalificacionPrueba).select(),
+    );
+
+    await esperarBloqueado(
+      "una reseña autoeliminada ya no la puede leer OTRO estudiante (no autor, no admin)",
+      clienteSinAcceso.from("curso_calificaciones").select("id").eq("id", idCalificacionPrueba),
+    );
+
+    await esperarPermitido(
+      "tras autoeliminarse, el estudiante SÍ puede volver a calificar el mismo curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 4, comentario: "Segunda reseña" })
+        .select()
+        .single(),
+    );
+
+    const { data: segundaCalificacion } = await clienteConAcceso
+      .from("curso_calificaciones")
+      .select("id")
+      .eq("id_curso", cursoNoPublicado.id)
+      .eq("id_usuario", userConAcceso.user!.id)
+      .eq("eliminado", false)
+      .single();
+    if (!segundaCalificacion) throw new Error("No se pudo recuperar la segunda calificación de prueba.");
+    const idSegundaCalificacion = segundaCalificacion.id as string;
+
+    await esperarBloqueado(
+      "un usuario sin acceso al curso NO puede reaccionar a una reseña que no puede ver",
+      clienteSinAcceso
+        .from("curso_calificacion_reacciones")
+        .insert({ id_calificacion: idSegundaCalificacion, id_usuario: userSinAcceso.user!.id })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede reaccionar ('me gusta') a la reseña",
+      clienteAdmin
+        .from("curso_calificacion_reacciones")
+        .insert({ id_calificacion: idSegundaCalificacion, id_usuario: userAdmin.user!.id })
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede quitar su propia reacción",
+      clienteAdmin
+        .from("curso_calificacion_reacciones")
+        .delete()
+        .eq("id_calificacion", idSegundaCalificacion)
+        .eq("id_usuario", userAdmin.user!.id)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un estudiante que no es admin NO puede moderar (eliminar) la reseña de otro",
+      clienteSinAcceso
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userSinAcceso.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "un admin NO puede firmar la moderación de una reseña con el id de otro usuario",
+      clienteAdmin
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userConAcceso.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ puede moderar (eliminar) la reseña de otro, firmando con su propio id",
+      clienteAdmin
+        .from("curso_calificaciones")
+        .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: userAdmin.user!.id })
+        .eq("id", idSegundaCalificacion)
+        .select(),
+    );
+
+    await esperarBloqueado(
+      "una reseña moderada por un admin ya no la puede leer OTRO estudiante (no autor, no admin)",
+      clienteSinAcceso.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      "el administrador SÍ sigue viendo la reseña eliminada (para auditoría/moderación)",
+      clienteAdmin.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      // A propósito: el propio autor SIGUE viendo su fila aunque esté
+      // eliminada — no porque la app se la vaya a listar (getCalificacionesCurso
+      // filtra `eliminado = false` aparte), sino porque la policy de SELECT
+      // necesita dejarlo pasar para que el UPDATE que pone `eliminado = true`
+      // no se rompa: Postgres combina el SELECT de la tabla con el WITH CHECK
+      // del UPDATE (para garantizar que la fila resultante siga siendo visible
+      // para quien la modifica) — sin esta rama, un autor NUNCA podría borrar
+      // su propia reseña. Confirmado con EXPLAIN contra la base real.
+      "el propio autor SÍ sigue viendo su reseña aunque esté eliminada (lo exige poder borrarla)",
+      clienteConAcceso.from("curso_calificaciones").select("id").eq("id", idSegundaCalificacion),
+    );
+
+    await esperarPermitido(
+      "tras eliminarse, el estudiante SÍ puede volver a calificar el mismo curso",
+      clienteConAcceso
+        .from("curso_calificaciones")
+        .insert({ id_curso: cursoNoPublicado.id, id_usuario: userConAcceso.user!.id, puntuacion: 3 })
+        .select(),
     );
 
     // cuenta_activa() (019) en la escritura: mismo cinturón de seguridad que

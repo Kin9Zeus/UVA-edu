@@ -1,12 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, CircleCheck, Lock, PlayCircle } from "lucide-react";
+import { BarChart2, ChevronLeft, CircleCheck, Clock, Download, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
 import { SIN_INSTRUCTOR } from "@/lib/instructores";
 import { ExamenCta } from "@/components/examen/ExamenCta";
+import { EstrellasCalificacion } from "@/components/curso/EstrellasCalificacion";
+import { CursoCalificaciones } from "@/components/curso/CursoCalificaciones";
 import type { CursoPublico } from "@/lib/curso";
+import type { CalificacionesCurso } from "@/lib/curso-calificaciones";
 import type { SituacionExamen } from "@/lib/examen";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -22,6 +25,10 @@ export function CursoDetalleContent({
   basePath = "/catalogo",
   sesionActiva,
   situacionExamen,
+  calificaciones,
+  ruta,
+  usuarioActualId,
+  esAdmin,
 }: {
   curso: CursoPublico;
   basePath?: string;
@@ -40,6 +47,14 @@ export function CursoDetalleContent({
    * ninguno de los dos estados sin acceso debe mandar a /dashboard/planes.
    */
   sesionActiva: boolean;
+  /** Reseñas del curso (estrellas + comentario + me gusta) — públicas, a
+   * diferencia del examen: un visitante sin sesión también las ve. */
+  calificaciones: CalificacionesCurso;
+  /** Ruta pública del curso (`/cursos/<slug>`), para que las Server Actions
+   * de calificaciones revaliden exactamente lo que Next.js cacheó. */
+  ruta: string;
+  usuarioActualId: string | null;
+  esAdmin: boolean;
 }) {
   const primeraLeccion = curso.modulos.find((modulo) => modulo.lecciones.length > 0)?.lecciones[0];
   // Vista previa pública (Revcurso: "que la primera lección sea visible"):
@@ -88,11 +103,8 @@ export function CursoDetalleContent({
                 {categoria.nombre}
               </span>
             ))}
-            <span className="rounded-uva-xs bg-[#27272A] px-2.5 py-1 text-xs text-uva-text-muted">
-              {NIVEL_LABEL[curso.nivel]}
-            </span>
           </div>
-          <div className="mb-3 flex flex-wrap items-center gap-3">
+          <div className="mb-1.5 flex flex-wrap items-center gap-3">
             <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight text-uva-text">
               {curso.titulo}
             </h1>
@@ -103,27 +115,54 @@ export function CursoDetalleContent({
               </span>
             )}
           </div>
+
+          {/* Promedio + total de reseñas — mismo lugar que la calificación
+              con estrellas en la imagen de referencia del catálogo de
+              Platzi. Solo si ya hay al menos una reseña: un "0.0 · 0
+              opiniones" no aporta nada y se ve como un error. */}
+          {calificaciones.total > 0 && (
+            <a
+              href="#reseñas"
+              className="mb-3 flex w-fit items-center gap-1.5 text-sm text-uva-text-muted hover:text-uva-text"
+            >
+              <EstrellasCalificacion puntuacion={calificaciones.promedio ?? 0} />
+              <span className="text-uva-text">{calificaciones.promedio?.toFixed(1)}</span>
+              {calificaciones.total} opinion{calificaciones.total === 1 ? "" : "es"}
+            </a>
+          )}
+
+          {/* Fila de badges tipo "pill" (nivel/clases/horas/recursos) — mismo
+              contenido que antes vivía en una sola caja de stats, reacomodado
+              en chips individuales con ícono para que se lea de un vistazo,
+              sin inventar datos que el curso no trae (ej. "horas de
+              práctica": no existe esa métrica en el modelo). */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+              <BarChart2 className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+              Nivel {NIVEL_LABEL[curso.nivel]}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+              <PlayCircle className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+              {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+              <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+              {formatHoras(curso.duracionTotalSegundos)} de contenido
+            </span>
+            {curso.totalRecursos > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+                <Download className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+                {curso.totalRecursos} {curso.totalRecursos === 1 ? "recurso" : "recursos"} descargable
+                {curso.totalRecursos === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+
           <p className="max-w-[620px] text-[15px] text-uva-text-muted">{curso.descripcion}</p>
 
-          <div className="mt-6 flex flex-wrap gap-6 rounded-uva-md bg-white/5 px-5 py-4">
-            <div>
-              <p className="font-heading text-xl text-uva-text">{curso.totalClases}</p>
-              <p className="text-[11.5px] text-uva-text-faint">clases</p>
-            </div>
-            <div>
-              <p className="font-heading text-xl text-uva-text">
-                {formatHoras(curso.duracionTotalSegundos)}
-              </p>
-              <p className="text-[11.5px] text-uva-text-faint">contenido</p>
-            </div>
-            <div>
-              <p className="font-heading text-xl text-uva-text">{curso.totalRecursos}</p>
-              <p className="text-[11.5px] text-uva-text-faint">recursos descargables</p>
-            </div>
-            <div className="self-center text-[12.5px] text-uva-text-faint">
-              Actualizado el {formatFecha(curso.fechaEdicion)}
-            </div>
-          </div>
+          <p className="mt-3 text-[12.5px] text-uva-text-faint">
+            Actualizado el {formatFecha(curso.fechaEdicion)}
+          </p>
         </div>
 
         <div className="order-5 lg:order-none">
@@ -193,6 +232,7 @@ export function CursoDetalleContent({
             ))}
           </div>
         </div>
+
       </div>
 
       <div className="contents lg:flex lg:flex-col lg:gap-4">
@@ -311,6 +351,23 @@ export function CursoDetalleContent({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Fuera de las dos columnas (`col-span-2`): a diferencia del resto del
+          contenido, las reseñas aprovechan también el ancho que en desktop
+          ocupa la barra lateral (portada/CTA/instructor), para que las
+          tarjetas de comentarios tengan más espacio. En mobile el grid
+          exterior es de una sola columna, así que `order-6` la sigue
+          dejando después del temario sin nada especial. */}
+      <div id="reseñas" className="order-6 scroll-mt-6 lg:order-none lg:col-span-2">
+        <CursoCalificaciones
+          cursoId={curso.id}
+          ruta={ruta}
+          usuarioActualId={usuarioActualId}
+          puedeCalificar={curso.tieneAcceso}
+          esAdmin={esAdmin}
+          datos={calificaciones}
+        />
       </div>
     </div>
   );

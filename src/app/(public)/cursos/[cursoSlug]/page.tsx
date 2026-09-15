@@ -5,6 +5,7 @@ import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
+import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
@@ -83,9 +84,15 @@ export default async function CursoDetallePage({
 
   // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es
   // contenido público, así que la ficha anónima no cambia en nada.
-  const situacionExamen = await getSituacionExamen(curso.id, user?.id ?? null);
+  const [situacionExamen, calificaciones] = await Promise.all([
+    getSituacionExamen(curso.id, user?.id ?? null),
+    // Reseñas: SÍ es contenido público (a diferencia del examen) — visible
+    // sin sesión, mismo criterio que el resto de esta ficha.
+    getCalificacionesCurso(curso.id, user?.id ?? null),
+  ]);
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
+  const ruta = `/cursos/${curso.slug}`;
 
   if (!user) {
     return (
@@ -97,6 +104,10 @@ export default async function CursoDetallePage({
             basePath={basePath}
             sesionActiva={false}
             situacionExamen={situacionExamen}
+            calificaciones={calificaciones}
+            ruta={ruta}
+            usuarioActualId={null}
+            esAdmin={false}
           />
         </main>
         <Footer />
@@ -131,6 +142,10 @@ export default async function CursoDetallePage({
             basePath={basePath}
             sesionActiva
             situacionExamen={situacionExamen}
+            calificaciones={calificaciones}
+            ruta={ruta}
+            usuarioActualId={user.id}
+            esAdmin={esAdmin}
           />
         </main>
         <BottomTabBar />

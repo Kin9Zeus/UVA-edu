@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados, borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
-import { tituloSchema, contenidoPostSchema } from "@/lib/comunidad-validacion";
+import {
+  tituloSchema,
+  contenidoPostSchema,
+  empleoEmpresaSchema,
+  empleoModalidadSchema,
+  empleoUbicacionSchema,
+  empleoEnlaceSchema,
+} from "@/lib/comunidad-validacion";
+import type { DatosEmpleoComunidad } from "@/actions/comunidad/crear";
 
 export type EditarPostComunidadResultado = { error: string } | { success: true };
 
@@ -40,6 +48,11 @@ export async function editarPostComunidad(
   contenido: string,
   ruta: string,
   adjuntosFormData: FormData = new FormData(),
+  /** Igual que en crearPostComunidad: solo se lee/exige cuando el post es
+   * de categoría EMPLEO (`post.categoria` se lee acá mismo, el llamador no
+   * la puede cambiar — ver comentario de arriba sobre por qué no hay
+   * edición de categoría). */
+  datosEmpleo?: DatosEmpleoComunidad,
 ): Promise<EditarPostComunidadResultado> {
   const supabase = await createClient();
   const {
@@ -49,7 +62,7 @@ export async function editarPostComunidad(
 
   const { data: post } = await supabase
     .from("comunidad_posts")
-    .select("id_usuario, eliminado")
+    .select("id_usuario, eliminado, categoria")
     .eq("id", postId)
     .maybeSingle();
   if (!post || post.eliminado) return { error: "La publicación ya no existe." };
@@ -61,6 +74,28 @@ export async function editarPostComunidad(
   const parseoContenido = contenidoPostSchema.safeParse(contenido);
   if (!parseoContenido.success) {
     return { error: parseoContenido.error.issues[0]?.message ?? "Contenido inválido." };
+  }
+
+  let empleoValidado: { empresa: string; modalidad: string; ubicacion: string | null; enlace: string } | null = null;
+  if (post.categoria === "EMPLEO") {
+    const parseoEmpresa = empleoEmpresaSchema.safeParse(datosEmpleo?.empresa);
+    if (!parseoEmpresa.success) return { error: parseoEmpresa.error.issues[0]?.message ?? "Empresa inválida." };
+
+    const parseoModalidad = empleoModalidadSchema.safeParse(datosEmpleo?.modalidad);
+    if (!parseoModalidad.success) return { error: parseoModalidad.error.issues[0]?.message ?? "Modalidad inválida." };
+
+    const parseoUbicacion = empleoUbicacionSchema.safeParse(datosEmpleo?.ubicacion || undefined);
+    if (!parseoUbicacion.success) return { error: parseoUbicacion.error.issues[0]?.message ?? "Ubicación inválida." };
+
+    const parseoEnlace = empleoEnlaceSchema.safeParse(datosEmpleo?.enlace);
+    if (!parseoEnlace.success) return { error: parseoEnlace.error.issues[0]?.message ?? "Enlace inválido." };
+
+    empleoValidado = {
+      empresa: parseoEmpresa.data,
+      modalidad: parseoModalidad.data,
+      ubicacion: parseoUbicacion.data || null,
+      enlace: parseoEnlace.data,
+    };
   }
 
   if (adjuntosFormData.getAll("token").length > MAX_ADJUNTOS_COMUNIDAD) {
@@ -79,7 +114,16 @@ export async function editarPostComunidad(
 
   const { error } = await supabase
     .from("comunidad_posts")
-    .update({ titulo: parseoTitulo.data, contenido: resultadoAdjuntos.contenido })
+    .update({
+      titulo: parseoTitulo.data,
+      contenido: resultadoAdjuntos.contenido,
+      ...(empleoValidado && {
+        empleo_empresa: empleoValidado.empresa,
+        empleo_modalidad: empleoValidado.modalidad,
+        empleo_ubicacion: empleoValidado.ubicacion,
+        empleo_enlace: empleoValidado.enlace,
+      }),
+    })
     .eq("id", postId);
 
   if (error) return { error: "No pudimos guardar los cambios." };

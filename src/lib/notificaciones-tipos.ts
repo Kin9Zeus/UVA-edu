@@ -11,7 +11,12 @@
 
 export type Notificacion = {
   id: string;
-  tipo: "COMUNIDAD_RESPUESTA" | "COMUNIDAD_ANUNCIO";
+  tipo:
+    | "COMUNIDAD_RESPUESTA"
+    | "COMUNIDAD_ANUNCIO"
+    | "COMUNIDAD_MODERACION"
+    | "COMUNIDAD_REPORTE_ELIMINADO"
+    | "COMUNIDAD_REPORTE_DESCARTADO";
   actorNombre: string;
   entidadTipo: "comunidad_post";
   entidadId: string;
@@ -48,5 +53,18 @@ export function mensajeNotificacion(
       return `${notificacion.actorNombre} respondió tu publicación${titulo}`;
     case "COMUNIDAD_ANUNCIO":
       return `${notificacion.actorNombre} publicó un anuncio${titulo}`;
+    // Genérico a propósito, sin distinguir publicación/respuesta: `entidad_id`
+    // siempre apunta al post (el propio, o su padre si lo moderado/reportado
+    // fue una respuesta — ver 110_comunidad_notificaciones_moderacion_reportes.sql),
+    // pero el tipo de Notificacion no trae esa distinción.
+    case "COMUNIDAD_MODERACION":
+      return `Un administrador moderó tu contenido en Comunidad${titulo}.`;
+    // Dos tipos en vez de uno (131_comunidad_reporte_resuelto_con_veredicto.sql):
+    // "fue revisado" sin más no le decía al reportante si de verdad se actuó
+    // sobre su reporte o si lo descartaron sin cambiar nada.
+    case "COMUNIDAD_REPORTE_ELIMINADO":
+      return `Revisamos tu reporte y eliminamos el contenido${titulo}.`;
+    case "COMUNIDAD_REPORTE_DESCARTADO":
+      return `Revisamos tu reporte${titulo} y no encontramos motivo para eliminar el contenido.`;
   }
 }

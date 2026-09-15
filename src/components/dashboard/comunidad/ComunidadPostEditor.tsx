@@ -4,6 +4,12 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EditorTextoEnriquecido, type EditorTextoEnriquecidoHandle } from "@/components/editor/EditorTextoEnriquecido";
+import {
+  ComunidadCamposEmpleo,
+  VALORES_EMPLEO_VACIOS,
+  faltanCamposEmpleoObligatorios,
+  type ValoresEmpleo,
+} from "@/components/dashboard/comunidad/ComunidadCamposEmpleo";
 import { editarPostComunidad } from "@/actions/comunidad/editar";
 import { armarFormDataAdjuntos, type ComunidadPostResumen } from "@/lib/comunidad-tipos";
 
@@ -27,17 +33,30 @@ export function ComunidadPostEditor({
 }) {
   const [titulo, setTitulo] = useState(post.titulo);
   const [contenidoVacio, setContenidoVacio] = useState(post.contenido.trim() === "");
+  const [datosEmpleo, setDatosEmpleo] = useState<ValoresEmpleo>(
+    post.datosEmpleo
+      ? { empresa: post.datosEmpleo.empresa, modalidad: post.datosEmpleo.modalidad, ubicacion: post.datosEmpleo.ubicacion ?? "", enlace: post.datosEmpleo.enlace }
+      : VALORES_EMPLEO_VACIOS,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editorRef = useRef<EditorTextoEnriquecidoHandle>(null);
   const nombresPorId = new Map(post.adjuntos.map((adjunto) => [adjunto.id, adjunto.nombre]));
+  const esEmpleo = post.categoria === "EMPLEO";
 
   function guardar() {
     const contenido = editorRef.current?.obtenerTexto() ?? "";
     const adjuntos = armarFormDataAdjuntos(editorRef.current?.obtenerAdjuntosPendientes() ?? new Map());
     setError(null);
     startTransition(async () => {
-      const resultado = await editarPostComunidad(post.id, titulo, contenido, ruta, adjuntos);
+      const resultado = await editarPostComunidad(
+        post.id,
+        titulo,
+        contenido,
+        ruta,
+        adjuntos,
+        esEmpleo ? datosEmpleo : undefined,
+      );
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -64,6 +83,8 @@ export function ComunidadPostEditor({
         onErrorAdjunto={setError}
       />
 
+      {esEmpleo && <ComunidadCamposEmpleo valores={datosEmpleo} onCambiar={setDatosEmpleo} />}
+
       {error && <p className="text-sm text-uva-error">{error}</p>}
 
       <div className="flex justify-end gap-2">
@@ -75,7 +96,7 @@ export function ComunidadPostEditor({
           variant="uva-primary"
           className="w-auto px-6"
           onClick={guardar}
-          disabled={pending || !titulo.trim() || contenidoVacio}
+          disabled={pending || !titulo.trim() || contenidoVacio || (esEmpleo && faltanCamposEmpleoObligatorios(datosEmpleo))}
         >
           {pending ? "Guardando…" : "Guardar cambios"}
         </Button>

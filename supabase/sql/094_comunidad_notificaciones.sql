@@ -24,6 +24,18 @@ begin
     check (tipo in ('COMUNIDAD_RESPUESTA'));
 exception
   when duplicate_object then null;
+  -- Este pipeline reaplica TODOS los archivos, en orden, contra la base ya
+  -- viva (nunca contra una vacía) — así que para cuando este `add
+  -- constraint` corre, la tabla ya puede tener filas reales con tipos que
+  -- este CHECK todavía no conoce (095/110/131 los agregan más adelante en
+  -- la MISMA transacción, y la vuelven a ampliar de inmediato). Sin este
+  -- `when`, esas filas legítimas rompían la reproducibilidad del pipeline
+  -- completo — se detectó al re-aplicar con notificaciones reales de tipo
+  -- COMUNIDAD_REPORTE_ELIMINADO/DESCARTADO ya en la tabla (131). Inofensivo:
+  -- el archivo que de verdad amplía la lista (el de mayor número que toque
+  -- `tipo`) corre después en la misma transacción y deja el CHECK final
+  -- correcto de todas formas.
+  when check_violation then null;
 end;
 $$;
 

@@ -206,6 +206,13 @@ export function serializarEditor(raiz: HTMLElement): string {
     }
   }
 
+  function procesarLista(el: HTMLElement) {
+    Array.from(el.children).forEach((item, i) => {
+      const contenido = Array.from(item.childNodes).map(textoConEstilos).join("");
+      lineas.push(el.tagName === "UL" ? `- ${contenido}` : `${i + 1}. ${contenido}`);
+    });
+  }
+
   function procesarBloque(nodo: ChildNode) {
     if (nodo.nodeType === Node.TEXT_NODE) {
       const texto = nodo.textContent ?? "";
@@ -215,10 +222,7 @@ export function serializarEditor(raiz: HTMLElement): string {
     if (nodo.nodeType !== Node.ELEMENT_NODE) return;
     const el = nodo as HTMLElement;
     if (el.tagName === "UL" || el.tagName === "OL") {
-      Array.from(el.children).forEach((item, i) => {
-        const contenido = Array.from(item.childNodes).map(textoConEstilos).join("");
-        lineas.push(el.tagName === "UL" ? `- ${contenido}` : `${i + 1}. ${contenido}`);
-      });
+      procesarLista(el);
       return;
     }
     if (el.tagName === "BR") {
@@ -226,6 +230,18 @@ export function serializarEditor(raiz: HTMLElement): string {
       return;
     }
     if (el.tagName === "DIV" || el.tagName === "P") {
+      // Justo después de insertar un adjunto (chip `contenteditable="false"`),
+      // Chrome a veces arma la lista como `<div><ul>...</ul></div>` en vez de
+      // dejar el `<ul>` como hermano directo del bloque — reproducido a mano:
+      // insertar el chip, Enter, activar viñetas y escribir. Tratar este DIV
+      // como texto plano (la rama de abajo) perdía la lista entera, aplanada
+      // sin marcador por `textoConEstilos` (que no conoce UL/OL/LI). Si
+      // alguno de los hijos directos es una lista, se procesa cada hijo por
+      // separado en vez de aplanar todo el bloque de una.
+      if (Array.from(el.children).some((hijo) => hijo.tagName === "UL" || hijo.tagName === "OL")) {
+        Array.from(el.childNodes).forEach(procesarBloque);
+        return;
+      }
       lineas.push(Array.from(el.childNodes).map(textoConEstilos).join(""));
       return;
     }

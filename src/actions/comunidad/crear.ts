@@ -5,7 +5,15 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
-import { tituloSchema, contenidoPostSchema, contenidoRespuestaSchema } from "@/lib/comunidad-validacion";
+import {
+  tituloSchema,
+  contenidoPostSchema,
+  contenidoRespuestaSchema,
+  empleoEmpresaSchema,
+  empleoModalidadSchema,
+  empleoUbicacionSchema,
+  empleoEnlaceSchema,
+} from "@/lib/comunidad-validacion";
 
 export type CrearPostComunidadResultado = { error: string } | { success: true; id: string };
 export type CrearRespuestaComunidadResultado = { error: string } | { success: true; id: string };
@@ -13,6 +21,17 @@ export type CrearRespuestaComunidadResultado = { error: string } | { success: tr
 const CATEGORIAS_COMUNIDAD = ["ANUNCIOS", "PROYECTOS", "PREGUNTAS", "EMPLEO"] as const;
 export type CategoriaComunidad = (typeof CATEGORIAS_COMUNIDAD)[number];
 const categoriaSchema = z.enum(CATEGORIAS_COMUNIDAD);
+
+/** Solo se lee/exige cuando `categoria === "EMPLEO"` — ver el bloque en
+ * `crearPostComunidad` de abajo. `ubicacion` llega como string vacío desde
+ * un input sin llenar, por eso el `|| undefined` antes de validar con Zod
+ * (que trata "" como presente, no como ausente). */
+export type DatosEmpleoComunidad = {
+  empresa: string;
+  modalidad: string;
+  ubicacion: string;
+  enlace: string;
+};
 
 /**
  * Crea una publicación en el feed de Comunidad.
@@ -46,6 +65,11 @@ export async function crearPostComunidad(
    * revalidar exactamente lo que Next.js cacheó. */
   ruta: string,
   adjuntosFormData: FormData = new FormData(),
+  /** Obligatorio si y solo si `categoria === "EMPLEO"` — refleja en la app
+   * el mismo CHECK de la base (comunidad_posts_empleo_coherente,
+   * 111_comunidad_empleo_campos.sql): se rechaza si falta en Empleo, y se
+   * ignora (nunca se guarda) si viene en cualquier otra categoría. */
+  datosEmpleo?: DatosEmpleoComunidad,
 ): Promise<CrearPostComunidadResultado> {
   const supabase = await createClient();
   const {
@@ -62,6 +86,28 @@ export async function crearPostComunidad(
   const parseoContenido = contenidoPostSchema.safeParse(contenido);
   if (!parseoContenido.success) {
     return { error: parseoContenido.error.issues[0]?.message ?? "Contenido inválido." };
+  }
+
+  let empleoValidado: { empresa: string; modalidad: string; ubicacion: string | null; enlace: string } | null = null;
+  if (parseoCategoria.data === "EMPLEO") {
+    const parseoEmpresa = empleoEmpresaSchema.safeParse(datosEmpleo?.empresa);
+    if (!parseoEmpresa.success) return { error: parseoEmpresa.error.issues[0]?.message ?? "Empresa inválida." };
+
+    const parseoModalidad = empleoModalidadSchema.safeParse(datosEmpleo?.modalidad);
+    if (!parseoModalidad.success) return { error: parseoModalidad.error.issues[0]?.message ?? "Modalidad inválida." };
+
+    const parseoUbicacion = empleoUbicacionSchema.safeParse(datosEmpleo?.ubicacion || undefined);
+    if (!parseoUbicacion.success) return { error: parseoUbicacion.error.issues[0]?.message ?? "Ubicación inválida." };
+
+    const parseoEnlace = empleoEnlaceSchema.safeParse(datosEmpleo?.enlace);
+    if (!parseoEnlace.success) return { error: parseoEnlace.error.issues[0]?.message ?? "Enlace inválido." };
+
+    empleoValidado = {
+      empresa: parseoEmpresa.data,
+      modalidad: parseoModalidad.data,
+      ubicacion: parseoUbicacion.data || null,
+      enlace: parseoEnlace.data,
+    };
   }
 
   const { data: tieneAcceso } = await supabase.rpc("comunidad_tiene_acceso");
@@ -92,6 +138,10 @@ export async function crearPostComunidad(
       categoria: parseoCategoria.data,
       titulo: parseoTitulo.data,
       contenido: resultadoAdjuntos.contenido,
+      empleo_empresa: empleoValidado?.empresa ?? null,
+      empleo_modalidad: empleoValidado?.modalidad ?? null,
+      empleo_ubicacion: empleoValidado?.ubicacion ?? null,
+      empleo_enlace: empleoValidado?.enlace ?? null,
     })
     .select("id")
     .single();

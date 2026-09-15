@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, X } from "lucide-react";
+import { Bell, X, MessageCircle, Megaphone, ShieldAlert, ShieldCheck, ShieldOff } from "lucide-react";
 import { Popover } from "@base-ui/react/popover";
 import {
   marcarNotificacionLeida,
@@ -11,6 +11,27 @@ import {
   eliminarNotificacion,
 } from "@/actions/notificaciones";
 import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones-tipos";
+
+/** Ícono + tono por tipo — mismos 4 tonos que ya usan las categorías de
+ * Comunidad (CATEGORIA_ESTILO, comunidad-tipos.ts), no una paleta nueva.
+ * "Éxito" acá no significa "buena noticia" en términos humanos (moderar tu
+ * contenido no lo es) sino "el sistema hizo lo que se esperaba de esa
+ * acción" — de ahí que eliminar-por-reporte y moderación compartan tono
+ * danger (algo tuyo se removió) y anuncio/respuesta usen tonos más neutros. */
+const ESTILO_POR_TIPO: Record<Notificacion["tipo"], { Icono: typeof MessageCircle; tono: "success" | "warn" | "danger" | "neutral" }> = {
+  COMUNIDAD_RESPUESTA: { Icono: MessageCircle, tono: "neutral" },
+  COMUNIDAD_ANUNCIO: { Icono: Megaphone, tono: "success" },
+  COMUNIDAD_MODERACION: { Icono: ShieldAlert, tono: "danger" },
+  COMUNIDAD_REPORTE_ELIMINADO: { Icono: ShieldCheck, tono: "danger" },
+  COMUNIDAD_REPORTE_DESCARTADO: { Icono: ShieldOff, tono: "neutral" },
+};
+
+const CLASES_TONO: Record<"success" | "warn" | "danger" | "neutral", string> = {
+  success: "bg-uva-badge-success-bg text-uva-badge-success-fg",
+  warn: "bg-uva-badge-warn-bg text-uva-badge-warn-fg",
+  danger: "bg-uva-badge-danger-bg text-uva-badge-danger-fg",
+  neutral: "bg-uva-badge-neutral-bg text-uva-badge-neutral-fg",
+};
 
 /**
  * Campana de notificaciones del header — mismo Popover que ya usaba
@@ -107,44 +128,55 @@ export function NotificacionesBell({
                   No tienes notificaciones todavía.
                 </p>
               ) : (
-                locales.map((notificacion) => (
-                  // Fila con dos hijos hermanos (Link + botón "×"), nunca un
-                  // botón anidado dentro del Link: dos elementos
-                  // interactivos uno dentro del otro es HTML inválido y
-                  // complica que el clic en "×" no dispare también la
-                  // navegación del Link.
-                  <div
-                    key={notificacion.id}
-                    className="group flex items-start gap-1 border-b border-uva-divider last:border-b-0 hover:bg-uva-hover"
-                  >
-                    <Link
-                      href={urlNotificacion(notificacion)}
-                      onClick={() => alAbrirNotificacion(notificacion)}
-                      className="min-w-0 flex-1 px-3.5 py-2.5 text-[13px] text-uva-text"
+                locales.map((notificacion) => {
+                  const { Icono, tono } = ESTILO_POR_TIPO[notificacion.tipo];
+                  return (
+                    // Fila con dos hijos hermanos (Link + botón "×"), nunca
+                    // un botón anidado dentro del Link: dos elementos
+                    // interactivos uno dentro del otro es HTML inválido y
+                    // complica que el clic en "×" no dispare también la
+                    // navegación del Link.
+                    <div
+                      key={notificacion.id}
+                      className="group flex items-start gap-1 border-b border-uva-divider last:border-b-0 hover:bg-uva-hover"
                     >
-                      <span className="flex items-start gap-2">
-                        {!notificacion.leida && (
-                          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-uva-accent" aria-hidden />
-                        )}
-                        <span className={notificacion.leida ? "text-uva-text-muted" : "text-uva-text"}>
-                          {mensajeNotificacion(notificacion)}
+                      <Link
+                        href={urlNotificacion(notificacion)}
+                        onClick={() => alAbrirNotificacion(notificacion)}
+                        className="flex min-w-0 flex-1 items-start gap-2.5 px-3.5 py-2.5 text-[13px] text-uva-text"
+                      >
+                        <span
+                          className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${CLASES_TONO[tono]}`}
+                          aria-hidden
+                        >
+                          <Icono className="size-3.5" strokeWidth={2} />
                         </span>
-                      </span>
-                      <span className="mt-0.5 block pl-3.5 font-mono text-[11px] text-uva-text-faint">
-                        {notificacion.tiempo}
-                      </span>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => quitar(notificacion)}
-                      aria-label="Quitar notificación"
-                      title="Quitar notificación"
-                      className="mt-2 mr-2 shrink-0 rounded-uva-sm p-1 text-uva-text-faint opacity-0 hover:text-uva-text group-hover:opacity-100 pointer-coarse:opacity-100"
-                    >
-                      <X className="size-3.5" strokeWidth={2} />
-                    </button>
-                  </div>
-                ))
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start gap-1.5">
+                            {!notificacion.leida && (
+                              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-uva-accent" aria-hidden />
+                            )}
+                            <span className={notificacion.leida ? "text-uva-text-muted" : "text-uva-text"}>
+                              {mensajeNotificacion(notificacion)}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block pl-3.5 font-mono text-[11px] text-uva-text-faint">
+                            {notificacion.tiempo}
+                          </span>
+                        </span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => quitar(notificacion)}
+                        aria-label="Quitar notificación"
+                        title="Quitar notificación"
+                        className="mt-2 mr-2 shrink-0 rounded-uva-sm p-1 text-uva-text-faint opacity-0 hover:text-uva-text group-hover:opacity-100 pointer-coarse:opacity-100"
+                      >
+                        <X className="size-3.5" strokeWidth={2} />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </Popover.Popup>

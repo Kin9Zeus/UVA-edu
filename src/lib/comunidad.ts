@@ -13,7 +13,10 @@ import type {
   ComunidadActividadItem,
   ComunidadDestacadoItem,
   ComunidadAdjunto,
+  ComunidadFeedResultado,
+  ComunidadDatosEmpleo,
 } from "@/lib/comunidad-tipos";
+import { COMUNIDAD_POSTS_POR_PAGINA } from "@/lib/comunidad-tipos";
 
 /**
  * "Diseño Paramétrico" -> "diseno parametrico" — insensible a tildes y
@@ -49,6 +52,7 @@ export type {
   ComunidadActividadItem,
   ComunidadDestacadoItem,
   ComunidadAdjunto,
+  ComunidadDatosEmpleo,
 };
 
 /**
@@ -96,7 +100,25 @@ type FilaPost = {
   fijado: boolean;
   eliminado: boolean;
   creado_en: string;
+  empleo_empresa: string | null;
+  empleo_modalidad: string | null;
+  empleo_ubicacion: string | null;
+  empleo_enlace: string | null;
 };
+
+/** `null` si `fila.categoria !== "EMPLEO"` — ver comentario de
+ * `ComunidadDatosEmpleo` en comunidad-tipos.ts. */
+function datosEmpleoDeFila(fila: FilaPost): ComunidadDatosEmpleo | null {
+  if (fila.categoria !== "EMPLEO" || !fila.empleo_empresa || !fila.empleo_modalidad || !fila.empleo_enlace) {
+    return null;
+  }
+  return {
+    empresa: fila.empleo_empresa,
+    modalidad: fila.empleo_modalidad as ComunidadDatosEmpleo["modalidad"],
+    ubicacion: fila.empleo_ubicacion,
+    enlace: fila.empleo_enlace,
+  };
+}
 
 /**
  * Enriquece filas planas de `comunidad_posts`/`comunidad_respuestas` con
@@ -258,7 +280,8 @@ export async function getComunidadFeed(opciones?: {
   usuarioId?: string;
   busqueda?: string;
   orden?: "relevancia" | "reciente";
-}): Promise<ComunidadPostResumen[]> {
+  pagina?: number;
+}): Promise<ComunidadFeedResultado> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -266,13 +289,15 @@ export async function getComunidadFeed(opciones?: {
 
   let consulta = supabase
     .from("comunidad_posts")
-    .select("id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
+    .select(
+      "id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en, empleo_empresa, empleo_modalidad, empleo_ubicacion, empleo_enlace",
+    )
     .eq("eliminado", false)
     .order("fijado", { ascending: false })
     .order("creado_en", { ascending: false });
 
   if (opciones?.soloPropios) {
-    if (!opciones.usuarioId) return [];
+    if (!opciones.usuarioId) return { posts: [], pagina: 1, totalPaginas: 1 };
     consulta = consulta.eq("id_usuario", opciones.usuarioId);
   } else if (opciones?.categoria) {
     consulta = consulta.eq("categoria", opciones.categoria);
@@ -281,7 +306,7 @@ export async function getComunidadFeed(opciones?: {
   const { data: posts, error } = await consulta;
   if (error) {
     logError("comunidad:feed", "no se pudo leer el feed de comunidad", error, { opciones });
-    return [];
+    return { posts: [], pagina: 1, totalPaginas: 1 };
   }
   let filas = (posts ?? []) as FilaPost[];
 
@@ -292,7 +317,7 @@ export async function getComunidadFeed(opciones?: {
       (fila) => normalizarBusqueda(fila.titulo).includes(q) || normalizarBusqueda(fila.contenido).includes(q),
     );
   }
-  if (filas.length === 0) return [];
+  if (filas.length === 0) return { posts: [], pagina: 1, totalPaginas: 1 };
 
   const postIds = filas.map((fila) => fila.id);
   const [{ data: respuestas }, enriquecido] = await Promise.all([
@@ -316,26 +341,40 @@ export async function getComunidadFeed(opciones?: {
     });
   }
 
-  return filas.map((fila) => {
-    const extra = enriquecido.get(fila.id)!;
-    return {
-      id: fila.id,
-      slug: fila.slug,
-      categoria: fila.categoria,
-      titulo: fila.titulo,
-      contenido: fila.contenido,
-      fijado: fila.fijado,
-      eliminado: fila.eliminado,
-      tiempo: tiempoRelativo(fila.creado_en),
-      autorId: fila.id_usuario,
-      autorNombre: extra.autorNombre,
-      autorFotoUrl: extra.autorFotoUrl,
-      totalRespuestas: respuestasPorPost.get(fila.id) ?? 0,
-      totalReacciones: extra.totalReacciones,
-      meReaccione: extra.meReaccione,
-      adjuntos: extra.adjuntos,
-    };
-  });
+  const totalPaginas = Math.max(1, Math.ceil(filas.length / COMUNIDAD_POSTS_POR_PAGINA));
+  const pagina = Math.min(Math.max(1, opciones?.pagina ?? 1), totalPaginas);
+  const desde = (pagina - 1) * COMUNIDAD_POSTS_POR_PAGINA;
+  const filasPagina = filas.slice(desde, desde + COMUNIDAD_POSTS_POR_PAGINA);
+
+  return {
+    pagina,
+    totalPaginas,
+    posts: filasPagina.map((fila) => {
+      const extra = enriquecido.get(fila.id)!;
+      return {
+        id: fila.id,
+        slug: fila.slug,
+        categoria: fila.categoria,
+        titulo: fila.titulo,
+        contenido: fila.contenido,
+        fijado: fila.fijado,
+        eliminado: fila.eliminado,
+        // El feed ya filtra `eliminado = false` arriba, así que esto nunca
+        // es relevante acá — solo lo necesita el detalle de un post
+        // eliminado (getComunidadPost), que sí trae la columna real.
+        eliminadoPorAdmin: false,
+        tiempo: tiempoRelativo(fila.creado_en),
+        autorId: fila.id_usuario,
+        autorNombre: extra.autorNombre,
+        autorFotoUrl: extra.autorFotoUrl,
+        totalRespuestas: respuestasPorPost.get(fila.id) ?? 0,
+        totalReacciones: extra.totalReacciones,
+        meReaccione: extra.meReaccione,
+        adjuntos: extra.adjuntos,
+        datosEmpleo: datosEmpleoDeFila(fila),
+      };
+    }),
+  };
 }
 
 /** Un post con su hilo de respuestas, para la pantalla de detalle.
@@ -350,7 +389,9 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
 
   const { data: post, error } = await supabase
     .from("comunidad_posts")
-    .select("id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en")
+    .select(
+      "id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, eliminado_por_admin, creado_en, empleo_empresa, empleo_modalidad, empleo_ubicacion, empleo_enlace",
+    )
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .maybeSingle();
 
@@ -366,7 +407,45 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
       `comunidad:detalle — no se pudo leer la publicación "${identificador}": ${error.message} (code=${error.code ?? "sin código"})`,
     );
   }
-  if (!post || post.eliminado) return null;
+  if (!post) return null;
+
+  // Un post eliminado (por su autor o por moderación) ya no aparece en el
+  // feed, pero un enlace directo — o justo la notificación de "tu reporte
+  // fue revisado" (110_comunidad_notificaciones_moderacion_reportes.sql,
+  // que apunta acá) — sí puede llegar a esta URL. Antes esto devolvía
+  // `null` y la página mandaba a un 404 genérico sin explicar qué pasó;
+  // ahora se arma un objeto mínimo (sin respuestas ni reacciones: ya no hay
+  // nada que ver) para que ComunidadPostDetalleContent pueda mostrar un
+  // placeholder claro, mismo criterio que ya usan las respuestas eliminadas
+  // dentro de un hilo (nunca 404, un texto "[respuesta eliminada]").
+  if (post.eliminado) {
+    const { data: autor } = await supabase
+      .from("comunidad_autor_publico")
+      .select("nombre, foto_url")
+      .eq("id", post.id_usuario)
+      .maybeSingle();
+
+    return {
+      id: post.id,
+      slug: post.slug,
+      categoria: post.categoria,
+      titulo: "",
+      contenido: "",
+      fijado: false,
+      eliminado: true,
+      eliminadoPorAdmin: post.eliminado_por_admin,
+      tiempo: tiempoRelativo(post.creado_en),
+      autorId: post.id_usuario,
+      autorNombre: autor?.nombre ?? "Estudiante UVA",
+      autorFotoUrl: autor?.foto_url ?? null,
+      totalRespuestas: 0,
+      totalReacciones: 0,
+      meReaccione: false,
+      adjuntos: [],
+      datosEmpleo: null,
+      respuestas: [],
+    };
+  }
 
   const { data: respuestasFilas, error: errorRespuestas } = await supabase
     .from("comunidad_respuestas")
@@ -391,6 +470,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
     contenido: post.contenido,
     fijado: post.fijado,
     eliminado: post.eliminado,
+    eliminadoPorAdmin: post.eliminado_por_admin,
     tiempo: tiempoRelativo(post.creado_en),
     autorId: post.id_usuario,
     autorNombre: extraPost.autorNombre,
@@ -399,6 +479,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
     totalReacciones: extraPost.totalReacciones,
     meReaccione: extraPost.meReaccione,
     adjuntos: extraPost.adjuntos,
+    datosEmpleo: datosEmpleoDeFila(post as FilaPost),
     respuestas: filasRespuestas.map((r) => {
       const extra = enriquecido.get(r.id)!;
       return {

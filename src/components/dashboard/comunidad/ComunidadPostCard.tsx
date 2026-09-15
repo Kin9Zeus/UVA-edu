@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pin } from "lucide-react";
+import { Pin, Building2, MapPin, ExternalLink } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
@@ -11,6 +11,7 @@ import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/Comunida
 import { ComunidadPostEditor } from "@/components/dashboard/comunidad/ComunidadPostEditor";
 import { ModerarComunidadDialog } from "@/components/dashboard/comunidad/ModerarComunidadDialog";
 import { ReportarComunidadDialog } from "@/components/dashboard/comunidad/ReportarComunidadDialog";
+import { MODALIDAD_LABEL } from "@/components/dashboard/comunidad/ComunidadCamposEmpleo";
 import { eliminarPostComunidad } from "@/actions/comunidad/eliminar";
 import { reportarComunidad } from "@/actions/comunidad/reportar";
 import { fijarPostComunidad } from "@/actions/comunidad/fijar";
@@ -216,6 +217,28 @@ export function ComunidadPostCard({
       ) : (
         <>
           {Titulo}
+          {post.datosEmpleo && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-uva-text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <Building2 className="size-3.5 shrink-0 text-uva-text-faint" strokeWidth={2} />
+                {post.datosEmpleo.empresa}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="size-3.5 shrink-0 text-uva-text-faint" strokeWidth={2} />
+                {MODALIDAD_LABEL[post.datosEmpleo.modalidad]}
+                {post.datosEmpleo.ubicacion && ` · ${post.datosEmpleo.ubicacion}`}
+              </span>
+              <a
+                href={post.datosEmpleo.enlace}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-uva-accent-text hover:underline"
+              >
+                Postularme
+                <ExternalLink className="size-3.5" strokeWidth={2.2} />
+              </a>
+            </div>
+          )}
           {/* renderizarTextoFormateado devuelve un bloque (p/ul/ol/pre) por
               línea. En el feed se dejan como bloques: `line-clamp-3` cuenta
               las líneas de todos ellos y corta en la tercera. Antes se
