@@ -27,7 +27,14 @@
  * Mientras no esté programado NO corre solo.
  */
 
-process.loadEnvFile(".env.local");
+// .env.local no existe en Railway (ni en CI): ahí las variables llegan ya
+// puestas en process.env por la plataforma. Mismo patrón que
+// certificados-enviar-notificaciones.ts / apply-rls.ts.
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // Sin archivo: se usan las variables ya presentes en process.env.
+}
 
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
