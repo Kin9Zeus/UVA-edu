@@ -114,7 +114,7 @@ export default async function AdminDashboardPage() {
         className="grid grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0"
       >
         {tarjetas.map((tarjeta) => (
-          <MetricaCard key={tarjeta.label} {...tarjeta} variant="flush" />
+          <MetricaCard key={tarjeta.label} {...tarjeta} />
         ))}
       </div>
 

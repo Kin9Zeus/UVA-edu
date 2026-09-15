@@ -61,8 +61,13 @@ export default async function AdminUsuariosPage({
 
           Solo cifras accionables. Las de cuadre contable (emitidas y
           caducadas) van en la línea de abajo: sirven para auditar la resta,
-          no para decidir nada. */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          no para decidir nada.
+
+          Igual que el dashboard: son 4 cifras de una misma fila, no 4
+          objetos aparte, y la página ya trae 2 tarjetas más abajo (Cursos
+          con más avance, Dónde se atasca la gente) — ver el comentario de la
+          misma cuadrícula en admin/page.tsx. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0">
         <MetricaCard
           label="Invitaciones sin usar"
           valor={metricas.cuposDisponibles}
