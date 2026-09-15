@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/home/Header";
 import { Hero } from "@/components/home/Hero";
 import { CursoDestacado } from "@/components/home/CursoDestacado";
@@ -7,6 +8,21 @@ import { FinalCta } from "@/components/home/FinalCta";
 import { Footer } from "@/components/home/Footer";
 import { WhatsAppButton } from "@/components/home/WhatsAppButton";
 import { connection } from "next/server";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { metadataPublica } from "@/lib/seo/metadata";
+import { organizacionCompleta } from "@/lib/seo/organizacion";
+
+// P2-6 (AUDIT-2026-09-15.md): la home era la única página del sitio que no
+// exportaba `metadata` en absoluto — heredaba del layout raíz el título
+// genérico y la descripción "Plataforma de cursos U.V.A". El título y la
+// descripción salen del propio Hero, no de copy nueva: lo que promete la
+// página y lo que promete el resultado de búsqueda tienen que ser lo mismo.
+export const metadata: Metadata = metadataPublica({
+  titulo: "La escuela del oficio de la construcción",
+  descripcion:
+    "Formación técnica para arquitectos, residentes de obra, presupuestadores y coordinadores BIM en toda LATAM.",
+  ruta: "/",
+});
 
 export default async function Home() {
   // P2-2 (AUDIT-2026-09-08): fuerza el render dinámico. Esta página era
@@ -23,6 +39,11 @@ export default async function Home() {
   await connection();
   return (
     <>
+      {/* La `Organization` completa se publica UNA vez, aquí, y cada ficha
+          de curso la referencia por `@id` desde su `provider` (P2-5). Es lo
+          que le dice a Google que son la misma entidad y no dos con nombre
+          parecido. */}
+      <JsonLd data={organizacionCompleta()} />
       <Header />
       <main>
         <Hero />

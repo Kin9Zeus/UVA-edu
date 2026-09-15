@@ -4,8 +4,14 @@ import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getCategoriasActivas, buscarCatalogo, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
+import { metadataPublica } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "U.V.A. — Catálogo" };
+export const metadata: Metadata = metadataPublica({
+  titulo: "Catálogo de cursos",
+  descripcion:
+    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A por categoría.",
+  ruta: "/catalogo",
+});
 
 export default async function CatalogoPage({
   searchParams,

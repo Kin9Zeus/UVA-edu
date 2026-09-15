@@ -9,6 +9,8 @@ import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
@@ -94,9 +96,17 @@ export default async function CursoDetallePage({
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
   const ruta = `/cursos/${curso.slug}`;
 
+  // P2-5 (AUDIT-2026-09-15.md). Se construye una vez y se imprime en las dos
+  // ramas: a un usuario con sesión no le aporta nada —ningún rastreador ve
+  // esa versión—, pero mantenerlo en una sola rama significaría que la ficha
+  // pública y la privada divergen, y la que se rompe en silencio es siempre
+  // la que nadie mira al hacer un cambio.
+  const jsonLd = construirCursoJsonLd(curso, calificaciones);
+
   if (!user) {
     return (
       <>
+        <JsonLd data={jsonLd} />
         <SiteHeader {...perfilActual} />
         <main>
           <CursoDetalleContent
@@ -124,6 +134,7 @@ export default async function CursoDetallePage({
 
   return (
     <div className="flex min-h-screen">
+      <JsonLd data={jsonLd} />
       <Sidebar certificadosCount={certificadosCount} diasGracia={diasGracia} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
