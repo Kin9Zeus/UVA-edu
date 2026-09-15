@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, TicketPercent, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,57 @@ import {
 
 /** Un plan con la vigencia ya calculada y formateada por el servidor. */
 export type PlanCheckout = PlanRow & { vigenteHasta: string };
+
+/**
+ * Lo que trae el plan elegido.
+ *
+ * Se monta dos veces —una dentro de la rejilla de planes, otra debajo de
+ * ella— y cada copia se apaga en el breakpoint de la otra. No es un capricho:
+ * en móvil la lista tiene que caer pegada al plan que acabas de marcar, y para
+ * eso debe ser hermana de las tarjetas; en escritorio la rejilla tiene dos
+ * columnas, y un bloque a todo lo ancho metido ahí dejaría una celda vacía
+ * cada vez que el número de planes activos sea impar.
+ *
+ * La copia oculta lo está con `display:none`, así que no se pinta ni la
+ * anuncia un lector de pantalla: nunca hay dos encabezados "Qué incluye" a la
+ * vez, solo el que corresponde al ancho actual.
+ */
+function QueIncluye({
+  incluidos,
+  className,
+}: {
+  incluidos: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn("border-t border-uva-divider", className)}>
+      <h2 className="m-0 mb-4 text-base text-uva-text">Qué incluye</h2>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px]">
+        {sharedBenefits.map((beneficio, indice) => {
+          const incluido = indice < incluidos;
+          return (
+            <li
+              key={beneficio}
+              className={cn(
+                "flex items-center gap-2",
+                incluido ? "text-uva-text" : "text-uva-text-disabled opacity-45",
+              )}
+            >
+              <Check
+                className={cn(
+                  "size-3.5 shrink-0",
+                  incluido ? "text-uva-accent-2-text" : "text-uva-text-disabled",
+                )}
+                aria-hidden
+              />
+              {beneficio}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 /**
  * Confirmación de la compra: elegir plan a la izquierda, resumen a la derecha.
@@ -170,62 +221,78 @@ export function CheckoutContent({
                   const badge = ahorroPorcentaje(p, referencia);
 
                   return (
-                    <label
-                      key={p.id}
-                      className={cn(
-                        "flex cursor-pointer gap-3 rounded-uva-md border p-4 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-uva-accent",
-                        elegido
-                          ? "border-uva-accent bg-uva-accent/10"
-                          : "border-uva-divider bg-uva-surface hover:bg-uva-hover",
-                        ocupado && "cursor-not-allowed opacity-60",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="plan"
-                        value={p.id}
-                        checked={elegido}
-                        onChange={() => elegirPlan(p.id)}
-                        disabled={ocupado}
-                        className="sr-only"
-                      />
-                      <span
-                        aria-hidden
+                    <Fragment key={p.id}>
+                      <label
                         className={cn(
-                          "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border",
-                          elegido ? "border-uva-accent" : "border-uva-text-faint",
+                          "flex cursor-pointer gap-3 rounded-uva-md border p-4 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-uva-accent",
+                          elegido
+                            ? "border-uva-accent bg-uva-accent/10"
+                            : "border-uva-divider bg-uva-surface hover:bg-uva-hover",
+                          ocupado && "cursor-not-allowed opacity-60",
                         )}
                       >
-                        {elegido && <span className="size-2 rounded-full bg-uva-accent" />}
-                      </span>
-
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-heading text-[15px] text-uva-text">
-                            {p.nombre}
-                          </span>
-                          {badge && (
-                            <span className="rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10.5px] text-uva-accent-text">
-                              {badge}
-                            </span>
+                        <input
+                          type="radio"
+                          name="plan"
+                          value={p.id}
+                          checked={elegido}
+                          onChange={() => elegirPlan(p.id)}
+                          disabled={ocupado}
+                          className="sr-only"
+                        />
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border",
+                            elegido ? "border-uva-accent" : "border-uva-text-faint",
                           )}
+                        >
+                          {elegido && <span className="size-2 rounded-full bg-uva-accent" />}
                         </span>
 
-                        <span className="mt-1.5 block">
-                          <span className="font-heading text-[22px] text-uva-text">
-                            {formatearPrecio(p.precio_centavos, p.moneda)}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-heading text-[15px] text-uva-text">
+                              {p.nombre}
+                            </span>
+                            {badge && (
+                              <span className="rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10.5px] text-uva-accent-text">
+                                {badge}
+                              </span>
+                            )}
                           </span>
-                          <span className="text-[12.5px] text-uva-text-faint">
-                            {" "}
-                            {periodo(p.duracion_dias)}
-                          </span>
-                        </span>
 
-                        <span className="mt-0.5 block text-[12px] text-uva-text-faint">
-                          {meta(p)}
+                          <span className="mt-1.5 block">
+                            <span className="font-heading text-[22px] text-uva-text">
+                              {formatearPrecio(p.precio_centavos, p.moneda)}
+                            </span>
+                            <span className="text-[12.5px] text-uva-text-faint">
+                              {" "}
+                              {periodo(p.duracion_dias)}
+                            </span>
+                          </span>
+
+                          <span className="mt-0.5 block text-[12px] text-uva-text-faint">
+                            {meta(p)}
+                          </span>
                         </span>
-                      </span>
-                    </label>
+                      </label>
+
+                      {/* En una sola columna, "Qué incluye" tiene que caer
+                          aquí —bajo la tarjeta marcada— y no al final de la
+                          lista de planes: en móvil el plan de abajo empuja el
+                          detalle fuera de la pantalla y deja de leerse como
+                          respuesta a la elección que se acaba de hacer. En
+                          escritorio las tarjetas van lado a lado y ese
+                          problema no existe, así que esta copia se apaga y
+                          manda la de abajo. */}
+                      {elegido && (
+                        <QueIncluye
+                          incluidos={incluidos}
+                          className="mt-2 pt-4 pb-2 sm:hidden"
+                        />
+                      )}
+                    </Fragment>
                   );
                 })}
               </div>
@@ -238,32 +305,7 @@ export function CheckoutContent({
                 interactúa— y dejaba la columna izquierda pareja, sin nada que
                 indicara qué es principal y qué es apoyo. Una línea separa
                 igual de bien. */}
-            <div className="border-t border-uva-divider pt-5">
-              <h2 className="m-0 mb-4 text-base text-uva-text">Qué incluye</h2>
-              <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px]">
-                {sharedBenefits.map((beneficio, indice) => {
-                  const incluido = indice < incluidos;
-                  return (
-                    <li
-                      key={beneficio}
-                      className={cn(
-                        "flex items-center gap-2",
-                        incluido ? "text-uva-text" : "text-uva-text-disabled opacity-45",
-                      )}
-                    >
-                      <Check
-                        className={cn(
-                          "size-3.5 shrink-0",
-                          incluido ? "text-uva-accent-2-text" : "text-uva-text-disabled",
-                        )}
-                        aria-hidden
-                      />
-                      {beneficio}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <QueIncluye incluidos={incluidos} className="hidden pt-5 sm:block" />
           </div>
 
           {/* ---------- Derecha: resumen ---------- */}
