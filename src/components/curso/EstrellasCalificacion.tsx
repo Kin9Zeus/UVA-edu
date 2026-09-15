@@ -15,7 +15,7 @@ export function EstrellasCalificacion({ puntuacion, size = 14 }: { puntuacion: n
           width={size}
           height={size}
           strokeWidth={1.8}
-          className={valor <= Math.round(puntuacion) ? "fill-uva-accent text-uva-accent" : "fill-none text-uva-text-faint"}
+          className={valor <= Math.round(puntuacion) ? "fill-uva-accent-2 text-uva-accent-2" : "fill-none text-uva-text-faint"}
         />
       ))}
     </span>
@@ -50,7 +50,7 @@ export function EstrellasInput({
           <Star
             size={22}
             strokeWidth={1.8}
-            className={estrella <= valor ? "fill-uva-accent text-uva-accent" : "fill-none text-uva-text-faint"}
+            className={estrella <= valor ? "fill-uva-accent-2 text-uva-accent-2" : "fill-none text-uva-text-faint"}
           />
         </button>
       ))}

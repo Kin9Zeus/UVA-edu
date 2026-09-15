@@ -125,7 +125,7 @@ function FormularioCalificacion({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
+    <div className="flex flex-col gap-3 rounded-uva-md bg-white/[0.03] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-uva-text">
           {miCalificacion ? "Tu reseña" : "¿Qué te pareció este curso?"}
@@ -142,8 +142,15 @@ function FormularioCalificacion({
       />
       {error && <p className="text-xs text-uva-error-text">{error}</p>}
       <div className="flex items-center justify-between gap-3">
-        <Button type="button" variant="uva-primary" size="uva" className="w-fit min-h-9 px-4" disabled={pending} onClick={enviar}>
-          {pending ? "Guardando…" : miCalificacion ? "Guardar cambios" : "Publicar reseña"}
+        <Button
+          type="button"
+          variant="uva-primary"
+          size="uva"
+          className="min-h-7 w-fit px-3 text-xs"
+          disabled={pending}
+          onClick={enviar}
+        >
+          {pending ? "Publicando…" : "Publicar"}
         </Button>
         {miCalificacion && (
           <button
@@ -160,13 +167,22 @@ function FormularioCalificacion({
   );
 }
 
-function TarjetaResena({
+/** Celda de reseña sin caja: nada de fondo ni borde propio — cada
+ * columna se separa de la siguiente con una línea vertical fina entre
+ * columnas (no antes de la primera de cada fila de 3), como las
+ * secciones de un periódico, en vez de encerrar cada reseña en un
+ * rectángulo. `h-full` estira la celda a la altura de su fila para que
+ * la línea llegue de punta a punta. El botón "Me gusta" queda fijo justo
+ * debajo del encabezado — no al final — así que no importa si el
+ * comentario es largo, corto o no existe: nada más se desalinea. */
+function CeldaResena({
   reseña,
   ruta,
   usuarioActualId,
   esAdmin,
   pendienteModerar,
   onModerar,
+  columna,
 }: {
   reseña: CalificacionesCurso["reseñas"][number];
   ruta: string;
@@ -174,24 +190,31 @@ function TarjetaResena({
   esAdmin: boolean;
   pendienteModerar: boolean;
   onModerar: (calificacionId: string) => void;
+  /** Posición dentro de la fila de 3 (0, 1 o 2): decide si lleva línea
+   * divisoria a la izquierda y/o padding para separarse de la siguiente. */
+  columna: 0 | 1 | 2;
 }) {
   return (
-    <div className="flex gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
-      <Avatar className="size-9 shrink-0 bg-uva-divider">
+    <div
+      className={`flex h-full min-w-0 gap-3 ${columna !== 0 ? "sm:border-l sm:border-uva-divider sm:pl-6" : ""} ${columna !== 2 ? "sm:pr-6" : ""}`}
+    >
+      <Avatar className="size-10 shrink-0 bg-uva-divider">
         {reseña.autorFotoUrl && <AvatarImage src={reseña.autorFotoUrl} alt="" />}
         <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
           {iniciales(reseña.autorNombre)}
         </AvatarFallback>
       </Avatar>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div>
           <p className="truncate text-sm font-medium text-uva-text">{reseña.autorNombre}</p>
-          <span className="shrink-0 text-xs text-uva-text-faint">{reseña.tiempo}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <EstrellasCalificacion puntuacion={reseña.puntuacion} size={13} />
+            <span className="shrink-0 text-xs text-uva-text-faint">{reseña.tiempo}</span>
+          </div>
         </div>
-        <EstrellasCalificacion puntuacion={reseña.puntuacion} size={13} />
-        {reseña.comentario && <p className="text-sm text-uva-text-muted">{reseña.comentario}</p>}
-        <div className="mt-1 flex items-center gap-1">
+
+        <div className="flex items-center gap-1">
           <BotonMeGusta
             calificacionId={reseña.id}
             ruta={ruta}
@@ -211,6 +234,12 @@ function TarjetaResena({
             </button>
           )}
         </div>
+
+        {reseña.comentario && (
+          <p className="max-h-28 overflow-y-auto text-[15px] leading-relaxed break-words text-uva-text-muted">
+            {reseña.comentario}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -247,28 +276,30 @@ export function CursoCalificaciones({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-uva-divider pb-3">
-        <h2 className="text-base text-uva-text">Reseñas</h2>
-        {datos.total > 0 && (
-          <span className="inline-flex items-center gap-1.5 text-sm text-uva-text-muted">
-            <EstrellasCalificacion puntuacion={datos.promedio ?? 0} />
-            <span className="font-medium text-uva-text">{datos.promedio?.toFixed(1)}</span>
-            {datos.total} opinion{datos.total === 1 ? "" : "es"}
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col gap-5">
+      <h2 className="text-base text-uva-text">Reseñas</h2>
 
       {puedeCalificar && (
-        <FormularioCalificacion cursoId={cursoId} ruta={ruta} miCalificacion={datos.miCalificacion} />
+        // `key` fuerza a remontar el formulario cuando pasa de "sin reseña"
+        // a "con reseña" (o cambia de id): así el estado local se
+        // reinicializa desde `miCalificacion` recién confirmado por el
+        // servidor en vez de quedarse con lo que había en el textarea
+        // antes de publicar — el texto que se ve después es el que
+        // realmente quedó guardado.
+        <FormularioCalificacion
+          key={datos.miCalificacion?.id ?? "nueva"}
+          cursoId={cursoId}
+          ruta={ruta}
+          miCalificacion={datos.miCalificacion}
+        />
       )}
 
       {datos.reseñas.length === 0 ? (
         <p className="text-sm text-uva-text-faint">Todavía no hay reseñas de este curso.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {datos.reseñas.map((reseña) => (
-            <TarjetaResena
+        <div className="grid grid-cols-1 gap-y-5 sm:grid-cols-3">
+          {datos.reseñas.map((reseña, index) => (
+            <CeldaResena
               key={reseña.id}
               reseña={reseña}
               ruta={ruta}
@@ -276,6 +307,7 @@ export function CursoCalificaciones({
               esAdmin={esAdmin}
               pendienteModerar={pendienteModerar}
               onModerar={moderar}
+              columna={(index % 3) as 0 | 1 | 2}
             />
           ))}
         </div>

@@ -233,16 +233,6 @@ export function CursoDetalleContent({
           </div>
         </div>
 
-        <div id="reseñas" className="order-6 scroll-mt-6 lg:order-none">
-          <CursoCalificaciones
-            cursoId={curso.id}
-            ruta={ruta}
-            usuarioActualId={usuarioActualId}
-            puedeCalificar={curso.tieneAcceso}
-            esAdmin={esAdmin}
-            datos={calificaciones}
-          />
-        </div>
       </div>
 
       <div className="contents lg:flex lg:flex-col lg:gap-4">
@@ -361,6 +351,23 @@ export function CursoDetalleContent({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Fuera de las dos columnas (`col-span-2`): a diferencia del resto del
+          contenido, las reseñas aprovechan también el ancho que en desktop
+          ocupa la barra lateral (portada/CTA/instructor), para que las
+          tarjetas de comentarios tengan más espacio. En mobile el grid
+          exterior es de una sola columna, así que `order-6` la sigue
+          dejando después del temario sin nada especial. */}
+      <div id="reseñas" className="order-6 scroll-mt-6 lg:order-none lg:col-span-2">
+        <CursoCalificaciones
+          cursoId={curso.id}
+          ruta={ruta}
+          usuarioActualId={usuarioActualId}
+          puedeCalificar={curso.tieneAcceso}
+          esAdmin={esAdmin}
+          datos={calificaciones}
+        />
       </div>
     </div>
   );
