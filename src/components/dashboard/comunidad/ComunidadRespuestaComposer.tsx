@@ -40,7 +40,12 @@ export function ComunidadRespuestaComposer({ postId, ruta }: { postId: string; r
       <button
         type="button"
         onClick={() => setExpandido(true)}
-        className="w-full border-t border-uva-divider py-4 text-left text-sm text-uva-text-faint transition-colors hover:text-uva-text-muted"
+        // Mismo marco que el composer del feed (ComunidadComposer): los dos
+        // son la misma cosa —una superficie donde escribir— y hasta ahora se
+        // veían distintos solo porque este vivía prestado dentro de la caja
+        // del hilo. Ese `border-t` heredado, además, caía a 1px del borde de
+        // esa caja y dibujaba una raya doble en su borde superior.
+        className="w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-3 text-left text-sm text-uva-text-faint transition-colors hover:border-uva-text-faint"
       >
         Responder…
       </button>
@@ -48,7 +53,7 @@ export function ComunidadRespuestaComposer({ postId, ruta }: { postId: string; r
   }
 
   return (
-    <div className="flex flex-col gap-2 border-t border-uva-divider pt-4">
+    <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
       <EditorTextoEnriquecido
         ref={editorRef}
         placeholder="Escribe una respuesta..."

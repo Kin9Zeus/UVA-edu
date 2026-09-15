@@ -32,6 +32,9 @@ export function ComunidadFeedContent({
   // según la pestaña donde esté parado el usuario.
   const tituloSeccion = soloPropios ? "Mis publicaciones" : categoriaActiva ? CATEGORIA_LABEL[categoriaActiva] : "Todas";
 
+  const fijados = posts.filter((post) => post.fijado);
+  const corriente = posts.filter((post) => !post.fijado);
+
   return (
     <ComunidadLayout nav={<ComunidadCategoriaTabs categoriaActiva={categoriaActiva} soloPropios={soloPropios} />}>
       <div className="flex flex-col gap-5">
@@ -52,16 +55,42 @@ export function ComunidadFeedContent({
           <ComunidadEmptyState categoria={categoriaActiva} soloPropios={soloPropios} busqueda={busqueda} />
         ) : (
           <div className="flex flex-col gap-3">
-            {posts.map((post) => (
-              <ComunidadPostCard
-                key={post.id}
-                post={post}
-                ruta={ruta}
-                usuarioActualId={usuarioActualId}
-                esAdmin={esAdmin}
-                truncar
-              />
-            ))}
+            {/* Los fijados salen del feed a su propio grupo para poder
+                conservar el marco sin partir la lista: `divide-y` dibuja una
+                línea entre hermanos, y una tarjeta con borde propio metida
+                ahí dentro quedaba con doble raya encima.
+                No reordena nada — `getComunidadFeed` ya los devuelve
+                primero, en los dos órdenes (comunidad.ts:271 y :311), así
+                que esto solo corta el prefijo que ya venía arriba. */}
+            {fijados.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {fijados.map((post) => (
+                  <ComunidadPostCard
+                    key={post.id}
+                    post={post}
+                    ruta={ruta}
+                    usuarioActualId={usuarioActualId}
+                    esAdmin={esAdmin}
+                    truncar
+                  />
+                ))}
+              </div>
+            )}
+
+            {corriente.length > 0 && (
+              <div className="divide-y divide-uva-divider">
+                {corriente.map((post) => (
+                  <ComunidadPostCard
+                    key={post.id}
+                    post={post}
+                    ruta={ruta}
+                    usuarioActualId={usuarioActualId}
+                    esAdmin={esAdmin}
+                    truncar
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

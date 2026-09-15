@@ -65,6 +65,8 @@ export function ComunidadPostCard({
   // para el resto, que no tiene ninguna otra forma de escalar algo.
   const puedeReportar = Boolean(usuarioActualId) && !esAutor && !esAdmin;
   const hayAcciones = esAdmin || puedeEditar || puedeEliminar || puedeReportar;
+  // Si esta publicación lleva marco propio — ver el comentario del `article`.
+  const enmarcado = !truncar || post.fijado;
 
   async function confirmarReporte(motivo: string) {
     const resultado = await reportarComunidad({ idPost: post.id }, motivo);
@@ -143,15 +145,29 @@ export function ComunidadPostCard({
   return (
     <article
       className={cn(
-        "flex flex-col gap-3 rounded-uva-md border p-4",
-        // Antes solo cambiaba unos puntos el fondo (#141417 vs uva-surface)
-        // y un texto gris apenas visible — un post fijado se perdía en el
-        // feed en vez de destacar. Ahora usa el mismo tratamiento de
-        // "destacado" que ya tiene la tarjeta de plan resaltado
-        // (Pricing.tsx): borde y fondo con tinte del acento de marca.
-        post.fijado
-          ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
-          : "border-uva-divider bg-uva-surface",
+        "flex flex-col gap-3",
+        // El feed es una corriente, no una rejilla: sus publicaciones son
+        // hermanas de una misma lista, así que van como filas separadas por
+        // una línea (el `divide-y` lo pone el contenedor, en
+        // ComunidadFeedContent) y no como tarjetas sueltas. Enmarcadas, la
+        // pantalla eran diez rectángulos idénticos —buscador, orden,
+        // composer, cada post, los dos bloques del riel— y ninguno pesaba
+        // más que otro.
+        //
+        // Dos excepciones conservan el marco, porque sí son objetos aparte:
+        // el detalle (`!truncar`), donde la publicación es el sujeto de la
+        // pantalla y no hay corriente a la que pertenecer, y el post fijado,
+        // que existe justamente para salirse de la corriente.
+        enmarcado ? "rounded-uva-md border p-4" : "py-4",
+        enmarcado &&
+          // Antes el fijado solo cambiaba unos puntos el fondo (#141417 vs
+          // uva-surface) y un texto gris apenas visible — se perdía en el
+          // feed en vez de destacar. Usa el mismo tratamiento de "destacado"
+          // que la tarjeta de plan resaltado (Pricing.tsx): borde y fondo con
+          // tinte del acento de marca.
+          (post.fijado
+            ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
+            : "border-uva-divider bg-uva-surface"),
       )}
     >
       <div className="flex items-center justify-between gap-2">

@@ -24,11 +24,15 @@ const OPCIONES: { valor: Orden; label: string }[] = [
  */
 export function ComunidadRespuestasList({
   respuestas,
+  total,
   ruta,
   usuarioActualId,
   esAdmin,
 }: {
   respuestas: ComunidadRespuesta[];
+  /** Respuestas vivas — lo calcula el servidor descontando las eliminadas,
+   * así que NO equivale a `respuestas.length`, que incluye sus lápidas. */
+  total: number;
   ruta: string;
   usuarioActualId: string;
   esAdmin: boolean;
@@ -55,28 +59,34 @@ export function ComunidadRespuestasList({
 
   return (
     <div className="flex flex-col">
-      <div
-        role="group"
-        aria-label="Ordenar respuestas"
-        className="flex justify-end gap-0.5 py-2"
-      >
-        {OPCIONES.map((opcion) => (
-          <button
-            key={opcion.valor}
-            type="button"
-            aria-pressed={orden === opcion.valor}
-            onClick={() => setOrden(opcion.valor)}
-            className={cn(
-              "rounded-uva-sm px-2.5 py-1 text-[12px] font-semibold text-uva-text-muted transition-colors hover:text-uva-text",
-              orden === opcion.valor && "bg-uva-hover text-uva-text",
-            )}
-          >
-            {opcion.label}
-          </button>
-        ))}
+      {/* El selector de orden estaba solo, alineado a la derecha y con medio
+          renglón vacío a su izquierda: nada decía dónde empezaba el hilo.
+          Ahora es un encabezado de sección con su control al lado, el mismo
+          patrón de `ComunidadFiltros` en el feed (etiqueta izquierda, orden
+          derecha). `mb-1` y no `py-2`: el `divide-y` de abajo ya separa. */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className="text-base text-uva-text">
+          {total} respuesta{total === 1 ? "" : "s"}
+        </h2>
+        <div role="group" aria-label="Ordenar respuestas" className="flex gap-0.5">
+          {OPCIONES.map((opcion) => (
+            <button
+              key={opcion.valor}
+              type="button"
+              aria-pressed={orden === opcion.valor}
+              onClick={() => setOrden(opcion.valor)}
+              className={cn(
+                "rounded-uva-sm px-2.5 py-1 text-[12px] font-semibold text-uva-text-muted transition-colors hover:text-uva-text",
+                orden === opcion.valor && "bg-uva-hover text-uva-text",
+              )}
+            >
+              {opcion.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="divide-y divide-uva-divider">
+      <div className="divide-y divide-uva-divider border-t border-uva-divider">
         {ordenadas.map((respuesta) => (
           <ComunidadRespuestaItem
             key={respuesta.id}

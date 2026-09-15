@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getComunidadActividadReciente, getComunidadDestacados } from "@/lib/comunidad";
+import { cn } from "@/lib/utils";
 
 /** Riel derecho de Comunidad, solo desktop (`ComunidadLayout` lo oculta
  * antes de `xl`). Se auto-alimenta (componente de servidor async) para no
@@ -14,8 +15,12 @@ export async function ComunidadSidebarDerecho() {
 
   return (
     <>
+      {/* Sin marco: son dos listas de enlaces, no dos objetos. Enmarcadas
+          pesaban exactamente lo mismo que las publicaciones del feed, y un
+          riel es contexto — tiene que leerse más callado que el contenido,
+          no competir con él. Una línea basta para separar las dos. */}
       {destacados.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
+        <div className="flex flex-col gap-3">
           <h2 className="text-xs font-semibold tracking-[.08em] text-uva-text-faint uppercase">
             Más respondidas esta semana
           </h2>
@@ -35,7 +40,13 @@ export async function ComunidadSidebarDerecho() {
       )}
 
       {actividad.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
+        <div
+          className={cn(
+            "flex flex-col gap-3",
+            // La línea solo existe si hay algo arriba de lo que separarse.
+            destacados.length > 0 && "border-t border-uva-divider pt-5",
+          )}
+        >
           <h2 className="text-xs font-semibold tracking-[.08em] text-uva-text-faint uppercase">Publicaciones recientes</h2>
           <ul className="flex flex-col gap-3">
             {actividad.map((item) => (
