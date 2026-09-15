@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarUsuarioAdmin } from "@/lib/admin/revalidarUsuario";
 import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
+import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
 import type { AdminActionResult } from "@/actions/admin/categorias";
@@ -442,11 +443,27 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
     return { error: "No puedes anonimizar tu propia cuenta." };
   }
 
+  // Los adjuntos de Comunidad se borran ANTES de la RPC, y desde aquí, no
+  // desde SQL: la RPC (104) puede vaciar `contenido`/`comentario` porque es
+  // texto en una columna, pero no puede llamar a la API de Storage, y borrar
+  // solo la fila de `comunidad_adjuntos` dejaría el archivo huérfano en el
+  // bucket. `borrarAdjuntoComunidad` es el mismo helper que ya usa
+  // eliminar.ts — best-effort (loguea, no lanza), así que un archivo que no
+  // se pudo borrar no bloquea el resto de la supresión.
+  const { data: adjuntos } = await admin.supabase
+    .from("comunidad_adjuntos")
+    .select("id, ruta_storage")
+    .eq("id_usuario", usuarioId);
+  for (const adjunto of adjuntos ?? []) {
+    await borrarAdjuntoComunidad(admin.supabase, adjunto.id, adjunto.ruta_storage);
+  }
+
   // Con el cliente de la sesión, no con service role: la RPC vuelve a
   // comprobar el rol por su cuenta (075) y así las dos capas coinciden en
   // quién está actuando. `auth.uid()` dentro de la función también necesita
   // ser el administrador para que la guardia de "no a ti mismo" signifique
-  // algo del lado de la base.
+  // algo del lado de la base. Extendida en 104 para cubrir también
+  // Comunidad y las reseñas de curso.
   const { error } = await admin.supabase.rpc("anonimizar_usuario", {
     p_id_usuario: usuarioId,
   });
