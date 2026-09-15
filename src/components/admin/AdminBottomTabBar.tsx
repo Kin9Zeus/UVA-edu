@@ -9,6 +9,7 @@ import {
   BookOpen,
   Users,
   Ticket,
+  TicketPercent,
   FolderTree,
   GraduationCap,
   Flag,
@@ -36,6 +37,7 @@ const principales = [
 const secundarios = [
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
   { href: "/admin/planes", label: "Planes", icon: CreditCard },
+  { href: "/admin/cupones", label: "Cupones", icon: TicketPercent },
   { href: "/admin/instructores", label: "Instructores", icon: GraduationCap },
   { href: "/admin/comunidad", label: "Comunidad", icon: Flag },
   { href: "/admin/bitacora", label: "Bitácora", icon: ScrollText },

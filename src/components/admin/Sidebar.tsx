@@ -9,6 +9,7 @@ import {
   Users,
   FolderTree,
   Ticket,
+  TicketPercent,
   ScrollText,
   Flag,
   CreditCard,
@@ -28,6 +29,10 @@ const nav = [
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
   { href: "/admin/planes", label: "Planes", icon: CreditCard },
+  // Junto a Planes y separado de "Códigos de invitación" a propósito: un
+  // cupón descuenta sobre el precio de un plan (siempre hay un cobro
+  // detrás), mientras que un código regala acceso sin pasar por caja.
+  { href: "/admin/cupones", label: "Cupones", icon: TicketPercent },
   // Sin entrada "Instructores": un instructor es una cuenta con rol PROFESOR,
   // así que se gestiona desde Usuarios ("Hacer profesor" + especialidad en la
   // ficha). La sección propia y su tabla se eliminaron con la migración
