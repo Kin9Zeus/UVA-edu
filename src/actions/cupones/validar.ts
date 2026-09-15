@@ -7,7 +7,15 @@ import { formatearPrecio } from "@/lib/planes";
 
 export type ValidarCuponResult =
   | { ok: true; desglose: DesgloseVisible }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /**
+       * Solo presente cuando el rechazo vino del rate limit de
+       * `buscarCuponVigente` (P2-1, supabase/sql/106). Ver `BusquedaCupon`.
+       */
+      segundosEspera?: number;
+    };
 
 /** El desglose ya formateado, para que el componente no vuelva a formatear
  *  y no pueda mostrar una cifra distinta a la que se va a cobrar. */
@@ -35,8 +43,9 @@ export type DesgloseVisible = {
  *
  * El cupón se busca con `buscarCuponVigente`, que consulta con Service Role:
  * `cupones` tiene RLS de solo-administrador y con el cliente del estudiante
- * la tabla se ve vacía. Ver el encabezado de src/lib/pagos/cupones.ts, donde
- * también queda anotado el rate limit pendiente.
+ * la tabla se ve vacía. Ahí vive también el rate limit por usuario (P2-1),
+ * no aquí: es el punto único que comparten esta acción e `iniciarCheckout`.
+ * Ver el encabezado de src/lib/pagos/cupones.ts.
  */
 export async function validarCodigoCupon(
   idPlan: string,
@@ -68,9 +77,9 @@ export async function validarCodigoCupon(
     return { ok: false, error: "Ese plan ya no está disponible." };
   }
 
-  const busqueda = await buscarCuponVigente(codigo);
+  const busqueda = await buscarCuponVigente(codigo, user.id);
   if (!busqueda.ok) {
-    return { ok: false, error: busqueda.error };
+    return { ok: false, error: busqueda.error, segundosEspera: busqueda.segundosEspera };
   }
 
   const desglose = calcularDesglose(Number(plan.precio_centavos), busqueda.cupon);

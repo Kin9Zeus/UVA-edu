@@ -492,6 +492,24 @@ async function main() {
       "anon no puede llamar registrar_canje_fallido (RPC solo service_role, P2-2)",
       clienteAnonimo.rpc("registrar_canje_fallido", { p_usuario_id: userSinAcceso.user!.id }),
     );
+    // Rate limit de la validación de cupones (106, P2-1 de AUDIT-2026-09-15).
+    // Mismo endurecimiento que las de arriba: el tope lo aplica el backend
+    // con Service Role, así que dejarlas invocables desde PostgREST lo
+    // volvería decorativo — cualquiera limpiaría su propio contador.
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_validar_cupon (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("verificar_limite_validar_cupon", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_validacion_cupon_fallida (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("registrar_validacion_cupon_fallida", {
+        p_usuario_id: userSinAcceso.user!.id,
+      }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar limpiar_intentos_validar_cupon (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: userSinAcceso.user!.id }),
+    );
     // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
     // service_role — el límite por IP de la página pública sería
     // decorativo si cualquiera pudiera seguir llamándola directo por
@@ -2269,6 +2287,66 @@ async function main() {
           moneda: "COP",
         })
         .select(),
+    );
+
+    // ------------------------------------------------------------------
+    // Rate limit de la validación de cupones (106, P2-1 de AUDIT-2026-09-15)
+    //
+    // Las pruebas de la sesión ANÓNIMA ya comprueban que las tres RPC no son
+    // invocables desde PostgREST. Esta comprueba lo otro, que es el punto del
+    // hallazgo: que el tope DE VERDAD se dispara. Un rate limit que nadie
+    // ejerce es una tabla que se llena y nada más.
+    //
+    // Va con el cliente admin (Service Role) porque así es como lo llama
+    // `buscarCuponVigente`; el estudiante nunca toca estas funciones.
+    // ------------------------------------------------------------------
+    const idRateLimitCupon = userSinAcceso.user!.id;
+    await admin.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: idRateLimitCupon });
+
+    const { data: limiteInicial } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    registrar(
+      "sin intentos previos, la validación de cupones está permitida",
+      (limiteInicial as { permitido: boolean } | null)?.permitido === true,
+      JSON.stringify(limiteInicial),
+    );
+
+    // El límite es 10 por ventana de 15 minutos: al décimo fallo se bloquea.
+    for (let i = 0; i < 10; i++) {
+      await admin.rpc("registrar_validacion_cupon_fallida", { p_usuario_id: idRateLimitCupon });
+    }
+
+    const { data: limiteTrasFallos } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    const bloqueo = limiteTrasFallos as { permitido: boolean; segundos_espera: number } | null;
+    registrar(
+      "tras 10 validaciones fallidas el cupón queda bloqueado, con espera en segundos",
+      bloqueo?.permitido === false && typeof bloqueo.segundos_espera === "number" && bloqueo.segundos_espera > 0,
+      JSON.stringify(bloqueo),
+    );
+
+    // Un acierto limpia el contador: quien tiene un cupón bueno no debe
+    // quedar bloqueado por errores de tecleo previos (mismo criterio que
+    // `limpiar_intentos_canjear_codigo`, 023).
+    await admin.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: idRateLimitCupon });
+    const { data: limiteTrasLimpiar } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    registrar(
+      "un cupón válido limpia el contador y levanta el bloqueo",
+      (limiteTrasLimpiar as { permitido: boolean } | null)?.permitido === true,
+      JSON.stringify(limiteTrasLimpiar),
+    );
+
+    // El barrido de 063 tiene que conocer la tabla nueva, o se llena para
+    // siempre — que es exactamente el hallazgo que 063 existe para cerrar.
+    const { data: barrido } = await admin.rpc("limpiar_intentos_rate_limit");
+    registrar(
+      "limpiar_intentos_rate_limit() incluye intentos_validar_cupon en el barrido",
+      ((barrido ?? []) as { tabla: string }[]).some((f) => f.tabla === "intentos_validar_cupon"),
+      JSON.stringify(barrido),
     );
 
     // ------------------------------------------------------------------

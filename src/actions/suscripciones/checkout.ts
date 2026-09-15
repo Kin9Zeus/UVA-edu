@@ -95,7 +95,9 @@ export async function iniciarCheckout(
   // Se busca con Service Role, igual que en `validarCodigoCupon`: `cupones`
   // tiene RLS de solo-administrador, así que el cliente del estudiante ve la
   // tabla vacía y todo código válido se leería como inexistente. El porqué
-  // completo está en src/lib/pagos/cupones.ts.
+  // completo está en src/lib/pagos/cupones.ts, donde vive también el rate
+  // limit por usuario (P2-1) — esta acción cuenta contra el mismo tope que la
+  // validación en vivo, para que el oráculo no se mude aquí.
   //
   // Se vuelve a validar aquí aunque la pantalla ya lo haya hecho: entre que
   // el estudiante aplicó el cupón y le dio a pagar, el código pudo vencer o
@@ -105,7 +107,7 @@ export async function iniciarCheckout(
 
   const codigo = codigoCupon?.trim();
   if (codigo) {
-    const busqueda = await buscarCuponVigente(codigo);
+    const busqueda = await buscarCuponVigente(codigo, user.id);
     if (!busqueda.ok) {
       return { error: busqueda.error };
     }

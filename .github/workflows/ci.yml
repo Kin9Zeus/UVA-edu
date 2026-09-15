@@ -172,6 +172,16 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Verificar que es_administrador() no se evalúe por fila
+        # P2-2 (AUDIT-2026-09-15.md): 077 izó ~75 policies el 08-sep y una
+        # semana después había 27 desnudas otra vez, porque nada lo
+        # comprobaba. Va DESPUÉS de db:rls, no antes: consulta pg_policies,
+        # así que necesita la base ya al día. El linter de Supabase no
+        # cubre este caso -- solo reconoce auth.<fn>() literales.
+        run: npm run db:check-rls-initplan
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Pruebas de autorización (RLS)
         run: npm run test:rls
         env:
