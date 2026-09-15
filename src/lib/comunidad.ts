@@ -411,7 +411,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
 
   // Un post eliminado (por su autor o por moderación) ya no aparece en el
   // feed, pero un enlace directo — o justo la notificación de "tu reporte
-  // fue revisado" (110_comunidad_notificaciones_moderacion_reportes.sql,
+  // fue revisado" (100_comunidad_notificaciones_moderacion_reportes.sql,
   // que apunta acá) — sí puede llegar a esta URL. Antes esto devolvía
   // `null` y la página mandaba a un 404 genérico sin explicar qué pasó;
   // ahora se arma un objeto mínimo (sin respuestas ni reacciones: ya no hay

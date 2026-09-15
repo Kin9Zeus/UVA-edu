@@ -11,7 +11,7 @@ export type CalificacionCursoResultado = { error: string } | { success: true };
  * Crea o edita la reseña propia de un curso (estrellas 1-5 + comentario
  * opcional) — una fila por (curso, usuario), mismo criterio que "una
  * calificación editable" de Platzi. No se usa `upsert`: el índice único que
- * lo garantiza es PARCIAL (`where not eliminado`, 130_curso_calificaciones.sql,
+ * lo garantiza es PARCIAL (`where not eliminado`, 102_curso_calificaciones.sql,
  * mismo motivo que comunidad_reacciones) y PostgREST no puede inferir un
  * índice de conflicto parcial a partir de una lista de columnas — se busca
  * la fila propia activa a mano y se decide INSERT o UPDATE.
@@ -99,7 +99,7 @@ export async function eliminarCalificacionPropia(
 /**
  * Modera (oculta) la reseña de otra persona — solo ADMINISTRADOR, verificado
  * acá además de en RLS (curso_calificaciones_transiciones_permitidas,
- * 130_curso_calificaciones.sql: exige que `id_eliminado_por` sea el propio
+ * 102_curso_calificaciones.sql: exige que `id_eliminado_por` sea el propio
  * admin que firma). Sin motivo obligatorio ni correo al autor — a diferencia
  * de moderar en Comunidad, esto es contenido de marketing público, no un
  * hilo de conversación; queda igual registrado en la bitácora administrativa.

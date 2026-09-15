@@ -18,7 +18,7 @@ export const VALORES_EMPLEO_VACIOS: ValoresEmpleo = { empresa: "", modalidad: ""
 /** Bloque de campos propios de la categoría Empleo — compartido entre
  * `ComunidadComposer` (crear) y `ComunidadPostEditor` (editar), mismos 4
  * campos que exige el CHECK de la base (comunidad_posts_empleo_coherente,
- * 111_comunidad_empleo_campos.sql): empresa/modalidad/enlace obligatorios,
+ * 101_comunidad_empleo_campos.sql): empresa/modalidad/enlace obligatorios,
  * ubicación opcional (no aplica igual a un puesto remoto). */
 export function ComunidadCamposEmpleo({
   valores,

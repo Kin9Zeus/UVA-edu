@@ -66,7 +66,7 @@ model PalabrasFiltradas {
 }
 ```
 
-Migración SQL adicional obligatoria: extender el CHECK `notificaciones_tipo_valido` (mismo patrón de `supabase/sql/131_comunidad_reporte_resuelto_con_veredicto.sql`: `drop constraint` + `add constraint` con la lista ampliada) para sumar `'EVENTO_PROXIMO'`. **No es gratis** — a diferencia de lo que se pensó en un borrador anterior, `notificaciones.tipo` no es texto libre de verdad, tiene un CHECK explícito.
+Migración SQL adicional obligatoria: extender el CHECK `notificaciones_tipo_valido` (mismo patrón de `supabase/sql/103_comunidad_reporte_resuelto_con_veredicto.sql`: `drop constraint` + `add constraint` con la lista ampliada) para sumar `'EVENTO_PROXIMO'`. **No es gratis** — a diferencia de lo que se pensó en un borrador anterior, `notificaciones.tipo` no es texto libre de verdad, tiene un CHECK explícito.
 
 ## 4. Control de acceso
 

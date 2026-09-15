@@ -67,7 +67,7 @@ export async function crearPostComunidad(
   adjuntosFormData: FormData = new FormData(),
   /** Obligatorio si y solo si `categoria === "EMPLEO"` — refleja en la app
    * el mismo CHECK de la base (comunidad_posts_empleo_coherente,
-   * 111_comunidad_empleo_campos.sql): se rechaza si falta en Empleo, y se
+   * 101_comunidad_empleo_campos.sql): se rechaza si falta en Empleo, y se
    * ignora (nunca se guarda) si viene en cualquier otra categoría. */
   datosEmpleo?: DatosEmpleoComunidad,
 ): Promise<CrearPostComunidadResultado> {

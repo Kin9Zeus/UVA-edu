@@ -3158,7 +3158,7 @@ async function main() {
     await esperarPermitido(
       // El post sigue vivo (esta prueba solo marca `revisado`, nunca lo
       // elimina) — el veredicto correcto es DESCARTADO, no ELIMINADO
-      // (131_comunidad_reporte_resuelto_con_veredicto.sql: el trigger lee
+      // (103_comunidad_reporte_resuelto_con_veredicto.sql: el trigger lee
       // `comunidad_posts.eliminado` en el momento en que dispara).
       "resolver el reporte sin eliminar el contenido SÍ notificó 'descartado' al reportante (trigger 131)",
       admin

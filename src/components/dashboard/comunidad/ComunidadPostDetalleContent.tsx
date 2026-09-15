@@ -20,7 +20,7 @@ export function ComunidadPostDetalleContent({
 
   // Llegar acá con el post ya eliminado es normal, no un error: un enlace
   // guardado, o la notificación "tu reporte fue revisado" (que apunta al
-  // post reportado — 110_comunidad_notificaciones_moderacion_reportes.sql).
+  // post reportado — 100_comunidad_notificaciones_moderacion_reportes.sql).
   // Antes esto ni siquiera llegaba a renderizarse (getComunidadPost
   // devolvía null y la página hacía notFound()) — un 404 genérico no le
   // decía a nadie qué pasó con la publicación.

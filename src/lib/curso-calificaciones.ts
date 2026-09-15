@@ -27,7 +27,7 @@ export type CalificacionesCurso = {
  * Reseñas públicas de un curso (estrellas + comentario opcional) — visibles
  * sin sesión, a diferencia de Comunidad: el catálogo ya es público
  * (CursoDetalleContent con basePath="/catalogo"). `curso_calificaciones_resumen`
- * y `curso_calificacion_autor_publico` (130_curso_calificaciones.sql)
+ * y `curso_calificacion_autor_publico` (102_curso_calificaciones.sql)
  * resuelven el promedio y el nombre del autor sin exponer `perfiles` directo.
  */
 export async function getCalificacionesCurso(

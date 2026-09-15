@@ -1720,7 +1720,7 @@ model ComunidadAdjuntos {
 /// Calificación con estrellas (1-5) y comentario opcional de un estudiante
 /// sobre un curso — una fila por (curso, usuario), editable (upsert), nunca
 /// duplicada: la unicidad vive como índice parcial `where not eliminado` en
-/// 130_curso_calificaciones.sql (mismo motivo que las parciales de
+/// 102_curso_calificaciones.sql (mismo motivo que las parciales de
 /// Comunidad/Suscripciones: Prisma no expresa `unique ... where` nativo).
 /// A diferencia de Comunidad, el catálogo de cursos SÍ es público sin
 /// sesión (`basePath="/catalogo"` en CursoDetalleContent) — las reseñas

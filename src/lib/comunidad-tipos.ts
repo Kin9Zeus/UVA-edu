@@ -92,7 +92,7 @@ export type AccesoComunidad =
   | { acceso: false; motivo: MotivoBloqueoComunidad };
 
 /** Datos propios de un post de categoría EMPLEO — `null` en cualquier otra
- * categoría (ver 111_comunidad_empleo_campos.sql). `ubicacion` puede ser
+ * categoría (ver 101_comunidad_empleo_campos.sql). `ubicacion` puede ser
  * `null` incluso en un post de Empleo (no aplica igual a un puesto remoto). */
 export type ComunidadDatosEmpleo = {
   empresa: string;
