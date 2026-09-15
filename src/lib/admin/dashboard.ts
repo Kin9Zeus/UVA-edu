@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { getMetricasPanel } from "@/lib/admin/metricas";
+import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
 
-type ActividadItem = {
+export type ActividadItem = {
   id: string;
   texto: string;
   fecha: string;
@@ -21,19 +23,53 @@ export async function getDashboardData() {
   const supabase = await createClient();
 
   const [
-    { count: usuariosRegistrados },
+    panel,
     { count: cursosPublicados },
     { count: cursosBorrador },
-    { count: inscripciones },
+    { count: cortesiasActivas },
+    { data: suscripcionesVivas },
   ] = await Promise.all([
-    // Solo estudiantes: el panel mide a quienes usan la plataforma, no al
-    // equipo de UVA. Antes contaba también a los administradores, así que
-    // esta cifra y la de /admin/usuarios no coincidían.
-    supabase.from("perfiles").select("id", { count: "exact", head: true }).eq("rol", "ESTUDIANTE"),
+    // Registrados y acceso vigente salen de la MISMA vista que alimenta
+    // /admin/usuarios (`metricas_panel_usuarios`, supabase/sql/036), no de
+    // un conteo propio. Antes esta función contaba los perfiles por su
+    // cuenta, y basta con que una de las dos definiciones cambie para que el
+    // dashboard y el panel de usuarios discrepen sobre la misma cifra — es
+    // exactamente lo que ya pasó con el porcentaje de avance.
+    getMetricasPanel(),
     supabase.from("cursos").select("id", { count: "exact", head: true }).eq("mostrado", true),
     supabase.from("cursos").select("id", { count: "exact", head: true }).eq("mostrado", false),
-    supabase.from("inscripciones").select("id", { count: "exact", head: true }),
+    // `activo`: revocar una cortesía no borra la fila, la marca inactiva
+    // (ver el comentario de `Inscripciones.activo` en schema.prisma). Sin
+    // este filtro la cifra sumaba también las cortesías ya retiradas y solo
+    // podía subir, nunca bajar.
+    supabase.from("inscripciones").select("id", { count: "exact", head: true }).eq("activo", true),
+    supabase
+      .from("suscripciones")
+      .select("estado, fecha_renovacion, acceso_manual")
+      .in("estado", ["ACTIVA", "PAST_DUE"]),
   ]);
+
+  // Cuántos de los que tienen acceso lo están pagando. `acceso_manual` es
+  // equivalente a `proveedor IN ('manual','invitacion')` —lo sella un CHECK
+  // en supabase/sql/042—, así que su negación es justo el acceso comprado.
+  //
+  // La vigencia la decide `suscripcionDaAcceso`, la única regla de la
+  // plataforma: `estado IN (ACTIVA, PAST_DUE)` a secas contaría periodos que
+  // ya terminaron, porque nada mueve la fila a VENCIDA cuando vence.
+  const accesoDePago = (suscripcionesVivas ?? []).filter(
+    (fila) =>
+      fila.acceso_manual === false &&
+      suscripcionDaAcceso({
+        estado: fila.estado as "ACTIVA" | "PAST_DUE",
+        fechaRenovacion: fila.fecha_renovacion as string | null,
+      }),
+  ).length;
+
+  // El resto se deriva por resta del total de la vista, no se cuenta aparte:
+  // así las dos cifras de la tarjeta siempre suman su propio valor. Contarlas
+  // por separado deja que "12 de pago" conviva con un total de 10.
+  const conAcceso = panel.usuariosAccesoVigente;
+  const accesoSinCobro = Math.max(0, conAcceso - accesoDePago);
 
   const [{ data: perfilesRecientes }, { data: certificadosRecientes }] = await Promise.all([
     supabase
@@ -131,10 +167,15 @@ export async function getDashboardData() {
 
   return {
     metricas: {
-      usuariosRegistrados: usuariosRegistrados ?? 0,
+      usuariosRegistrados: panel.usuariosRegistrados,
+      usuariosActivos7d: panel.usuariosActivos7d,
+      conAcceso,
+      accesoDePago,
+      accesoSinCobro,
       cursosPublicados: cursosPublicados ?? 0,
       cursosBorrador: cursosBorrador ?? 0,
-      inscripciones: inscripciones ?? 0,
+      cursosTotal: (cursosPublicados ?? 0) + (cursosBorrador ?? 0),
+      cortesiasActivas: cortesiasActivas ?? 0,
     },
     actividad,
     cursosPopulares,
