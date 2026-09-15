@@ -35,8 +35,12 @@ export async function getDashboardChromeData({
   const fotoUrl = perfil?.foto_url ?? null;
   const esAdmin = perfil?.rol === "ADMINISTRADOR";
 
+  // Un ADMINISTRADOR no depende de esta fila para su acceso (ver
+  // obtenerAccesoAlCurso, src/lib/accesoCurso.ts): si tiene una suscripción
+  // real en PAST_DUE (p. ej. de antes de que lo hicieran admin), no tiene
+  // sentido anunciarle en la barra lateral que se le acaba la gracia.
   const diasGracia =
-    suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion
+    !esAdmin && suscripcion?.estado === "PAST_DUE" && suscripcion.fechaRenovacion
       ? calcularDiasGracia(suscripcion.fechaRenovacion)
       : null;
 

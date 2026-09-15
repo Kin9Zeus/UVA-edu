@@ -39,7 +39,13 @@ export default async function PerfilPage() {
   // Tipo de acceso, fecha de vigencia y aviso, resueltos de una sola vez:
   // devuelve null para las suscripciones de pago, que tienen su propia
   // pantalla con historial en /dashboard/suscripcion.
-  const estadoAcceso = calcularEstadoAcceso(suscripcion);
+  //
+  // `null` también para un ADMINISTRADOR aunque tenga una fila de
+  // `suscripciones` real (p. ej. de antes de que lo hicieran admin): esa fila
+  // no decide su acceso (ver obtenerAccesoAlCurso, src/lib/accesoCurso.ts), así
+  // que la tarjeta "Tu acceso" no puede seguir anunciando "Invitación
+  // gratuita · Vigente hasta…" de un cupo que ya no es lo que le da entrada.
+  const estadoAcceso = perfil?.rol === "ADMINISTRADOR" ? null : calcularEstadoAcceso(suscripcion);
 
   const suscripcionVigente =
     suscripcion && (suscripcion.estado === "ACTIVA" || suscripcion.estado === "PAST_DUE");
@@ -48,14 +54,21 @@ export default async function PerfilPage() {
   // cabecera: a quien recibió una invitación no se le anuncia "Anual" —
   // nunca compró un plan, aunque `otorgarMembresia` guarde uno para calcular
   // la duración.
-  const insignia = estadoAcceso
-    ? {
-        texto: estadoAcceso.vigencia === "VENCIDO" ? "Acceso finalizado" : "Acceso gratuito",
-        atenuada: estadoAcceso.vigencia === "VENCIDO",
-      }
-    : suscripcionVigente
-      ? { texto: suscripcion.planNombre, atenuada: false }
-      : null;
+  // Un ADMINISTRADOR tiene acceso incondicional a todo el catálogo (ver
+  // obtenerAccesoAlCurso, src/lib/accesoCurso.ts) sin depender de una
+  // suscripción propia — la insignia tiene que decir eso en vez de "sin
+  // suscripción" o el estado de una fila que, si existe, es irrelevante.
+  const insignia =
+    perfil?.rol === "ADMINISTRADOR"
+      ? { texto: "Acceso permanente", atenuada: false }
+      : estadoAcceso
+        ? {
+            texto: estadoAcceso.vigencia === "VENCIDO" ? "Acceso finalizado" : "Acceso gratuito",
+            atenuada: estadoAcceso.vigencia === "VENCIDO",
+          }
+        : suscripcionVigente
+          ? { texto: suscripcion.planNombre, atenuada: false }
+          : null;
 
   return (
     <div className="px-[clamp(20px,3vw,44px)] py-8">

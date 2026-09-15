@@ -301,18 +301,28 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                   {usuario.cursosInscritos === 1 ? "" : "s"}
                 </p>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {usuario.suscripcionEstado ? (
+                  {/* Un ADMINISTRADOR tiene acceso incondicional al catálogo (ver
+                      obtenerAccesoAlCurso, src/lib/accesoCurso.ts): la fila de
+                      `suscripciones` que pueda tener, si existe, es historia y
+                      no lo que decide su acceso — la columna no puede seguir
+                      leyendo "Activa · Invitación gratuita" para su propia
+                      cuenta. */}
+                  {usuario.rol === "ADMINISTRADOR" ? (
+                    <StatusBadge tone="accent">Acceso permanente</StatusBadge>
+                  ) : usuario.suscripcionEstado ? (
                     <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
                       {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
                     </StatusBadge>
                   ) : (
                     <StatusBadge tone="neutral">Sin suscripción</StatusBadge>
                   )}
-                  {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
-                    <StatusBadge tone="accent">
-                      {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
-                    </StatusBadge>
-                  )}
+                  {usuario.rol !== "ADMINISTRADOR" &&
+                    usuario.tipoAccesoSuscripcion &&
+                    suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
+                      <StatusBadge tone="accent">
+                        {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
+                      </StatusBadge>
+                    )}
                 </div>
                 <p className="font-mono text-[11.5px] text-uva-muted-2 tabular-nums">
                   Registro {formatFecha(usuario.fechaRegistro)}
@@ -375,7 +385,11 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {usuario.suscripcionEstado ? (
+                      {/* Mismo criterio que la vista de tarjeta de arriba: un
+                          administrador no depende de esta fila para su acceso. */}
+                      {usuario.rol === "ADMINISTRADOR" ? (
+                        <StatusBadge tone="accent">Acceso permanente</StatusBadge>
+                      ) : usuario.suscripcionEstado ? (
                         <StatusBadge tone={SUSCRIPCION_TONO[usuario.suscripcionEstado]}>
                           {SUSCRIPCION_LABEL[usuario.suscripcionEstado]}
                         </StatusBadge>
@@ -387,11 +401,13 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                           "Acceso otorgado" junto a su propio estado — leía
                           como si el acceso siguiera en pie después de
                           revocarlo. */}
-                      {usuario.tipoAccesoSuscripcion && suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
-                        <StatusBadge tone="accent">
-                          {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
-                        </StatusBadge>
-                      )}
+                      {usuario.rol !== "ADMINISTRADOR" &&
+                        usuario.tipoAccesoSuscripcion &&
+                        suscripcionEstaVigentePorEstado(usuario.suscripcionEstado) && (
+                          <StatusBadge tone="accent">
+                            {ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}
+                          </StatusBadge>
+                        )}
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">

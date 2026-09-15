@@ -109,7 +109,14 @@ export function UsuarioDetalleView({
   // no diseña cancelación para las de Stripe/Wompi, y una ya CANCELADA/
   // VENCIDA no tiene nada que revocar).
   const suscripcionVigente = suscripcionEstaVigentePorEstado(usuario.suscripcionEstado);
-  const puedeRevocarMembresia = usuario.suscripcionEsManual && suscripcionVigente;
+  // Un ADMINISTRADOR tiene acceso incondicional a todo el catálogo (ver
+  // obtenerAccesoAlCurso, src/lib/accesoCurso.ts): la fila de `suscripciones`
+  // que pueda tener (o no) es irrelevante para él, así que la cabecera no
+  // debe leer "Plan: —" ni un estado de suscripción que no decide nada, y
+  // otorgar/revocar membresía o cortesía no tiene ningún efecto sobre su
+  // acceso — ofrecérselo solo invitaría a un click que no hace nada.
+  const esAdministrador = rol === "ADMINISTRADOR";
+  const puedeRevocarMembresia = !esAdministrador && usuario.suscripcionEsManual && suscripcionVigente;
 
   async function handleQuitarCortesia(motivo: string) {
     if (!quitando) return { error: "Selecciona qué cortesía revocar." };
@@ -171,15 +178,17 @@ export function UsuarioDetalleView({
             <EtiquetaBadge>Plan:</EtiquetaBadge>
             {/* Antes siempre gris, sin importar si seguía vigente — mismo plan
                 se veía igual de "activo" que uno ya cancelado hace meses. */}
-            <StatusBadge tone={usuario.planActual && suscripcionVigente ? "accent" : "neutral"}>
-              {usuario.planActual ?? "—"}
+            <StatusBadge tone={esAdministrador || (usuario.planActual && suscripcionVigente) ? "accent" : "neutral"}>
+              {esAdministrador ? "Acceso permanente" : (usuario.planActual ?? "—")}
             </StatusBadge>
           </div>
           {/* El listado de usuarios ya mostraba este estado; la ficha no lo
               traía, así que revocar una membresía manual (revocarMembresia,
               deja CANCELADA) no se notaba aquí — solo desaparecía el botón
-              "Revocar membresía", sin ninguna confirmación visual. */}
-          {usuario.suscripcionEstado && (
+              "Revocar membresía", sin ninguna confirmación visual.
+              Se oculta para un administrador: cualquier fila de `suscripciones`
+              que tenga (o no) es historia, no lo que decide su acceso. */}
+          {!esAdministrador && usuario.suscripcionEstado && (
             <div className="flex items-center gap-[5px]">
               <EtiquetaBadge>Estado:</EtiquetaBadge>
               <StatusBadge tone={TONO_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}>
@@ -189,7 +198,7 @@ export function UsuarioDetalleView({
           )}
           {/* Solo mientras siga vigente: "Acceso otorgado" junto a "Cancelada"
               leía como si el acceso siguiera en pie después de revocarlo. */}
-          {usuario.tipoAccesoSuscripcion && suscripcionVigente && (
+          {!esAdministrador && usuario.tipoAccesoSuscripcion && suscripcionVigente && (
             <div className="flex items-center gap-[5px]">
               <EtiquetaBadge>Acceso:</EtiquetaBadge>
               <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
@@ -206,7 +215,7 @@ export function UsuarioDetalleView({
           base (el registro de arriba es cuándo se creó la CUENTA, no cuándo
           empezó a tener acceso). "Vence" para código/cortesía (no hay cobro
           automático detrás); "Renueva" para una suscripción de pago. */}
-      {usuario.suscripcionInicio && (
+      {!esAdministrador && usuario.suscripcionInicio && (
         <p className="-mt-2 text-[12px] text-uva-muted-2">
           Suscripción desde {formatFecha(usuario.suscripcionInicio)}
           {usuario.suscripcionEstado === "CANCELADA" ? (
@@ -228,17 +237,21 @@ export function UsuarioDetalleView({
       )}
 
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
-        <Button
-          type="button"
-          variant="primary"
-          className="w-full sm:w-auto"
-          onClick={() => setMembresiaOpen(true)}
-        >
-          Otorgar membresía
-        </Button>
-        <Button type="button" className="w-full sm:w-auto" onClick={() => setCortesiaOpen(true)}>
-          Ofrecer curso de cortesía
-        </Button>
+        {!esAdministrador && (
+          <>
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full sm:w-auto"
+              onClick={() => setMembresiaOpen(true)}
+            >
+              Otorgar membresía
+            </Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => setCortesiaOpen(true)}>
+              Ofrecer curso de cortesía
+            </Button>
+          </>
+        )}
         {puedeRevocarMembresia && (
           <Button
             type="button"

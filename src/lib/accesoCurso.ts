@@ -26,6 +26,15 @@ const SIN_ACCESO: AccesoCurso = { tieneAcceso: false, tieneCortesia: false, susc
  * `tieneAccesoVigente` (src/lib/mux/acceso.ts, con sus propios tests), y esta
  * función es el único punto que la conecta con Supabase — los tres llamadores
  * ahora piden aquí en vez de repetir las consultas.
+ *
+ * Un ADMINISTRADOR tiene acceso incondicional a todo el catálogo, sin
+ * suscripción propia ni cortesía por curso — misma noción que ya usa RLS
+ * (`private.es_administrador()`, ver 030_acceso_curso_despublicado.sql y
+ * 038_vigencia_por_fecha.sql en TODAS las policies de cursos/modulos/lecciones/
+ * recursos_descargables). Antes esta función no lo miraba, así que un admin
+ * sin suscripción propia veía el temario con candado y el reproductor de
+ * lección le devolvía 404 fuera del modo Vista Previa — RLS ya lo dejaba
+ * entrar, pero esta capa se lo negaba antes de llegar a esa consulta.
  */
 export async function obtenerAccesoAlCurso(
   supabase: SupabaseClient,
@@ -37,49 +46,52 @@ export async function obtenerAccesoAlCurso(
   // Solo CORTESIA activa: una MEMBRESIA no sobrevive a la suscripción que la
   // originó (ver mux/acceso.ts), y una CORTESIA revocada tampoco cuenta — la
   // fila se conserva marcada `activo = false`, no se borra (f4accesos.md).
-  const [{ data: inscripcion }, { data: suscripcionRaw }, { data: filaInstructor }] = await Promise.all([
-    supabase
-      .from("inscripciones")
-      .select("id")
-      .eq("id_usuario", usuarioId)
-      .eq("id_curso", cursoId)
-      .eq("tipo_acceso", "CORTESIA")
-      .eq("activo", true)
-      .maybeSingle(),
-    // Última suscripción sin filtrar por estado a propósito: la vigencia la
-    // decide `tieneAccesoVigente`, que además del estado mira la fecha.
-    // Filtrar aquí escondería justo el caso que hay que detectar — una
-    // ACTIVA con el periodo ya terminado.
-    supabase
-      .from("suscripciones")
-      .select("estado, fecha_renovacion")
-      .eq("id_usuario", usuarioId)
-      .order("fecha_inicio", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    // Un profesor entra gratis SOLO a los cursos que él mismo dicta (fila
-    // propia en `curso_instructores`) — decisión de producto todavía en
-    // discusión para extenderla a "todo el catálogo", así que por ahora es
-    // deliberadamente puntual por curso, no un bypass por rol PROFESOR.
-    // `curso_instructores_publico` (no la tabla base) porque ya trae el
-    // mismo criterio de acceso que el resto de esta función usa para
-    // exponer datos públicos, sin duplicar el WHERE.
-    supabase
-      .from("curso_instructores_publico")
-      .select("id_instructor")
-      .eq("id_curso", cursoId)
-      .eq("id_instructor", usuarioId)
-      .maybeSingle(),
-  ]);
+  const [{ data: perfil }, { data: inscripcion }, { data: suscripcionRaw }, { data: filaInstructor }] =
+    await Promise.all([
+      supabase.from("perfiles").select("rol").eq("id", usuarioId).single(),
+      supabase
+        .from("inscripciones")
+        .select("id")
+        .eq("id_usuario", usuarioId)
+        .eq("id_curso", cursoId)
+        .eq("tipo_acceso", "CORTESIA")
+        .eq("activo", true)
+        .maybeSingle(),
+      // Última suscripción sin filtrar por estado a propósito: la vigencia la
+      // decide `tieneAccesoVigente`, que además del estado mira la fecha.
+      // Filtrar aquí escondería justo el caso que hay que detectar — una
+      // ACTIVA con el periodo ya terminado.
+      supabase
+        .from("suscripciones")
+        .select("estado, fecha_renovacion")
+        .eq("id_usuario", usuarioId)
+        .order("fecha_inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // Un profesor entra gratis SOLO a los cursos que él mismo dicta (fila
+      // propia en `curso_instructores`) — decisión de producto todavía en
+      // discusión para extenderla a "todo el catálogo", así que por ahora es
+      // deliberadamente puntual por curso, no un bypass por rol PROFESOR.
+      // `curso_instructores_publico` (no la tabla base) porque ya trae el
+      // mismo criterio de acceso que el resto de esta función usa para
+      // exponer datos públicos, sin duplicar el WHERE.
+      supabase
+        .from("curso_instructores_publico")
+        .select("id_instructor")
+        .eq("id_curso", cursoId)
+        .eq("id_instructor", usuarioId)
+        .maybeSingle(),
+    ]);
 
   const suscripcion = suscripcionRaw
     ? { estado: suscripcionRaw.estado, fechaRenovacion: suscripcionRaw.fecha_renovacion }
     : null;
   const tieneCortesia = inscripcion !== null;
   const esInstructorDelCurso = filaInstructor !== null;
+  const esAdministrador = perfil?.rol === "ADMINISTRADOR";
 
   return {
-    tieneAcceso: tieneAccesoVigente(suscripcion, tieneCortesia) || esInstructorDelCurso,
+    tieneAcceso: esAdministrador || tieneAccesoVigente(suscripcion, tieneCortesia) || esInstructorDelCurso,
     tieneCortesia,
     suscripcion,
   };

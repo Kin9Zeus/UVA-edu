@@ -66,7 +66,36 @@ function porcentajeTranscurrido(fechaInicio: string, fechaRenovacion: string | n
   return Math.min(100, Math.max(0, Math.round(avance)));
 }
 
-export function SuscripcionContent({ suscripcion }: { suscripcion: SuscripcionActual | null }) {
+export function SuscripcionContent({
+  suscripcion,
+  esAdministrador = false,
+}: {
+  suscripcion: SuscripcionActual | null;
+  /**
+   * Un ADMINISTRADOR tiene acceso incondicional a todo el catálogo (ver
+   * `obtenerAccesoAlCurso`, src/lib/accesoCurso.ts) sin depender de una fila
+   * en `suscripciones` propia — esta pantalla no puede seguir invitándolo a
+   * "elegir un plan" ni a "renovar" algo que nunca vence para él.
+   */
+  esAdministrador?: boolean;
+}) {
+  if (esAdministrador) {
+    return (
+      <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-16">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
+          <Badge variant="default" className="w-fit">
+            Acceso permanente
+          </Badge>
+          <p className="text-sm text-uva-text-muted">
+            Como administrador tienes acceso completo a todo el catálogo. No necesitas un plan
+            ni renovarlo — esto no vence.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!suscripcion) {
     return (
       <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-16">

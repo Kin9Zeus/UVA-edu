@@ -37,7 +37,8 @@ export type TokenReproduccionResultado = { error: string } | { playbackId: strin
  * Los administradores pueden previsualizar cualquier lección sin
  * Suscripción/Inscripción propia: lo necesita el panel admin para mostrar
  * el video recién subido, y es la misma noción de "administrador" que ya
- * usa el resto del CMS (private.es_administrador() en RLS).
+ * usa el resto del CMS (private.es_administrador() en RLS) — el bypass vive
+ * en `obtenerAccesoAlCurso` (src/lib/accesoCurso.ts), no aquí.
  */
 export async function resolverTokenReproduccion(
   supabase: SupabaseClient,
@@ -71,13 +72,8 @@ export async function resolverTokenReproduccion(
 
   if (!user) return { error: "Debes iniciar sesión para ver este video." };
 
-  const [{ data: perfil }, acceso] = await Promise.all([
-    supabase.from("perfiles").select("rol").eq("id", user.id).single(),
-    obtenerAccesoAlCurso(supabase, user.id, cursoId),
-  ]);
-
-  const esAdmin = perfil?.rol === "ADMINISTRADOR";
-  if (!esAdmin && !acceso.tieneAcceso) {
+  const acceso = await obtenerAccesoAlCurso(supabase, user.id, cursoId);
+  if (!acceso.tieneAcceso) {
     return { error: "No tienes acceso vigente a este curso." };
   }
 

@@ -12,7 +12,7 @@ export default async function SuscripcionPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { user } = await getPerfilActual();
+  const { user, perfil } = await getPerfilActual();
   const suscripcion = await getSuscripcionActual(user!.id);
 
   // `?ref=` lo pone `iniciarCheckout` en la url de retorno que recibe la
@@ -39,7 +39,10 @@ export default async function SuscripcionPage({
   return (
     <>
       {estadoPago && <EstadoPagoBanner estado={estadoPago} />}
-      <SuscripcionContent suscripcion={suscripcion} />
+      <SuscripcionContent
+        suscripcion={suscripcion}
+        esAdministrador={perfil?.rol === "ADMINISTRADOR"}
+      />
     </>
   );
 }
