@@ -2493,6 +2493,43 @@ async function main() {
       .insert({ id_usuario: userAnonimizar.user!.id, id_leccion: idLeccionIntroductoria, completado: true });
     if (errProgresoAnon) throw new Error(`No pude sembrar el progreso a anonimizar: ${errProgresoAnon.message}`);
 
+    // Rastro en Comunidad y en una reseña de curso — lo que P1-2 de
+    // AUDIT-2026-09-15.md encontró sin cubrir. Sembrado con service role,
+    // igual que el comentario y el progreso de arriba.
+    const { data: postAnonimizar, error: errPostAnon } = await admin
+      .from("comunidad_posts")
+      .insert({
+        id_usuario: userAnonimizar.user!.id,
+        categoria: "PREGUNTAS",
+        titulo: "Título con datos personales de prueba",
+        slug: `rls-test-anonimizar-${sufijo}`,
+        contenido: "Contenido con datos personales de prueba",
+      })
+      .select("id")
+      .single();
+    if (errPostAnon || !postAnonimizar) {
+      throw new Error(`No pude sembrar el post de Comunidad a anonimizar: ${errPostAnon?.message}`);
+    }
+    const { error: errRespuestaAnon } = await admin
+      .from("comunidad_respuestas")
+      .insert({
+        id_post: postAnonimizar.id,
+        id_usuario: userAnonimizar.user!.id,
+        contenido: "Respuesta con datos personales de prueba",
+      });
+    if (errRespuestaAnon) {
+      throw new Error(`No pude sembrar la respuesta de Comunidad a anonimizar: ${errRespuestaAnon.message}`);
+    }
+    const { error: errCalificacionAnon } = await admin.from("curso_calificaciones").insert({
+      id_curso: cursoAcceso.id,
+      id_usuario: userAnonimizar.user!.id,
+      puntuacion: 5,
+      comentario: "Reseña con datos personales de prueba",
+    });
+    if (errCalificacionAnon) {
+      throw new Error(`No pude sembrar la reseña de curso a anonimizar: ${errCalificacionAnon.message}`);
+    }
+
     await esperarBloqueado(
       "un estudiante NO puede anonimizar a otro usuario",
       clienteConAcceso.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
@@ -2557,6 +2594,49 @@ async function main() {
       "la supresión conserva el hilo del comentario pero vacía su contenido",
       comentarioTrasAnonimizar?.contenido === "" && comentarioTrasAnonimizar?.eliminado === true,
       JSON.stringify(comentarioTrasAnonimizar),
+    );
+
+    // P1-2 de AUDIT-2026-09-15.md: hasta 104_anonimizar_usuario_comunidad_
+    // calificaciones.sql, esto sobrevivía intacto a la supresión.
+    const { data: postTrasAnonimizar } = await admin
+      .from("comunidad_posts")
+      .select("contenido, titulo, eliminado, eliminado_por_admin")
+      .eq("id", postAnonimizar.id)
+      .maybeSingle();
+    registrar(
+      "la supresión conserva el hilo del post de Comunidad pero vacía su contenido",
+      postTrasAnonimizar?.contenido === "" &&
+        postTrasAnonimizar?.titulo === "" &&
+        postTrasAnonimizar?.eliminado === true &&
+        postTrasAnonimizar?.eliminado_por_admin === true,
+      JSON.stringify(postTrasAnonimizar),
+    );
+
+    const { data: respuestaTrasAnonimizar } = await admin
+      .from("comunidad_respuestas")
+      .select("contenido, eliminado, eliminado_por_admin")
+      .eq("id_post", postAnonimizar.id)
+      .maybeSingle();
+    registrar(
+      "la supresión conserva el hilo de la respuesta de Comunidad pero vacía su contenido",
+      respuestaTrasAnonimizar?.contenido === "" &&
+        respuestaTrasAnonimizar?.eliminado === true &&
+        respuestaTrasAnonimizar?.eliminado_por_admin === true,
+      JSON.stringify(respuestaTrasAnonimizar),
+    );
+
+    const { data: calificacionTrasAnonimizar } = await admin
+      .from("curso_calificaciones")
+      .select("comentario, eliminado, eliminado_por_admin")
+      .eq("id_curso", cursoAcceso.id)
+      .eq("id_usuario", userAnonimizar.user!.id)
+      .maybeSingle();
+    registrar(
+      "la supresión conserva la reseña de curso pero vacía su comentario",
+      calificacionTrasAnonimizar?.comentario === null &&
+        calificacionTrasAnonimizar?.eliminado === true &&
+        calificacionTrasAnonimizar?.eliminado_por_admin === true,
+      JSON.stringify(calificacionTrasAnonimizar),
     );
 
     // Idempotencia: repetir no debe fallar NI mover la fecha. Esa fecha es
