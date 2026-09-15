@@ -69,9 +69,27 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
   );
 
   // Refresca la sesión si el JWT expiró; requerido por Supabase Auth SSR.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  //
+  // P2-4 (AUDIT-2026-09-15): antes acá se llamaba `getUser()`, que SIEMPRE
+  // hace un GET a /auth/v1/user — un round-trip de red en CADA request que
+  // pasa por el proxy, incluidas todas las públicas (home, catálogo, curso,
+  // planes...). En esas rutas `requiresAuth` es false y el usuario ni
+  // siquiera se usa: el único efecto que importaba era el refresco de
+  // cookies. `getClaims()` conserva ese efecto y se ahorra la red.
+  //
+  // Verificado en node_modules (auth-js 2.112.2 / ssr 0.12.4): el refresco
+  // NO depende del método que se llame. `getClaims()` -> `getSession()` ->
+  // `_useSession()` -> `__loadSession()`, y es ahí donde, si el token
+  // expiró, corre `_callRefreshToken()` -> `_saveSession()` +
+  // `_notifyAllSubscribers('TOKEN_REFRESHED')`. El `setAll` de arriba lo
+  // dispara `createServerClient` desde su `onAuthStateChange` al recibir ese
+  // evento, no desde la función invocada. `getUser()` recorre exactamente el
+  // mismo camino y además pide /user; lo único que se pierde acá es esa
+  // petición. La firma del JWT se verifica igual, en local con WebCrypto
+  // contra el JWKS ES256 del proyecto (cacheado en proceso), así que `sub`
+  // sigue siendo un dato de confianza y no un claim sin validar.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims ?? null;
 
   const { pathname } = request.nextUrl;
   const requiresAuth = matchesPrefix(pathname, [
@@ -79,22 +97,36 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
     ...ADMIN_PATH_PREFIXES,
   ]);
 
-  if (requiresAuth && !user) {
+  if (requiresAuth && !claims) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Flujo 02 (ampliación, functional-spec.md): mientras el correo no esté
-  // verificado no puede entrar al dashboard. En la práctica hoy esto casi
-  // nunca se alcanza aquí (con "Confirm email" activo en Supabase,
-  // signInWithPassword ya rechaza el login antes de crear sesión — ver
-  // src/actions/auth/login.ts), pero queda como defensa en profundidad.
-  if (requiresAuth && user && !user.email_confirmed_at) {
-    return NextResponse.redirect(new URL("/verificar-correo", request.url));
-  }
+  if (requiresAuth && claims) {
+    // `email_confirmed_at` NO viaja en el JWT, así que este chequeo sigue
+    // necesitando el usuario fresco del servidor. Se paga el round-trip solo
+    // en /dashboard y /admin (donde ya se hace además una consulta a
+    // `perfiles`), no en las rutas públicas, que son la mayoría del tráfico.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (requiresAuth && user) {
+    if (!user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Flujo 02 (ampliación, functional-spec.md): mientras el correo no esté
+    // verificado no puede entrar al dashboard. En la práctica hoy esto casi
+    // nunca se alcanza aquí (con "Confirm email" activo en Supabase,
+    // signInWithPassword ya rechaza el login antes de crear sesión — ver
+    // src/actions/auth/login.ts), pero queda como defensa en profundidad.
+    if (!user.email_confirmed_at) {
+      return NextResponse.redirect(new URL("/verificar-correo", request.url));
+    }
+
     // P2-8 (AUDIT-2026-09-04.md): antes esta consulta traía "rol, estado"
     // para además redirigir a /acceso-denegado si el rol no era
     // ADMINISTRADOR en rutas /admin — pero `(admin)/admin/layout.tsx` ya

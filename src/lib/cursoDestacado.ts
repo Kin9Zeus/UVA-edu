@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export type CursoDestacado = {
   id: string;
@@ -26,7 +26,13 @@ export type CursoDestacado = {
  * coincidiría con el que ya ve el mismo curso en la tarjeta del catálogo.
  */
 export async function getCursoDestacado(): Promise<CursoDestacado | null> {
-  const supabase = await createClient();
+  // P2-4 (AUDIT-2026-09-15): cliente público (Anon Key, sin cookies) en vez
+  // del cookie-bound. Esta consulta ya filtra `mostrado = true`, o sea que
+  // devuelve exactamente lo mismo para un anónimo que para cualquier rol —
+  // leerla con la sesión del que mira no aportaba nada y ataba el render a
+  // `cookies()`. Ojo: NO hacer lo mismo en `getCursoPublico()`
+  // (src/lib/curso.ts), que sí depende de `auth.uid()` a propósito.
+  const supabase = createPublicClient();
 
   const { data: curso } = await supabase
     .from("cursos")
