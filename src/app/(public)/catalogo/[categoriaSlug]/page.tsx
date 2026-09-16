@@ -6,6 +6,7 @@ import { getPerfilActual } from "@/lib/perfil";
 import { resolverCategoria, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 import { esUuid } from "@/lib/slug";
+import { metadataPublica } from "@/lib/seo/metadata";
 
 export async function generateMetadata({
   params,
@@ -14,7 +15,23 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { categoriaSlug } = await params;
   const categoria = await resolverCategoria(categoriaSlug);
-  return { title: categoria ? `U.V.A. — ${categoria.nombre}` : "U.V.A. — Categoría" };
+
+  if (!categoria) {
+    // La página hará notFound(); esto solo evita anunciar un canonical a una
+    // ruta que devuelve 404.
+    return { title: "U.V.A. — Categoría" };
+  }
+
+  // El canonical apunta SIEMPRE al slug, nunca al uuid con el que se pudo
+  // llegar: `resolverCategoria` acepta los dos (enlaces anteriores al cambio
+  // de rutas), así que sin esto la misma lista vive en dos direcciones y
+  // Google las ve como contenido duplicado. Mismo criterio que la ficha de
+  // curso, que ya lo hacía.
+  return metadataPublica({
+    titulo: categoria.nombre,
+    descripcion: `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A: formación técnica para el oficio de la construcción.`,
+    ruta: `/catalogo/${categoria.slug}`,
+  });
 }
 
 export default async function CategoriaPage({
