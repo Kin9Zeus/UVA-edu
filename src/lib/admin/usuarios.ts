@@ -66,7 +66,7 @@ function limpiar(valor: string | undefined): string | null {
  * completos por carga de página. Ahora es una sola llamada a
  * `admin_listar_usuarios` (supabase/sql/037), que además devuelve el total de
  * resultados en cada fila para armar la paginación sin una segunda consulta —
- * mismo patrón que `buscarCatalogo` en src/lib/categoria.ts.
+ * mismo patrón que `buscarCatalogoPublico`/`buscarCatalogoConProgreso` en src/lib/categoria.ts.
  */
 export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<ResultadoUsuarios> {
   const supabase = await createClient();

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
-import { resolverCategoria, buscarCatalogo, getCursosParaBuscador } from "@/lib/categoria";
+import { resolverCategoria, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 import { esUuid } from "@/lib/slug";
 
@@ -26,10 +26,10 @@ export default async function CategoriaPage({
 }) {
   const { categoriaSlug } = await params;
   const { q, page } = await searchParams;
-  const perfilActual = await getPerfilActual();
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
-  // cambio de rutas siguen resolviendo.
-  const categoria = await resolverCategoria(categoriaSlug);
+  // cambio de rutas siguen resolviendo. En paralelo con getPerfilActual():
+  // son dos consultas independientes que antes iban en cascada.
+  const [perfilActual, categoria] = await Promise.all([getPerfilActual(), resolverCategoria(categoriaSlug)]);
 
   if (!categoria) {
     notFound();
@@ -43,7 +43,7 @@ export default async function CategoriaPage({
   }
 
   const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogo({ query: q, categoriaId: categoria.id, pagina: page ? Number(page) : 1 }),
+    buscarCatalogoPublico({ query: q, categoriaId: categoria.id, pagina: page ? Number(page) : 1 }),
     getCursosParaBuscador(),
   ]);
 

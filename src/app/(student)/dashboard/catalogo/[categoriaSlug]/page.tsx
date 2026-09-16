@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { resolverCategoria, buscarCatalogo, getCursosParaBuscador } from "@/lib/categoria";
+import { resolverCategoria, buscarCatalogoConProgreso, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 import { esUuid } from "@/lib/slug";
 
@@ -39,11 +39,10 @@ export default async function DashboardCategoriaPage({
   }
 
   const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogo({
+    buscarCatalogoConProgreso({
       query: q,
       categoriaId: categoria.id,
       pagina: page ? Number(page) : 1,
-      incluirProgreso: true,
     }),
     getCursosParaBuscador(),
   ]);

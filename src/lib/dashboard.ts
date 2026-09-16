@@ -11,7 +11,7 @@ export type ClaseEnProgreso = {
   cursoTitulo: string;
   imagenPortada: string;
   moduloTitulo: string;
-  /** Todas las categorías del curso — mismo criterio que buscarCatalogo() (059). */
+  /** Todas las categorías del curso — mismo criterio que buscarCatalogoConCliente() (059). */
   categorias: CategoriaChip[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   duracionTotalCursoSegundos: number;
@@ -76,7 +76,7 @@ export async function getInicioData() {
     : { data: [] };
 
   // Todas las categorías del curso, no solo la primera — mismo criterio que
-  // buscarCatalogo() (lib/categoria.ts, 059): `curso_categorias` es
+  // buscarCatalogoConCliente() (lib/categoria.ts, 059): `curso_categorias` es
   // muchos-a-muchos.
   const categoriasPorCursoMap = new Map<string, CategoriaChip[]>();
   for (const fila of categoriasPorCurso ?? []) {

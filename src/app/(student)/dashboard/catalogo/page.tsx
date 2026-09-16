@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getCategoriasActivas, buscarCatalogo, getCursosParaBuscador } from "@/lib/categoria";
+import { getCategoriasActivas, buscarCatalogoConProgreso, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 
 export const metadata: Metadata = {
@@ -14,11 +14,10 @@ export default async function DashboardCatalogoPage({
   const { q, categoria, page } = await searchParams;
   const [categorias, opcionesBusqueda] = await Promise.all([getCategoriasActivas(), getCursosParaBuscador()]);
   const categoriaId = categoria ? categorias.find((fila) => fila.slug === categoria)?.id : undefined;
-  const resultado = await buscarCatalogo({
+  const resultado = await buscarCatalogoConProgreso({
     query: q,
     categoriaId,
     pagina: page ? Number(page) : 1,
-    incluirProgreso: true,
   });
 
   return (

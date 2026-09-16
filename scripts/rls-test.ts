@@ -533,6 +533,20 @@ async function main() {
       "anon SÍ puede leer curso_categorias de cursos publicados",
       clienteAnonimo.from("curso_categorias").select("id_curso, id_categoria").limit(1),
     );
+    // P2-4 (AUDIT-2026-09-15, Fase 2): getCursosParaBuscador() y
+    // buscarCatalogoPublico() (lib/categoria.ts) pasaron del cliente
+    // cookie-bound al cliente público -- estas dos son la red de seguridad
+    // para que un grant faltante a `anon` se vea acá como fallo de test, no
+    // como catálogo vacío en producción sin ningún error en Sentry (las
+    // funciones de lib/categoria.ts tragan `error` y devuelven `[]`).
+    await esperarPermitido(
+      "anon SÍ puede llamar buscar_catalogo (RPC público, 034/062)",
+      clienteAnonimo.rpc("buscar_catalogo", { p_query: null, p_categoria_id: null, p_limite: 1, p_offset: 0 }),
+    );
+    await esperarPermitido(
+      "anon SÍ puede leer curso_instructores_publico (vista SECURITY DEFINER, 053/093)",
+      clienteAnonimo.from("curso_instructores_publico").select("id_curso, nombre").limit(1),
+    );
 
     console.log("\n=== Sesión: ESTUDIANTE SIN ACCESO ===\n");
 
