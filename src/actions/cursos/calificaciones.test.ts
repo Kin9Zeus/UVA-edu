@@ -8,6 +8,7 @@ vi.mock("@/lib/admin/bitacora", () => ({ registrarBitacora: vi.fn() }));
 import { revalidatePath } from "next/cache";
 import {
   calificarCurso,
+  cargarMasCalificacionesCurso,
   eliminarCalificacionPropia,
   moderarCalificacion,
   quitarReaccionCalificacion,
@@ -270,3 +271,55 @@ describe("revalidación", () => {
     expect(quitarReaccionCalificacion.length).toBe(1);
   });
 });
+
+describe("cargarMasCalificacionesCurso (\"Ver más reseñas\", P2-10)", () => {
+  const CURSO = "11111111-1111-4111-8111-111111111111";
+
+  it.each([
+    ["un id que no es UUID", "curso-1", 9, "Curso inválido."],
+    ["un desplazamiento negativo", CURSO, -9, "No pudimos cargar más reseñas."],
+    ["un desplazamiento con decimales", CURSO, 4.5, "No pudimos cargar más reseñas."],
+    ["NaN", CURSO, Number.NaN, "No pudimos cargar más reseñas."],
+    ["un desplazamiento enorme", CURSO, 5_001, "No pudimos cargar más reseñas."],
+  ])("rechaza %s sin consultar nada", async (_caso, cursoId, desde, mensaje) => {
+    expect(await cargarMasCalificacionesCurso(cursoId, desde)).toEqual({ error: mensaje });
+    expect(servidorFalso.operaciones()).toEqual([]);
+  });
+
+  it("pide la tanda desde donde va la pantalla, con el cliente de sesión", async () => {
+    servidorFalso.responder("from:curso_calificaciones", { data: [] });
+
+    expect(await cargarMasCalificacionesCurso(CURSO, 9)).toEqual({ reseñas: [], hayMas: false });
+    const [consulta] = servidorFalso.llamadasA("from:curso_calificaciones");
+    expect(consulta.cliente).toBe("sesion");
+    expect(consulta.cadena).toContainEqual({ metodo: "range", argumentos: [9, 18] });
+    expect(consulta.cadena).toContainEqual({ metodo: "eq", argumentos: ["id_curso", CURSO] });
+    expect(servidorFalso.clientesCreados.admin).toBe(0);
+  });
+
+  it("sin sesión también funciona (las reseñas son públicas) y no marca me gusta propios", async () => {
+    servidorFalso.conUsuario(null);
+    servidorFalso.responder("from:curso_calificaciones", {
+      data: [{ id: "cal-1", id_usuario: "autor-1", puntuacion: 4, comentario: null, creado_en: "2026-09-10T12:00:00Z" }],
+    });
+    servidorFalso.responder("from:curso_calificacion_reacciones", {
+      data: [{ id_calificacion: "cal-1", id_usuario: "cualquiera" }],
+    });
+
+    const resultado = await cargarMasCalificacionesCurso(CURSO, 0);
+
+    expect(resultado).toMatchObject({ hayMas: false, reseñas: [{ id: "cal-1", totalMeGusta: 1, meGusta: false }] });
+  });
+
+  it("con sesión marca los me gusta del usuario de la sesión", async () => {
+    servidorFalso.responder("from:curso_calificaciones", {
+      data: [{ id: "cal-1", id_usuario: "autor-1", puntuacion: 4, comentario: null, creado_en: "2026-09-10T12:00:00Z" }],
+    });
+    servidorFalso.responder("from:curso_calificacion_reacciones", {
+      data: [{ id_calificacion: "cal-1", id_usuario: ESTUDIANTE.id }],
+    });
+
+    expect(await cargarMasCalificacionesCurso(CURSO, 0)).toMatchObject({ reseñas: [{ meGusta: true }] });
+  });
+});
+

@@ -61,6 +61,8 @@ const estado = {
   respuestas: new Map<string, RespuestaFalsa>(),
   /** Respuestas que se consumen en orden antes de caer en `respuestas`. */
   colas: new Map<string, RespuestaFalsa[]>(),
+  /** Respuesta calculada a partir de la consulta; tiene prioridad sobre las demás. */
+  resolutores: new Map<string, (llamada: LlamadaRegistrada) => RespuestaFalsa>(),
   llamadas: [] as LlamadaRegistrada[],
   clientesCreados: { sesion: 0, admin: 0 } as Record<TipoCliente, number>,
   revalidaciones: [] as string[],
@@ -73,6 +75,7 @@ export const servidorFalso = {
     estado.usuario = null;
     estado.respuestas.clear();
     estado.colas.clear();
+    estado.resolutores.clear();
     estado.llamadas = [];
     estado.clientesCreados = { sesion: 0, admin: 0 };
     estado.revalidaciones = [];
@@ -96,6 +99,16 @@ export const servidorFalso = {
    */
   responderEnOrden(operacion: string, respuestas: RespuestaFalsa[]) {
     estado.colas.set(operacion, [...respuestas]);
+  },
+
+  /**
+   * Respuesta según cómo se armó la consulta, para dos lecturas de la misma
+   * tabla que corren en paralelo (el orden en que se resuelven no es el
+   * orden en que se escribieron). Ejemplo: distinguir la lista de la fila
+   * única mirando si la cadena termina en `maybeSingle`.
+   */
+  responderSegun(operacion: string, resolutor: (llamada: LlamadaRegistrada) => RespuestaFalsa) {
+    estado.resolutores.set(operacion, resolutor);
   },
 
   /** Todas las llamadas a una operación, en orden. */
@@ -159,8 +172,11 @@ function consulta(cliente: TipoCliente, operacion: string, argumentos: unknown[]
     {
       get(_objetivo, propiedad) {
         if (propiedad === "then") {
-          return (resolver: (v: unknown) => unknown, rechazar: (e: unknown) => unknown) =>
-            Promise.resolve(respuestaDe(operacion)).then(resolver, rechazar);
+          return (resolver: (v: unknown) => unknown, rechazar: (e: unknown) => unknown) => {
+            const resolutor = estado.resolutores.get(operacion);
+            const respuesta = resolutor ? resolutor(llamada) : respuestaDe(operacion);
+            return Promise.resolve(respuesta).then(resolver, rechazar);
+          };
         }
         return (...args: unknown[]) => {
           llamada.cadena.push({ metodo: String(propiedad), argumentos: args });

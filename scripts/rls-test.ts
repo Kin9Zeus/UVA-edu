@@ -3090,6 +3090,67 @@ async function main() {
       throw new Error("La respuesta de prueba de Comunidad no devolvió id.");
     }
 
+    // buscar_feed_comunidad / comunidad_mas_respondidas (112, P2-10): son
+    // `security invoker`, así que la RLS de arriba es la que decide qué ven.
+    // Estos casos comprueban que la función no abre nada que la tabla cierre,
+    // y que la búsqueda por título y por nombre del autor funciona contra la
+    // base real (tildes y mayúsculas incluidas).
+    await esperarBloqueado(
+      "anon no puede ejecutar buscar_feed_comunidad",
+      clienteAnonimo.rpc("buscar_feed_comunidad", {}),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no recibe filas de buscar_feed_comunidad",
+      clienteSinAcceso.rpc("buscar_feed_comunidad", { p_busqueda: `${sufijo}` }),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no recibe filas de comunidad_mas_respondidas",
+      clienteSinAcceso.rpc("comunidad_mas_respondidas", {}),
+    );
+
+    const { data: feedPorTitulo, error: errFeedPorTitulo } = await clienteConAcceso.rpc("buscar_feed_comunidad", {
+      p_busqueda: `ANUNCIO rls TEST ${sufijo}`,
+    });
+    registrar(
+      "buscar_feed_comunidad encuentra por título sin distinguir mayúsculas",
+      !errFeedPorTitulo &&
+        Array.isArray(feedPorTitulo) &&
+        feedPorTitulo.length === 1 &&
+        feedPorTitulo[0].titulo === `Anuncio RLS test ${sufijo}` &&
+        Number(feedPorTitulo[0].total_resultados) === 1,
+      errFeedPorTitulo?.message ?? `${Array.isArray(feedPorTitulo) ? feedPorTitulo.length : 0} fila(s)`,
+    );
+
+    const { error: errNombreAutora } = await admin
+      .from("perfiles")
+      .update({ nombre: `Autora Feed Ñandú ${sufijo}` })
+      .eq("id", userConAcceso.user!.id);
+    if (errNombreAutora) throw new Error(`No pude nombrar a la autora de prueba: ${errNombreAutora.message}`);
+
+    const { data: feedPorNombre, error: errFeedPorNombre } = await clienteConAcceso.rpc("buscar_feed_comunidad", {
+      p_busqueda: `nandu ${sufijo}`,
+    });
+    const filaPorNombre = Array.isArray(feedPorNombre)
+      ? (feedPorNombre as { id: string; total_respuestas: number }[]).find((f) => f.id === postComunidad.id)
+      : undefined;
+    registrar(
+      "buscar_feed_comunidad encuentra por nombre del autor, sin tildes, con sus respuestas contadas",
+      !errFeedPorNombre && !!filaPorNombre && Number(filaPorNombre.total_respuestas) >= 1,
+      errFeedPorNombre?.message ?? (filaPorNombre ? "" : "el post de la autora no apareció"),
+    );
+
+    const { data: feedAjenoPropio, error: errFeedAjenoPropio } = await clienteAdmin.rpc("buscar_feed_comunidad", {
+      p_solo_propios: true,
+      p_busqueda: `nandu ${sufijo}`,
+    });
+    registrar(
+      "'Mis publicaciones' en buscar_feed_comunidad usa auth.uid(): el admin no ve como propio el post de otra persona",
+      !errFeedAjenoPropio && Array.isArray(feedAjenoPropio) && feedAjenoPropio.length === 0,
+      errFeedAjenoPropio?.message ?? `${Array.isArray(feedAjenoPropio) ? feedAjenoPropio.length : 0} fila(s)`,
+    );
+
     await esperarBloqueado(
       "estudiante sin suscripción no puede responder un post",
       clienteSinAcceso

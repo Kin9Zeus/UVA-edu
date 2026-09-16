@@ -373,9 +373,28 @@ que deciden el destinatario leyendo la base:
 | COMUNIDAD\_MODERACION | INSERT en `comunidad_moderacion` | Autor del contenido moderado |
 | COMUNIDAD\_REPORTE\_ELIMINADO / COMUNIDAD\_REPORTE\_DESCARTADO | `comunidad_reportes.revisado` pasa a true | Reportante |
 
-**Feed sin paginación en SQL:** `getComunidadFeed` trae a Node todas las filas
-visibles de la categoría y pagina en memoria (20 por página). Es una decisión
-documentada de escala y está abierta como P2-10 en AUDIT-2026-09-15.md.
+**Feed paginado en Postgres (P2-10, `112_feed_comunidad_paginado.sql`):**
+`public.buscar_feed_comunidad(p_categoria, p_solo_propios, p_busqueda, p_orden,
+p_pagina, p_por_pagina)` filtra, busca, ordena y pagina, y devuelve solo la
+página con `total_resultados` y la `pagina` efectiva (acotada a la última) en
+cada fila, más `total_respuestas`, `total_reacciones` y `me_reaccione`. Es
+`security invoker`: la RLS de Comunidad decide qué filas entran, y "Mis
+publicaciones" usa `auth.uid()`. La búsqueda compara `normalizar_busqueda()`
+(034) contra título, contenido y el nombre de `comunidad_autor_publico`, con
+`%`, `_` y `\` escapados, y tiene índices de trigramas sobre título y
+contenido. `getComunidadFeed` (`src/lib/comunidad.ts`) solo enriquece las filas
+de la página: autores, adjuntos y firma de imágenes. El riel "Más respondidas
+esta semana" usa `public.comunidad_mas_respondidas(p_dias, p_limite)`.
+Antes se traía el feed entero a Node, y eso además fallaba en silencio (URL
+demasiado larga en los `.in()`, conteos truncados por el tope de filas de la
+API).
+
+**Acceso evaluado una vez por consulta (`113_comunidad_tiene_acceso_initplan.sql`):**
+toda policy o vista de Comunidad llama `(select public.comunidad_tiene_acceso())`,
+nunca la función desnuda. Sin la subconsulta, Postgres la ejecutaba por cada
+fila: con 20.000 publicaciones el feed superaba el `statement_timeout`; con la
+subconsulta responde en décimas de segundo. `npm run db:check-rls-initplan`
+falla si una policy la vuelve a llamar sin envolver.
 
 **Supresión (104):** `private.anonimizar_usuario()` vacía `titulo`/`contenido`
 y marca `eliminado` y `eliminado_por_admin` en posts y respuestas del usuario.
@@ -425,6 +444,19 @@ también a `anon`, porque las reseñas son públicas) y
 `curso_calificaciones_resumen` (promedio con dos decimales y total por curso,
 calculados al vuelo). Ambas repiten en el WHERE el filtro de visibilidad del
 curso.
+
+**Lista por tandas (P2-10):** `getCalificacionesCurso` (`src/lib/curso-calificaciones.ts`)
+trae solo la primera tanda (`RESENAS_POR_TANDA` = 9), con autores y reacciones
+de esas filas nada más. La reseña propia se consulta aparte, porque puede no
+estar en la primera tanda. "Ver más reseñas" llama a la Server Action
+`cargarMasCalificacionesCurso(cursoId, desde)`: es de solo lectura, usa el
+cliente de sesión (RLS decide) y valida el UUID y `desde`, que debe ser entero
+entre 0 y 5.000. La paginación es por **desplazamiento**, ordenada por
+`creado_en desc, id desc`, y pide una fila de más para saber si hay otra tanda.
+No se usa un cursor porque llegaría del navegador y habría que interpolarlo en un
+filtro `.or()` de PostgREST. El componente descarta repetidas por id
+(`src/lib/curso-calificaciones-tandas.ts`). El promedio y el total siguen
+saliendo de `curso_calificaciones_resumen`, así que el JSON-LD no cambia.
 
 **Revalidación:** las Server Actions de `src/actions/cursos/calificaciones.ts`
 no reciben la ruta desde el cliente; revalidan el patrón

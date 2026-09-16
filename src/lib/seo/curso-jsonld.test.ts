@@ -38,7 +38,7 @@ function cursoBase(sobrescribir: Partial<CursoPublico> = {}): CursoPublico {
 
 /** Solo importan `promedio` y `total`: el resto de la ficha no entra al JSON-LD. */
 function calificaciones(promedio: number | null, total: number): CalificacionesCurso {
-  return { promedio, total, reseñas: [], miCalificacion: null };
+  return { promedio, total, reseñas: [], hayMas: false, miCalificacion: null };
 }
 
 const SIN_RESENAS = calificaciones(null, 0);

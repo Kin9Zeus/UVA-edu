@@ -116,7 +116,7 @@
 > * **Requisito de actividad desactivado (decisión vigente):** el diseño original exigía, pasado un período de arranque, un certificado emitido en los últimos 30 días. Se quitó mientras la comunidad no tenga masa crítica (`084_comunidad_gate_sin_requisito_temporal.sql`). La maquinaria queda en la base sin usar: reintroducirlo es reescribir esa única función.
 > * **Categorías:** Anuncios (solo publica un administrador), Proyectos, Preguntas y Empleo. La categoría no se cambia después de publicar.
 > * **Publicaciones de Empleo:** exigen empresa, modalidad (presencial, remoto o híbrido) y un enlace a la vacante; la ubicación es opcional. En cualquier otra categoría esos campos no se guardan. La base lo impone con un CHECK, no solo el formulario.
-> * **Feed:** 20 publicaciones por página. Las fijadas van siempre primero. Se ordena por fecha (por defecto) o por relevancia (reacciones + respuestas), se filtra por categoría o por "Mis publicaciones", y se busca en título y contenido sin distinguir mayúsculas ni tildes. Rieles laterales: las 6 publicaciones más recientes y las más respondidas de los últimos 7 días.
+> * **Feed:** 20 publicaciones por página. Las fijadas van siempre primero. Se ordena por fecha (por defecto) o por relevancia (reacciones + respuestas), se filtra por categoría o por "Mis publicaciones", y se busca por título, contenido o nombre de la persona que publicó, sin distinguir mayúsculas ni tildes. El término se busca literal: `%` o `_` no actúan como comodines. Rieles laterales: las 6 publicaciones más recientes y las más respondidas de los últimos 7 días.
 > * **Hilo:** cada publicación tiene URL propia (`/dashboard/comunidad/<slug>`). El slug sale del título al publicar y no cambia al editarlo, para no romper enlaces compartidos.
 > * **Adjuntos:** hasta 6 por publicación o respuesta, de máximo 10 MB cada uno, insertados en el punto del texto donde el autor los puso. Imágenes JPG, PNG, WebP o GIF, que se normalizan a WebP de máximo 1600 px conservando la proporción. Documentos PDF, ZIP, Word, Excel o PowerPoint. El formato se decide por el contenido real del archivo, no por la extensión; SVG se rechaza. Si un archivo no es válido, no se publica nada.
 > * **Reacciones:** una por persona sobre cada publicación o respuesta; se quita y se vuelve a poner, no se edita.
@@ -135,6 +135,7 @@
 > * **Una reseña por persona y curso:** calificar de nuevo edita la reseña existente, no crea otra. El autor puede eliminarla y volver a calificar después.
 > * **Me gusta:** cualquier persona con sesión, correo verificado y cuenta activa reacciona a una reseña que puede ver, una vez por reseña.
 > * **Promedio y total:** se calculan al vuelo sobre las reseñas no eliminadas.
+> * **Lista por tandas:** la ficha muestra las 9 reseñas más recientes, y cada clic en **"Ver más reseñas"** agrega 9 más debajo. La URL no cambia: la ficha sigue siendo una sola página para buscadores.
 > * **Moderación:** un administrador oculta la reseña de otra persona con un clic. A diferencia de Comunidad, **no exige motivo ni avisa al autor**: la reseña es contenido público de la ficha, no un hilo de conversación. Queda igual registrada en la bitácora con el administrador que la firmó.
 > * **Supresión de datos:** anonimizar una cuenta borra el comentario de sus reseñas y las oculta; la puntuación numérica se conserva porque por sí sola no identifica a nadie.
 
@@ -374,7 +375,7 @@
 
 ### **Flujo 16: Calificar un Curso**
 
-> 1. En la ficha del curso (`/cursos/<slug>`), cualquiera ve el promedio, el total y la lista de reseñas, de la más reciente a la más antigua.
+> 1. En la ficha del curso (`/cursos/<slug>`), cualquiera ve el promedio, el total y las 9 reseñas más recientes. "Ver más reseñas" trae las siguientes 9 y desaparece al llegar a la última.
 > 2. Quien tiene acceso vigente al curso ve el formulario. Si ya había calificado, aparece precargado con su reseña.
 > 3. Al publicar, el servidor valida estrellas (entero de 1 a 5) y comentario (hasta 1000 caracteres; vacío se guarda como sin comentario). Si la persona ya tiene una reseña activa en ese curso, la edita; si no, crea una. La base impide una segunda reseña activa aunque dos envíos lleguen a la vez.
 > 4. Si el acceso venció entre cargar la página y enviar, la base rechaza la escritura y se le pide verificar su acceso.

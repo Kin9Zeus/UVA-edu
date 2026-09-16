@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-calificaciones-validacion";
+import { DESDE_MAXIMO_RESENAS, getTandaCalificacionesCurso, type TandaCalificaciones } from "@/lib/curso-calificaciones";
+import { esUuid } from "@/lib/slug";
 
 export type CalificacionCursoResultado = { error: string } | { success: true };
 
@@ -204,4 +206,33 @@ export async function quitarReaccionCalificacion(
   if (error) return { error: "No pudimos quitar tu reacción." };
   revalidarFichasDeCurso();
   return { success: true };
+}
+
+/**
+ * "Ver más reseñas" en la ficha del curso: la siguiente tanda a partir de
+ * `desde` (cuántas trae ya la pantalla). AUDIT-2026-09-15.md — P2-10.
+ *
+ * Solo lectura y con el cliente de sesión: RLS decide qué reseñas se ven
+ * (las de un curso oculto, solo con acceso), igual que la primera tanda que
+ * pinta el servidor. Funciona sin sesión, porque las reseñas son públicas;
+ * la sesión solo sirve para marcar los "me gusta" propios.
+ *
+ * Los dos argumentos llegan del navegador: se validan antes de consultar,
+ * y `desde` tiene tope para que no sirva para pedir desplazamientos caros.
+ */
+export async function cargarMasCalificacionesCurso(
+  cursoId: string,
+  desde: number,
+): Promise<{ error: string } | TandaCalificaciones> {
+  if (typeof cursoId !== "string" || !esUuid(cursoId)) return { error: "Curso inválido." };
+  if (!Number.isInteger(desde) || desde < 0 || desde > DESDE_MAXIMO_RESENAS) {
+    return { error: "No pudimos cargar más reseñas." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return getTandaCalificacionesCurso(cursoId, user?.id ?? null, desde);
 }

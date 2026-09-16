@@ -1,7 +1,14 @@
 /**
- * Falla si alguna policy llama `private.es_administrador()` sin envolver en
- * una subconsulta escalar — es decir, si vuelve a evaluarse una vez por fila
- * en vez de una vez por consulta.
+ * Falla si alguna policy llama `private.es_administrador()` o
+ * `public.comunidad_tiene_acceso()` sin envolver en una subconsulta escalar —
+ * es decir, si vuelve a evaluarse una vez por fila en vez de una vez por
+ * consulta.
+ *
+ * `comunidad_tiene_acceso()` se sumó con 113 (AUDIT-2026-09-15.md, P2-10):
+ * toda la RLS de Comunidad la llamaba desnuda y, con 20.000 publicaciones,
+ * el feed superaba el statement_timeout. Cualquier otra función SIN
+ * argumentos que se use en policies tiene el mismo riesgo: agregarla a
+ * FUNCIONES_IZABLES.
  *
  * Uso: npm run db:check-rls-initplan
  *
@@ -71,7 +78,17 @@ if (!DATABASE_URL) {
  * Sin ese orden, la segunda rama emparejaría también el interior de la
  * primera y el gate fallaría sobre las policies correctas.
  */
-const LLAMADA = /\(\s*SELECT\s+private\.es_administrador\(\)[^)]*\)|private\.es_administrador\(\)/gi;
+const FUNCIONES_IZABLES = [
+  // El catálogo la imprime con el schema.
+  { nombre: "private.es_administrador()", patron: String.raw`private\.es_administrador\(\)` },
+  // `public` está en el search_path: el catálogo la imprime sin schema.
+  { nombre: "public.comunidad_tiene_acceso()", patron: String.raw`(?:public\.)?comunidad_tiene_acceso\(\)` },
+];
+
+const LLAMADA = new RegExp(
+  FUNCIONES_IZABLES.map(({ patron }) => String.raw`\(\s*SELECT\s+${patron}[^)]*\)|${patron}`).join("|"),
+  "gi",
+);
 
 function desnudas(expresion: string | null): number {
   if (!expresion) return 0;
@@ -98,6 +115,7 @@ async function main() {
       select schemaname, tablename, policyname, cmd, qual, with_check
       from pg_policies
       where coalesce(qual, '') || coalesce(with_check, '') like '%es_administrador%'
+         or coalesce(qual, '') || coalesce(with_check, '') like '%comunidad_tiene_acceso%'
       order by schemaname, tablename, policyname
     `);
 
@@ -111,7 +129,7 @@ async function main() {
     if (rotas.length > 0) {
       const llamadas = rotas.reduce((acc, fila) => acc + fila.cuantas, 0);
       console.error(
-        `\n❌ ${rotas.length} policy(s) con ${llamadas} llamada(s) a private.es_administrador() sin izar:\n`,
+        `\n❌ ${rotas.length} policy(s) con ${llamadas} llamada(s) sin izar a ${FUNCIONES_IZABLES.map((f) => f.nombre).join(" / ")}:\n`,
       );
       for (const fila of rotas) {
         console.error(
@@ -122,6 +140,7 @@ async function main() {
         "\n   Se evalúa una vez POR FILA en vez de una vez por consulta.\n" +
           "   Remedio: envolver en subconsulta escalar, igual que 077 y 105:\n" +
           "     private.es_administrador()  →  (select private.es_administrador())\n" +
+          "     public.comunidad_tiene_acceso()  →  (select public.comunidad_tiene_acceso())\n" +
           "\n   Ojo: NO envolver private.tiene_acceso_vigente_curso(<columna>) ni\n" +
           "   ninguna llamada que reciba una columna de la fila — son correlacionadas\n" +
           "   y envolverlas no las iza, solo disfraza el mismo trabajo (ver 077).\n",
@@ -131,7 +150,7 @@ async function main() {
     }
 
     console.log(
-      `\n✅ Las ${rows.length} policies que llaman private.es_administrador() la evalúan una vez por consulta.\n`,
+      `\n✅ Las ${rows.length} policies que llaman ${FUNCIONES_IZABLES.map((f) => f.nombre).join(" o ")} las evalúan una vez por consulta.\n`,
     );
   } finally {
     await client.end();

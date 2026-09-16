@@ -18,20 +18,6 @@ import type {
 } from "@/lib/comunidad-tipos";
 import { COMUNIDAD_POSTS_POR_PAGINA } from "@/lib/comunidad-tipos";
 
-/**
- * "Diseño Paramétrico" -> "diseno parametrico" — insensible a tildes y
- * mayúsculas para el buscador del feed. Mismo criterio de
- * `normalize("NFD")` que slugificar() (src/lib/slug.ts), pero sin
- * colapsar a slug: acá hace falta conservar los espacios para comparar
- * substrings de frases completas.
- */
-function normalizarBusqueda(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-}
-
 // Cubre la duración de una vista del feed/detalle, no solo un clic —a
 // diferencia de la URL de descarga de un documento (obtenerUrlAdjuntoComunidad,
 // 300s), esta se pinta directo en un <img> y puede quedar abierta en la
@@ -143,6 +129,11 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   supabase: Awaited<ReturnType<typeof createClient>>,
   filas: T[],
   usuarioActualId: string | null,
+  /** `false` cuando las reacciones ya llegaron contadas desde SQL
+   * (buscar_feed_comunidad): consultarlas otra vez sería doble trabajo y dos
+   * fuentes para el mismo número. Sin reacciones, `totalReacciones` queda en
+   * 0 y el llamador usa las suyas. */
+  { incluirReacciones = true }: { incluirReacciones?: boolean } = {},
 ): Promise<
   Map<
     string,
@@ -157,6 +148,7 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
 > {
   const autorIds = [...new Set(filas.map((fila) => fila.id_usuario))];
   const objetivoIds = filas.map((fila) => fila.id);
+  const idsParaReacciones = incluirReacciones ? objetivoIds : [];
   const columnasAdjunto = "id, id_post, id_respuesta, ruta_storage, nombre_original, es_imagen, ancho, alto, tamano_bytes";
 
   // Dos consultas separadas, no un `.or()` con ids interpolados a mano en el
@@ -170,11 +162,11 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
       autorIds.length
         ? supabase.from("comunidad_autor_publico").select("id, nombre, foto_url").in("id", autorIds)
         : Promise.resolve({ data: [] }),
-      objetivoIds.length
-        ? supabase.from("comunidad_reacciones").select("id_usuario, id_post").in("id_post", objetivoIds)
+      idsParaReacciones.length
+        ? supabase.from("comunidad_reacciones").select("id_usuario, id_post").in("id_post", idsParaReacciones)
         : Promise.resolve({ data: [] }),
-      objetivoIds.length
-        ? supabase.from("comunidad_reacciones").select("id_usuario, id_respuesta").in("id_respuesta", objetivoIds)
+      idsParaReacciones.length
+        ? supabase.from("comunidad_reacciones").select("id_usuario, id_respuesta").in("id_respuesta", idsParaReacciones)
         : Promise.resolve({ data: [] }),
       objetivoIds.length
         ? supabase.from("comunidad_adjuntos").select(columnasAdjunto).in("id_post", objetivoIds)
@@ -263,21 +255,38 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   return resultado;
 }
 
-/** Feed de Comunidad, opcionalmente filtrado por categoría o restringido a
- * las publicaciones del usuario actual ("Mis publicaciones" — mutuamente
- * excluyente con la categoría, para no mezclar dos filtros en un MVP).
- * Publicaciones fijadas primero siempre; dentro de cada grupo (fijadas y no
- * fijadas), por `orden`: "reciente" (por fecha, el default) o "relevancia"
- * (reacciones + respuestas, más comentado primero). `busqueda` filtra por
- * coincidencia de substring en título o contenido, insensible a tildes y
- * mayúsculas — mismo criterio de UX que el buscador del catálogo
- * (CatalogoContent), pero en JS sobre lo que ya devolvió RLS: el feed no
- * pagina (a diferencia del catálogo, que sí puede tener miles de cursos),
- * así que no hace falta una función SQL de búsqueda para esto. */
+/** Una fila de `buscar_feed_comunidad` (112_feed_comunidad_paginado.sql). */
+type FilaFeed = FilaPost & {
+  total_respuestas: number;
+  total_reacciones: number;
+  me_reaccione: boolean;
+  total_resultados: number;
+  pagina: number;
+};
+
+/**
+ * Feed de Comunidad, opcionalmente filtrado por categoría o restringido a
+ * las publicaciones del usuario actual ("Mis publicaciones", mutuamente
+ * excluyente con la categoría). Fijadas primero; después por `orden`:
+ * "reciente" (el default) o "relevancia" (reacciones + respuestas).
+ * `busqueda` encuentra por título, contenido o nombre del autor, sin
+ * distinguir tildes ni mayúsculas.
+ *
+ * Todo eso —filtro, búsqueda, orden y paginación— ocurre en Postgres
+ * (`buscar_feed_comunidad`, AUDIT-2026-09-15.md P2-10). Antes se traía el
+ * feed ENTERO a Node y se enriquecía completo (reacciones, adjuntos y una
+ * firma de Storage por cada imagen) para mostrar 20 publicaciones; con
+ * suficientes publicaciones eso además fallaba en silencio (URL demasiado
+ * larga en los `.in()`, conteos truncados por el tope de filas de la API).
+ * Ahora solo se enriquecen las filas de la página, y las reacciones llegan
+ * contadas desde SQL.
+ *
+ * La función es `security invoker`: la RLS de Comunidad sigue decidiendo
+ * qué se ve, y "Mis publicaciones" usa `auth.uid()`, no un id de la app.
+ */
 export async function getComunidadFeed(opciones?: {
   categoria?: CategoriaComunidad;
   soloPropios?: boolean;
-  usuarioId?: string;
   busqueda?: string;
   orden?: "relevancia" | "reciente";
   pagina?: number;
@@ -287,69 +296,30 @@ export async function getComunidadFeed(opciones?: {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let consulta = supabase
-    .from("comunidad_posts")
-    .select(
-      "id, slug, id_usuario, categoria, titulo, contenido, fijado, eliminado, creado_en, empleo_empresa, empleo_modalidad, empleo_ubicacion, empleo_enlace",
-    )
-    .eq("eliminado", false)
-    .order("fijado", { ascending: false })
-    .order("creado_en", { ascending: false });
+  const soloPropios = opciones?.soloPropios ?? false;
+  const { data, error } = await supabase.rpc("buscar_feed_comunidad", {
+    p_categoria: soloPropios ? null : (opciones?.categoria ?? null),
+    p_solo_propios: soloPropios,
+    p_busqueda: opciones?.busqueda?.trim() || null,
+    p_orden: opciones?.orden ?? "reciente",
+    p_pagina: Math.max(1, Math.floor(opciones?.pagina ?? 1) || 1),
+    p_por_pagina: COMUNIDAD_POSTS_POR_PAGINA,
+  });
 
-  if (opciones?.soloPropios) {
-    if (!opciones.usuarioId) return { posts: [], pagina: 1, totalPaginas: 1 };
-    consulta = consulta.eq("id_usuario", opciones.usuarioId);
-  } else if (opciones?.categoria) {
-    consulta = consulta.eq("categoria", opciones.categoria);
-  }
-
-  const { data: posts, error } = await consulta;
   if (error) {
     logError("comunidad:feed", "no se pudo leer el feed de comunidad", error, { opciones });
     return { posts: [], pagina: 1, totalPaginas: 1 };
   }
-  let filas = (posts ?? []) as FilaPost[];
 
-  const textoBusqueda = opciones?.busqueda?.trim();
-  if (textoBusqueda) {
-    const q = normalizarBusqueda(textoBusqueda);
-    filas = filas.filter(
-      (fila) => normalizarBusqueda(fila.titulo).includes(q) || normalizarBusqueda(fila.contenido).includes(q),
-    );
-  }
+  const filas = (data ?? []) as FilaFeed[];
   if (filas.length === 0) return { posts: [], pagina: 1, totalPaginas: 1 };
 
-  const postIds = filas.map((fila) => fila.id);
-  const [{ data: respuestas }, enriquecido] = await Promise.all([
-    supabase.from("comunidad_respuestas").select("id_post").eq("eliminado", false).in("id_post", postIds),
-    enriquecer(supabase, filas, user?.id ?? null),
-  ]);
-
-  const respuestasPorPost = new Map<string, number>();
-  for (const r of respuestas ?? []) {
-    const id = r.id_post as string;
-    respuestasPorPost.set(id, (respuestasPorPost.get(id) ?? 0) + 1);
-  }
-
-  if (opciones?.orden === "relevancia") {
-    filas = [...filas].sort((a, b) => {
-      if (a.fijado !== b.fijado) return a.fijado ? -1 : 1;
-      const scoreA = (enriquecido.get(a.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(a.id) ?? 0);
-      const scoreB = (enriquecido.get(b.id)?.totalReacciones ?? 0) + (respuestasPorPost.get(b.id) ?? 0);
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
-    });
-  }
-
-  const totalPaginas = Math.max(1, Math.ceil(filas.length / COMUNIDAD_POSTS_POR_PAGINA));
-  const pagina = Math.min(Math.max(1, opciones?.pagina ?? 1), totalPaginas);
-  const desde = (pagina - 1) * COMUNIDAD_POSTS_POR_PAGINA;
-  const filasPagina = filas.slice(desde, desde + COMUNIDAD_POSTS_POR_PAGINA);
+  const enriquecido = await enriquecer(supabase, filas, user?.id ?? null, { incluirReacciones: false });
 
   return {
-    pagina,
-    totalPaginas,
-    posts: filasPagina.map((fila) => {
+    pagina: filas[0].pagina,
+    totalPaginas: Math.max(1, Math.ceil(Number(filas[0].total_resultados) / COMUNIDAD_POSTS_POR_PAGINA)),
+    posts: filas.map((fila) => {
       const extra = enriquecido.get(fila.id)!;
       return {
         id: fila.id,
@@ -358,18 +328,16 @@ export async function getComunidadFeed(opciones?: {
         titulo: fila.titulo,
         contenido: fila.contenido,
         fijado: fila.fijado,
-        eliminado: fila.eliminado,
-        // El feed ya filtra `eliminado = false` arriba, así que esto nunca
-        // es relevante acá — solo lo necesita el detalle de un post
-        // eliminado (getComunidadPost), que sí trae la columna real.
+        // La función ya excluye las eliminadas.
+        eliminado: false,
         eliminadoPorAdmin: false,
         tiempo: tiempoRelativo(fila.creado_en),
         autorId: fila.id_usuario,
         autorNombre: extra.autorNombre,
         autorFotoUrl: extra.autorFotoUrl,
-        totalRespuestas: respuestasPorPost.get(fila.id) ?? 0,
-        totalReacciones: extra.totalReacciones,
-        meReaccione: extra.meReaccione,
+        totalRespuestas: Number(fila.total_respuestas),
+        totalReacciones: Number(fila.total_reacciones),
+        meReaccione: fila.me_reaccione,
         adjuntos: extra.adjuntos,
         datosEmpleo: datosEmpleoDeFila(fila),
       };
@@ -545,37 +513,18 @@ export async function getComunidadActividadReciente(): Promise<ComunidadActivida
  * sin ningún contador inventado ni algoritmo de tendencias. */
 export async function getComunidadDestacados(): Promise<ComunidadDestacadoItem[]> {
   const supabase = await createClient();
-  const hace7Dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  const { data: posts, error } = await supabase
-    .from("comunidad_posts")
-    .select("id, slug, titulo")
-    .eq("eliminado", false)
-    .gte("creado_en", hace7Dias);
-
+  // Agregado y cortado en SQL (comunidad_mas_respondidas, 112): antes se
+  // traían todas las publicaciones de la semana y se contaban sus respuestas
+  // en Node, con un `.in()` que crecía con la actividad.
+  const { data, error } = await supabase.rpc("comunidad_mas_respondidas", { p_dias: 7, p_limite: 4 });
   if (error) {
     logError("comunidad:destacados", "no se pudieron leer los destacados", error, {});
     return [];
   }
-  const filas = posts ?? [];
-  if (filas.length === 0) return [];
-
-  const postIds = filas.map((p) => p.id as string);
-  const { data: respuestas } = await supabase
-    .from("comunidad_respuestas")
-    .select("id_post")
-    .eq("eliminado", false)
-    .in("id_post", postIds);
-
-  const conteoPorPost = new Map<string, number>();
-  for (const r of respuestas ?? []) {
-    const id = r.id_post as string;
-    conteoPorPost.set(id, (conteoPorPost.get(id) ?? 0) + 1);
-  }
-
-  return filas
-    .map((p) => ({ id: p.id as string, slug: p.slug as string, titulo: p.titulo as string, totalRespuestas: conteoPorPost.get(p.id as string) ?? 0 }))
-    .filter((p) => p.totalRespuestas > 0)
-    .sort((a, b) => b.totalRespuestas - a.totalRespuestas)
-    .slice(0, 4);
+  return ((data ?? []) as { id: string; slug: string; titulo: string; total_respuestas: number }[]).map((fila) => ({
+    id: fila.id,
+    slug: fila.slug,
+    titulo: fila.titulo,
+    totalRespuestas: Number(fila.total_respuestas),
+  }));
 }
