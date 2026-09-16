@@ -11,10 +11,10 @@ import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
+import { metadataPublica } from "@/lib/seo/metadata";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
-import { siteUrl } from "@/lib/site-url";
 import { esUuid } from "@/lib/slug";
 
 export async function generateMetadata({
@@ -26,36 +26,26 @@ export async function generateMetadata({
   const { user } = await getPerfilActual();
   const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
+  // Sin canonical a propósito: esta rama devuelve un 404 (`notFound()` más
+  // abajo), y declarar como canónica una URL que no existe es peor que no
+  // declarar nada.
   if (!curso) return { title: "U.V.A. — Curso" };
 
-  const titulo = `U.V.A. — ${curso.titulo}`;
-  // `imagenPortada` puede ser el placeholder (curso sin portada real, ver
-  // lib/media.ts): en ese caso no hay nada útil que compartir como og:image.
-  const imagenes = esPortadaReal(curso.imagenPortada) ? [curso.imagenPortada] : undefined;
-
-  return {
-    title: titulo,
-    description: curso.descripcion,
+  return metadataPublica({
+    titulo: curso.titulo,
+    descripcion: curso.descripcion,
     // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
     // slug como por UUID (fallback para enlaces viejos, ver esUuid() en
     // lib/slug.ts) -- sin esto, /cursos/<uuid> y /cursos/<slug> son dos
-    // URLs que Google ve como contenido duplicado. Apunta siempre a la
-    // versión con slug, sin importar cuál usó quien pidió la página.
-    alternates: {
-      canonical: `${siteUrl()}/cursos/${curso.slug}`,
-    },
-    openGraph: {
-      title: titulo,
-      description: curso.descripcion,
-      images: imagenes,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: titulo,
-      description: curso.descripcion,
-      images: imagenes,
-    },
-  };
+    // URLs que Google ve como contenido duplicado. La ruta apunta siempre a
+    // la versión con slug, sin importar cuál usó quien pidió la página.
+    ruta: `/cursos/${curso.slug}`,
+    // `imagenPortada` puede ser el placeholder (curso sin portada real, ver
+    // lib/media.ts): en ese caso no hay nada útil que compartir como
+    // og:image, y `metadataPublica` baja la tarjeta a `summary` en lugar de
+    // pedir una grande que llegaría vacía.
+    imagen: esPortadaReal(curso.imagenPortada) ? curso.imagenPortada : undefined,
+  });
 }
 
 export default async function CursoDetallePage({
