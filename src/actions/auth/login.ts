@@ -4,16 +4,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 export type LoginState =
   | { error: string; pendingVerification?: never }
   | { error?: never; pendingVerification: true }
   | null;
-
-function safeRedirectTarget(value: FormDataEntryValue | null): string {
-  const target = String(value ?? "");
-  return target.startsWith("/") ? target : "/dashboard";
-}
 
 function mensajeEspera(segundos: number): string {
   const minutos = Math.ceil(segundos / 60);
@@ -26,7 +22,8 @@ export async function login(
 ): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = safeRedirectTarget(formData.get("redirect"));
+  // `startsWith("/")` dejaba pasar `//otro-dominio`: ver lib/redirect-seguro.ts.
+  const redirectTo = destinoInternoSeguro(formData.get("redirect"));
 
   if (!email || !password) {
     return { error: "Ingresa tu correo y tu contraseña." };

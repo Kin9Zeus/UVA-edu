@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthVisual } from "@/components/auth/AuthVisual";
 import { AuthFlow } from "@/components/auth/AuthFlow";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { metadataPublica } from "@/lib/seo/metadata";
 
 // P2-6 (AUDIT-2026-09-15.md): de las páginas de auth, esta es la ÚNICA que
@@ -27,7 +28,10 @@ export default async function LoginPage({
   searchParams: Promise<{ redirect?: string; email?: string; error?: string }>;
 }) {
   const { redirect, email, error } = await searchParams;
-  const redirectTo = redirect?.startsWith("/") ? redirect : "/dashboard";
+  // Viaja a un campo oculto del formulario y al `next` del botón de Google,
+  // así que se sanea aquí también y no solo en el Server Action: ver
+  // lib/redirect-seguro.ts.
+  const redirectTo = destinoInternoSeguro(redirect);
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden min-[900px]:h-screen min-[900px]:flex-row min-[900px]:overflow-hidden">

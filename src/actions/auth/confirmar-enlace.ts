@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 /**
  * Antes esta lógica corría directo en el GET de /auth/confirm (auto-verificar
@@ -32,7 +33,10 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
   const nextUrl = new URL(nextParam || "/", siteUrl());
   const signOutAlConfirmar = nextUrl.searchParams.get("signout") === "1";
   nextUrl.searchParams.delete("signout");
-  const next = `${nextUrl.pathname}${nextUrl.search}`;
+  // Quedarse con `pathname` + `search` descarta el origen, pero no basta:
+  // `https://x//phishing.com` tiene `pathname` `//phishing.com`, que el
+  // navegador vuelve a leer como otro dominio. Ver lib/redirect-seguro.ts.
+  const next = destinoInternoSeguro(`${nextUrl.pathname}${nextUrl.search}`);
 
   const supabase = await createClient();
 
