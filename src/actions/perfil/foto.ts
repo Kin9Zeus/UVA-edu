@@ -4,17 +4,9 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { procesarFotoPerfil } from "@/lib/fotoPerfilServidor";
-
-const BUCKET_AVATARES = "avatares";
+import { BUCKET_AVATARES, extraerRutaAvatar } from "@/lib/perfil/avatar";
 
 export type FotoPerfilResultado = { error: string } | { success: true; url: string };
-
-function extraerRutaAvatar(url: string | null) {
-  if (!url) return null;
-  const marcador = `/object/public/${BUCKET_AVATARES}/`;
-  const indice = url.indexOf(marcador);
-  return indice === -1 ? null : url.slice(indice + marcador.length);
-}
 
 /**
  * Sube (o reemplaza) la foto de perfil del propio usuario logueado — nunca

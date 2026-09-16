@@ -13,7 +13,7 @@ export default async function PerfilPage() {
   const { user, perfil } = await getPerfilActual();
   const supabase = await createClient();
 
-  const [{ data: certificadosRows }, suscripcion] = await Promise.all([
+  const [{ data: certificadosRows }, suscripcion, { data: usuarioAuth }] = await Promise.all([
     supabase
       .from("certificados")
       .select("id, fecha_emision, nombre_curso")
@@ -21,7 +21,20 @@ export default async function PerfilPage() {
       .order("fecha_emision", { ascending: false })
       .limit(2),
     getSuscripcionActual(user!.id),
+    // `getPerfilActual` solo trae los claims del JWT (id/email) a propósito
+    // (ver el comentario en src/lib/perfil.ts): las identidades vinculadas
+    // (`identities`) no viajan ahí, así que para saber si esta cuenta tiene
+    // contraseña —y por lo tanto puede reautenticarse con ella antes de
+    // eliminarse— hace falta el `User` completo, con su propio roundtrip.
+    supabase.auth.getUser(),
   ]);
+
+  // Una cuenta que entró solo con "Continuar con Google" nunca creó
+  // contraseña: EliminarCuentaCard no debe pedir un campo que no puede
+  // llenar.
+  const tienePassword = (usuarioAuth.user?.identities ?? []).some(
+    (identidad) => identidad.provider === "email",
+  );
 
   // `nombre_curso` es el título congelado al momento de la emisión
   // (Deteccion.md), no el título vigente de `cursos`.
@@ -78,6 +91,7 @@ export default async function PerfilPage() {
         celular={perfil?.celular ?? null}
         fotoUrl={perfil?.foto_url ?? null}
         insignia={insignia}
+        tienePassword={tienePassword}
         certificados={certificados}
         estadoAcceso={estadoAcceso}
       />

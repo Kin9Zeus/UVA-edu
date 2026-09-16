@@ -19,6 +19,8 @@ import {
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
+import { ExportarDatosButton } from "@/components/dashboard/ExportarDatosButton";
+import { EliminarCuentaCard } from "@/components/dashboard/EliminarCuentaCard";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 
@@ -41,6 +43,7 @@ export function PerfilForm({
   celular,
   fotoUrl,
   insignia,
+  tienePassword,
   certificados,
   estadoAcceso,
 }: {
@@ -49,6 +52,7 @@ export function PerfilForm({
   celular: string | null;
   fotoUrl: string | null;
   insignia: Insignia | null;
+  tienePassword: boolean;
   certificados: Certificado[];
   estadoAcceso: EstadoAcceso | null;
 }) {
@@ -220,6 +224,17 @@ export function PerfilForm({
         </div>
 
         <CambiarPasswordForm />
+
+        <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+          <h2 className="text-base text-uva-text">Tus datos</h2>
+          <p className="text-sm text-uva-text-muted">
+            Descarga una copia de todos los datos personales asociados a tu
+            cuenta (Ley 1581 / Habeas Data).
+          </p>
+          <ExportarDatosButton />
+        </div>
+
+        <EliminarCuentaCard correo={correo} tienePassword={tienePassword} />
       </div>
 
       <div className="flex flex-col gap-4">

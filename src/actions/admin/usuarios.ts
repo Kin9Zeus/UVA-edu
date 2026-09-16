@@ -6,6 +6,7 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarUsuarioAdmin } from "@/lib/admin/revalidarUsuario";
 import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
+import { borrarFotoPerfil } from "@/lib/perfil/avatar";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
 import type { AdminActionResult } from "@/actions/admin/categorias";
@@ -457,6 +458,17 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
   for (const adjunto of adjuntos ?? []) {
     await borrarAdjuntoComunidad(admin.supabase, adjunto.id, adjunto.ruta_storage);
   }
+
+  // Mismo motivo que los adjuntos de arriba, para la foto de perfil (108):
+  // la RPC deja `foto_url = null`, pero no puede borrar el archivo del
+  // bucket `avatares` — eso se hace acá, antes, con el mismo criterio
+  // best-effort.
+  const { data: perfilFoto } = await admin.supabase
+    .from("perfiles")
+    .select("foto_url")
+    .eq("id", usuarioId)
+    .single();
+  await borrarFotoPerfil(admin.supabase, perfilFoto?.foto_url ?? null);
 
   // Con el cliente de la sesión, no con service role: la RPC vuelve a
   // comprobar el rol por su cuenta (075) y así las dos capas coinciden en

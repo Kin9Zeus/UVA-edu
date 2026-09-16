@@ -196,13 +196,34 @@ async function main() {
   }
   // Datos personales que la supresión tiene que dejar sin rastro. Se
   // escriben con service role: lo que se prueba es la anonimización, no si
-  // este usuario podría haberlos escrito por su cuenta.
+  // este usuario podría haberlos escrito por su cuenta. `foto_url` con una
+  // URL con forma real del bucket `avatares` (108): la función solo puede
+  // limpiar la columna, no el archivo (eso lo hace TypeScript antes de
+  // llamarla), así que acá alcanza con comprobar que la referencia se
+  // desconecta.
   const { error: errPerfilAnonimizar } = await admin
     .from("perfiles")
-    .update({ celular: "+57 300 1234567", pais: "CO", especialidad: "Dato personal de prueba" })
+    .update({
+      celular: "+57 300 1234567",
+      pais: "CO",
+      especialidad: "Dato personal de prueba",
+      foto_url: `${URL}/storage/v1/object/public/avatares/${userAnonimizar.user.id}/rls-test.webp`,
+    })
     .eq("id", userAnonimizar.user.id);
   if (errPerfilAnonimizar) {
     throw new Error(`No pude sembrar los datos del usuario a anonimizar: ${errPerfilAnonimizar.message}`);
+  }
+
+  // Cuenta desechable exclusiva para la prueba de autoservicio (109) — mismo
+  // motivo que userAnonimizar: irreversible, no se reutiliza para nada más.
+  const correoSupresionPropia = `rls-test-supresion-propia-${sufijo}@uva.test`;
+  const { data: userSupresionPropia, error: errSupresionPropia } = await admin.auth.admin.createUser({
+    email: correoSupresionPropia,
+    password,
+    email_confirm: true,
+  });
+  if (errSupresionPropia || !userSupresionPropia.user) {
+    throw new Error(`No pude crear el usuario para la supresión propia: ${errSupresionPropia?.message}`);
   }
 
   const { data: plan, error: errPlan } = await admin
@@ -280,6 +301,15 @@ async function main() {
   const clienteConAcceso: SupabaseClient = createClient(URL, ANON_KEY);
   const loginConAcceso = await clienteConAcceso.auth.signInWithPassword({ email: correoConAcceso, password });
   if (loginConAcceso.error) throw new Error(`No pude iniciar sesión (con acceso): ${loginConAcceso.error.message}`);
+
+  const clienteSupresionPropia: SupabaseClient = createClient(URL, ANON_KEY);
+  const loginSupresionPropia = await clienteSupresionPropia.auth.signInWithPassword({
+    email: correoSupresionPropia,
+    password,
+  });
+  if (loginSupresionPropia.error) {
+    throw new Error(`No pude iniciar sesión (supresión propia): ${loginSupresionPropia.error.message}`);
+  }
 
   // Curso PUBLICADO (`mostrado = true`) para la prueba de reproducción: así
   // la lectura de la lección no depende de RLS de visibilidad de curso (eso
@@ -2658,7 +2688,7 @@ async function main() {
 
     const { data: perfilAnonimizado } = await admin
       .from("perfiles")
-      .select("nombre, correo, celular, pais, especialidad, estado, anonimizado_en")
+      .select("nombre, correo, celular, pais, especialidad, foto_url, estado, anonimizado_en")
       .eq("id", userAnonimizar.user!.id)
       .single();
     const sinDatosPersonales =
@@ -2667,10 +2697,16 @@ async function main() {
       perfilAnonimizado?.celular === null &&
       perfilAnonimizado?.pais === null &&
       perfilAnonimizado?.especialidad === null &&
+      // 108_anonimizar_usuario_foto.sql: hueco que dejaba `foto_url` viva
+      // después de la supresión — el archivo lo borra TypeScript ANTES de
+      // llamar a esta RPC (esta prueba solo siembra la URL en `perfiles`,
+      // sin subir un archivo real, porque lo que hay que comprobar acá es
+      // que la RPC desconecta la referencia).
+      perfilAnonimizado?.foto_url === null &&
       perfilAnonimizado?.estado === "SUSPENDIDO" &&
       perfilAnonimizado?.anonimizado_en !== null;
     registrar(
-      "la supresión no deja ningún dato personal en `perfiles`",
+      "la supresión no deja ningún dato personal en `perfiles` (incluida la foto, 108)",
       sinDatosPersonales,
       JSON.stringify(perfilAnonimizado),
     );
@@ -2760,6 +2796,65 @@ async function main() {
       "repetir la supresión NO reescribe la fecha en que se hizo",
       perfilRepetido?.anonimizado_en === fechaPrimeraSupresion,
       `antes=${fechaPrimeraSupresion} despues=${perfilRepetido?.anonimizado_en}`,
+    );
+
+    // ------------------------------------------------------------------
+    // Autoservicio de supresión (109_supresion_propia_de_cuenta.sql, P2-11
+    // de AUDIT-2026-09-15.md). A diferencia de anonimizar_usuario(uuid), esta
+    // RPC no toma ningún parámetro — opera siempre sobre auth.uid() — así
+    // que no hace falta (ni se puede) probar "un usuario intenta suprimir a
+    // otro": la firma de la función ya lo hace imposible.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: AUTOSERVICIO DE SUPRESIÓN (109) ===\n");
+
+    await esperarBloqueado(
+      "anon no puede llamar solicitar_supresion_propia",
+      clienteAnonimo.rpc("solicitar_supresion_propia"),
+    );
+
+    // Mismo guardia que ya protege anonimizar_usuario(uuid): un admin no
+    // puede autoeliminarse, perdería el acceso con el que administra y
+    // podría dejar la plataforma sin ninguno.
+    await esperarBloqueado(
+      "un administrador NO puede autoeliminarse por autoservicio",
+      clienteAdmin.rpc("solicitar_supresion_propia"),
+    );
+
+    await esperarPermitido(
+      "un estudiante SÍ puede suprimir su propia cuenta por autoservicio",
+      clienteSupresionPropia.rpc("solicitar_supresion_propia"),
+    );
+
+    const { data: perfilSupresionPropia } = await admin
+      .from("perfiles")
+      .select("nombre, correo, estado, anonimizado_en")
+      .eq("id", userSupresionPropia.user!.id)
+      .single();
+    registrar(
+      "la supresión propia deja el perfil sin datos personales, igual que la de un admin",
+      perfilSupresionPropia?.nombre === "Usuario eliminado" &&
+        perfilSupresionPropia?.correo ===
+          `anon+${userSupresionPropia.user!.id.replace(/-/g, "")}@uva.invalid` &&
+        perfilSupresionPropia?.estado === "SUSPENDIDO" &&
+        perfilSupresionPropia?.anonimizado_en !== null,
+      JSON.stringify(perfilSupresionPropia),
+    );
+
+    // La RPC borra auth.sessions en la misma transacción (075), pero el
+    // access token de ESTA request sigue siendo válido hasta que expire por
+    // su cuenta — GoTrue lo verifica por firma, no contra la tabla de
+    // sesiones en cada llamada (mismo comentario que ya deja
+    // eliminarMiCuenta, src/actions/perfil/eliminar-cuenta.ts). Por eso la
+    // prueba determinística es un INSERT nuevo, no un UPDATE sobre el
+    // progreso que la propia RPC acaba de borrar (un UPDATE que no matchea
+    // ninguna fila "pasa" sin error y no probaría nada): progreso_insert_
+    // propio (019) exige private.cuenta_activa() en su WITH CHECK, así que
+    // se evalúa siempre, tenga o no filas previas.
+    await esperarBloqueado(
+      "tras la supresión propia, esa misma sesión ya no puede insertar progreso (cuenta_activa)",
+      clienteSupresionPropia
+        .from("progreso")
+        .insert({ id_usuario: userSupresionPropia.user!.id, id_leccion: idLeccionIntroductoria, completado: true }),
     );
 
     // ------------------------------------------------------------------
@@ -3630,6 +3725,7 @@ async function main() {
       userConAcceso.user!,
       userAdmin.user!,
       userAnonimizar.user!,
+      userSupresionPropia.user!,
     ];
 
     // Los pagos van antes que las suscripciones: `pagos.id_suscripcion` es una
