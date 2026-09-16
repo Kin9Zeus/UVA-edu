@@ -207,7 +207,7 @@ export function NotificacionesBell({
                         onClick={() => quitar(notificacion)}
                         aria-label="Quitar notificación"
                         title="Quitar notificación"
-                        className="mt-2 mr-2 shrink-0 rounded-uva-sm p-1 text-uva-text-faint opacity-0 hover:text-uva-text group-hover:opacity-100 pointer-coarse:opacity-100"
+                        className="mt-2 mr-2 shrink-0 rounded-uva-sm p-1 text-uva-text-faint opacity-0 hover:text-uva-text group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent pointer-coarse:opacity-100"
                       >
                         <X className="size-3.5" strokeWidth={2} />
                       </button>

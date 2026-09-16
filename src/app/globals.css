@@ -314,3 +314,23 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * P3-7 (AUDIT-2026-09-15.md): en vez de agregar `motion-reduce:` componente
+ * por componente (el patrón que ya tenía CursoDestacado, fácil de olvidar en
+ * el próximo hover/dialog animado que se agregue), esta regla apaga
+ * animación/transición/scroll suave en TODA la app cuando el sistema pide
+ * movimiento reducido — cubre los diálogos de Base UI (fade/zoom/slide),
+ * los chevrons que rotan y los spinners `animate-spin`, presentes y
+ * futuros, sin tocar cada archivo.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
