@@ -150,6 +150,62 @@ npm run test:rls               # probar RLS con 3 sesiones (anónimo / sin acces
 npm run lint
 ```
 
+## Scripts npm (referencia completa)
+
+Todos los scripts (`scripts/*.ts`) tienen su propio comentario de cabecera
+con el detalle completo — esto es solo el mapa para saber cuál buscar. La
+mayoría corre contra `DATABASE_URL`/las claves de Supabase de `.env.local`,
+así que apunta al mismo proyecto que tengas configurado.
+
+**Base de datos y RLS**
+
+| Script | Qué hace |
+|---|---|
+| `npm run db:reset` | Borra TODO el contenido de la base (no el esquema) — confirmación explícita requerida, ver el propio archivo antes de usarlo. |
+| `npm run db:rls` | Aplica `supabase/sql/*` contra `DATABASE_URL`, en orden numérico y en una sola transacción. |
+| `npm run db:rls:check` | Igual que `db:rls` pero sin escribir — solo verifica que los scripts aplican limpio. |
+| `npm run db:check-fk-indexes` | Falla si alguna FK de una sola columna no tiene un índice que la lidere (gate de CI). |
+| `npm run db:check-rls-initplan` | Falla si una policy llama `private.es_administrador()` sin envolver en subconsulta escalar — re-evaluación por fila en vez de una vez por query (gate de CI, agregado tras P2-2). |
+
+**Tests de integración (contra servicios reales, no mocks)**
+
+| Script | Qué hace |
+|---|---|
+| `npm run test:rls` | Prueba RLS con 3 sesiones (anónimo, estudiante sin acceso, estudiante con acceso) llamando la API de Supabase directamente. |
+| `npm run test:webhooks` | Prueba de los webhooks entrantes: verificación de firma e idempotencia. |
+| `npm run test:pagos` | Prueba de punta a punta del cobro con Wompi, sin cuenta de comercio real y sin levantar el servidor. |
+| `npm run test:canje` | Prueba de integración de `canjear_codigo_invitacion()` (código de invitación → acceso). |
+| `npm run test:e2e` | Suite de Playwright (`e2e/*.spec.ts`) — recorridos completos contra un servidor real. |
+
+**Operación (los mismos que corren como cron en producción, ver `docs/ops/`)**
+
+| Script | Qué hace |
+|---|---|
+| `npm run mux:limpiar` | Drena `mux_assets_pendientes_eliminacion`: borra contra la API real de Mux los assets marcados para eliminar. |
+| `npm run mux:verificar-atascados` | Alerta si una lección lleva demasiado tiempo sin salir de un estado intermedio de procesamiento de Mux. |
+| `npm run examenes:liberar-atascados` | Libera los trabajos de generación de examen con IA que quedaron colgados en `PENDIENTE`, y avisa. |
+| `npm run certificados:notificar` | Envía el correo de "certificado listo" pendiente y marca `notificado_en`. |
+| `npm run rate-limit:limpiar` | Barre las filas caducadas de las tablas de rate limiting. |
+| `npm run pagos:avisar-vencimientos` | Avisa por correo a quien tiene el acceso por vencer y marca `aviso_vencimiento_en`. |
+
+**Utilidades puntuales, no automatizadas**
+
+| Script | Qué hace |
+|---|---|
+| `npm run examenes:probar-generacion` | Prueba de humo de la generación de exámenes contra la API real de Gemini. |
+| `npm run verificar:migraciones-reversibles` | Falla si una migración de Prisma nueva (contra la rama base) contiene un `DROP`/`RENAME` sobre columna o tabla sin el guardado previo que exige la regla del equipo — gate de CI en PRs. |
+| `npm run certificados:regenerar-pdf` | Regenera y resube el PDF de cada certificado que ya tiene `archivo_pdf` cacheado en Storage. |
+| `npm run pagos:rollback` | Deshace por completo el trabajo de la rama de pagos del lado de la base de datos (tabla `intentos_pago`, funciones y datos de prueba de Wompi) — solo para revertir ese trabajo específico, no un rollback genérico. |
+
+**Auditoría visual/performance (`scripts/audit/`)**
+
+| Script | Qué hace |
+|---|---|
+| `npm run audit:lighthouse` | Corre Lighthouse (mobile y desktop) contra cada ruta pública y guarda los reportes en `/lighthouse-baseline/{fecha}/`. |
+| `npm run audit:lighthouse:compare` | Igual, pero comparando contra el baseline anterior. |
+| `npm run audit:screenshots` | Captura screenshots de página completa de cada ruta pública en 5 anchos de viewport. |
+| `npm run audit:overflow` | Detecta overflow horizontal en cada ruta pública, en los mismos 5 breakpoints. |
+
 ## Errores a evitar
 
 No cambiar el esquema ni las políticas directamente desde el panel web de
