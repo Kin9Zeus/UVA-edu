@@ -510,6 +510,17 @@ async function main() {
       "anon no puede llamar limpiar_intentos_validar_cupon (RPC solo service_role, P2-1)",
       clienteAnonimo.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: userSinAcceso.user!.id }),
     );
+    // Rate limit de la generación de exámenes con IA (107, P3-9 de
+    // AUDIT-2026-09-15.md). Mismo endurecimiento: si fuera invocable desde
+    // PostgREST, cualquier sesión podría limpiar o mentir su propio contador.
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_generar_examen (RPC solo service_role, P3-9)",
+      clienteAnonimo.rpc("verificar_limite_generar_examen", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_generacion_examen (RPC solo service_role, P3-9)",
+      clienteAnonimo.rpc("registrar_generacion_examen", { p_usuario_id: userSinAcceso.user!.id }),
+    );
     // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
     // service_role — el límite por IP de la página pública sería
     // decorativo si cualquiera pudiera seguir llamándola directo por

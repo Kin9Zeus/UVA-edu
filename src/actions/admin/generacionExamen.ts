@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import {
   completarGeneracionExamenCurso,
@@ -67,6 +68,32 @@ export async function generarExamenDelCurso(
     };
   }
 
+  // P3-9 (AUDIT-2026-09-15.md, supabase/sql/107): tope de 15 generaciones/hora
+  // por administrador. Cada corrida es una llamada real a Gemini que cuesta
+  // dinero y tarda minutos — sin esto, nada impide disparar generaciones en
+  // loop contra muchos cursos. Se verifica ANTES de reclamar el turno, para
+  // no dejar el candado de idempotencia del curso abierto por algo que de
+  // todas formas se va a rechazar acá.
+  const supabaseAdmin = createAdminClient();
+  const { data: limite, error: limiteError } = await supabaseAdmin
+    .rpc("verificar_limite_generar_examen", { p_usuario_id: admin.adminId })
+    .single();
+
+  if (limiteError) {
+    return { error: "No pudimos verificar el límite de generaciones. Intenta de nuevo." };
+  }
+
+  const { permitido, segundos_espera: segundosEspera } = limite as {
+    permitido: boolean;
+    segundos_espera: number;
+  };
+  if (!permitido) {
+    const minutos = Math.ceil(segundosEspera / 60);
+    return {
+      error: `Demasiadas generaciones seguidas. Espera ${minutos} minuto${minutos === 1 ? "" : "s"} e intenta de nuevo.`,
+    };
+  }
+
   // ADMIN_MANUAL siempre procede, incluso sobre un examen ya generado: el
   // botón dice "regenerar" y es exactamente lo que la persona pidió.
   const reclamo = await reclamarGeneracionExamenCurso(cursoId, "ADMIN_MANUAL");
@@ -87,6 +114,11 @@ export async function generarExamenDelCurso(
 
   const { trabajoId } = reclamo;
   const idAdmin = admin.adminId;
+
+  // Cuenta para el tope de la hora recién acá, con el reclamo YA ganado: los
+  // casos "omitido"/"fallido" de arriba no llaman a Gemini, así que no deben
+  // consumir cupo de algo que no se disparó.
+  await supabaseAdmin.rpc("registrar_generacion_examen", { p_usuario_id: idAdmin });
 
   // La bitácora se escribe ACÁ, con el disparo, y no al terminar: es la acción
   // administrativa —quién pidió regenerar el examen y cuándo— y tiene que
