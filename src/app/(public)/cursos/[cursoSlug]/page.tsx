@@ -84,7 +84,6 @@ export default async function CursoDetallePage({
   ]);
 
   const basePath = user ? "/dashboard/catalogo" : "/catalogo";
-  const ruta = `/cursos/${curso.slug}`;
 
   // P2-5 (AUDIT-2026-09-15.md). Se construye una vez y se imprime en las dos
   // ramas: a un usuario con sesión no le aporta nada —ningún rastreador ve
@@ -105,7 +104,6 @@ export default async function CursoDetallePage({
             sesionActiva={false}
             situacionExamen={situacionExamen}
             calificaciones={calificaciones}
-            ruta={ruta}
             usuarioActualId={null}
             esAdmin={false}
           />
@@ -144,7 +142,6 @@ export default async function CursoDetallePage({
             sesionActiva
             situacionExamen={situacionExamen}
             calificaciones={calificaciones}
-            ruta={ruta}
             usuarioActualId={user.id}
             esAdmin={esAdmin}
           />

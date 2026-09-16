@@ -39,6 +39,12 @@
 | Panel Backoffice CMS / CRUD de Cursos | No | No | No | Permitido |
 | Otorgamiento de Cortesías y Cupones | No | No | No | Permitido |
 | Consulta de Bitácora y Eventos Webhook | No | No | No | Permitido |
+| Leer y participar en Comunidad (publicar, responder, reaccionar, reportar) | No | No | Permitido (solo con membresía vigente) | Permitido |
+| Publicar en Anuncios y fijar publicaciones de Comunidad | No | No | No | Permitido |
+| Moderar Comunidad y atender reportes | No | No | No | Permitido |
+| Ver reseñas y calificación promedio de un curso | Permitido | Permitido | Permitido | Permitido |
+| Calificar un curso (reseña propia) | No | No | Permitido (con acceso al curso) | Solo con acceso al curso |
+| Moderar reseñas de curso | No | No | No | Permitido |
 
 ## **3\. Módulos de Funcionalidad y Procesos**
 
@@ -103,6 +109,34 @@
 > * **Intentos por Rondas:** `intentos_maximos` (default 3) no es un tope de por vida, es el tamaño de una RONDA. Reprobar dentro de la ronda espera 15 minutos; agotar la ronda completa espera 5 horas y al cumplirse habilita una ronda nueva, indefinidamente y sin que un admin tenga que intervenir (aunque puede saltarse la espera). Tiempo límite opcional por examen, validado en el servidor.
 > * **Integridad del Intento:** las preguntas se congelan en el intento al iniciarlo, con su orden aleatorizado; editar el examen después no altera intentos en curso ni recalifica los ya rendidos.
 > * **Calificación Server-Side:** ponderada por puntos. Las respuestas correctas nunca viajan al navegador.
+
+### **Módulo 10: Comunidad**
+
+> * **Quién entra:** estudiantes con membresía vigente y administradores. La regla vive en una sola función de la base (`comunidad_tiene_acceso`) y la aplicación nunca la reimplementa. Una cortesía de un curso suelto no da acceso: hace falta membresía. Sin acceso, `/dashboard/comunidad` muestra la pantalla de Comunidad pausada con el motivo (sin suscripción, vencida o cancelada).
+> * **Requisito de actividad desactivado (decisión vigente):** el diseño original exigía, pasado un período de arranque, un certificado emitido en los últimos 30 días. Se quitó mientras la comunidad no tenga masa crítica (`084_comunidad_gate_sin_requisito_temporal.sql`). La maquinaria queda en la base sin usar: reintroducirlo es reescribir esa única función.
+> * **Categorías:** Anuncios (solo publica un administrador), Proyectos, Preguntas y Empleo. La categoría no se cambia después de publicar.
+> * **Publicaciones de Empleo:** exigen empresa, modalidad (presencial, remoto o híbrido) y un enlace a la vacante; la ubicación es opcional. En cualquier otra categoría esos campos no se guardan. La base lo impone con un CHECK, no solo el formulario.
+> * **Feed:** 20 publicaciones por página. Las fijadas van siempre primero. Se ordena por fecha (por defecto) o por relevancia (reacciones + respuestas), se filtra por categoría o por "Mis publicaciones", y se busca en título y contenido sin distinguir mayúsculas ni tildes. Rieles laterales: las 6 publicaciones más recientes y las más respondidas de los últimos 7 días.
+> * **Hilo:** cada publicación tiene URL propia (`/dashboard/comunidad/<slug>`). El slug sale del título al publicar y no cambia al editarlo, para no romper enlaces compartidos.
+> * **Adjuntos:** hasta 6 por publicación o respuesta, de máximo 10 MB cada uno, insertados en el punto del texto donde el autor los puso. Imágenes JPG, PNG, WebP o GIF, que se normalizan a WebP de máximo 1600 px conservando la proporción. Documentos PDF, ZIP, Word, Excel o PowerPoint. El formato se decide por el contenido real del archivo, no por la extensión; SVG se rechaza. Si un archivo no es válido, no se publica nada.
+> * **Reacciones:** una por persona sobre cada publicación o respuesta; se quita y se vuelve a poner, no se edita.
+> * **Edición:** el autor edita título, contenido, adjuntos y datos de Empleo de su publicación mientras no esté eliminada. Las respuestas no se editan. Un administrador nunca puede reescribir el texto de otra persona, solo eliminarlo.
+> * **Eliminación por el autor:** borrado lógico silencioso. El hilo se conserva con un marcador de "publicación eliminada" y las respuestas no quedan huérfanas. Los adjuntos se borran de verdad.
+> * **Moderación por un administrador:** exige escribir un motivo. Antes de vaciar el contenido se guarda el texto original como evidencia (solo la leen administradores), se registra en la bitácora, se avisa al autor por correo y por notificación con el motivo, y se cierran los reportes pendientes sobre ese contenido. El marcador distingue "eliminado por moderación" de "eliminado por su autor".
+> * **Reportes:** cualquier persona con acceso reporta contenido ajeno, con motivo obligatorio, una sola vez por contenido; nunca el propio. Un reporte no oculta nada por sí solo: entra a la cola de `/admin/comunidad`, donde un administrador elimina (moderación, arriba) o descarta. Quien reportó recibe una notificación con el veredicto: eliminado o descartado.
+> * **Notificaciones en la app:** al autor cuando le responden (nunca por sus propias respuestas); a todos los que tienen acceso cuando se publica un anuncio; al autor cuando se modera su contenido; al reportante cuando se resuelve su reporte. Las genera la base de datos por trigger, nunca la aplicación.
+> * **Supresión de datos:** anonimizar una cuenta vacía y marca como eliminadas por moderación todas sus publicaciones y respuestas, y borra sus adjuntos (P1-2, `104_anonimizar_usuario_comunidad_calificaciones.sql`).
+
+### **Módulo 11: Calificaciones y Reseñas de Curso**
+
+> * **Qué es:** estrellas de 1 a 5 y un comentario opcional de hasta 1000 caracteres, en la ficha pública del curso.
+> * **Quién ve:** cualquiera, con o sin sesión, en cursos publicados. En un curso oculto solo las ve un administrador o quien tiene acceso vigente a ese curso. El nombre y la foto del autor se muestran; nunca su correo ni otros datos del perfil.
+> * **Quién califica:** quien tiene acceso vigente al curso (cortesía de ese curso, o membresía vigente si el curso está publicado o ya lo había empezado), con correo verificado y cuenta activa. Es el mismo umbral que comentar una lección. Sin acceso, el formulario no aparece.
+> * **Una reseña por persona y curso:** calificar de nuevo edita la reseña existente, no crea otra. El autor puede eliminarla y volver a calificar después.
+> * **Me gusta:** cualquier persona con sesión, correo verificado y cuenta activa reacciona a una reseña que puede ver, una vez por reseña.
+> * **Promedio y total:** se calculan al vuelo sobre las reseñas no eliminadas.
+> * **Moderación:** un administrador oculta la reseña de otra persona con un clic. A diferencia de Comunidad, **no exige motivo ni avisa al autor**: la reseña es contenido público de la ficha, no un hilo de conversación. Queda igual registrada en la bitácora con el administrador que la firmó.
+> * **Supresión de datos:** anonimizar una cuenta borra el comentario de sus reseñas y las oculta; la puntuación numérica se conserva porque por sí sola no identifica a nadie.
 
 ## **4\. Flujos de Trabajo Detallados (End-to-End Workflows)**
 
@@ -303,6 +337,50 @@
 > 13. Si reprueba ve su puntaje y **cuáles** preguntas falló, pero nunca cuál era la respuesta correcta: con intentos limitados, revelarla convertiría el reintento en un trámite.
 > 14. `intentos_maximos` no es un tope de por vida, es el tamaño de una RONDA (`calcularDisponibilidad`, src/lib/examen.ts — única fuente de verdad del cooldown, la usan tanto la Server Action que inicia el intento como la pantalla). Reprobar dentro de la ronda espera **15 minutos**; agotar la ronda completa (todos sus intentos sin aprobar) espera **5 horas**, y al cumplirse se habilita una ronda nueva de la misma cantidad de intentos — así indefinidamente, sin que un admin tenga que intervenir. Un administrador puede saltarse esa espera con **Dar un intento extra** (ver punto 6.1), pero no es necesario para que el estudiante eventualmente pueda volver a intentarlo.
 > 15. **Antifraude:** `preguntas_examen` no es legible por ningún estudiante (RLS solo la abre a administradores) e `intentos_examen` **no tiene ninguna política de escritura** — un `PATCH` directo contra la API con `{"estado":"APROBADO"}` no afecta ninguna fila. Iniciar, autoguardar y enviar pasan siempre por Server Actions que verifican identidad y acceso antes de escribir. Un índice parcial garantiza un único intento abierto por estudiante y examen, así que dos pestañas no consumen dos intentos.
+
+### **Flujo 15: Comunidad — Publicar, Reportar y Moderar**
+
+\[Estudiante con membresía\] Publica (categoría + título + contenido + adjuntos)
+                                            │
+                         Validación completa ANTES de escribir (todo o nada)
+                                            │
+                                    Publicación en el feed
+                                            │
+              ┌─────────────────────────────┼─────────────────────────────┐
+              ▼                             ▼                             ▼
+     Otro estudiante responde      Otro estudiante reporta         El autor edita o elimina
+              │                             │                        (sin rastro de moderación)
+   Notificación al autor            Cola de /admin/comunidad
+                                            │
+                              ┌─────────────┴─────────────┐
+                              ▼                           ▼
+                    \[Admin elimina con motivo\]      \[Admin descarta\]
+                              │                           │
+            Evidencia + bitácora + correo y         Reporte cerrado
+            notificación al autor + reportes        + bitácora
+            cerrados                                      │
+                              │                           │
+                 Notificación al reportante: "eliminado" / "descartado"
+
+> 1. Al entrar a `/dashboard/comunidad`, la base decide si la sesión tiene acceso (Módulo 10). Sin acceso se muestra la pantalla de Comunidad pausada con su motivo.
+> 2. El estudiante elige categoría y escribe título (3 a 150 caracteres) y contenido (hasta 5000). En Empleo completa además empresa, modalidad, enlace y, opcionalmente, ubicación. Anuncios solo está disponible para un administrador.
+> 3. Al enviar, el servidor toma el autor de la sesión (nunca de un dato del navegador) y valida todo, adjuntos incluidos, antes de escribir. Si algo falla, no se crea nada.
+> 4. La publicación se inserta con los marcadores de adjunto ya definitivos y luego se suben los archivos a la carpeta privada del autor. Si un archivo falla en este punto, la publicación queda sin esa línea, pero no se rompe.
+> 5. Otra persona con acceso puede responder (hasta 2000 caracteres, con los mismos adjuntos), reaccionar o reportar. Responder notifica al autor de la publicación.
+> 6. Un reporte exige motivo y entra a la cola de `/admin/comunidad`, de la más antigua a la más reciente. Si el contenido reportado ya no existe, el reporte se cierra solo.
+> 7. El administrador **elimina**: escribe el motivo, se guarda el texto original como evidencia, se vacía el contenido, se borran los adjuntos, se registra en la bitácora, el autor recibe correo y notificación con el motivo, y se cierran todos los reportes pendientes sobre ese contenido. O **descarta**: el reporte se cierra sin tocar el contenido y queda en la bitácora.
+> 8. Quien reportó recibe una notificación que dice si el contenido se eliminó o se descartó el reporte.
+> 9. **Antifraude:** todo esto lo exige también la base de datos, no solo la aplicación. RLS limita la lectura a quien tiene acceso, y un trigger de transiciones impide que un estudiante fije, restaure o reescriba contenido ajeno, y que un administrador reescriba el texto de otra persona. Llamar a la API directamente no evita ninguna de estas reglas.
+
+### **Flujo 16: Calificar un Curso**
+
+> 1. En la ficha del curso (`/cursos/<slug>`), cualquiera ve el promedio, el total y la lista de reseñas, de la más reciente a la más antigua.
+> 2. Quien tiene acceso vigente al curso ve el formulario. Si ya había calificado, aparece precargado con su reseña.
+> 3. Al publicar, el servidor valida estrellas (entero de 1 a 5) y comentario (hasta 1000 caracteres; vacío se guarda como sin comentario). Si la persona ya tiene una reseña activa en ese curso, la edita; si no, crea una. La base impide una segunda reseña activa aunque dos envíos lleguen a la vez.
+> 4. Si el acceso venció entre cargar la página y enviar, la base rechaza la escritura y se le pide verificar su acceso.
+> 5. El autor puede eliminar su reseña. Si la operación no encuentra la reseña, responde con error: nunca confirma una eliminación que no ocurrió.
+> 6. Un administrador puede ocultar la reseña de otra persona. Queda firmada con su id y registrada en la bitácora. Solo un administrador puede restaurar una reseña eliminada, y hoy no hay pantalla para hacerlo.
+> 7. Cualquier persona con sesión, correo verificado y cuenta activa puede dar o quitar "me gusta" a una reseña que puede ver.
 
 ## **5\. Especificación de Reglas de Negocio, Validaciones y Edge Cases**
 

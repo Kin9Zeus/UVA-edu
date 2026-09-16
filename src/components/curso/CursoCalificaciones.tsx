@@ -29,13 +29,11 @@ function iniciales(nombre: string) {
 
 function BotonMeGusta({
   calificacionId,
-  ruta,
   meGusta: meGustaInicial,
   total: totalInicial,
   puedeReaccionar,
 }: {
   calificacionId: string;
-  ruta: string;
   meGusta: boolean;
   total: number;
   puedeReaccionar: boolean;
@@ -53,7 +51,7 @@ function BotonMeGusta({
     setOptimista(siguiente);
     startTransition(async () => {
       const accion = siguiente.meGusta ? reaccionarCalificacion : quitarReaccionCalificacion;
-      const resultado = await accion(calificacionId, ruta);
+      const resultado = await accion(calificacionId);
       if ("error" in resultado) {
         setOptimista({ meGusta, total });
         return;
@@ -81,11 +79,9 @@ function BotonMeGusta({
  * en CursoDetalleContent): mismo umbral que comentar una lección. */
 function FormularioCalificacion({
   cursoId,
-  ruta,
   miCalificacion,
 }: {
   cursoId: string;
-  ruta: string;
   miCalificacion: CalificacionesCurso["miCalificacion"];
 }) {
   const router = useRouter();
@@ -101,7 +97,7 @@ function FormularioCalificacion({
     }
     setError(null);
     startTransition(async () => {
-      const resultado = await calificarCurso(cursoId, puntuacion, comentario, ruta);
+      const resultado = await calificarCurso(cursoId, puntuacion, comentario);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -113,7 +109,7 @@ function FormularioCalificacion({
   function eliminar() {
     if (!miCalificacion) return;
     startTransition(async () => {
-      const resultado = await eliminarCalificacionPropia(miCalificacion.id, ruta);
+      const resultado = await eliminarCalificacionPropia(miCalificacion.id);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -177,7 +173,6 @@ function FormularioCalificacion({
  * comentario es largo, corto o no existe: nada más se desalinea. */
 function CeldaResena({
   reseña,
-  ruta,
   usuarioActualId,
   esAdmin,
   pendienteModerar,
@@ -185,7 +180,6 @@ function CeldaResena({
   columna,
 }: {
   reseña: CalificacionesCurso["reseñas"][number];
-  ruta: string;
   usuarioActualId: string | null;
   esAdmin: boolean;
   pendienteModerar: boolean;
@@ -217,7 +211,6 @@ function CeldaResena({
         <div className="flex items-center gap-1">
           <BotonMeGusta
             calificacionId={reseña.id}
-            ruta={ruta}
             meGusta={reseña.meGusta}
             total={reseña.totalMeGusta}
             puedeReaccionar={Boolean(usuarioActualId)}
@@ -252,14 +245,12 @@ function CeldaResena({
  * visitante anónimo, y la UI de escribir/reaccionar simplemente no aparece. */
 export function CursoCalificaciones({
   cursoId,
-  ruta,
   usuarioActualId,
   puedeCalificar,
   esAdmin,
   datos,
 }: {
   cursoId: string;
-  ruta: string;
   usuarioActualId: string | null;
   puedeCalificar: boolean;
   esAdmin: boolean;
@@ -270,7 +261,7 @@ export function CursoCalificaciones({
 
   function moderar(calificacionId: string) {
     startTransitionModerar(async () => {
-      await moderarCalificacion(calificacionId, ruta);
+      await moderarCalificacion(calificacionId);
       router.refresh();
     });
   }
@@ -289,7 +280,6 @@ export function CursoCalificaciones({
         <FormularioCalificacion
           key={datos.miCalificacion?.id ?? "nueva"}
           cursoId={cursoId}
-          ruta={ruta}
           miCalificacion={datos.miCalificacion}
         />
       )}
@@ -302,7 +292,6 @@ export function CursoCalificaciones({
             <CeldaResena
               key={reseña.id}
               reseña={reseña}
-              ruta={ruta}
               usuarioActualId={usuarioActualId}
               esAdmin={esAdmin}
               pendienteModerar={pendienteModerar}

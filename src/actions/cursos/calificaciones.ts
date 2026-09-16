@@ -8,6 +8,24 @@ import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-cali
 export type CalificacionCursoResultado = { error: string } | { success: true };
 
 /**
+ * Lo que se revalida tras cualquier cambio de reseñas: la ficha de curso,
+ * como PATRÓN de ruta (todas las fichas) y no la URL concreta.
+ *
+ * Antes cada acción recibía `ruta` como argumento y la pasaba tal cual a
+ * `revalidatePath`. Una Server Action es un endpoint público: cualquiera con
+ * sesión podía llamarla con la ruta que quisiera e invalidar la caché de
+ * otras páginas del sitio. Las reseñas solo se ven en
+ * `(public)/cursos/[cursoSlug]` (CursoDetalleContent), así que la ruta la
+ * decide el servidor. Se usa el patrón porque las acciones que reciben un
+ * id de reseña no conocen el slug, y buscarlo costaría una consulta por
+ * clic; la ficha lee la sesión en cada petición (no hay caché de datos que
+ * perder), así que invalidar todas no le cuesta nada a nadie.
+ */
+function revalidarFichasDeCurso() {
+  revalidatePath("/cursos/[cursoSlug]", "page");
+}
+
+/**
  * Crea o edita la reseña propia de un curso (estrellas 1-5 + comentario
  * opcional) — una fila por (curso, usuario), mismo criterio que "una
  * calificación editable" de Platzi. No se usa `upsert`: el índice único que
@@ -20,9 +38,6 @@ export async function calificarCurso(
   cursoId: string,
   puntuacion: number,
   comentario: string,
-  /** Ruta a revalidar — la ficha del curso, público o dentro del dashboard
-   * según desde dónde se calificó. */
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -67,7 +82,7 @@ export async function calificarCurso(
   // solo pasa si el acceso venció justo entre cargar la página y enviar.
   if (error) return { error: "No pudimos guardar tu calificación. Verifica que tengas acceso vigente al curso." };
 
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -77,7 +92,6 @@ export async function calificarCurso(
  */
 export async function eliminarCalificacionPropia(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -85,14 +99,22 @@ export async function eliminarCalificacionPropia(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Debes iniciar sesión." };
 
-  const { error } = await supabase
+  // `.select("id")` para saber cuántas filas cambiaron: un UPDATE que no
+  // coincide con nada (id ajeno, o que RLS filtró) no es un error para
+  // PostgREST, y sin esto la acción respondía éxito sin haber borrado nada.
+  // No agrega ninguna exigencia nueva de RLS: Postgres ya aplica la policy de
+  // SELECT a la fila resultante de todo UPDATE con WHERE (ver el comentario
+  // de curso_calificaciones_select_publico, 102_curso_calificaciones.sql).
+  const { data: eliminadas, error } = await supabase
     .from("curso_calificaciones")
     .update({ eliminado: true })
     .eq("id", calificacionId)
-    .eq("id_usuario", user.id);
+    .eq("id_usuario", user.id)
+    .select("id");
 
   if (error) return { error: "No pudimos eliminar tu calificación." };
-  revalidatePath(ruta);
+  if (!eliminadas?.length) return { error: "No encontramos tu calificación. Recarga la página." };
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -106,7 +128,6 @@ export async function eliminarCalificacionPropia(
  */
 export async function moderarCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -117,12 +138,17 @@ export async function moderarCalificacion(
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
   if (perfil?.rol !== "ADMINISTRADOR") return { error: "No tienes permiso para moderar reseñas." };
 
-  const { error } = await supabase
+  // Mismo motivo que en eliminarCalificacionPropia, y aquí pesa más: sin
+  // contar filas, un id inexistente quedaba en la bitácora como una
+  // moderación que nunca ocurrió.
+  const { data: moderadas, error } = await supabase
     .from("curso_calificaciones")
     .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: user.id })
-    .eq("id", calificacionId);
+    .eq("id", calificacionId)
+    .select("id");
 
   if (error) return { error: "No pudimos eliminar la reseña." };
+  if (!moderadas?.length) return { error: "Esa reseña ya no existe." };
 
   await registrarBitacora(supabase, {
     idAdmin: user.id,
@@ -131,7 +157,7 @@ export async function moderarCalificacion(
     idEntidadAfectada: calificacionId,
   });
 
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -141,7 +167,6 @@ export async function moderarCalificacion(
  * (src/actions/comentarios/like.ts). */
 export async function reaccionarCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -157,13 +182,12 @@ export async function reaccionarCalificacion(
     );
 
   if (error) return { error: "No pudimos guardar tu reacción." };
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
 export async function quitarReaccionCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -178,6 +202,6 @@ export async function quitarReaccionCalificacion(
     .eq("id_usuario", user.id);
 
   if (error) return { error: "No pudimos quitar tu reacción." };
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
