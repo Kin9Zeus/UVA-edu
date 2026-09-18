@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   barajar,
-  calificarIntento,
+  calcularVidasRestantes,
   calificarPregunta,
   normalizarRespuestaCorta,
 } from "@/lib/examenes/calificar";
 import {
   prepararPreguntasParaEstudiante,
+  VIDAS_INICIALES,
+  type ParEmparejar,
   type PreguntaCongelada,
 } from "@/lib/examenes/tipos";
 
@@ -24,6 +26,8 @@ function pregunta(parcial: Partial<PreguntaCongelada>): PreguntaCongelada {
     puntos: 1,
     opciones: opciones(true, false, false),
     respuestasAceptadas: [],
+    paresIzquierda: null,
+    paresDerecha: null,
     ...parcial,
   };
 }
@@ -129,80 +133,62 @@ describe("calificarPregunta — RELLENAR_ESPACIO", () => {
   });
 });
 
+describe("calificarPregunta — EMPAREJAR", () => {
+  const pares: ParEmparejar[] = [
+    { id: "p1", izquierda: "Centralizar", derecha: "Proceso claro" },
+    { id: "p2", izquierda: "Veracidad", derecha: "Datos actualizados" },
+    { id: "p3", izquierda: "Evitar duplicados", derecha: "Una sola fuente" },
+  ];
+  // `idMostrado` DISTINTO de `id` a propósito: si el test usara el mismo
+  // valor para las dos columnas (como hacía la versión con la fuga
+  // encontrada en revisión), no detectaría una regresión que vuelva a
+  // comparar contra `par.id` en vez de `par.idMostrado`.
+  const paresDerecha = [
+    { id: "p1", izquierda: "Centralizar", derecha: "Proceso claro", idMostrado: "d1" },
+    { id: "p2", izquierda: "Veracidad", derecha: "Datos actualizados", idMostrado: "d2" },
+    { id: "p3", izquierda: "Evitar duplicados", derecha: "Una sola fuente", idMostrado: "d3" },
+  ];
+  const emparejar = pregunta({
+    tipo: "EMPAREJAR",
+    opciones: null,
+    paresIzquierda: pares,
+    paresDerecha,
+  });
+
+  it("acierta cuando cada par mapea al idMostrado de su propia derecha", () => {
+    expect(calificarPregunta(emparejar, { p1: "d1", p2: "d2", p3: "d3" })).toBe(true);
+  });
+
+  it("responder con el `id` real (no el idMostrado) no acierta — es justo lo que evita la fuga", () => {
+    expect(calificarPregunta(emparejar, { p1: "p1", p2: "p2", p3: "p3" })).toBe(false);
+  });
+
+  it("falla si un solo par está cruzado", () => {
+    expect(calificarPregunta(emparejar, { p1: "d2", p2: "d1", p3: "d3" })).toBe(false);
+  });
+
+  it("falla si falta un par sin emparejar (todo o nada, como el resto de tipos)", () => {
+    expect(calificarPregunta(emparejar, { p1: "d1", p2: "d2" })).toBe(false);
+  });
+
+  it("una respuesta que no es un mapa (string, array o undefined) no acierta", () => {
+    expect(calificarPregunta(emparejar, "p1")).toBe(false);
+    expect(calificarPregunta(emparejar, ["p1"])).toBe(false);
+    expect(calificarPregunta(emparejar, undefined)).toBe(false);
+  });
+
+  it("una pregunta sin pares nunca se da por acertada", () => {
+    const rota = pregunta({ tipo: "EMPAREJAR", opciones: null, paresIzquierda: [], paresDerecha: [] });
+    expect(calificarPregunta(rota, {})).toBe(false);
+  });
+});
+
 describe("calificarPregunta — casos degenerados", () => {
   it("una pregunta sin ninguna opción correcta nunca se da por acertada", () => {
     const rota = pregunta({ opciones: opciones(false, false) });
     expect(calificarPregunta(rota, "o1")).toBe(false);
     expect(calificarPregunta(rota, [])).toBe(false);
     expect(calificarPregunta(rota, undefined)).toBe(false);
-  });
-});
-
-describe("calificarIntento", () => {
-  const preguntas: PreguntaCongelada[] = [
-    pregunta({ id: "a", puntos: 1 }),
-    pregunta({ id: "b", puntos: 1 }),
-    pregunta({ id: "c", puntos: 1 }),
-    pregunta({ id: "d", puntos: 1 }),
-  ];
-
-  it("aprueba justo en el umbral (3 de 4 = 75%)", () => {
-    const resultado = calificarIntento(preguntas, { a: "o1", b: "o1", c: "o1", d: "o2" }, 75);
-    expect(resultado.puntajePct).toBe(75);
-    expect(resultado.aprobado).toBe(true);
-    expect(resultado.preguntasFalladas).toEqual(["d"]);
-  });
-
-  it("reprueba justo por debajo (2 de 4 = 50%)", () => {
-    const resultado = calificarIntento(preguntas, { a: "o1", b: "o1" }, 75);
-    expect(resultado.puntajePct).toBe(50);
-    expect(resultado.aprobado).toBe(false);
-    expect(resultado.preguntasFalladas).toEqual(["c", "d"]);
-  });
-
-  it("pondera por puntos, no por número de preguntas", () => {
-    const ponderadas: PreguntaCongelada[] = [
-      pregunta({ id: "a", puntos: 9 }),
-      pregunta({ id: "b", puntos: 1 }),
-    ];
-    // Acierta solo la pesada: 9 de 10 = 90%, aprueba aunque falló la mitad
-    // de las preguntas.
-    const resultado = calificarIntento(ponderadas, { a: "o1" }, 75);
-    expect(resultado.puntosObtenidos).toBe(9);
-    expect(resultado.puntosPosibles).toBe(10);
-    expect(resultado.puntajePct).toBe(90);
-    expect(resultado.aprobado).toBe(true);
-  });
-
-  it("respeta una nota requerida más alta que el mínimo", () => {
-    const resultado = calificarIntento(preguntas, { a: "o1", b: "o1", c: "o1", d: "o2" }, 90);
-    expect(resultado.puntajePct).toBe(75);
-    expect(resultado.aprobado).toBe(false);
-  });
-
-  it("redondea a dos decimales (2 de 3 = 66,67%)", () => {
-    const tres = preguntas.slice(0, 3);
-    const resultado = calificarIntento(tres, { a: "o1", b: "o1" }, 75);
-    expect(resultado.puntajePct).toBe(66.67);
-  });
-
-  it("un intento sin respuestas da 0 y no aprueba", () => {
-    const resultado = calificarIntento(preguntas, {}, 75);
-    expect(resultado.puntajePct).toBe(0);
-    expect(resultado.aprobado).toBe(false);
-    expect(resultado.preguntasFalladas).toHaveLength(4);
-  });
-
-  it("un examen sin preguntas no se aprueba por división vacía", () => {
-    const resultado = calificarIntento([], {}, 75);
-    expect(resultado.puntajePct).toBe(0);
-    expect(resultado.aprobado).toBe(false);
-  });
-
-  it("ignora respuestas de preguntas que no están en el intento congelado", () => {
-    const resultado = calificarIntento(preguntas, { a: "o1", b: "o1", c: "o1", d: "o1", zzz: "o1" }, 75);
-    expect(resultado.puntajePct).toBe(100);
-    expect(resultado.puntosPosibles).toBe(4);
   });
 });
 
@@ -227,6 +213,53 @@ describe("prepararPreguntasParaEstudiante", () => {
 
     expect(JSON.stringify(publicas)).not.toContain("vray");
     expect(publicas[0].opciones).toBeNull();
+  });
+
+  it("EMPAREJAR: el id de cada elemento de la derecha nunca coincide con la llave real del par (regresión de la fuga encontrada en revisión)", () => {
+    const pares: ParEmparejar[] = [
+      { id: "real-1", izquierda: "A", derecha: "1" },
+      { id: "real-2", izquierda: "B", derecha: "2" },
+    ];
+    const paresDerecha = pares.map((par) => ({ ...par, idMostrado: `oculto-${par.id}` }));
+    const [publica] = prepararPreguntasParaEstudiante([
+      pregunta({ tipo: "EMPAREJAR", opciones: null, paresIzquierda: pares, paresDerecha }),
+    ]);
+
+    const idsIzquierda = new Set(publica.izquierdas?.map((item) => item.id));
+    const idsDerecha = new Set(publica.derechas?.map((item) => item.id));
+
+    // Si algún id de la izquierda también apareciera en la derecha, ese id
+    // compartido SERÍA la respuesta correcta — exactamente el bug que este
+    // test existe para atrapar.
+    for (const id of idsIzquierda) {
+      expect(idsDerecha.has(id)).toBe(false);
+    }
+    // El id "oculto" (idMostrado) sí puede salir — es lo que reemplaza al
+    // real precisamente para que este no salga.
+    expect(idsDerecha).toEqual(new Set(["oculto-real-1", "oculto-real-2"]));
+  });
+});
+
+describe("calcularVidasRestantes", () => {
+  // Las vidas salen del contador `ProgresoIntento.fallos` y no de contar
+  // respuestas incorrectas: con la cola de reintentos, una pregunta fallada y
+  // luego acertada solo deja su respuesta buena en `resueltas`, así que ese
+  // fallo no dejaría ningún rastro que contar.
+  it("sin fallos, empieza con todas las vidas", () => {
+    expect(calcularVidasRestantes(0)).toBe(VIDAS_INICIALES);
+  });
+
+  it("cada fallo resta una vida", () => {
+    expect(calcularVidasRestantes(1)).toBe(VIDAS_INICIALES - 1);
+    expect(calcularVidasRestantes(2)).toBe(VIDAS_INICIALES - 2);
+  });
+
+  it("agotarlas justo deja 0", () => {
+    expect(calcularVidasRestantes(VIDAS_INICIALES)).toBe(0);
+  });
+
+  it("nunca baja de 0 aunque el contador se pase", () => {
+    expect(calcularVidasRestantes(VIDAS_INICIALES + 3)).toBe(0);
   });
 });
 

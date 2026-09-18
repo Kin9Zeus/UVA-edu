@@ -42,10 +42,25 @@ export type RevisionPregunta = {
   respuestaTexto: string | null;
   /** Solo RELLENAR_ESPACIO: las variantes que el admin guardó como válidas. */
   respuestasAceptadas: string[] | null;
+  /** Solo EMPAREJAR: cada par, con qué eligió el estudiante para ese lado
+   * izquierdo (o `null` si no lo emparejó) y si coincidió con el correcto. */
+  pares: RevisionPar[] | null;
 };
 
+export type RevisionPar = {
+  id: string;
+  izquierda: string;
+  derecha: string;
+  /** Texto del elemento de la derecha que el estudiante emparejó con este,
+   * o `null` si dejó este par sin emparejar. */
+  derechaElegida: string | null;
+  correcta: boolean;
+};
+
+/** Solo para los tipos de opción (nunca EMPAREJAR, que se resuelve aparte
+ * arriba con su propio mapa de pares, no con un conjunto de ids). */
 function idsMarcados(respuesta: RespuestaEstudiante | undefined): Set<string> {
-  if (respuesta === undefined) return new Set();
+  if (typeof respuesta !== "string" && !Array.isArray(respuesta)) return new Set();
   return new Set(Array.isArray(respuesta) ? respuesta : [respuesta]);
 }
 
@@ -67,6 +82,45 @@ export function construirRevision(
         opciones: null,
         respuestaTexto: typeof respuesta === "string" && respuesta.trim() !== "" ? respuesta : null,
         respuestasAceptadas: pregunta.respuestasAceptadas,
+        pares: null,
+      };
+    }
+
+    if (pregunta.tipo === "EMPAREJAR") {
+      const paresIzquierda = pregunta.paresIzquierda ?? [];
+      const paresDerecha = pregunta.paresDerecha ?? [];
+      // Dos mapas porque son dos preguntas distintas: "¿qué texto eligió?"
+      // (por el id OPACO que mandó como respuesta) y "¿cuál era lo correcto
+      // para este par?" (por la llave real del par, `id`) — nunca el mismo
+      // id significa las dos cosas, a diferencia del cliente del estudiante.
+      const derechaTextoPorIdMostrado = new Map(paresDerecha.map((par) => [par.idMostrado, par.derecha]));
+      const idMostradoCorrectoPorParId = new Map(paresDerecha.map((par) => [par.id, par.idMostrado]));
+      const mapa =
+        respuesta && typeof respuesta === "object" && !Array.isArray(respuesta)
+          ? (respuesta as Record<string, string>)
+          : {};
+
+      return {
+        id: pregunta.id,
+        tipo: pregunta.tipo,
+        enunciado: pregunta.enunciado,
+        puntos: pregunta.puntos,
+        acertada,
+        opciones: null,
+        respuestaTexto: null,
+        respuestasAceptadas: null,
+        pares: paresIzquierda.map((par) => {
+          const idMostradoElegido = mapa[par.id];
+          return {
+            id: par.id,
+            izquierda: par.izquierda,
+            derecha: par.derecha,
+            derechaElegida:
+              idMostradoElegido !== undefined ? derechaTextoPorIdMostrado.get(idMostradoElegido) ?? null : null,
+            correcta:
+              idMostradoElegido !== undefined && idMostradoElegido === idMostradoCorrectoPorParId.get(par.id),
+          };
+        }),
       };
     }
 
@@ -85,6 +139,7 @@ export function construirRevision(
       })),
       respuestaTexto: null,
       respuestasAceptadas: null,
+      pares: null,
     };
   });
 }

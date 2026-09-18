@@ -77,6 +77,7 @@
   --color-uva-accent-warm: var(--uva-accent-warm);
   --color-uva-accent-2: var(--uva-accent-2);
   --color-uva-accent-2-soft: var(--uva-accent-2-soft);
+  --color-uva-grape: var(--uva-grape);
   --color-uva-accent-2-text: var(--uva-accent-2-text);
   --color-uva-whatsapp: var(--uva-whatsapp);
   --color-uva-danger: var(--uva-danger);
@@ -158,6 +159,11 @@
   --uva-accent-2: #f2c012;
   --uva-accent-2-soft: rgba(242, 192, 18, 0.18);
   --uva-accent-2-text: #ffdd55;
+  /* Morado uva — uso puntual y exclusivo para el indicador de vidas del
+     examen (referencia visual al nombre U.V.A). No reemplaza al magenta
+     como acento principal: ese sigue siendo el único color de CTAs, estados
+     activos y progreso (CLAUDE.md §3.3). */
+  --uva-grape: #a855f7;
   --uva-gradient-cta: linear-gradient(
     96deg,
     var(--uva-accent) 0%,

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, Lock, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { IniciarExamenButton } from "@/components/examen/IniciarExamenButton";
-import { COOLDOWN_REINTENTO_MINUTOS } from "@/lib/examenes/tipos";
+import { COOLDOWN_REINTENTO_MINUTOS, VIDAS_INICIALES } from "@/lib/examenes/tipos";
 import type { ResultadoIntentoVista, SituacionExamen } from "@/lib/examen";
 
 /**
@@ -62,28 +62,23 @@ export function ExamenIntro({
       {situacion.situacion === "APROBADO" ? (
         <section className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
           <p className="flex items-center gap-2 font-heading text-[16.5px] font-bold text-uva-text">
-            <CheckCircle2 className="size-5 text-uva-success" aria-hidden />
-            Curso completado
+            <CheckCircle2 className="size-5 text-uva-success-text" aria-hidden />
+            {situacion.certificadoListo ? "Curso completado" : "Examen aprobado"}
           </p>
           <p className="text-[13.5px] leading-relaxed text-uva-muted">
-            Aprobaste el examen final. Tu certificado ya está disponible.
+            {situacion.certificadoListo
+              ? "Aprobaste el examen final. Tu certificado ya está disponible."
+              : "Aprobaste el examen final. Termina las clases que te falten del curso para recibir tu certificado."}
           </p>
-          <Button variant="primary" size="sm" className="w-fit" render={<Link href="/dashboard/certificados" />}>
-            Ver mi certificado
-          </Button>
-        </section>
-      ) : situacion.situacion === "BLOQUEADO" ? (
-        <section className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-          <p className="flex items-center gap-2 font-heading text-[16.5px] font-bold text-uva-text">
-            <Lock className="size-5 text-uva-muted" aria-hidden />
-            Todavía no puedes presentarlo
-          </p>
-          <p className="text-[13.5px] leading-relaxed text-uva-muted">
-            El examen final se habilita cuando termines todas las clases del curso.
-          </p>
-          <Button variant="primary" size="sm" className="w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-            Volver al temario
-          </Button>
+          {situacion.certificadoListo ? (
+            <Button variant="primary" size="sm" className="w-fit" render={<Link href="/dashboard/certificados" />}>
+              Ver mi certificado
+            </Button>
+          ) : (
+            <Button variant="primary" size="sm" className="w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
+              Volver al temario
+            </Button>
+          )}
         </section>
       ) : situacion.situacion === "EN_ESPERA" ? (
         <section className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
@@ -91,7 +86,7 @@ export function ExamenIntro({
             {situacion.esperaLarga ? (
               <XCircle className="size-5 text-uva-error" aria-hidden />
             ) : (
-              <Clock className="size-5 text-uva-warn" aria-hidden />
+              <Clock className="size-5 text-uva-warning-text" aria-hidden />
             )}
             {situacion.esperaLarga ? "Agotaste tus intentos por ahora" : "Puedes reintentarlo más tarde"}
           </p>
@@ -99,8 +94,8 @@ export function ExamenIntro({
             {situacion.esperaLarga ? (
               <>
                 Presentaste el examen {situacion.intentosUsados}{" "}
-                {situacion.intentosUsados === 1 ? "vez" : "veces"} sin alcanzar el{" "}
-                {examen.notaAprobatoria}% necesario.
+                {situacion.intentosUsados === 1 ? "vez" : "veces"} sin llegar a responderlo
+                completo.
               </>
             ) : (
               <>Entre un intento y otro hay una espera de {COOLDOWN_REINTENTO_MINUTOS} minutos.</>
@@ -131,15 +126,16 @@ export function ExamenIntro({
               <RichTextRenderer contenido={examen.instrucciones} />
             ) : (
               <p className="text-[13.5px] leading-relaxed text-uva-muted">
-                Responde todas las preguntas y envía el examen cuando termines.
+                Una pregunta a la vez. Si fallas una, pierdes una vida y esa pregunta vuelve a
+                aparecer más adelante: apruebas cuando las respondes todas bien.
               </p>
             )}
           </div>
 
           <dl className="grid grid-cols-2 gap-3 border-t border-uva-divider pt-4 text-[13px] sm:grid-cols-3">
             <div>
-              <dt className="text-uva-text-faint">Para aprobar</dt>
-              <dd className="mt-0.5 font-mono text-uva-text">{examen.notaAprobatoria}%</dd>
+              <dt className="text-uva-text-faint">Vidas</dt>
+              <dd className="mt-0.5 font-mono text-uva-text">{VIDAS_INICIALES}</dd>
             </div>
             <div>
               <dt className="text-uva-text-faint">Tiempo</dt>
@@ -180,9 +176,13 @@ export function ExamenIntro({
 /**
  * Resultado del último intento cerrado.
  *
- * Muestra el puntaje y CUÁLES preguntas se fallaron, pero nunca cuál era la
- * respuesta correcta: con intentos limitados, revelarla convertiría el
- * reintento en un trámite (docs/functional-spec.md Flujo 14).
+ * Sin porcentajes: el examen no se aprueba por nota, se aprueba respondiendo
+ * bien TODAS las preguntas antes de quedarse sin vidas. Por eso lo que se
+ * muestra es "X/Y correctas · usaste N de 5 vidas".
+ *
+ * Dice CUÁLES preguntas se fallaron, pero nunca cuál era la respuesta
+ * correcta: con intentos limitados, revelarla convertiría el reintento en un
+ * trámite (docs/functional-spec.md Flujo 14).
  */
 function ResultadoBloque({
   resultado,
@@ -194,6 +194,8 @@ function ResultadoBloque({
   aprobado: boolean;
 }) {
   const falladas = resultado.preguntas.filter((pregunta) => !pregunta.acertada);
+  const correctas = resultado.preguntas.length - falladas.length;
+  const vidasUsadas = VIDAS_INICIALES - resultado.vidasRestantes;
 
   return (
     <section
@@ -208,28 +210,43 @@ function ResultadoBloque({
             ? "¡Aprobaste!"
             : tiempoAgotado
               ? "Se acabó el tiempo"
-              : "No alcanzaste la nota"}
+              : "No completaste el examen"}
         </p>
-        <p className="font-mono text-[22px] font-bold text-uva-text">
-          {resultado.puntajePct === null ? "—" : `${resultado.puntajePct}%`}
+        <p className="font-mono text-[15px] font-semibold text-uva-text">
+          {correctas}/{resultado.preguntas.length}
           <span className="ml-1.5 text-[12px] font-normal text-uva-text-faint">
-            de {resultado.notaRequerida}% necesario
+            correctas · usaste {vidasUsadas} de {VIDAS_INICIALES} vidas
           </span>
         </p>
       </div>
 
+      {aprobado && (
+        <p className="mt-2 text-[13px] text-uva-muted">
+          Respondiste todas las preguntas correctamente.
+        </p>
+      )}
+
       {tiempoAgotado && !aprobado && (
         <p className="mt-2 text-[13px] text-uva-muted">
-          Se calificaron las respuestas que alcanzaste a guardar antes de que venciera el plazo.
+          Se guardaron las preguntas que alcanzaste a resolver antes de que venciera el plazo.
+        </p>
+      )}
+
+      {!tiempoAgotado && !aprobado && (
+        <p className="mt-2 text-[13px] text-uva-muted">
+          Te quedaste sin vidas antes de responder bien todas las preguntas.
         </p>
       )}
 
       {falladas.length > 0 && (
         <div className="mt-4 border-t border-uva-divider pt-4">
           <p className="text-[13px] font-semibold text-uva-text">
+            {/* "Sin resolver" y no "fallaste": con la cola de reintentos, acá
+                caen tanto las que falló como las que quedaron pendientes al
+                cerrarse el intento. */}
             {falladas.length === 1
-              ? "Fallaste esta pregunta:"
-              : `Fallaste estas ${falladas.length} preguntas:`}
+              ? "Te quedó sin resolver esta pregunta:"
+              : `Te quedaron sin resolver estas ${falladas.length} preguntas:`}
           </p>
           <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4">
             {falladas.map((pregunta) => (

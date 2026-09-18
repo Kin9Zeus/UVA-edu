@@ -65,7 +65,6 @@ export type ExamenDetalle = {
   id: string;
   titulo: string;
   instrucciones: DocumentoContenido | null;
-  notaAprobatoria: number;
   intentosMaximos: number | null;
   minutosLimite: number | null;
   aleatorizarPreguntas: boolean;
@@ -109,7 +108,7 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
   const { data: examen } = await supabase
     .from("examenes")
     .select(
-      `id, titulo, instrucciones, nota_aprobatoria, intentos_maximos, minutos_limite,
+      `id, titulo, instrucciones, intentos_maximos, minutos_limite,
        aleatorizar_preguntas, aleatorizar_opciones, publicado,
        preguntas_examen(id, tipo, enunciado, puntos, orden, opciones, respuestas_aceptadas, explicacion,
          id_leccion_origen, fragmento_origen, validada,
@@ -251,7 +250,6 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
     id: examen.id,
     titulo: examen.titulo,
     instrucciones: resolverContenidoLeccion(examen.instrucciones, null),
-    notaAprobatoria: examen.nota_aprobatoria,
     intentosMaximos: examen.intentos_maximos,
     minutosLimite: examen.minutos_limite,
     aleatorizarPreguntas: examen.aleatorizar_preguntas,

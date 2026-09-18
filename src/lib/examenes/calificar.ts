@@ -1,7 +1,7 @@
-import type {
-  PreguntaCongelada,
-  RespuestaEstudiante,
-  RespuestasIntento,
+import {
+  VIDAS_INICIALES,
+  type PreguntaCongelada,
+  type RespuestaEstudiante,
 } from "@/lib/examenes/tipos";
 
 /**
@@ -43,11 +43,14 @@ export function normalizarRespuestaCorta(texto: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-/** Ids marcados, sin duplicados y en orden estable, para comparar conjuntos. */
+/** Ids marcados, sin duplicados y en orden estable, para comparar conjuntos.
+ * Solo lo usan los tipos de opciones (nunca EMPAREJAR, que se resuelve
+ * aparte arriba) — el `Record` de EMPAREJAR no es una lista de ids. */
 function conjuntoDeIds(valor: RespuestaEstudiante | undefined): string[] {
   if (valor === undefined) return [];
   const lista = Array.isArray(valor) ? valor : [valor];
-  return [...new Set(lista.filter((id) => typeof id === "string" && id !== ""))].sort();
+  const idsDeTexto = lista.filter((id): id is string => typeof id === "string" && id !== "");
+  return [...new Set(idsDeTexto)].sort();
 }
 
 /**
@@ -64,6 +67,24 @@ export function calificarPregunta(
   pregunta: PreguntaCongelada,
   respuesta: RespuestaEstudiante | undefined,
 ): boolean {
+  if (pregunta.tipo === "EMPAREJAR") {
+    const pares = pregunta.paresDerecha ?? [];
+    // Sin pares no debería existir (mismo caso que "sin ninguna opción
+    // correcta" abajo), pero si se colara no puede darse por acertada por
+    // coincidencia de dos conjuntos vacíos.
+    if (pares.length === 0) return false;
+    if (typeof respuesta !== "object" || respuesta === null || Array.isArray(respuesta)) return false;
+
+    const mapa = respuesta as Record<string, string>;
+    // Todo o nada, como el resto de tipos: `par.id` es la llave del lado
+    // izquierdo (lo que el estudiante manda como clave del mapa) y
+    // `par.idMostrado` es el id OPACO del elemento de la derecha que eligió
+    // — nunca `par.id` en ambos lados, porque eso sería la respuesta
+    // correcta viajando tal cual (ver el comentario de `ParEmparejar`).
+    if (Object.keys(mapa).length !== pares.length) return false;
+    return pares.every((par) => mapa[par.id] === par.idMostrado);
+  }
+
   if (pregunta.tipo === "RELLENAR_ESPACIO") {
     if (typeof respuesta !== "string") return false;
     const normalizada = normalizarRespuestaCorta(respuesta);
@@ -91,49 +112,21 @@ export function calificarPregunta(
   return marcadas.every((id, indice) => id === correctas[indice]);
 }
 
-export type ResultadoIntento = {
-  /** 0-100, redondeado a dos decimales (la columna es DECIMAL(5,2)). */
-  puntajePct: number;
-  puntosObtenidos: number;
-  puntosPosibles: number;
-  aprobado: boolean;
-  /** Ids de las preguntas falladas o sin responder, para el detalle del
-   * resultado. No incluye cuál era la respuesta correcta: mientras al
-   * estudiante le queden intentos, eso le entregaría el examen. */
-  preguntasFalladas: string[];
-};
-
-export function calificarIntento(
-  preguntas: PreguntaCongelada[],
-  respuestas: RespuestasIntento,
-  notaRequerida: number,
-): ResultadoIntento {
-  let puntosObtenidos = 0;
-  let puntosPosibles = 0;
-  const preguntasFalladas: string[] = [];
-
-  for (const pregunta of preguntas) {
-    puntosPosibles += pregunta.puntos;
-    if (calificarPregunta(pregunta, respuestas[pregunta.id])) {
-      puntosObtenidos += pregunta.puntos;
-    } else {
-      preguntasFalladas.push(pregunta.id);
-    }
-  }
-
-  // Un examen sin preguntas no se aprueba por división vacía. La app impide
-  // publicar un examen así (`motivosParaNoPublicarExamen`), pero el intento
-  // podría haber quedado congelado antes de que se borrara la última.
-  const puntajePct =
-    puntosPosibles > 0 ? Math.round((puntosObtenidos / puntosPosibles) * 10000) / 100 : 0;
-
-  return {
-    puntajePct,
-    puntosObtenidos,
-    puntosPosibles,
-    aprobado: puntosPosibles > 0 && puntajePct >= notaRequerida,
-    preguntasFalladas,
-  };
+/**
+ * Vidas restantes del intento: `VIDAS_INICIALES` menos los fallos acumulados
+ * en `ProgresoIntento.fallos`. Única fuente de verdad — la usan tanto
+ * `responderPregunta` (Server Action que escribe) como `getIntentoEnCurso`
+ * (la pantalla que retoma un intento a medias) y `getResultadoIntento`; si
+ * divergieran, la UI mostraría un número de corazones distinto al que el
+ * servidor usa para decidir si el intento ya se cerró.
+ *
+ * Ya no se pueden contar las respuestas incorrectas de `resueltas`: con la
+ * cola de reintentos, una pregunta fallada y luego acertada solo deja en
+ * `resueltas` su respuesta correcta final. El contador de fallos es el único
+ * sitio donde queda ese rastro.
+ */
+export function calcularVidasRestantes(fallos: number): number {
+  return Math.max(0, VIDAS_INICIALES - fallos);
 }
 
 /**

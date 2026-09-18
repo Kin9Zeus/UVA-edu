@@ -1,6 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { barajar } from "@/lib/examenes/calificar";
-import { esTipoImplementado, type PreguntaCongelada } from "@/lib/examenes/tipos";
+import {
+  esTipoImplementado,
+  type ParEmparejar,
+  type ParEmparejarCongelado,
+  type PreguntaCongelada,
+} from "@/lib/examenes/tipos";
 
 /**
  * Congela las preguntas de un examen para un intento nuevo.
@@ -36,6 +42,35 @@ export async function congelarPreguntas(
     // excluye del intento en vez de congelarse y contar como fallada siempre.
     .filter((pregunta) => esTipoImplementado(pregunta.tipo))
     .map((pregunta) => {
+      // EMPAREJAR guarda sus pares en la misma columna `opciones`, con otra
+      // forma (ParEmparejar en vez de OpcionPregunta) — se congela aparte.
+      if (pregunta.tipo === "EMPAREJAR") {
+        const pares = (pregunta.opciones ?? []) as ParEmparejar[];
+        // `idMostrado` por INTENTO (no por examen): es el id que de verdad
+        // ve el estudiante para cada elemento de la derecha, generado acá y
+        // nunca antes — así, aunque alguien inspeccione el HTML, el id no
+        // delata con cuál elemento de la izquierda va (ver ParEmparejar).
+        const paresConIdMostrado: ParEmparejarCongelado[] = pares.map((par) => ({
+          ...par,
+          idMostrado: randomUUID(),
+        }));
+        return {
+          id: pregunta.id as string,
+          tipo: pregunta.tipo,
+          enunciado: pregunta.enunciado,
+          puntos: pregunta.puntos as number,
+          opciones: null,
+          respuestasAceptadas: [],
+          paresIzquierda: aleatorizarOpciones ? barajar(pares) : pares,
+          // SIEMPRE barajada, sin condicionar a `aleatorizarOpciones`: a
+          // diferencia de una lista de opciones plana, dejar las dos
+          // columnas en el mismo orden relativo ES la respuesta (la fila n
+          // de la izquierda sería la pareja de la fila n de la derecha),
+          // no una decisión legítima del admin.
+          paresDerecha: barajar(paresConIdMostrado),
+        };
+      }
+
       const opciones = (pregunta.opciones ?? null) as PreguntaCongelada["opciones"];
       return {
         id: pregunta.id as string,
@@ -44,6 +79,8 @@ export async function congelarPreguntas(
         puntos: pregunta.puntos as number,
         opciones: opciones && aleatorizarOpciones ? barajar(opciones) : opciones,
         respuestasAceptadas: (pregunta.respuestas_aceptadas ?? []) as string[],
+        paresIzquierda: null,
+        paresDerecha: null,
       };
     });
 

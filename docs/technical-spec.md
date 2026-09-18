@@ -237,11 +237,11 @@ el estudiante nunca la lee — recibe las preguntas ya despojadas desde
 | :---- | :---- | :---- |
 | **id** | UUID (Primary Key) | Identificador único |
 | **id\_examen** | UUID (Foreign Key) | Examen al que pertenece (ON DELETE CASCADE) |
-| **tipo** | Enum TipoPregunta | v1: OPCION\_UNICA, OPCION\_MULTIPLE, VERDADERO\_FALSO, RELLENAR\_ESPACIO |
+| **tipo** | Enum TipoPregunta | Implementados: OPCION\_UNICA, OPCION\_MULTIPLE, VERDADERO\_FALSO, RELLENAR\_ESPACIO, EMPAREJAR. El enum de Postgres ya declara además ORDENAR\_PASOS y RESPUESTA\_ABIERTA (Fase 2, sin UI ni calificación) — `TIPOS_IMPLEMENTADOS` (`src/lib/examenes/tipos.ts`) es el único punto que decide cuáles acepta la app hoy |
 | **enunciado** | JSONB | Documento Tiptap |
-| **puntos** | Int | Default 1. CHECK `>= 1 AND <= 100`. El puntaje se pondera por puntos, no por número de preguntas |
+| **puntos** | Int | Default 1. CHECK `>= 1 AND <= 100`. Hoy no pondera nada: al eliminarse el criterio por porcentaje, todas las preguntas pesan igual (hay que acertarlas todas). Se conserva por si vuelve una calificación ponderada |
 | **orden** | Int | Fraccionado, igual que módulos y lecciones (`src/lib/orden.ts`) |
-| **opciones** | JSONB (nullable) | `[{ id, texto, correcta }]` para los tipos de opciones |
+| **opciones** | JSONB (nullable) | `[{ id, texto, correcta }]` para los tipos de opciones; `[{ id, izquierda, derecha }]` para EMPAREJAR (mismo id ata cada par, nunca se expone como "correcta"). Sin CHECK de forma en la base — la valida `preguntaEntradaSchema` (zod) según `tipo` |
 | **respuestas\_aceptadas** | Text\[\] | Solo RELLENAR\_ESPACIO. Se comparan normalizadas (sin mayúsculas, tildes ni signos) |
 | **explicacion** | JSONB (nullable) | Feedback interno; no se le muestra al estudiante en la v1 |
 
@@ -256,10 +256,10 @@ por Server Actions con Service Role tras verificar identidad y acceso.
 | **id\_examen** | UUID (Foreign Key) | Examen rendido |
 | **id\_usuario** | UUID (FK, ON DELETE RESTRICT) | Un intento es evidencia de evaluación: no cascadea con el perfil |
 | **estado** | Enum EstadoIntentoExamen | EN\_CURSO, APROBADO, REPROBADO, EN\_REVISION |
-| **puntaje\_pct** | Decimal(5,2) (nullable) | 0-100. `null` mientras EN\_CURSO |
-| **nota\_requerida** | Int | Copia de `nota_aprobatoria` al iniciar: subir la exigencia después no reprueba a quien ya pasó |
+| **puntaje\_pct** | Decimal(5,2) (nullable) | 0-100. `null` mientras EN\_CURSO. **Informativo**: proporción de preguntas resueltas al cerrar. Ya no decide aprobado/reprobado; se sigue escribiendo porque la columna es NOT NULL al cerrar y tiene CHECK de rango |
+| **nota\_requerida** | Int | Copia histórica de `nota_aprobatoria` al iniciar. **Sin uso**: no queda ningún lector — se sigue escribiendo al crear el intento solo porque la columna es NOT NULL |
 | **preguntas\_congeladas** | JSONB | Las preguntas tal como se le presentaron a ESE estudiante, ya aleatorizadas, con sus respuestas correctas |
-| **respuestas** | JSONB | Respuestas dadas, indexadas por id de pregunta. Se reescribe en cada autoguardado |
+| **respuestas** | JSONB | `ProgresoIntento` (`src/lib/examenes/tipos.ts`): `{ resueltas, fallos, cola }` — las preguntas ya acertadas con su respuesta final, el contador de respuestas incorrectas (de donde salen las vidas) y los ids pendientes EN ORDEN. Sin CHECK de forma en la base; la convención es de la capa de aplicación, y `parsearProgreso` es el único lector. No hay autoguardado de borrador: se reescribe al confirmar cada respuesta |
 | **iniciado\_en / finalizado\_en** | DateTime | Timestamptz |
 | **expira\_en** | DateTime (nullable) | Corte por tiempo, congelado al iniciar. El servidor valida contra esto, nunca contra el reloj del cliente |
 
@@ -267,9 +267,15 @@ por Server Actions con Service Role tras verificar identidad y acceso.
 
 > * `intentos_examen_uno_en_curso` — índice **parcial** UNIQUE sobre (id\_usuario, id\_examen) WHERE estado \= 'EN\_CURSO'. Dos pestañas abiertas no pueden gastar dos intentos.
 > * `intentos_examen_cerrado_tiene_puntaje` — CHECK que impide un intento cerrado sin puntaje o uno EN\_CURSO con nota.
-> * `examenes_nota_aprobatoria_minima` — CHECK del piso de 75%.
+> * `examenes_nota_aprobatoria_minima` — CHECK del piso de 75% sobre `examenes.nota_aprobatoria`. La columna **se conserva tal cual** (default 75) pero ya no la escribe ni la lee ningún código: aprobar dejó de ser un umbral por porcentaje. No hizo falta migración para quitar el criterio, solo dejar de usarla.
 
 **Intentos por rondas, no de por vida:** `calcularDisponibilidad` (`src/lib/examen.ts`) es la única fuente de verdad de cuándo un estudiante puede iniciar un intento — la usan tanto `iniciarIntento` (Server Action) como `getSituacionExamen` (pantalla previa), así que nunca pueden divergir. `intentos_maximos` no limita el total histórico de intentos: es el tamaño de una ronda. Con `cerrados.length % intentosMaximos === 0` (ronda recién agotada), el cooldown pasa de `COOLDOWN_REINTENTO_MINUTOS` (15 min) a `COOLDOWN_AGOTADO_HORAS` (5h); al cumplirse, vuelve a estar disponible con una ronda nueva. No hay ningún estado permanente de "sin intentos" — el estudiante siempre recupera acceso solo, sin admin de por medio.
+
+**Aprobar = vaciar la cola. Reprobar = quedarse sin vidas.** No hay criterio por porcentaje, y por tanto tampoco una función `calificarIntento`: `responderPregunta` (`src/actions/examenes/intento.ts`) decide el veredicto con la cola y se lo pasa hecho a `cerrarIntento`, que solo escribe. Acertar saca la pregunta del frente de `ProgresoIntento.cola`; fallar la empuja al final y suma 1 a `fallos`. El intento cierra cuando `cola.length === 0` (APROBADO, `puntaje_pct` = 100 por construcción) o cuando las vidas llegan a 0 (REPROBADO inmediato, sin importar lo que quede en la cola). El cierre por tiempo (`enviarIntento` y la rama `vencido` de `responderPregunta`) **siempre reprueba**: terminar el examen completo es la única forma de aprobar.
+
+**Vidas, derivadas y no persistidas:** `calcularVidasRestantes(fallos)` (`src/lib/examenes/calificar.ts`) es la única fuente de verdad — la usan `responderPregunta` (Server Action que escribe), `getIntentoEnCurso` (retomar un intento a medias) y `getResultadoIntento`, mismo criterio que `calcularDisponibilidad` para el cooldown. No hay columna `vidas_restantes`: se calcula como `VIDAS_INICIALES` (constante, 5, fija para toda la plataforma — no es un campo de `examenes`) menos `ProgresoIntento.fallos`. **No** se cuentan las respuestas incorrectas guardadas: con la cola de reintentos, una pregunta fallada y luego acertada solo deja en `resueltas` su respuesta buena, así que el contador es el único rastro del fallo. `RespuestaEstudiante` (`src/lib/examenes/tipos.ts`) se extendió a `string | string[] | Record<string,string>` para poder representar el mapeo de pares de EMPAREJAR.
+
+**El orden lo manda el servidor:** con la cola de reintentos, "la siguiente pregunta" no es la del índice de al lado. `getIntentoEnCurso` devuelve `preguntaActualId` (= `cola[0]`) y cada `responderPregunta` que no cierra devuelve `siguientePreguntaId`; `ExamenRendir.tsx` solo los aplica. La validación de orden en el servidor es exactamente `preguntaId === cola[0]`.
 
 **Intento extra otorgado por admin:** `otorgarIntentoExtra` (`src/actions/admin/examenes.ts`) crea un intento directo con Service Role para saltarse la espera larga (no para "desbloquear" algo que de otro modo quedaría cerrado — nunca lo está). Reusa `congelarPreguntas` (`src/lib/examenes/congelar.ts`), compartida con el flujo del estudiante para que un intento otorgado por admin tenga exactamente la misma forma que uno iniciado normalmente.
 

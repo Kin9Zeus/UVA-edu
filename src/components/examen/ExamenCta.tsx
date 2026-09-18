@@ -30,21 +30,16 @@ export function ExamenCta({
     switch (situacion.situacion) {
       case "APROBADO":
         return {
-          icono: <CheckCircle2 className="size-4 text-uva-success" aria-hidden />,
+          icono: <CheckCircle2 className="size-4 text-uva-success-text" aria-hidden />,
           titulo: "Examen aprobado",
-          detalle: "Completaste el curso. Tu certificado está listo.",
+          detalle: situacion.certificadoListo
+            ? "Completaste el curso. Tu certificado está listo."
+            : "Ya aprobaste el examen. Termina las clases que te falten para recibir tu certificado.",
           etiquetaBoton: "Ver resultado",
-        };
-      case "BLOQUEADO":
-        return {
-          icono: <Lock className="size-4 text-uva-muted" aria-hidden />,
-          titulo: "Examen final",
-          detalle: `Se habilita al terminar todas las clases. Necesitas ${situacion.examen.notaAprobatoria}% para aprobar.`,
-          etiquetaBoton: "Ver requisitos",
         };
       case "EN_CURSO":
         return {
-          icono: <Clock className="size-4 text-uva-warn" aria-hidden />,
+          icono: <Clock className="size-4 text-uva-warning-text" aria-hidden />,
           titulo: "Tienes un examen en curso",
           detalle: "Retómalo donde lo dejaste.",
           etiquetaBoton: "Continuar examen",
@@ -58,7 +53,7 @@ export function ExamenCta({
               etiquetaBoton: "Ver cuándo",
             }
           : {
-              icono: <Clock className="size-4 text-uva-warn" aria-hidden />,
+              icono: <Clock className="size-4 text-uva-warning-text" aria-hidden />,
               titulo: "Examen pendiente",
               detalle: "Puedes volver a intentarlo en un rato.",
               etiquetaBoton: "Ver cuándo",
@@ -67,7 +62,8 @@ export function ExamenCta({
         return {
           icono: <FileText className="size-4 text-uva-accent" aria-hidden />,
           titulo: "Examen final disponible",
-          detalle: `Apruébalo con ${situacion.examen.notaAprobatoria}% o más para completar el curso y recibir tu certificado.`,
+          detalle:
+            "Responde bien todas las preguntas sin quedarte sin vidas para completar el curso y recibir tu certificado.",
           etiquetaBoton: situacion.intentosUsados > 0 ? "Reintentar examen" : "Presentar examen",
         };
     }
