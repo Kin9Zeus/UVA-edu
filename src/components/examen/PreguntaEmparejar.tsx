@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 /**
  * Paleta de colores por pareja (tokens en src/app/globals.css). Cada entrada
@@ -161,65 +161,77 @@ export function PreguntaEmparejar({
     );
   }
 
+  // Filas de a dos, no dos columnas independientes: `izquierdas[i]` y
+  // `derechas[i]` se emiten seguidas para que el grid las ponga en la MISMA
+  // fila (auto-flow por fila, dos columnas). Con `items-stretch` (el default
+  // de CSS Grid) cada fila estira sus dos celdas a la altura de la más alta
+  // de las dos, sin necesidad de una altura fija ni recortar texto — la
+  // tarjeta con más texto define el alto de esa fila, y la de al lado la
+  // sigue. Filas distintas SÍ pueden tener alturas distintas entre sí; lo
+  // que no puede pasar es que la izquierda y la derecha de la MISMA fila se
+  // vean de tamaños distintos, que era el problema original.
+  const filas = Math.max(izquierdas.length, derechas.length);
+
   return (
     <div
       className={`grid grid-cols-2 gap-2 ${resultado === "mal" ? "animate-uva-sacudir" : resultado === "bien" ? "animate-uva-pop" : ""}`}
       role="group"
       aria-label="Relaciona cada elemento de la izquierda con su pareja"
     >
-      <div className="flex flex-col gap-2">
-        {izquierdas.map((item) => {
-          const armado = item.id in valor;
-          const activa = seleccionada === item.id;
-          const numero = numeroDe.get(item.id);
-          const esUltimoIntento = ultimoIntento === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={disabled}
-              aria-pressed={armado || activa}
-              onClick={() => tocarIzquierda(item.id)}
-              // `h-20` fijo (no `min-h`) a propósito: dos tarjetas del mismo
-              // ancho pero alto distinto por su texto se veían como módulos
-              // de tamaños distintos. `line-clamp-3` recorta el texto que no
-              // entra en esa altura en vez de estirar la tarjeta.
-              className={`flex h-20 items-center gap-2 rounded-uva-md border px-2.5 py-2 text-left text-[13.5px] leading-snug transition-colors disabled:cursor-default ${estilo(armado, activa, numero, esUltimoIntento)}`}
-            >
-              {insignia(numero, armado ? "armado" : activa ? "activa" : "neutral", esUltimoIntento)}
-              <span className="line-clamp-3 min-w-0">{item.texto}</span>
-            </button>
-          );
-        })}
-      </div>
+      {Array.from({ length: filas }, (_, fila) => {
+        const izquierda = izquierdas[fila];
+        const derecha = derechas[fila];
 
-      <div className="flex flex-col gap-2">
-        {derechas.map((item) => {
-          const duena = izquierdaDe.get(item.id);
-          const armado = duena !== undefined;
-          const numero = armado ? numeroDe.get(duena) : undefined;
-          const esUltimoIntento = duena !== undefined && duena === ultimoIntento;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={disabled || (!armado && seleccionada === null)}
-              aria-pressed={armado}
-              aria-label={armado ? `${item.texto}, emparejada con el ${numero}` : item.texto}
-              onClick={() => tocarDerecha(item.id)}
-              className={`flex h-20 items-center gap-2 rounded-uva-md border px-2.5 py-2 text-left text-[13.5px] leading-snug transition-colors disabled:cursor-default ${estilo(
-                armado,
-                false,
-                numero,
-                esUltimoIntento,
-              )} ${!armado && seleccionada !== null ? "border-dashed border-uva-accent/60" : ""}`}
-            >
-              {insignia(numero, armado ? "armado" : "neutral", esUltimoIntento)}
-              <span className="line-clamp-3 min-w-0">{item.texto}</span>
-            </button>
-          );
-        })}
-      </div>
+        return (
+          <Fragment key={izquierda?.id ?? `izq-vacia-${fila}`}>
+            {izquierda &&
+              (() => {
+                const armado = izquierda.id in valor;
+                const activa = seleccionada === izquierda.id;
+                const numero = numeroDe.get(izquierda.id);
+                const esUltimoIntento = ultimoIntento === izquierda.id;
+                return (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={armado || activa}
+                    onClick={() => tocarIzquierda(izquierda.id)}
+                    className={`flex h-full min-h-11 items-center gap-2 rounded-uva-md border px-2.5 py-2 text-left text-[13.5px] leading-snug transition-colors disabled:cursor-default ${estilo(armado, activa, numero, esUltimoIntento)}`}
+                  >
+                    {insignia(numero, armado ? "armado" : activa ? "activa" : "neutral", esUltimoIntento)}
+                    <span className="min-w-0">{izquierda.texto}</span>
+                  </button>
+                );
+              })()}
+
+            {derecha &&
+              (() => {
+                const duena = izquierdaDe.get(derecha.id);
+                const armado = duena !== undefined;
+                const numero = armado ? numeroDe.get(duena) : undefined;
+                const esUltimoIntento = duena !== undefined && duena === ultimoIntento;
+                return (
+                  <button
+                    type="button"
+                    disabled={disabled || (!armado && seleccionada === null)}
+                    aria-pressed={armado}
+                    aria-label={armado ? `${derecha.texto}, emparejada con el ${numero}` : derecha.texto}
+                    onClick={() => tocarDerecha(derecha.id)}
+                    className={`flex h-full min-h-11 items-center gap-2 rounded-uva-md border px-2.5 py-2 text-left text-[13.5px] leading-snug transition-colors disabled:cursor-default ${estilo(
+                      armado,
+                      false,
+                      numero,
+                      esUltimoIntento,
+                    )} ${!armado && seleccionada !== null ? "border-dashed border-uva-accent/60" : ""}`}
+                  >
+                    {insignia(numero, armado ? "armado" : "neutral", esUltimoIntento)}
+                    <span className="min-w-0">{derecha.texto}</span>
+                  </button>
+                );
+              })()}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
