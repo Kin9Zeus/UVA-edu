@@ -13,6 +13,7 @@ const VIDEOS: VideoConTranscripcion[] = [
 
 function pregunta(videoId: string, sourceFragment: string): GeneratedQuestion {
   return {
+    tipo: "OPCION_UNICA",
     videoId,
     question: "¿?",
     options: ["a", "b", "c", "d"],
@@ -160,6 +161,7 @@ describe("validarPreguntasGeneradas", () => {
  */
 describe("detectarReferenciasAlMaterial", () => {
   const pregunta = (question: string): GeneratedQuestion => ({
+    tipo: "OPCION_UNICA",
     videoId: "11111111-1111-4111-8111-111111111111",
     question,
     options: ["a", "b", "c", "d"],

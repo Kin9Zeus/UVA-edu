@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TIPOS_IMPLEMENTADOS, type TipoPreguntaImplementado } from "@/lib/examenes/tipos";
 
 /**
  * Contratos del pipeline "generar el examen de un curso a partir de las
@@ -74,14 +75,43 @@ export type DisparadorGeneracion = (typeof DISPARADORES_GENERACION)[number];
 export const TOTAL_PREGUNTAS_MINIMO = 1;
 export const TOTAL_PREGUNTAS_MAXIMO = 60;
 
-/** Opciones por pregunta. Fijo en 4: el prompt las pide así y
- * `aOpcionesPregunta()` asume esa forma al mapear `correctAnswerIndex`. */
+/** Opciones por pregunta en los tipos de opción fija (OPCION_UNICA /
+ * OPCION_MULTIPLE). Fijo en 4: el prompt las pide así y
+ * `aOpcionesPregunta()` asume esa forma al mapear los índices correctos. */
 export const OPCIONES_POR_PREGUNTA = 4;
 
 /** Tope de palabras del fragmento citado. El prompt lo pide y el schema lo
  * impone: un "fragmento" de 200 palabras es la transcripción entera y deja de
  * ser evidencia de nada — validaría siempre. */
 export const MAXIMO_PALABRAS_FRAGMENTO = 20;
+
+/**
+ * Pares por pregunta EMPAREJAR generada por IA.
+ *
+ * Rango propio, distinto de `MAXIMO_PARES_EMPAREJAR` (el tope del CMS para
+ * una pregunta escrita a mano, que llega a 8): acá el mínimo importa tanto
+ * como el máximo. Con 2 pares el emparejamiento se responde por descarte sin
+ * saber ninguno de los dos; con más de 6 el modelo empieza a forzar
+ * relaciones débiles solo para llenar cupo. El máximo se queda por debajo del
+ * techo del CMS a propósito, para que un administrador que quiera una
+ * pregunta más grande la complete a mano, no que la IA la infle.
+ */
+export const MINIMO_PARES_EMPAREJAR_GENERADOS = 3;
+export const MAXIMO_PARES_EMPAREJAR_GENERADOS = 6;
+
+/** Respuestas aceptadas por pregunta RELLENAR_ESPACIO generada. Entre 1 y 3:
+ * suficiente para cubrir variantes obvias ("APU" / "Análisis de Precios
+ * Unitarios") sin que el modelo liste sinónimos vagos que aceptan cualquier
+ * cosa. */
+export const MAXIMO_RESPUESTAS_ACEPTADAS_GENERADAS = 3;
+
+/** Correctas exigidas en OPCION_MULTIPLE generada. El piso es 2 y no 1: con
+ * una sola correcta la pregunta es indistinguible de OPCION_UNICA y el
+ * "elige todas las que apliquen" del enunciado mentiría. El techo dejando
+ * siempre al menos una incorrecta lo impone ya `preguntaEntradaSchema`
+ * (src/lib/examenes/tipos.ts) — "no todas las opciones pueden ser
+ * correctas" — así que se reproduce acá con la misma razón. */
+export const MINIMO_CORRECTAS_OPCION_MULTIPLE = 2;
 
 /**
  * Techo de transcripciones que se mandan en una sola llamada.
@@ -111,29 +141,121 @@ export type VideoConTranscripcion = {
 // ------------------------------------------------------------
 
 /**
- * Una pregunta tal como la devuelve el modelo.
- *
- * Forma deliberadamente más simple que `PreguntaCompleta`
- * (src/lib/examenes/tipos.ts): texto plano en vez de documento Tiptap, e
- * índice de la correcta en vez de `[{ id, texto, correcta }]`. El modelo no
- * tiene por qué conocer el formato interno del CMS, y pedirle JSON de
- * ProseMirror es superficie extra para que se equivoque.
- *
- * La traducción a la forma del CMS ocurre en un solo sitio,
- * `persistirPreguntasGeneradas()`.
+ * Tipos que el generador puede producir. Los mismos cinco que el CMS sabe
+ * calificar sola (`TIPOS_IMPLEMENTADOS`, src/lib/examenes/tipos.ts) — no una
+ * lista aparte: si mañana se habilita un sexto tipo ahí, este módulo lo ve
+ * automáticamente y falta escribirle su rama de schema y su caso en
+ * `persistirPreguntasGeneradas()`, no acordarse de agregarlo a otra lista.
  */
-export const preguntaGeneradaSchema = z.object({
+export const TIPOS_GENERABLES = TIPOS_IMPLEMENTADOS;
+
+/** Campos que TODA pregunta generada lleva, sin importar el tipo. Es lo que
+ * compara `tipos.test.ts` contra cada rama del schema de Gemini, y lo que
+ * `validaPromptSistema()` exige en un prompt propio: sin `sourceFragment` no
+ * hay forma de comprobar que el modelo no inventó la pregunta; sin `tipo` no
+ * hay forma de saber cómo guardarla. */
+export const CAMPOS_PREGUNTA_GENERADA = ["tipo", "videoId", "question", "sourceFragment"] as const;
+
+const camposComunes = {
   /** A cuál video pertenece. Se verifica contra los videos realmente
    * enviados: el modelo puede inventarse un id, y una pregunta con un
    * `videoId` desconocido no se puede ni validar ni guardar. */
   videoId: z.string().min(1),
   question: z.string().trim().min(1).max(1000),
-  options: z
-    .array(z.string().trim().min(1).max(500))
-    .length(OPCIONES_POR_PREGUNTA),
-  correctAnswerIndex: z.number().int().min(0).max(OPCIONES_POR_PREGUNTA - 1),
   sourceFragment: z.string().trim().min(1).max(1000),
+};
+
+/**
+ * Una pregunta tal como la devuelve el modelo — unión discriminada por
+ * `tipo`, una rama por cada entrada de `TIPOS_GENERABLES`.
+ *
+ * Formas deliberadamente más simples que `PreguntaCompleta`
+ * (src/lib/examenes/tipos.ts): texto plano en vez de documento Tiptap, e
+ * índices/booleanos en vez de `[{ id, texto, correcta }]` o `ParEmparejar[]`
+ * con ids. El modelo no tiene por qué conocer el formato interno del CMS ni
+ * inventar identificadores estables, y pedirle JSON de ProseMirror o UUIDs es
+ * superficie extra para que se equivoque.
+ *
+ * La traducción a la forma del CMS —donde sí nacen esos ids— ocurre en un
+ * solo sitio, `persistirPreguntasGeneradas()`.
+ */
+export const preguntaOpcionUnicaSchema = z.object({
+  ...camposComunes,
+  tipo: z.literal("OPCION_UNICA"),
+  options: z.array(z.string().trim().min(1).max(500)).length(OPCIONES_POR_PREGUNTA),
+  correctAnswerIndex: z.number().int().min(0).max(OPCIONES_POR_PREGUNTA - 1),
 });
+
+export const preguntaOpcionMultipleSchema = z.object({
+  ...camposComunes,
+  tipo: z.literal("OPCION_MULTIPLE"),
+  options: z.array(z.string().trim().min(1).max(500)).length(OPCIONES_POR_PREGUNTA),
+  /** Índices (base 0) de las opciones correctas. Se exige más de una y menos
+   * que el total en el propio schema (`.refine`) y no solo en
+   * `preguntaEntradaSchema` del CMS: una pregunta con una sola correcta o con
+   * todas correctas nunca debería llegar a `persistirPreguntasGeneradas()`
+   * para empezar, ni siquiera como "generada pero inválida". */
+  correctAnswerIndices: z
+    .array(z.number().int().min(0).max(OPCIONES_POR_PREGUNTA - 1))
+    .min(MINIMO_CORRECTAS_OPCION_MULTIPLE)
+    .max(OPCIONES_POR_PREGUNTA - 1)
+    .refine((indices) => new Set(indices).size === indices.length, "Índices repetidos."),
+});
+
+export const preguntaVerdaderoFalsoSchema = z.object({
+  ...camposComunes,
+  tipo: z.literal("VERDADERO_FALSO"),
+  /** `question` es la AFIRMACIÓN a calificar (no una pregunta con signos de
+   * interrogación): "El acero de refuerzo se mide en kg", no "¿El acero...?".
+   * El prompt lo pide así porque es la convención natural del tipo en el CMS. */
+  correctAnswer: z.boolean(),
+});
+
+export const preguntaRellenarEspacioSchema = z.object({
+  ...camposComunes,
+  tipo: z.literal("RELLENAR_ESPACIO"),
+  /** Variantes que califican como correctas. Se comparan ignorando
+   * mayúsculas, tildes y signos (`normalizarRespuestaCorta`,
+   * src/lib/examenes/calificar.ts), así que "APU" y "apu" son la MISMA
+   * variante — el modelo no necesita listar las dos. */
+  acceptedAnswers: z
+    .array(z.string().trim().min(1).max(200))
+    .min(1)
+    .max(MAXIMO_RESPUESTAS_ACEPTADAS_GENERADAS),
+});
+
+const parGeneradoSchema = z.object({
+  left: z.string().trim().min(1).max(200),
+  right: z.string().trim().min(1).max(200),
+});
+
+export const preguntaEmparejarSchema = z.object({
+  ...camposComunes,
+  tipo: z.literal("EMPAREJAR"),
+  /** `question` es la INSTRUCCIÓN del emparejamiento ("Relaciona cada
+   * herramienta con su función"), no una afirmación ni una pregunta cerrada:
+   * el estudiante ve dos columnas, no un enunciado con opciones. */
+  pairs: z
+    .array(parGeneradoSchema)
+    .min(MINIMO_PARES_EMPAREJAR_GENERADOS)
+    .max(MAXIMO_PARES_EMPAREJAR_GENERADOS)
+    .refine(
+      (pares) => new Set(pares.map((par) => par.left.trim().toLowerCase())).size === pares.length,
+      "Elementos repetidos en la columna izquierda.",
+    )
+    .refine(
+      (pares) => new Set(pares.map((par) => par.right.trim().toLowerCase())).size === pares.length,
+      "Elementos repetidos en la columna derecha.",
+    ),
+});
+
+export const preguntaGeneradaSchema = z.discriminatedUnion("tipo", [
+  preguntaOpcionUnicaSchema,
+  preguntaOpcionMultipleSchema,
+  preguntaVerdaderoFalsoSchema,
+  preguntaRellenarEspacioSchema,
+  preguntaEmparejarSchema,
+]);
 
 export type GeneratedQuestion = z.infer<typeof preguntaGeneradaSchema>;
 
@@ -145,89 +267,187 @@ export const respuestaGeneracionSchema = z.object({
 
 /**
  * El MISMO contrato, escrito en el dialecto de Gemini (`responseSchema`, un
- * subconjunto de OpenAPI 3.0).
+ * subconjunto de OpenAPI 3.0) — una rama de `anyOf` por tipo, en vez de un
+ * solo `OBJECT` con propiedades opcionales.
  *
- * Son dos schemas y no uno derivado del otro a propósito, aunque `z.toJSONSchema()`
- * exista en Zod 4: `responseJsonSchema` de Gemini solo admite una lista corta
- * de palabras clave —`type`, `items`, `properties`, `required`, `enum`,
+ * NO se derivan una de otra, aunque `z.toJSONSchema()` exista en Zod 4:
+ * `responseSchema` de Gemini solo admite una lista corta de palabras clave
+ * —`type`, `items`, `properties`, `required`, `enum`, `anyOf`,
  * `minItems`/`maxItems`, `minimum`/`maximum`…— que NO incluye
- * `minLength`/`maxLength`, y este schema los usa en casi todos los campos.
+ * `minLength`/`maxLength`, y estos schemas los usan en casi todos los campos.
  * Convertir automáticamente produciría un schema con propiedades que el
  * servidor ignora o rechaza, y el fallo aparecería como un 400 opaco.
  *
- * La división del trabajo entre los dos es la que importa:
+ * `anyOf` (y no discriminar por `enum` de una sola forma) es lo que permite
+ * que cada rama tenga SUS PROPIOS campos obligatorios: sin esto, un `OBJECT`
+ * único tendría que declarar `options`, `correctAnswerIndex`,
+ * `correctAnswerIndices`, `correctAnswer`, `acceptedAnswers` y `pairs` como
+ * opcionales a la vez, y nada le impediría al modelo mezclar campos de dos
+ * tipos en la misma pregunta.
  *
- *   ESQUEMA_RESPUESTA_GEMINI  fuerza la FORMA (el modelo no puede devolver
- *                             otra cosa; es una garantía del decodificador).
+ * La división del trabajo entre los dos esquemas es la que importa:
+ *
+ *   ESQUEMA_RESPUESTA_GEMINI  fuerza la FORMA de cada rama (el modelo no
+ *                             puede devolver otra cosa; es una garantía del
+ *                             decodificador).
  *   respuestaGeneracionSchema valida el CONTENIDO (longitudes, rangos, que
- *                             `correctAnswerIndex` apunte a una opción real).
+ *                             los índices apunten a una opción real, que no
+ *                             se repitan los pares).
  *
  * Que el segundo sea más estricto es correcto y deliberado: la forma la
  * garantiza el servidor, los límites de negocio los seguimos comprobando
- * nosotros. `tipos.test.ts` verifica que los dos enumeren los mismos campos,
- * para que agregar uno al schema de Zod y olvidarlo acá falle en CI y no en
- * producción — mismo criterio que `DISPARADORES_GENERACION` contra su CHECK.
+ * nosotros. `tipos.test.ts` verifica que las dos enumeren los mismos campos
+ * por rama, para que agregar uno al schema de Zod y olvidarlo acá falle en CI
+ * y no en producción — mismo criterio que `DISPARADORES_GENERACION` contra su
+ * CHECK.
  */
+const descripcionVideoId = "El videoId EXACTO, copiado literal, del video al que pertenece la pregunta.";
+const descripcionFragmento =
+  `Frase TEXTUAL de máximo ${MAXIMO_PALABRAS_FRAGMENTO} palabras, copiada literal de la ` +
+  "transcripción de ESE video. Se verifica automáticamente contra la transcripción: " +
+  "si no aparece tal cual, la pregunta se descarta.";
+
+const esquemaOpcionUnica = {
+  type: "OBJECT",
+  properties: {
+    tipo: { type: "STRING", enum: ["OPCION_UNICA"] },
+    videoId: { type: "STRING", description: descripcionVideoId },
+    question: { type: "STRING", description: "El enunciado de la pregunta." },
+    options: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      minItems: OPCIONES_POR_PREGUNTA,
+      maxItems: OPCIONES_POR_PREGUNTA,
+      description: `Exactamente ${OPCIONES_POR_PREGUNTA} opciones.`,
+    },
+    correctAnswerIndex: {
+      type: "INTEGER",
+      minimum: 0,
+      maximum: OPCIONES_POR_PREGUNTA - 1,
+      description: "Índice (base 0) de la ÚNICA opción correcta dentro de `options`.",
+    },
+    sourceFragment: { type: "STRING", description: descripcionFragmento },
+  },
+  required: ["tipo", "videoId", "question", "options", "correctAnswerIndex", "sourceFragment"],
+  propertyOrdering: ["tipo", "videoId", "question", "options", "correctAnswerIndex", "sourceFragment"],
+} as const;
+
+const esquemaOpcionMultiple = {
+  type: "OBJECT",
+  properties: {
+    tipo: { type: "STRING", enum: ["OPCION_MULTIPLE"] },
+    videoId: { type: "STRING", description: descripcionVideoId },
+    question: { type: "STRING", description: "El enunciado de la pregunta, dejando claro que hay varias correctas." },
+    options: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      minItems: OPCIONES_POR_PREGUNTA,
+      maxItems: OPCIONES_POR_PREGUNTA,
+      description: `Exactamente ${OPCIONES_POR_PREGUNTA} opciones.`,
+    },
+    correctAnswerIndices: {
+      type: "ARRAY",
+      items: { type: "INTEGER", minimum: 0, maximum: OPCIONES_POR_PREGUNTA - 1 },
+      minItems: MINIMO_CORRECTAS_OPCION_MULTIPLE,
+      maxItems: OPCIONES_POR_PREGUNTA - 1,
+      description:
+        `Índices (base 0) de TODAS las opciones correctas: al menos ${MINIMO_CORRECTAS_OPCION_MULTIPLE} y ` +
+        "nunca todas las opciones.",
+    },
+    sourceFragment: { type: "STRING", description: descripcionFragmento },
+  },
+  required: ["tipo", "videoId", "question", "options", "correctAnswerIndices", "sourceFragment"],
+  propertyOrdering: ["tipo", "videoId", "question", "options", "correctAnswerIndices", "sourceFragment"],
+} as const;
+
+const esquemaVerdaderoFalso = {
+  type: "OBJECT",
+  properties: {
+    tipo: { type: "STRING", enum: ["VERDADERO_FALSO"] },
+    videoId: { type: "STRING", description: descripcionVideoId },
+    question: {
+      type: "STRING",
+      description: "Una AFIRMACIÓN (no una pregunta) que el estudiante califica como verdadera o falsa.",
+    },
+    correctAnswer: { type: "BOOLEAN", description: "true si la afirmación es verdadera, false si es falsa." },
+    sourceFragment: { type: "STRING", description: descripcionFragmento },
+  },
+  required: ["tipo", "videoId", "question", "correctAnswer", "sourceFragment"],
+  propertyOrdering: ["tipo", "videoId", "question", "correctAnswer", "sourceFragment"],
+} as const;
+
+const esquemaRellenarEspacio = {
+  type: "OBJECT",
+  properties: {
+    tipo: { type: "STRING", enum: ["RELLENAR_ESPACIO"] },
+    videoId: { type: "STRING", description: descripcionVideoId },
+    question: {
+      type: "STRING",
+      description: "Pregunta con respuesta corta y objetiva (un término, una cifra, un nombre).",
+    },
+    acceptedAnswers: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      minItems: 1,
+      maxItems: MAXIMO_RESPUESTAS_ACEPTADAS_GENERADAS,
+      description: "Variantes válidas de la respuesta (por ejemplo una sigla y su forma completa).",
+    },
+    sourceFragment: { type: "STRING", description: descripcionFragmento },
+  },
+  required: ["tipo", "videoId", "question", "acceptedAnswers", "sourceFragment"],
+  propertyOrdering: ["tipo", "videoId", "question", "acceptedAnswers", "sourceFragment"],
+} as const;
+
+const esquemaEmparejar = {
+  type: "OBJECT",
+  properties: {
+    tipo: { type: "STRING", enum: ["EMPAREJAR"] },
+    videoId: { type: "STRING", description: descripcionVideoId },
+    question: {
+      type: "STRING",
+      description: "La INSTRUCCIÓN del emparejamiento (ej. «Relaciona cada término con su definición»).",
+    },
+    pairs: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          left: { type: "STRING" },
+          right: { type: "STRING" },
+        },
+        required: ["left", "right"],
+        propertyOrdering: ["left", "right"],
+      },
+      minItems: MINIMO_PARES_EMPAREJAR_GENERADOS,
+      maxItems: MAXIMO_PARES_EMPAREJAR_GENERADOS,
+      description: "Pares elemento-pareja, sin repetir texto en ninguna de las dos columnas.",
+    },
+    sourceFragment: { type: "STRING", description: descripcionFragmento },
+  },
+  required: ["tipo", "videoId", "question", "pairs", "sourceFragment"],
+  propertyOrdering: ["tipo", "videoId", "question", "pairs", "sourceFragment"],
+} as const;
+
+export const ESQUEMAS_POR_TIPO = {
+  OPCION_UNICA: esquemaOpcionUnica,
+  OPCION_MULTIPLE: esquemaOpcionMultiple,
+  VERDADERO_FALSO: esquemaVerdaderoFalso,
+  RELLENAR_ESPACIO: esquemaRellenarEspacio,
+  EMPAREJAR: esquemaEmparejar,
+} as const satisfies Record<TipoPreguntaImplementado, unknown>;
+
 export const ESQUEMA_RESPUESTA_GEMINI = {
   type: "OBJECT",
   properties: {
     questions: {
       type: "ARRAY",
       items: {
-        type: "OBJECT",
-        properties: {
-          videoId: {
-            type: "STRING",
-            description: "El videoId EXACTO, copiado literal, del video al que pertenece la pregunta.",
-          },
-          question: { type: "STRING", description: "El enunciado de la pregunta." },
-          options: {
-            type: "ARRAY",
-            items: { type: "STRING" },
-            minItems: OPCIONES_POR_PREGUNTA,
-            maxItems: OPCIONES_POR_PREGUNTA,
-            description: `Exactamente ${OPCIONES_POR_PREGUNTA} opciones.`,
-          },
-          correctAnswerIndex: {
-            type: "INTEGER",
-            minimum: 0,
-            maximum: OPCIONES_POR_PREGUNTA - 1,
-            description: "Índice (base 0) de la opción correcta dentro de `options`.",
-          },
-          sourceFragment: {
-            type: "STRING",
-            description:
-              `Frase TEXTUAL de máximo ${MAXIMO_PALABRAS_FRAGMENTO} palabras, copiada literal de la ` +
-              "transcripción de ESE video. Se verifica automáticamente contra la transcripción: " +
-              "si no aparece tal cual, la pregunta se descarta.",
-          },
-        },
-        required: ["videoId", "question", "options", "correctAnswerIndex", "sourceFragment"],
-        // Fija el orden en que el modelo emite los campos. Sin esto el orden es
-        // arbitrario, lo que no rompe el parseo pero sí ensucia los diffs al
-        // depurar una respuesta guardada.
-        propertyOrdering: [
-          "videoId",
-          "question",
-          "options",
-          "correctAnswerIndex",
-          "sourceFragment",
-        ],
+        anyOf: Object.values(ESQUEMAS_POR_TIPO),
       },
     },
   },
   required: ["questions"],
 } as const;
-
-/** Campos de una pregunta, en un solo sitio: lo que compara `tipos.test.ts`
- * entre el schema de Zod y el de Gemini. */
-export const CAMPOS_PREGUNTA_GENERADA = [
-  "videoId",
-  "question",
-  "options",
-  "correctAnswerIndex",
-  "sourceFragment",
-] as const;
 
 // ------------------------------------------------------------
 // Errores

@@ -1,7 +1,12 @@
 import {
   CAMPOS_PREGUNTA_GENERADA,
   MAXIMO_PALABRAS_FRAGMENTO,
+  MAXIMO_PARES_EMPAREJAR_GENERADOS,
+  MAXIMO_RESPUESTAS_ACEPTADAS_GENERADAS,
+  MINIMO_CORRECTAS_OPCION_MULTIPLE,
+  MINIMO_PARES_EMPAREJAR_GENERADOS,
   OPCIONES_POR_PREGUNTA,
+  TIPOS_GENERABLES,
   type VideoConTranscripcion,
 } from "./tipos";
 
@@ -47,8 +52,8 @@ const MARCADOR_PALABRAS = "{maximoPalabrasFragmento}";
 const PROMPT_POR_DEFECTO = [
   "Eres un generador de exámenes para un curso online. Vas a recibir la",
   "transcripción de varios videos del mismo curso, cada uno identificado por",
-  `su ID y título. Genera EXACTAMENTE ${MARCADOR_PREGUNTAS} preguntas de opción`,
-  "múltiple EN TOTAL para todo el curso, nivel bajo-intermedio.",
+  `su ID y título. Genera EXACTAMENTE ${MARCADOR_PREGUNTAS} preguntas EN TOTAL`,
+  "para todo el curso, nivel bajo-intermedio.",
   "",
   "TÚ ELIGES QUÉ PREGUNTAR. No tienes que cubrir todas las lecciones: escoge",
   "los conceptos más importantes y evaluables del curso, los que alguien que",
@@ -69,9 +74,56 @@ const PROMPT_POR_DEFECTO = [
   "ninguna referencia al material. Pregunta directamente por el concepto:",
   "en vez de «¿Qué explica el video sobre X?», escribe «¿Qué es X?».",
   "",
-  "Para cada pregunta incluye: videoId (a cuál video pertenece), question,",
-  `options (${MARCADOR_OPCIONES}), correctAnswerIndex, sourceFragment (frase textual de máx ${MARCADOR_PALABRAS}`,
-  "palabras tomada de la transcripción de ESE video).",
+  "TAMBIÉN ELIGES QUÉ TIPO usar en cada pregunta, según qué encaje mejor con el",
+  `concepto — no fuerces siempre el mismo. Hay ${TIPOS_GENERABLES.length} tipos disponibles,`,
+  "marcados en el campo tipo:",
+  "",
+  "  OPCION_UNICA      Varias opciones, una sola correcta. El comodín: úsalo",
+  "                    para un concepto que se explica mejor distinguiéndolo",
+  "                    de alternativas parecidas pero incorrectas.",
+  "                    Campos: options (4 opciones), correctAnswerIndex.",
+  "",
+  "  OPCION_MULTIPLE   Varias opciones correctas a la vez. Solo cuando el",
+  "                    concepto de verdad tiene más de una respuesta válida",
+  "                    (p. ej. \"¿cuáles de estos son...?\") — nunca lo uses",
+  `                    para forzar variedad si en realidad hay una sola`,
+  "                    correcta, eso es OPCION_UNICA.",
+  "                    Campos: options (4 opciones), correctAnswerIndices",
+  `                    (al menos ${MINIMO_CORRECTAS_OPCION_MULTIPLE}, nunca todas).`,
+  "",
+  "  VERDADERO_FALSO   Una AFIRMACIÓN (no una pregunta) que se califica como",
+  "                    verdadera o falsa. Para un hecho puntual y sin matices;",
+  "                    si la afirmación admite \"depende\", no es este tipo.",
+  "                    Campos: question (la afirmación), correctAnswer.",
+  "",
+  "  RELLENAR_ESPACIO  El estudiante escribe la respuesta, sin opciones. Para",
+  "                    un término técnico, una sigla, una cifra o un nombre",
+  "                    corto y objetivo — nunca para algo que admita explicarse",
+  "                    con varias frases distintas.",
+  "                    Campos: acceptedAnswers (1 a",
+  `                    ${MAXIMO_RESPUESTAS_ACEPTADAS_GENERADAS} variantes válidas de la MISMA respuesta,`,
+  "                    p. ej. una sigla y su forma completa).",
+  "",
+  "  EMPAREJAR         El estudiante relaciona cada elemento de una columna",
+  "                    con su pareja de la otra. Úsalo SOLO cuando la lección",
+  `                    define ${MINIMO_PARES_EMPAREJAR_GENERADOS} o más pares término-definición,`,
+  "                    paso-resultado o herramienta-función — no lo fuerces",
+  "                    con pares débiles solo por variar el examen.",
+  "                    Campos: question (la instrucción, no una pregunta",
+  `                    cerrada), pairs (entre ${MINIMO_PARES_EMPAREJAR_GENERADOS} y`,
+  `                    ${MAXIMO_PARES_EMPAREJAR_GENERADOS} objetos { left, right }, sin repetir texto en`,
+  "                    ninguna de las dos columnas).",
+  "",
+  "No repartas los tipos por cuota ni los alternes por turnos: usa OPCION_UNICA",
+  "como base y cambia a otro tipo solo cuando el concepto concreto lo pide de",
+  "verdad. Un examen de puras EMPAREJAR o VERDADERO_FALSO sería tan malo como",
+  "uno de puras OPCION_UNICA forzadas donde el concepto pedía otra cosa.",
+  "",
+  "Todos los tipos comparten estos campos: tipo (uno de los cinco de arriba),",
+  "videoId (a cuál video pertenece), question,",
+  `sourceFragment (frase textual de máx ${MARCADOR_PALABRAS}`,
+  "palabras tomada de la transcripción de ESE video, además de los campos",
+  "propios que se listan en cada tipo).",
   "",
   "Responde SOLO en JSON: un array de preguntas.",
 ].join("\n");
@@ -111,6 +163,19 @@ export function validaPromptSistema(prompt: string): void {
         "El esquema de respuesta exige esos campos y el validador de fragmentos depende de " +
         "sourceFragment: un prompt que no los pida produce exámenes vacíos sin dar ningún error. " +
         `Campos obligatorios: ${CAMPOS_PREGUNTA_GENERADA.join(", ")}.`,
+    );
+  }
+
+  // Mismo razonamiento que arriba, pero para el TIPO: el esquema de Gemini
+  // (`anyOf`, una rama por tipo) acepta las cinco formas igual sin importar lo
+  // que diga el prompt, así que un prompt que se olvide de mencionar
+  // EMPAREJAR no lo bloquea — solo hace mucho menos probable que el modelo lo
+  // elija nunca, y esa degradación no deja rastro en ningún log.
+  const tiposFaltantes = TIPOS_GENERABLES.filter((tipo) => !prompt.includes(tipo));
+  if (tiposFaltantes.length > 0) {
+    throw new Error(
+      `GEMINI_SYSTEM_PROMPT no menciona el tipo ${tiposFaltantes.join(", ")}. ` +
+        `Tipos que el pipeline sabe guardar: ${TIPOS_GENERABLES.join(", ")}.`,
     );
   }
 

@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { construirSystemPrompt, validaPromptSistema } from "./prompt";
-import { CAMPOS_PREGUNTA_GENERADA } from "./tipos";
+import { CAMPOS_PREGUNTA_GENERADA, TIPOS_GENERABLES } from "./tipos";
 
 /** Un prompt propio mínimo que SÍ cumple el contrato, para partir de él. */
 const PROMPT_VALIDO =
-  "Genera {totalPreguntas} preguntas en total. Devuelve videoId, question, " +
-  "options, correctAnswerIndex y sourceFragment (frase textual de la transcripción).";
+  "Genera {totalPreguntas} preguntas en total. Usa el tipo que mejor encaje: " +
+  `${TIPOS_GENERABLES.join(", ")}. Devuelve tipo, videoId, question ` +
+  "y sourceFragment (frase textual de la transcripción) en cada una.";
 
 afterEach(() => {
   delete process.env.GEMINI_SYSTEM_PROMPT;
@@ -72,9 +73,8 @@ describe("validaPromptSistema", () => {
       expect.unreachable("debió lanzar");
     } catch (error) {
       const mensaje = (error as Error).message;
+      expect(mensaje).toContain("tipo");
       expect(mensaje).toContain("question");
-      expect(mensaje).toContain("options");
-      expect(mensaje).toContain("correctAnswerIndex");
       expect(mensaje).toContain("sourceFragment");
     }
   });
@@ -94,6 +94,20 @@ describe("validaPromptSistema", () => {
     for (const campo of CAMPOS_PREGUNTA_GENERADA) {
       const sinEse = PROMPT_VALIDO.replaceAll(campo, "");
       expect(() => validaPromptSistema(sinEse)).toThrow(new RegExp(campo));
+    }
+  });
+
+  /**
+   * Mismo mecanismo, pero para el TIPO: un prompt propio que se olvide de
+   * mencionar un tipo no rompe el esquema de Gemini (que sigue aceptando las
+   * cinco formas da igual lo que diga el texto), pero sí hace mucho menos
+   * probable que el modelo lo elija nunca — una degradación silenciosa que
+   * esta guarda convierte en un error explícito al desplegar.
+   */
+  it("exige que el prompt mencione cada tipo generable, sin duplicar la lista", () => {
+    for (const tipo of TIPOS_GENERABLES) {
+      const sinEse = PROMPT_VALIDO.replaceAll(tipo, "");
+      expect(() => validaPromptSistema(sinEse)).toThrow(new RegExp(tipo));
     }
   });
 });

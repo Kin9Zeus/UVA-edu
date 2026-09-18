@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DocumentoContenido } from "@/lib/editor/tipos";
-import type { OpcionPregunta } from "@/lib/examenes/tipos";
+import type { OpcionPregunta, ParEmparejar } from "@/lib/examenes/tipos";
 import { ESPACIO_ORDEN } from "@/lib/orden";
 import type { PreguntaValidada } from "./validar";
 
@@ -29,7 +29,11 @@ export function textoADocumento(texto: string): DocumentoContenido {
 }
 
 /**
- * Convierte `options` + `correctAnswerIndex` a la forma que guarda el CMS.
+ * Convierte `options` + los índices correctos a la forma que guarda el CMS.
+ * Sirve tanto para OPCION_UNICA (un solo índice) como para OPCION_MULTIPLE
+ * (varios): al CMS le da igual cuántas `OpcionPregunta.correcta` haya en la
+ * lista, es `preguntaEntradaSchema` quien decide qué combinación es válida
+ * para cada `tipo` — acá solo se traduce la forma.
  *
  * Los ids se generan acá con `crypto.randomUUID()`, igual que cuando un
  * administrador crea una opción a mano: son lo que el estudiante manda como
@@ -39,13 +43,117 @@ export function textoADocumento(texto: string): DocumentoContenido {
  */
 export function aOpcionesPregunta(
   options: string[],
-  correctAnswerIndex: number,
+  correctAnswerIndices: number[],
 ): OpcionPregunta[] {
+  const correctas = new Set(correctAnswerIndices);
   return options.map((texto, indice) => ({
     id: crypto.randomUUID(),
     texto: texto.trim(),
-    correcta: indice === correctAnswerIndex,
+    correcta: correctas.has(indice),
   }));
+}
+
+/**
+ * VERDADERO_FALSO no llega con `options` del modelo (ver
+ * `preguntaVerdaderoFalsoSchema`): solo con la afirmación y si es cierta. Las
+ * dos opciones fijas ("Verdadero" / "Falso") nacen acá, en el mismo formato
+ * que si un administrador las hubiera escrito a mano — es lo que
+ * `preguntaEntradaSchema` exige para este tipo (exactamente dos opciones, una
+ * correcta).
+ */
+export function aOpcionesVerdaderoFalso(correctAnswer: boolean): OpcionPregunta[] {
+  return [
+    { id: crypto.randomUUID(), texto: "Verdadero", correcta: correctAnswer },
+    { id: crypto.randomUUID(), texto: "Falso", correcta: !correctAnswer },
+  ];
+}
+
+/**
+ * Convierte los `pairs` del modelo (`{ left, right }`, sin identidad) a
+ * `ParEmparejar[]` (con `id` — ver el comentario de `ParEmparejar` en
+ * src/lib/examenes/tipos.ts sobre por qué ese id nunca puede filtrarse al
+ * estudiante como el id del elemento de la derecha).
+ */
+export function aParesEmparejar(pairs: { left: string; right: string }[]): ParEmparejar[] {
+  return pairs.map(({ left, right }) => ({
+    id: crypto.randomUUID(),
+    izquierda: left.trim(),
+    derecha: right.trim(),
+  }));
+}
+
+/**
+ * La fila que se inserta en `preguntas_examen`, ya traducida al `tipo` de
+ * cada pregunta.
+ *
+ * Existe como función aparte —en vez de un `.map` con un `switch` inline—
+ * porque cada rama toca una columna distinta (`opciones` o
+ * `respuestas_aceptadas`) y mezclarlas en un solo objeto grande invitaría a
+ * dejar la otra con el valor por defecto equivocado para ese tipo.
+ */
+function aFilaPregunta(
+  pregunta: PreguntaValidada,
+  examenId: string,
+  orden: number,
+): {
+  id_examen: string;
+  tipo: PreguntaValidada["tipo"];
+  enunciado: unknown;
+  puntos: number;
+  orden: number;
+  opciones: OpcionPregunta[] | ParEmparejar[] | null;
+  respuestas_aceptadas: string[];
+  id_leccion_origen: string;
+  fragmento_origen: string;
+  validada: true;
+} {
+  const base = {
+    id_examen: examenId,
+    enunciado: textoADocumento(pregunta.question) as never,
+    puntos: 1,
+    orden,
+    id_leccion_origen: pregunta.videoId,
+    fragmento_origen: pregunta.sourceFragment,
+    validada: true as const,
+  };
+
+  switch (pregunta.tipo) {
+    case "OPCION_UNICA":
+      return {
+        ...base,
+        tipo: "OPCION_UNICA",
+        opciones: aOpcionesPregunta(pregunta.options, [pregunta.correctAnswerIndex]),
+        respuestas_aceptadas: [],
+      };
+    case "OPCION_MULTIPLE":
+      return {
+        ...base,
+        tipo: "OPCION_MULTIPLE",
+        opciones: aOpcionesPregunta(pregunta.options, pregunta.correctAnswerIndices),
+        respuestas_aceptadas: [],
+      };
+    case "VERDADERO_FALSO":
+      return {
+        ...base,
+        tipo: "VERDADERO_FALSO",
+        opciones: aOpcionesVerdaderoFalso(pregunta.correctAnswer),
+        respuestas_aceptadas: [],
+      };
+    case "RELLENAR_ESPACIO":
+      return {
+        ...base,
+        tipo: "RELLENAR_ESPACIO",
+        opciones: null,
+        respuestas_aceptadas: pregunta.acceptedAnswers,
+      };
+    case "EMPAREJAR":
+      return {
+        ...base,
+        tipo: "EMPAREJAR",
+        opciones: aParesEmparejar(pregunta.pairs),
+        respuestas_aceptadas: [],
+      };
+  }
 }
 
 /**
@@ -55,10 +163,11 @@ export function aOpcionesPregunta(
  * sin validar sería guardar una pregunta que quizá inventa contenido, en una
  * tabla que decide quién obtiene certificado.
  *
- * Todas se guardan como OPCION_UNICA: es lo que produce el prompt (4 opciones,
- * una correcta) y es uno de los cuatro tipos que la v1 califica sola
- * (`TIPOS_IMPLEMENTADOS`). El resto de tipos se siguen creando a mano desde el
- * CMS.
+ * Cada pregunta se guarda con el `tipo` que el modelo eligió — uno de los
+ * cinco de `TIPOS_GENERABLES` (los mismos que el CMS sabe calificar sola,
+ * `TIPOS_IMPLEMENTADOS`) — traducido a la forma del CMS por `aFilaPregunta()`.
+ * No hay un tipo por defecto: `preguntaGeneradaSchema` ya rechazó cualquier
+ * pregunta sin uno de los cinco válidos antes de llegar acá.
  *
  * El examen queda con `publicado = false` — siempre, incluso al regenerar uno
  * que ya estaba publicado. Un examen generado por un modelo no se le pone
@@ -142,20 +251,11 @@ export async function persistirPreguntasGeneradas(
   // `orden` fraccionado con el mismo espaciado que usa el drag & drop del CMS
   // (src/lib/orden.ts), para que reordenar a mano después no obligue a
   // reespaciar toda la lista de entrada.
-  const filas = preguntas.map((pregunta, indice) => ({
-    id_examen: examenId,
-    tipo: "OPCION_UNICA" as const,
-    enunciado: textoADocumento(pregunta.question) as never,
-    puntos: 1,
-    orden: (indice + 1) * ESPACIO_ORDEN,
-    opciones: aOpcionesPregunta(pregunta.options, pregunta.correctAnswerIndex) as never,
-    respuestas_aceptadas: [],
-    id_leccion_origen: pregunta.videoId,
-    fragmento_origen: pregunta.sourceFragment,
-    validada: true,
-  }));
+  const filas = preguntas.map((pregunta, indice) =>
+    aFilaPregunta(pregunta, examenId, (indice + 1) * ESPACIO_ORDEN),
+  );
 
-  const { error: errorInsercion } = await admin.from("preguntas_examen").insert(filas);
+  const { error: errorInsercion } = await admin.from("preguntas_examen").insert(filas as never);
 
   if (errorInsercion) {
     throw new Error(`No se pudieron guardar las preguntas generadas: ${errorInsercion.message}`);

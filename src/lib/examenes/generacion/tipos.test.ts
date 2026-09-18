@@ -4,10 +4,20 @@ import { describe, expect, it } from "vitest";
 import {
   CAMPOS_PREGUNTA_GENERADA,
   DISPARADORES_GENERACION,
+  ESQUEMAS_POR_TIPO,
   ESQUEMA_RESPUESTA_GEMINI,
+  MAXIMO_PARES_EMPAREJAR_GENERADOS,
+  MINIMO_CORRECTAS_OPCION_MULTIPLE,
+  MINIMO_PARES_EMPAREJAR_GENERADOS,
   OPCIONES_POR_PREGUNTA,
+  TIPOS_GENERABLES,
   TranscripcionesFaltantesError,
+  preguntaEmparejarSchema,
   preguntaGeneradaSchema,
+  preguntaOpcionMultipleSchema,
+  preguntaOpcionUnicaSchema,
+  preguntaRellenarEspacioSchema,
+  preguntaVerdaderoFalsoSchema,
 } from "./tipos";
 
 const MIGRACION = join(
@@ -41,7 +51,8 @@ describe("DISPARADORES_GENERACION", () => {
 });
 
 describe("preguntaGeneradaSchema", () => {
-  const valida = {
+  const opcionUnica = {
+    tipo: "OPCION_UNICA" as const,
     videoId: "9f1c3b2a-0000-4000-8000-000000000001",
     question: "¿Qué controla la subdivisión de la luz?",
     options: ["El ruido", "El color", "La cámara", "El formato"],
@@ -49,13 +60,13 @@ describe("preguntaGeneradaSchema", () => {
     sourceFragment: "controla el ruido de la imagen final",
   };
 
-  it("acepta una pregunta bien formada", () => {
-    expect(preguntaGeneradaSchema.parse(valida)).toMatchObject({ correctAnswerIndex: 0 });
+  it("acepta una pregunta OPCION_UNICA bien formada", () => {
+    expect(preguntaGeneradaSchema.parse(opcionUnica)).toMatchObject({ correctAnswerIndex: 0 });
   });
 
   it("rechaza un número de opciones distinto del pactado", () => {
     expect(
-      preguntaGeneradaSchema.safeParse({ ...valida, options: ["Solo", "Dos"] }).success,
+      preguntaGeneradaSchema.safeParse({ ...opcionUnica, options: ["Solo", "Dos"] }).success,
     ).toBe(false);
   });
 
@@ -64,53 +75,215 @@ describe("preguntaGeneradaSchema", () => {
   // imposible de aprobar.
   it("rechaza un índice de respuesta fuera de rango", () => {
     expect(
-      preguntaGeneradaSchema.safeParse({ ...valida, correctAnswerIndex: OPCIONES_POR_PREGUNTA })
+      preguntaGeneradaSchema.safeParse({ ...opcionUnica, correctAnswerIndex: OPCIONES_POR_PREGUNTA })
         .success,
     ).toBe(false);
-    expect(preguntaGeneradaSchema.safeParse({ ...valida, correctAnswerIndex: -1 }).success).toBe(
+    expect(preguntaGeneradaSchema.safeParse({ ...opcionUnica, correctAnswerIndex: -1 }).success).toBe(
       false,
     );
   });
 
   it("rechaza una pregunta sin fragmento de origen", () => {
-    expect(preguntaGeneradaSchema.safeParse({ ...valida, sourceFragment: "   " }).success).toBe(
+    expect(preguntaGeneradaSchema.safeParse({ ...opcionUnica, sourceFragment: "   " }).success).toBe(
       false,
     );
+  });
+
+  it("rechaza un tipo que no existe", () => {
+    expect(preguntaGeneradaSchema.safeParse({ ...opcionUnica, tipo: "RELLENO" }).success).toBe(false);
+  });
+
+  describe("OPCION_MULTIPLE", () => {
+    const base = {
+      tipo: "OPCION_MULTIPLE" as const,
+      videoId: "v1",
+      question: "¿Cuáles de estos son materiales pétreos?",
+      options: ["Grava", "Acero", "Arena", "Madera"],
+      sourceFragment: "grava y arena son materiales pétreos",
+    };
+
+    it("acepta dos o más correctas sin llegar a todas", () => {
+      expect(
+        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0, 2] }).success,
+      ).toBe(true);
+    });
+
+    it("rechaza una sola correcta: eso es OPCION_UNICA, no OPCION_MULTIPLE", () => {
+      expect(
+        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0] }).success,
+      ).toBe(false);
+    });
+
+    it("rechaza índices repetidos", () => {
+      expect(
+        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0, 0] }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe("VERDADERO_FALSO", () => {
+    it("acepta una afirmación con su valor de verdad", () => {
+      const resultado = preguntaVerdaderoFalsoSchema.safeParse({
+        tipo: "VERDADERO_FALSO",
+        videoId: "v1",
+        question: "El concreto se mide en metros cúbicos.",
+        correctAnswer: true,
+        sourceFragment: "el concreto se mide en metros cúbicos",
+      });
+      expect(resultado.success).toBe(true);
+    });
+  });
+
+  describe("RELLENAR_ESPACIO", () => {
+    it("acepta entre una y varias respuestas aceptadas", () => {
+      const resultado = preguntaRellenarEspacioSchema.safeParse({
+        tipo: "RELLENAR_ESPACIO",
+        videoId: "v1",
+        question: "¿Cómo se llama el Análisis de Precios Unitarios, por su sigla?",
+        acceptedAnswers: ["APU"],
+        sourceFragment: "el Análisis de Precios Unitarios, o APU",
+      });
+      expect(resultado.success).toBe(true);
+    });
+
+    it("rechaza cero respuestas aceptadas: sería imposible de aprobar", () => {
+      const resultado = preguntaRellenarEspacioSchema.safeParse({
+        tipo: "RELLENAR_ESPACIO",
+        videoId: "v1",
+        question: "¿?",
+        acceptedAnswers: [],
+        sourceFragment: "da igual",
+      });
+      expect(resultado.success).toBe(false);
+    });
+  });
+
+  describe("EMPAREJAR", () => {
+    const pares = Array.from({ length: MINIMO_PARES_EMPAREJAR_GENERADOS }, (_, i) => ({
+      left: `Término ${i}`,
+      right: `Definición ${i}`,
+    }));
+
+    it("acepta el mínimo de pares", () => {
+      const resultado = preguntaEmparejarSchema.safeParse({
+        tipo: "EMPAREJAR",
+        videoId: "v1",
+        question: "Relaciona cada término con su definición.",
+        pairs: pares,
+        sourceFragment: "da igual",
+      });
+      expect(resultado.success).toBe(true);
+    });
+
+    it("rechaza menos pares que el mínimo: con dos se responde por descarte", () => {
+      const resultado = preguntaEmparejarSchema.safeParse({
+        tipo: "EMPAREJAR",
+        videoId: "v1",
+        question: "Relaciona.",
+        pairs: pares.slice(0, MINIMO_PARES_EMPAREJAR_GENERADOS - 1),
+        sourceFragment: "da igual",
+      });
+      expect(resultado.success).toBe(false);
+    });
+
+    it("rechaza texto repetido en la misma columna", () => {
+      const resultado = preguntaEmparejarSchema.safeParse({
+        tipo: "EMPAREJAR",
+        videoId: "v1",
+        question: "Relaciona.",
+        pairs: [...pares, { left: pares[0].left, right: "Otra definición" }],
+        sourceFragment: "da igual",
+      });
+      expect(resultado.success).toBe(false);
+    });
+
+    it("rechaza más pares que el máximo", () => {
+      const demasiados = Array.from({ length: MAXIMO_PARES_EMPAREJAR_GENERADOS + 1 }, (_, i) => ({
+        left: `Término ${i}`,
+        right: `Definición ${i}`,
+      }));
+      const resultado = preguntaEmparejarSchema.safeParse({
+        tipo: "EMPAREJAR",
+        videoId: "v1",
+        question: "Relaciona.",
+        pairs: demasiados,
+        sourceFragment: "da igual",
+      });
+      expect(resultado.success).toBe(false);
+    });
   });
 });
 
 describe("ESQUEMA_RESPUESTA_GEMINI", () => {
-  const propsPregunta = ESQUEMA_RESPUESTA_GEMINI.properties.questions.items.properties;
-
   /**
-   * El schema de Zod y el de Gemini son el mismo contrato escrito dos veces (no
-   * se puede derivar uno del otro: el dialecto de Gemini no admite
-   * `minLength`/`maxLength`). Este test es lo que impide que se separen.
+   * El schema de Zod y el de Gemini son el mismo contrato escrito dos veces
+   * (no se puede derivar uno del otro: el dialecto de Gemini no admite
+   * `minLength`/`maxLength`). Este test es lo que impide que se separen, rama
+   * por rama.
    *
-   * Sin él, agregar un campo al schema de Zod y olvidarlo en el de Gemini
-   * produce el peor fallo posible: el modelo nunca emite ese campo, Zod lo
-   * rechaza, y TODAS las preguntas se descartan en silencio salvo por un log.
+   * Sin él, agregar un campo a una rama de Zod y olvidarlo en su rama de
+   * Gemini produce el peor fallo posible: el modelo nunca emite ese campo,
+   * Zod lo rechaza, y TODAS las preguntas de ese tipo se descartan en
+   * silencio salvo por un log.
    */
-  it("enumera exactamente los mismos campos que el schema de Zod", () => {
-    const enZod = Object.keys(preguntaGeneradaSchema.shape).sort();
-    const enGemini = Object.keys(propsPregunta).sort();
+  const schemasPorTipo = {
+    OPCION_UNICA: preguntaOpcionUnicaSchema,
+    OPCION_MULTIPLE: preguntaOpcionMultipleSchema,
+    VERDADERO_FALSO: preguntaVerdaderoFalsoSchema,
+    RELLENAR_ESPACIO: preguntaRellenarEspacioSchema,
+    EMPAREJAR: preguntaEmparejarSchema,
+  } as const;
 
-    expect(enGemini).toEqual(enZod);
-    expect(enGemini).toEqual([...CAMPOS_PREGUNTA_GENERADA].sort());
+  it("tiene una rama de Gemini por cada tipo generable, ni una de más ni de menos", () => {
+    expect(Object.keys(ESQUEMAS_POR_TIPO).sort()).toEqual([...TIPOS_GENERABLES].sort());
   });
 
-  it("exige todos los campos: uno opcional dejaría pasar preguntas a medias", () => {
-    expect([...ESQUEMA_RESPUESTA_GEMINI.properties.questions.items.required].sort()).toEqual(
-      [...CAMPOS_PREGUNTA_GENERADA].sort(),
-    );
+  for (const tipo of TIPOS_GENERABLES) {
+    it(`${tipo}: enumera exactamente los mismos campos que su schema de Zod`, () => {
+      const enZod = Object.keys(schemasPorTipo[tipo].shape).sort();
+      const enGemini = Object.keys(ESQUEMAS_POR_TIPO[tipo].properties).sort();
+
+      expect(enGemini).toEqual(enZod);
+    });
+
+    it(`${tipo}: exige todos sus campos, uno opcional dejaría pasar preguntas a medias`, () => {
+      const enZod = Object.keys(schemasPorTipo[tipo].shape).sort();
+      expect([...ESQUEMAS_POR_TIPO[tipo].required].sort()).toEqual(enZod);
+    });
+  }
+
+  it("todas las ramas comparten los campos universales de CAMPOS_PREGUNTA_GENERADA", () => {
+    for (const tipo of TIPOS_GENERABLES) {
+      const enGemini = Object.keys(ESQUEMAS_POR_TIPO[tipo].properties);
+      for (const campo of CAMPOS_PREGUNTA_GENERADA) {
+        expect(enGemini).toContain(campo);
+      }
+    }
   });
 
   // Si estos límites se separan de OPCIONES_POR_PREGUNTA, el servidor deja
   // pasar un número de opciones que `aOpcionesPregunta()` no sabe mapear.
   it("fija el número de opciones al mismo valor que la constante", () => {
-    expect(propsPregunta.options.minItems).toBe(OPCIONES_POR_PREGUNTA);
-    expect(propsPregunta.options.maxItems).toBe(OPCIONES_POR_PREGUNTA);
-    expect(propsPregunta.correctAnswerIndex.maximum).toBe(OPCIONES_POR_PREGUNTA - 1);
+    expect(ESQUEMAS_POR_TIPO.OPCION_UNICA.properties.options.minItems).toBe(OPCIONES_POR_PREGUNTA);
+    expect(ESQUEMAS_POR_TIPO.OPCION_UNICA.properties.options.maxItems).toBe(OPCIONES_POR_PREGUNTA);
+    expect(ESQUEMAS_POR_TIPO.OPCION_UNICA.properties.correctAnswerIndex.maximum).toBe(
+      OPCIONES_POR_PREGUNTA - 1,
+    );
+  });
+
+  it("exige al menos el mínimo de correctas en OPCION_MULTIPLE", () => {
+    expect(ESQUEMAS_POR_TIPO.OPCION_MULTIPLE.properties.correctAnswerIndices.minItems).toBe(
+      MINIMO_CORRECTAS_OPCION_MULTIPLE,
+    );
+  });
+
+  it("fija el rango de pares de EMPAREJAR a las mismas constantes", () => {
+    expect(ESQUEMAS_POR_TIPO.EMPAREJAR.properties.pairs.minItems).toBe(
+      MINIMO_PARES_EMPAREJAR_GENERADOS,
+    );
+    expect(ESQUEMAS_POR_TIPO.EMPAREJAR.properties.pairs.maxItems).toBe(
+      MAXIMO_PARES_EMPAREJAR_GENERADOS,
+    );
   });
 
   // El dialecto de Gemini ignora o rechaza las palabras clave fuera de su
