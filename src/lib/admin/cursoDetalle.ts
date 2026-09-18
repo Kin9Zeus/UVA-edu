@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
-import { estadoDeCurso, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
+import { estadoDeCurso, porcentajeMostrado, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
 
 export type RecursoDetalle = {
@@ -271,7 +271,10 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       usuarioId: inscripcion.id_usuario,
       usuarioSlug: usuario?.slug ?? inscripcion.id_usuario,
       nombre: usuario?.nombre ?? "Usuario eliminado",
-      progreso: porcentaje,
+      // Mostrado, no el de lecciones: si ya aprobó el examen que exige el
+      // curso, la barra tiene que decir 100% aunque falten clases (ver
+      // `porcentajeMostrado`) — el mismo criterio que ya aplica `estado`.
+      progreso: porcentajeMostrado(porcentaje, examenDe(inscripcion.id_usuario)),
       estado:
         leccionIds.length > 0
           ? estadoDeCurso(porcentaje, examenDe(inscripcion.id_usuario))
@@ -309,7 +312,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
         usuarioId,
         usuarioSlug: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.slug ?? usuarioId,
         nombre: perfilesSinInscripcion?.find((perfil) => perfil.id === usuarioId)?.nombre ?? "Usuario eliminado",
-        progreso: porcentaje,
+        progreso: porcentajeMostrado(porcentaje, examenDe(usuarioId)),
         estado:
           leccionIds.length > 0 ? estadoDeCurso(porcentaje, examenDe(usuarioId)) : "EN_PROGRESO",
         tipoAcceso: "MEMBRESIA",

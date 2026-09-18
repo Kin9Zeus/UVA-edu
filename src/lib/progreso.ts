@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 
 export type CursoConProgreso = {
   cursoId: string;
@@ -75,13 +76,25 @@ export async function getProgresoData(): Promise<ProgresoData> {
       imagenPortada: fila.imagen_portada as string,
       leccionesCompletadas: completadas,
       leccionesTotal: total,
-      porcentaje,
+      // Mostrado, no el crudo de lecciones: si ya aprobó el examen que exige
+      // el curso, la barra tiene que decir 100% aunque falten clases — mismo
+      // criterio que `completado` más abajo, aplicado al número en vez de al
+      // booleano (ver `porcentajeMostrado`).
+      porcentaje: porcentajeMostrado(porcentaje, { requerido: examenRequerido, aprobado: examenAprobado }),
       examenRequerido,
       examenAprobado,
       // Antes esto era `porcentaje === 100` en la UI. Con exámenes, un curso
       // al 100% de clases con el examen sin aprobar NO está completo: no tiene
       // certificado, así que tampoco puede decir "Completado".
-      completado: porcentaje === 100 && (!examenRequerido || examenAprobado),
+      //
+      // Y si el curso EXIGE examen, aprobarlo basta aunque falten clases
+      // (Revf6, misma regla que `private.curso_esta_completo` en
+      // supabase/sql/114_certificado_no_exige_lecciones.sql y que
+      // `estadoDeCurso` en src/lib/examenes/estadoPorCurso.ts): el examen ya
+      // se puede rendir sin haber visto ninguna lección, así que negar el
+      // certificado por las clases sería exigir el requisito en un extremo
+      // del flujo y no en el otro.
+      completado: examenRequerido ? examenAprobado : porcentaje === 100,
       reanudarEn: null as CursoConProgreso["reanudarEn"],
     };
   });

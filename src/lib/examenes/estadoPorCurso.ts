@@ -59,17 +59,52 @@ export async function getEstadoExamenPorCurso(
 
 /**
  * La misma regla de "curso completo" que aplica el trigger de certificación
- * (private.curso_esta_completo, supabase/sql/068), en la forma de tres
- * estados que necesita el panel.
+ * (private.curso_esta_completo, supabase/sql/114_certificado_no_exige_lecciones.sql),
+ * en la forma de tres estados que necesita el panel.
  *
  * Un curso sin examen publicado no tiene entrada en el mapa, y entonces el
- * 100% de lecciones basta — igual que antes de que existieran los exámenes.
+ * 100% de lecciones sigue siendo lo único que exige — igual que antes de que
+ * existieran los exámenes.
+ *
+ * CUANDO EL CURSO EXIGE EXAMEN, APROBARLO BASTA (Revf6)
+ * ------------------------------------------------------
+ * Antes de este cambio, aprobar el examen sin haber visto el 100% de las
+ * clases dejaba el curso en "EN_PROGRESO" — un estudiante podía aprobar el
+ * examen y el panel de admin (lista de estudiantes, detalle de usuario) no
+ * reflejaba nada de eso hasta que también terminara el temario. Decisión de
+ * producto: el examen YA se puede rendir sin ver ninguna lección
+ * (`src/lib/examen.ts`, "acceso libre"), así que negarle la certificación por
+ * las clases era una regla a medias — exigía el examen en un extremo del
+ * flujo y las lecciones en el otro. Ahora basta con aprobar el examen.
  */
 export function estadoDeCurso(
   porcentajeLecciones: number,
   examen: EstadoExamenCurso | undefined,
 ): EstadoCursoConExamen {
-  if (porcentajeLecciones < 100) return "EN_PROGRESO";
-  if (examen?.requerido && !examen.aprobado) return "EXAMEN_PENDIENTE";
-  return "COMPLETADO";
+  if (examen?.requerido) {
+    if (examen.aprobado) return "COMPLETADO";
+    return porcentajeLecciones < 100 ? "EN_PROGRESO" : "EXAMEN_PENDIENTE";
+  }
+  return porcentajeLecciones < 100 ? "EN_PROGRESO" : "COMPLETADO";
+}
+
+/**
+ * El porcentaje que se MUESTRA junto al estado (barra de progreso del
+ * dashboard del estudiante, columna "Progreso" de `EstudiantesTab.tsx`,
+ * barra de `UsuarioDetalleView.tsx`) — no siempre el de lecciones vistas.
+ *
+ * Sin esto, un curso con el examen aprobado a medio temario quedaría con el
+ * badge "Completado" (de `estadoDeCurso`) al lado de una barra en 40%: la
+ * misma regla de negocio contada dos veces con resultados distintos, porque
+ * `estadoDeCurso` la aplica al ESTADO y nada la aplicaba al NÚMERO. Se
+ * exporta aparte de `estadoDeCurso` en vez de devolver los dos juntos porque
+ * los llamadores ya tienen el `porcentajeLecciones` calculado por su cuenta
+ * (para otras cosas: "3 de 10 clases", ordenar por avance) y no todos
+ * necesitan el número ajustado — solo el que se muestra en una barra.
+ */
+export function porcentajeMostrado(
+  porcentajeLecciones: number,
+  examen: EstadoExamenCurso | undefined,
+): number {
+  return examen?.requerido && examen.aprobado ? 100 : porcentajeLecciones;
 }

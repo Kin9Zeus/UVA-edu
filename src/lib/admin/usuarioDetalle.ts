@@ -3,6 +3,7 @@ import { estadoSuscripcionEfectivo, tipoAccesoGratuito, type TipoAccesoGratuito 
 import {
   estadoDeCurso,
   getEstadoExamenPorCurso,
+  porcentajeMostrado,
   type EstadoCursoConExamen,
 } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
@@ -264,7 +265,13 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     usuarioId,
   );
   for (const curso of cursos) {
-    curso.estado = estadoDeCurso(curso.progreso, estadoExamenes.get(curso.cursoId));
+    const examen = estadoExamenes.get(curso.cursoId);
+    curso.estado = estadoDeCurso(curso.progreso, examen);
+    // `curso.progreso` traía el crudo de lecciones (provisional, calculado
+    // antes de conocer el examen — ver los dos bloques de arriba); ahora que
+    // ya se resolvió el examen se ajusta igual que `estado`, para que la
+    // barra nunca diga menos de 100% al lado de un badge "Completado".
+    curso.progreso = porcentajeMostrado(curso.progreso, examen);
   }
 
   const progresoPromedio =
