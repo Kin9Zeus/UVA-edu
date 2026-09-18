@@ -248,7 +248,7 @@ export function CursoDetalleContent({
           )}
         </div>
 
-        <div className="order-3 lg:order-none">
+        <div className="order-3 min-w-0 lg:order-none">
           {curso.tieneAcceso ? (
             leccionDestinoSlug ? (
               <Button
@@ -256,13 +256,17 @@ export function CursoDetalleContent({
                 nativeButton={false}
                 variant="uva-primary"
                 size="uva"
-                className="min-h-12 flex-col gap-0.5 py-2"
+                className="min-h-12 max-w-full flex-col gap-0.5 overflow-hidden py-2"
               >
                 <span>
                   {siguiendoProgreso ? "Seguir viendo" : cursoCompletado ? "Repasar curso" : "Comenzar curso"}
                 </span>
                 {siguiendoProgreso && curso.leccionContinuarTitulo && (
-                  <span className="truncate text-[11.5px] font-normal opacity-80">
+                  // `w-full` + `min-w-0`: en la columna flex centrada del
+                  // botón, el span tomaba el ancho de su propio texto (no el
+                  // del botón) y `truncate` nunca cortaba — títulos largos se
+                  // salían del botón.
+                  <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal opacity-80">
                     Clase {curso.leccionContinuarNumero} · {curso.leccionContinuarTitulo}
                   </span>
                 )}
@@ -280,10 +284,10 @@ export function CursoDetalleContent({
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-12 flex-col gap-0.5 py-2"
+              className="min-h-12 max-w-full flex-col gap-0.5 overflow-hidden py-2"
             >
               <span>Renueva tu acceso</span>
-              <span className="truncate text-[11.5px] font-normal opacity-80">
+              <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal opacity-80">
                 {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
               </span>
             </Button>
