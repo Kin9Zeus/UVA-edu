@@ -1,18 +1,33 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
+import type { ReactNode } from "react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { IniciarExamenButton } from "@/components/examen/IniciarExamenButton";
+import { CuentaRegresiva } from "@/components/examen/CuentaRegresiva";
+import { Uvas } from "@/components/examen/Uvas";
+import { Cota } from "@/components/examen/Cota";
 import { COOLDOWN_REINTENTO_MINUTOS, VIDAS_INICIALES } from "@/lib/examenes/tipos";
 import type { ResultadoIntentoVista, SituacionExamen } from "@/lib/examen";
 
+type SituacionVisible = Exclude<SituacionExamen, { situacion: "SIN_EXAMEN" } | { situacion: "EN_CURSO" }>;
+
 /**
  * Todo lo que el estudiante ve del examen cuando NO está rindiéndolo: la
- * pantalla previa, el resultado del último intento, el bloqueo por lecciones
- * pendientes, la espera entre intentos y el estado final aprobado.
+ * pantalla previa, el resultado del último intento, la espera entre intentos
+ * y el estado final aprobado.
  *
- * Es un Server Component: nada de esto necesita interactividad salvo el botón
- * de iniciar, que sí es cliente.
+ * Es UNA sola pieza, no una pila de tarjetas: un panel con encabezado (el
+ * titular cambia según cómo le fue), una franja de métricas, la cota de
+ * progreso si ya hubo intento, el mensaje y las acciones al pie. Cada estado
+ * rellena las mismas zonas en vez de agregar bloques propios.
+ *
+ * Dice cuántas preguntas quedaron resueltas pero no cuáles faltaron ni cuál
+ * era la respuesta correcta: con intentos limitados, revelarlo convertiría el
+ * reintento en un trámite (docs/functional-spec.md Flujo 14).
+ *
+ * Es un Server Component: lo interactivo (iniciar, cuenta regresiva) son
+ * islas cliente.
  */
 export function ExamenIntro({
   situacion,
@@ -22,244 +37,241 @@ export function ExamenIntro({
   cursoTitulo,
   tiempoAgotado,
 }: {
-  situacion: Exclude<SituacionExamen, { situacion: "SIN_EXAMEN" } | { situacion: "EN_CURSO" }>;
+  situacion: SituacionVisible;
   /** Resultado del último intento cerrado, si hay uno que mostrar. */
   resultado: ResultadoIntentoVista | null;
   cursoId: string;
   cursoSlug: string;
   cursoTitulo: string;
   /** El intento se cerró solo porque se acabó el tiempo, no porque el
-   * estudiante lo enviara. Cambia el encabezado del resultado. */
+   * estudiante lo enviara. Cambia el titular del resultado. */
   tiempoAgotado: boolean;
 }) {
   const { examen } = situacion;
+  const aprobado = situacion.situacion === "APROBADO";
+  const reprobado = resultado !== null && !aprobado;
+  const correctas = resultado ? resultado.preguntas.filter((p) => p.acertada).length : 0;
+  const totalPreguntas = resultado?.preguntas.length ?? 0;
+
+  // ---------- Titular ----------
+  let titular: string;
+  let bajada: string | null;
+  if (aprobado) {
+    titular = "¡Aprobaste!";
+    bajada = situacion.certificadoListo
+      ? "Respondiste todas las preguntas bien. Tu certificado ya está disponible."
+      : "Respondiste todas las preguntas bien. Termina las clases que te falten para recibir tu certificado.";
+  } else if (reprobado) {
+    titular = tiempoAgotado ? "Se acabó el tiempo" : "Te quedaste sin uvas";
+    bajada = tiempoAgotado
+      ? "Quedaron guardadas las preguntas que alcanzaste a resolver."
+      : "Estuviste cerca. Repasa y vuelve por la revancha.";
+  } else {
+    titular = examen.titulo;
+    bajada = null;
+  }
+
+  // Resplandor de fondo del panel: magenta al aprobar, rojo apagado al
+  // perder, un magenta leve antes de empezar.
+  const resplandor = aprobado
+    ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(255,0,122,0.22),transparent_70%)]"
+    : reprobado
+      ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(239,68,68,0.14),transparent_70%)]"
+      : "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(255,0,122,0.10),transparent_70%)]";
 
   return (
-    <div className="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-8 sm:px-6">
-      <Link
-        href={`/cursos/${cursoSlug}`}
-        className="flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Volver al curso
-      </Link>
+    <div className="relative isolate">
+      <div aria-hidden className="uva-reticula pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px]" />
 
-      <header className="flex flex-col gap-2">
-        <p className="text-[13px] text-uva-muted">{cursoTitulo}</p>
-        <h1 className="font-heading text-[26px] font-bold tracking-[-0.02em] text-uva-text">
-          {examen.titulo}
-        </h1>
-      </header>
+      <div className="mx-auto flex w-full max-w-[540px] flex-col gap-4 px-4 py-6 sm:px-6 sm:py-12 lg:min-h-[calc(100dvh-65px)] lg:justify-center">
+        <Link
+          href={`/cursos/${cursoSlug}`}
+          className="flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Volver al curso
+        </Link>
 
-      {resultado && (
-        <ResultadoBloque
-          resultado={resultado}
-          tiempoAgotado={tiempoAgotado}
-          aprobado={situacion.situacion === "APROBADO"}
-        />
-      )}
+        <section
+          className={`relative overflow-hidden rounded-uva-md border bg-uva-surface/90 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur ${
+            aprobado ? "border-uva-accent/45" : "border-uva-divider"
+          }`}
+          aria-live={resultado ? "polite" : undefined}
+        >
+          <div aria-hidden className={`pointer-events-none absolute inset-0 ${resplandor}`} />
 
-      {situacion.situacion === "APROBADO" ? (
-        <section className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-          <p className="flex items-center gap-2 font-heading text-[16.5px] font-bold text-uva-text">
-            <CheckCircle2 className="size-5 text-uva-success-text" aria-hidden />
-            {situacion.certificadoListo ? "Curso completado" : "Examen aprobado"}
-          </p>
-          <p className="text-[13.5px] leading-relaxed text-uva-muted">
-            {situacion.certificadoListo
-              ? "Aprobaste el examen final. Tu certificado ya está disponible."
-              : "Aprobaste el examen final. Termina las clases que te falten del curso para recibir tu certificado."}
-          </p>
-          {situacion.certificadoListo ? (
-            <Button variant="primary" size="sm" className="w-fit" render={<Link href="/dashboard/certificados" />}>
-              Ver mi certificado
-            </Button>
-          ) : (
-            <Button variant="primary" size="sm" className="w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-              Volver al temario
-            </Button>
-          )}
-        </section>
-      ) : situacion.situacion === "EN_ESPERA" ? (
-        <section className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-          <p className="flex items-center gap-2 font-heading text-[16.5px] font-bold text-uva-text">
-            {situacion.esperaLarga ? (
-              <XCircle className="size-5 text-uva-error" aria-hidden />
-            ) : (
-              <Clock className="size-5 text-uva-warning-text" aria-hidden />
+          {/* ---------- Encabezado ---------- */}
+          <header className="relative flex flex-col gap-2 px-5 pb-6 pt-6 sm:px-8 sm:pb-8 sm:pt-8">
+            <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.16em] text-uva-text-faint">
+              {resultado ? `${examen.titulo} · ${cursoTitulo}` : `Examen final · ${cursoTitulo}`}
+            </p>
+            <h1
+              className={`font-heading font-extrabold leading-[1.05] tracking-[-0.03em] text-uva-text ${
+                resultado ? "text-[32px] sm:text-[38px]" : "text-[26px] sm:text-[30px]"
+              } ${aprobado ? "pr-28 sm:pr-40" : ""}`}
+            >
+              {titular}
+            </h1>
+            {bajada && <p className="max-w-[46ch] text-[14px] leading-relaxed text-uva-muted">{bajada}</p>}
+
+            {aprobado && (
+              <div
+                aria-hidden
+                className="absolute right-5 top-7 animate-uva-sello rounded-[6px] border-[3px] border-double border-uva-accent px-2.5 py-1 font-mono text-[13px] font-bold tracking-[0.22em] text-uva-accent sm:right-8 sm:top-9 sm:text-[17px]"
+              >
+                APROBADO
+              </div>
             )}
-            {situacion.esperaLarga ? "Agotaste tus intentos por ahora" : "Puedes reintentarlo más tarde"}
-          </p>
-          <p className="text-[13.5px] leading-relaxed text-uva-muted">
-            {situacion.esperaLarga ? (
+          </header>
+
+          {/* ---------- Métricas ---------- */}
+          <dl className="relative grid grid-cols-3 border-y border-uva-divider bg-uva-bg/50">
+            {resultado ? (
               <>
-                Presentaste el examen {situacion.intentosUsados}{" "}
-                {situacion.intentosUsados === 1 ? "vez" : "veces"} sin llegar a responderlo
-                completo.
+                <Metrica etiqueta="Resueltas">
+                  <span className="text-[22px] leading-none">{correctas}</span>
+                  <span className="text-uva-text-faint">/{totalPreguntas}</span>
+                </Metrica>
+                <Metrica etiqueta="Uvas">
+                  <Uvas vidas={resultado.vidasRestantes} total={VIDAS_INICIALES} className="size-3.5 sm:size-4" />
+                </Metrica>
               </>
             ) : (
-              <>Entre un intento y otro hay una espera de {COOLDOWN_REINTENTO_MINUTOS} minutos.</>
-            )}{" "}
-            Vuelve a partir de las{" "}
-            <time dateTime={situacion.disponibleDesde} className="font-mono text-uva-text">
-              {new Date(situacion.disponibleDesde).toLocaleTimeString("es-CO", {
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "America/Bogota",
-              })}
-            </time>{" "}
-            {situacion.esperaLarga
-              ? "y tendrás una tanda nueva de intentos. Aprovecha para repasar las clases del curso."
-              : "para tu siguiente intento. Aprovecha para repasar las clases del curso."}
-          </p>
-          <Button variant="default" size="sm" className="w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-            Repasar el curso
-          </Button>
-        </section>
-      ) : (
-        <section className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-          <div className="flex flex-col gap-2">
-            <p className="font-heading text-[16.5px] font-bold text-uva-text">
-              {situacion.intentosUsados > 0 ? "Vuelve a intentarlo" : "Antes de empezar"}
-            </p>
-            {examen.instrucciones ? (
-              <RichTextRenderer contenido={examen.instrucciones} />
-            ) : (
-              <p className="text-[13.5px] leading-relaxed text-uva-muted">
-                Una pregunta a la vez. Si fallas una, pierdes una vida y esa pregunta vuelve a
-                aparecer más adelante: apruebas cuando las respondes todas bien.
-              </p>
+              <>
+                <Metrica etiqueta="Uvas">
+                  <Uvas vidas={VIDAS_INICIALES} total={VIDAS_INICIALES} className="size-3.5 sm:size-4" />
+                </Metrica>
+                <Metrica etiqueta="Tiempo">
+                  {examen.minutosLimite === null ? "Libre" : `${examen.minutosLimite} min`}
+                </Metrica>
+              </>
             )}
-          </div>
-
-          <dl className="grid grid-cols-2 gap-3 border-t border-uva-divider pt-4 text-[13px] sm:grid-cols-3">
-            <div>
-              <dt className="text-uva-text-faint">Vidas</dt>
-              <dd className="mt-0.5 font-mono text-uva-text">{VIDAS_INICIALES}</dd>
-            </div>
-            <div>
-              <dt className="text-uva-text-faint">Tiempo</dt>
-              <dd className="mt-0.5 font-mono text-uva-text">
-                {examen.minutosLimite === null ? "Sin límite" : `${examen.minutosLimite} min`}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-uva-text-faint">Intentos</dt>
-              <dd className="mt-0.5 font-mono text-uva-text">
-                {situacion.intentosRestantes === null
-                  ? "Sin límite"
-                  : `${situacion.intentosRestantes} ${situacion.intentosRestantes === 1 ? "restante" : "restantes"}`}
-              </dd>
-            </div>
+            {situacion.situacion === "EN_ESPERA" ? (
+              <Metrica etiqueta="Próximo intento" destacada>
+                <CuentaRegresiva hasta={situacion.disponibleDesde} />
+              </Metrica>
+            ) : situacion.situacion === "APROBADO" ? (
+              <Metrica etiqueta="Certificado">{situacion.certificadoListo ? "Listo" : "Pendiente"}</Metrica>
+            ) : (
+              <Metrica etiqueta="Intentos">
+                {situacion.intentosRestantes === null ? "Sin límite" : `${situacion.intentosRestantes} más`}
+              </Metrica>
+            )}
           </dl>
 
-          {examen.minutosLimite !== null && (
-            <p className="flex items-start gap-2 text-[13px] text-uva-muted">
-              <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
-              El cronómetro arranca al iniciar y no se detiene aunque cierres la página.
-            </p>
+          {resultado && totalPreguntas > 0 && (
+            <div className="relative px-5 pt-5 sm:px-8">
+              <Cota correctas={correctas} total={totalPreguntas} />
+            </div>
           )}
 
-          <IniciarExamenButton
-            cursoId={cursoId}
-            cursoSlug={cursoSlug}
-            etiqueta={
-              situacion.intentosUsados > 0 ? "Iniciar nuevo intento" : "Iniciar examen"
-            }
-          />
+          {/* ---------- Mensaje ---------- */}
+          {situacion.situacion !== "APROBADO" && (
+            <div className="relative flex flex-col gap-3 px-5 py-5 text-[13.5px] leading-relaxed text-uva-muted sm:px-8 sm:py-6">
+              {situacion.situacion === "EN_ESPERA" ? (
+                <p>
+                  {situacion.esperaLarga ? (
+                    <>
+                      Usaste tus {situacion.intentosUsados}{" "}
+                      {situacion.intentosUsados === 1 ? "intento" : "intentos"} de esta tanda.
+                    </>
+                  ) : (
+                    <>Entre un intento y otro hay una pausa de {COOLDOWN_REINTENTO_MINUTOS} minutos.</>
+                  )}{" "}
+                  Vuelves a las{" "}
+                  <time dateTime={situacion.disponibleDesde} className="font-mono text-uva-text">
+                    {new Date(situacion.disponibleDesde).toLocaleTimeString("es-CO", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "America/Bogota",
+                    })}
+                  </time>
+                  {situacion.esperaLarga ? " con una tanda nueva de intentos." : "."} Aprovecha para repasar las
+                  clases.
+                </p>
+              ) : reprobado ? (
+                <p>Ya puedes volver a intentarlo. Cada intento empieza con las {VIDAS_INICIALES} uvas completas.</p>
+              ) : (
+                <>
+                  {examen.instrucciones ? (
+                    <RichTextRenderer contenido={examen.instrucciones} />
+                  ) : (
+                    <p>
+                      Una pregunta a la vez. Si fallas una, pierdes una uva y esa pregunta vuelve a aparecer
+                      más adelante: apruebas cuando las respondes todas bien.
+                    </p>
+                  )}
+                  {examen.minutosLimite !== null && (
+                    <p className="flex items-start gap-2 text-[13px]">
+                      <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      El cronómetro arranca al iniciar y no se detiene aunque cierres la página.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ---------- Acciones ---------- */}
+          <footer
+            className={`relative flex flex-col-reverse gap-2.5 border-t border-uva-divider bg-uva-bg/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-8 ${
+              situacion.situacion === "APROBADO" ? "mt-5" : ""
+            }`}
+          >
+            {situacion.situacion === "APROBADO" ? (
+              situacion.certificadoListo ? (
+                <Button variant="primary" className="w-full sm:w-fit" render={<Link href="/dashboard/certificados" />}>
+                  Ver mi certificado
+                </Button>
+              ) : (
+                <Button variant="primary" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
+                  Volver al temario
+                </Button>
+              )
+            ) : situacion.situacion === "EN_ESPERA" ? (
+              <Button variant="primary" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
+                Repasar el curso
+              </Button>
+            ) : (
+              <>
+                {reprobado && (
+                  <Button variant="ghost" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
+                    Repasar el curso
+                  </Button>
+                )}
+                <IniciarExamenButton
+                  cursoId={cursoId}
+                  cursoSlug={cursoSlug}
+                  etiqueta={situacion.intentosUsados > 0 ? "Iniciar nuevo intento" : "Iniciar examen"}
+                />
+              </>
+            )}
+          </footer>
         </section>
-      )}
+      </div>
     </div>
   );
 }
 
-/**
- * Resultado del último intento cerrado.
- *
- * Sin porcentajes: el examen no se aprueba por nota, se aprueba respondiendo
- * bien TODAS las preguntas antes de quedarse sin vidas. Por eso lo que se
- * muestra es "X/Y correctas · usaste N de 5 vidas".
- *
- * Dice CUÁLES preguntas se fallaron, pero nunca cuál era la respuesta
- * correcta: con intentos limitados, revelarla convertiría el reintento en un
- * trámite (docs/functional-spec.md Flujo 14).
- */
-function ResultadoBloque({
-  resultado,
-  tiempoAgotado,
-  aprobado,
+function Metrica({
+  etiqueta,
+  destacada = false,
+  children,
 }: {
-  resultado: ResultadoIntentoVista;
-  tiempoAgotado: boolean;
-  aprobado: boolean;
+  etiqueta: string;
+  destacada?: boolean;
+  children: ReactNode;
 }) {
-  const falladas = resultado.preguntas.filter((pregunta) => !pregunta.acertada);
-  const correctas = resultado.preguntas.length - falladas.length;
-  const vidasUsadas = VIDAS_INICIALES - resultado.vidasRestantes;
-
   return (
-    <section
-      className={`rounded-uva-md border p-5 ${
-        aprobado ? "border-uva-success bg-uva-success-soft" : "border-uva-divider bg-uva-surface"
-      }`}
-      aria-live="polite"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-heading text-[16.5px] font-bold text-uva-text">
-          {aprobado
-            ? "¡Aprobaste!"
-            : tiempoAgotado
-              ? "Se acabó el tiempo"
-              : "No completaste el examen"}
-        </p>
-        <p className="font-mono text-[15px] font-semibold text-uva-text">
-          {correctas}/{resultado.preguntas.length}
-          <span className="ml-1.5 text-[12px] font-normal text-uva-text-faint">
-            correctas · usaste {vidasUsadas} de {VIDAS_INICIALES} vidas
-          </span>
-        </p>
-      </div>
-
-      {aprobado && (
-        <p className="mt-2 text-[13px] text-uva-muted">
-          Respondiste todas las preguntas correctamente.
-        </p>
-      )}
-
-      {tiempoAgotado && !aprobado && (
-        <p className="mt-2 text-[13px] text-uva-muted">
-          Se guardaron las preguntas que alcanzaste a resolver antes de que venciera el plazo.
-        </p>
-      )}
-
-      {!tiempoAgotado && !aprobado && (
-        <p className="mt-2 text-[13px] text-uva-muted">
-          Te quedaste sin vidas antes de responder bien todas las preguntas.
-        </p>
-      )}
-
-      {falladas.length > 0 && (
-        <div className="mt-4 border-t border-uva-divider pt-4">
-          <p className="text-[13px] font-semibold text-uva-text">
-            {/* "Sin resolver" y no "fallaste": con la cola de reintentos, acá
-                caen tanto las que falló como las que quedaron pendientes al
-                cerrarse el intento. */}
-            {falladas.length === 1
-              ? "Te quedó sin resolver esta pregunta:"
-              : `Te quedaron sin resolver estas ${falladas.length} preguntas:`}
-          </p>
-          <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4">
-            {falladas.map((pregunta) => (
-              <li key={pregunta.id} className="text-[13px] text-uva-muted">
-                <RichTextRenderer contenido={pregunta.enunciado} className="[&_p]:!m-0" />
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-xs text-uva-text-faint">
-            Repasa esos temas en las clases del curso antes de volver a intentarlo.
-          </p>
-        </div>
-      )}
-    </section>
+    <div className="flex min-w-0 flex-col gap-1.5 border-r border-uva-divider px-3 py-3.5 last:border-r-0 sm:px-6 sm:py-4">
+      <dt className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-uva-text-faint">{etiqueta}</dt>
+      <dd
+        className={`flex min-h-[22px] items-baseline font-mono text-[14px] font-semibold ${
+          destacada ? "text-uva-accent-text" : "text-uva-text"
+        }`}
+      >
+        {children}
+      </dd>
+    </div>
   );
 }

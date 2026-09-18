@@ -77,7 +77,6 @@
   --color-uva-accent-warm: var(--uva-accent-warm);
   --color-uva-accent-2: var(--uva-accent-2);
   --color-uva-accent-2-soft: var(--uva-accent-2-soft);
-  --color-uva-grape: var(--uva-grape);
   --color-uva-accent-2-text: var(--uva-accent-2-text);
   --color-uva-whatsapp: var(--uva-whatsapp);
   --color-uva-danger: var(--uva-danger);
@@ -159,11 +158,6 @@
   --uva-accent-2: #f2c012;
   --uva-accent-2-soft: rgba(242, 192, 18, 0.18);
   --uva-accent-2-text: #ffdd55;
-  /* Morado uva — uso puntual y exclusivo para el indicador de vidas del
-     examen (referencia visual al nombre U.V.A). No reemplaza al magenta
-     como acento principal: ese sigue siendo el único color de CTAs, estados
-     activos y progreso (CLAUDE.md §3.3). */
-  --uva-grape: #a855f7;
   --uva-gradient-cta: linear-gradient(
     96deg,
     var(--uva-accent) 0%,
@@ -235,6 +229,52 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: #27272a;
   --sidebar-ring: #ff007a;
+}
+
+/* Examen final — animaciones de la pantalla de rendir y del resultado. La
+   regla global de prefers-reduced-motion (al final del archivo) las apaga. */
+@theme {
+  --animate-uva-sacudir: uva-sacudir 420ms ease-in-out;
+  --animate-uva-entrar: uva-entrar 260ms ease-out;
+  --animate-uva-pop: uva-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-uva-sello: uva-sello 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  @keyframes uva-sacudir {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(2px); }
+  }
+  @keyframes uva-entrar {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes uva-pop {
+    0% { transform: scale(0.96); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  @keyframes uva-sello {
+    0% { opacity: 0; transform: rotate(-4deg) scale(2.2); }
+    70% { opacity: 1; transform: rotate(-10deg) scale(0.94); }
+    100% { opacity: 1; transform: rotate(-9deg) scale(1); }
+  }
+}
+
+/* Retícula de plano: fondo sutil de la pantalla previa y del resultado del
+   examen. Líneas finas cada 24px y una más marcada cada 120px, como el papel
+   milimetrado de una lámina. Va SOLO en un div decorativo vacío detrás del
+   contenido: la máscara que la desvanece recortaría también lo que hubiera
+   adentro. */
+.uva-reticula {
+  background-image:
+    linear-gradient(to right, rgb(39 39 42 / 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(39 39 42 / 0.55) 1px, transparent 1px),
+    linear-gradient(to right, rgb(39 39 42 / 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(39 39 42 / 0.25) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
 }
 
 @keyframes uva-btn-spinner-spin {
