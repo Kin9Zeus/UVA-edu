@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
+import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 
@@ -10,6 +11,13 @@ export type LeccionPublica = {
   orden: number;
   duracion: number | null;
   completado: boolean;
+  /**
+   * Un frame del video para el cuadro del Temario (la misma imagen que ya usa
+   * el reproductor en su propio Temario, `LeccionPlayerItem.miniaturaUrl`).
+   * `null` si la clase no tiene video LISTO o no se pudo firmar la URL: el
+   * cuadro queda oscuro, sin imagen.
+   */
+  miniaturaUrl: string | null;
 };
 
 export type ModuloPublico = {
@@ -96,7 +104,7 @@ export async function getCursoPublico(
     .select(
       `id, slug, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
       curso_categorias(categoria:categorias(id, slug, nombre)),
-      modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, estado_procesamiento))`,
+      modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, estado_procesamiento, id_video_mux))`,
     )
     .eq(columnaCurso, identificadorCurso)
     .single();
@@ -143,6 +151,9 @@ export async function getCursoPublico(
           // ven minutos que no salen de ningún video. Ver también
           // lib/leccion.ts y lib/admin/cursoDetalle.ts, misma regla.
           duracion: leccion.estado_procesamiento === "LISTO" ? leccion.duracion : null,
+          // Solo para firmar la miniatura más abajo: no sale en `LeccionPublica`.
+          idVideoMuxListo:
+            leccion.estado_procesamiento === "LISTO" ? (leccion.id_video_mux as string | null) : null,
         })),
     }));
 
@@ -203,13 +214,24 @@ export async function getCursoPublico(
     }
   }
 
-  const modulosPublicos: ModuloPublico[] = modulosBase.map((modulo) => ({
-    ...modulo,
-    lecciones: modulo.lecciones.map((leccion) => ({
-      ...leccion,
-      completado: completadoIds.has(leccion.id),
+  // Un signPlaybackId() por clase, en paralelo: es una firma JWT local, no una
+  // llamada de red a Mux (mismo razonamiento que en lib/leccion.ts). Se firma
+  // para TODAS las clases, con o sin acceso: el Temario muestra el cuadro de
+  // las bloqueadas atenuado y con candado, igual que el del reproductor.
+  const modulosPublicos: ModuloPublico[] = await Promise.all(
+    modulosBase.map(async (modulo) => ({
+      id: modulo.id,
+      titulo: modulo.titulo,
+      orden: modulo.orden,
+      lecciones: await Promise.all(
+        modulo.lecciones.map(async ({ idVideoMuxListo, ...leccion }) => ({
+          ...leccion,
+          completado: completadoIds.has(leccion.id),
+          miniaturaUrl: idVideoMuxListo ? await getMiniaturaUrl(idVideoMuxListo) : null,
+        })),
+      ),
     })),
-  }));
+  );
 
   const leccionesPlanas = modulosPublicos.flatMap((modulo) => modulo.lecciones);
   const siguiente = progresoIniciado

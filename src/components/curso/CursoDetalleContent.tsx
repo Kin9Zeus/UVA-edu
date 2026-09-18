@@ -20,6 +20,60 @@ const PORTADA_TRAMA = {
     "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
 };
 
+/**
+ * Cuadro de miniatura de una clase en el Temario: el mismo recurso visual que
+ * el Temario del reproductor (`TemarioDrawer`), un frame del video.
+ *
+ * `bloqueada` (sin acceso a la clase) atenúa la imagen y pone el candado
+ * encima. La introducción —primera clase del curso, pública— nunca llega acá
+ * como bloqueada, así que un visitante sin sesión la ve nítida y clicable.
+ * Sin miniatura (video sin procesar o firma fallida) el cuadro queda oscuro,
+ * con el play como única pista de que es una clase.
+ */
+function MiniaturaClase({
+  url,
+  completado,
+  bloqueada,
+}: {
+  url: string | null;
+  completado: boolean;
+  bloqueada: boolean;
+}) {
+  return (
+    <div className="relative h-[42px] w-[72px] shrink-0 overflow-hidden rounded-uva-md bg-uva-surface-2">
+      {url && (
+        // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          className={`absolute inset-0 size-full object-cover ${bloqueada ? "opacity-40" : ""}`}
+        />
+      )}
+      {bloqueada ? (
+        <div className="absolute inset-0 grid place-items-center bg-uva-bg/40">
+          <Lock className="size-4 text-uva-text" strokeWidth={2} aria-hidden />
+        </div>
+      ) : completado ? (
+        <div className="absolute inset-0 grid place-items-center bg-uva-bg/45">
+          <CircleCheck className="size-5 text-uva-accent-2" strokeWidth={2} aria-hidden />
+        </div>
+      ) : !url ? (
+        <div className="absolute inset-0 grid place-items-center">
+          <PlayCircle className="size-4 text-uva-text-faint" strokeWidth={1.8} aria-hidden />
+        </div>
+      ) : null}
+      {bloqueada && completado && (
+        <CircleCheck
+          className="absolute right-0.5 bottom-0.5 size-3.5 text-uva-accent-2"
+          strokeWidth={2.4}
+          aria-hidden
+        />
+      )}
+    </div>
+  );
+}
+
 export function CursoDetalleContent({
   curso,
   basePath = "/catalogo",
@@ -185,15 +239,11 @@ export function CursoDetalleContent({
                       <Link
                         key={leccion.id}
                         href={`/cursos/${curso.slug}/${leccion.slug}`}
-                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
+                        className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-uva-text hover:bg-white/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
-                        {leccion.completado ? (
-                          <CircleCheck className="size-4 shrink-0 text-uva-accent-2" strokeWidth={1.8} />
-                        ) : (
-                          <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
-                        )}
-                        <span className="min-w-0 flex-1 truncate">{leccion.titulo}</span>
+                        <MiniaturaClase url={leccion.miniaturaUrl} completado={leccion.completado} bloqueada={false} />
+                        <span className="min-w-0 flex-1 line-clamp-2">{leccion.titulo}</span>
                         {esIntroduccion && (
                           <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-accent-text uppercase">
                             Introducción
@@ -206,17 +256,17 @@ export function CursoDetalleContent({
                     ) : (
                       <div
                         key={leccion.id}
-                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text"
+                        className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-uva-text"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
-                        {/* El candado sustituye al play, pero el ✓ de lo ya
-                            visto se conserva: el progreso no se pierde al
-                            vencerse el acceso. */}
-                        {leccion.completado ? (
-                          <CircleCheck className="size-4 shrink-0 text-uva-accent-2/60" strokeWidth={1.8} />
-                        ) : null}
-                        <Lock className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
-                        <span className="min-w-0 flex-1 truncate">{leccion.titulo}</span>
+                        {/* El candado va sobre el cuadro, atenuado; el ✓ de lo
+                            ya visto se conserva (esquina): el progreso no se
+                            pierde al vencerse el acceso. */}
+                        <MiniaturaClase url={leccion.miniaturaUrl} completado={leccion.completado} bloqueada />
+                        <span className="min-w-0 flex-1 line-clamp-2">
+                          {leccion.titulo}
+                          <span className="sr-only"> (bloqueada)</span>
+                        </span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
                           {formatDuracion(leccion.duracion)}
                         </span>
