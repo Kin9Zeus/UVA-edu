@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, FileCheck, List } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, FileCheck, List } from "lucide-react";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
@@ -124,25 +124,19 @@ export function PlayerContent({
       {/* Mobile: esta página no usa el header del sitio (ver page.tsx) —
           esta barra sticky hace de header, minimalista al estilo del
           reproductor de Platzi: volver, contador de clase (abre el Temario)
-          y siguiente clase, nada más. */}
+          y el par anterior/siguiente, nada más. */}
       <div className="sticky top-0 z-40 -mx-[clamp(20px,3vw,44px)] mb-[18px] flex items-center gap-2 border-b border-uva-divider bg-uva-bg/95 px-[18px] py-3 backdrop-blur lg:hidden">
+        {/* Volver = flecha de "atrás" estándar, sola a la izquierda. Antes era
+            un chevron hacia abajo (el "minimizar" del reproductor de Platzi)
+            pegado al chevron de "clase anterior": dos flechas juntas con
+            significados distintos, y la de abajo no se entendía. */}
         <Link
           href={`/cursos/${data.cursoSlug}`}
           aria-label="Volver al curso"
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
         >
-          <ChevronDown className="size-5" strokeWidth={2.2} />
+          <ArrowLeft className="size-5" strokeWidth={2.2} />
         </Link>
-        {data.anteriorId ? (
-          <button
-            type="button"
-            onClick={() => irALeccion(data.anteriorId!)}
-            aria-label="Clase anterior"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full text-uva-text hover:bg-uva-text/10"
-          >
-            <ChevronLeft className="size-5" strokeWidth={2.2} />
-          </button>
-        ) : null}
         <button
           type="button"
           onClick={() => setTemarioOpen(true)}
@@ -151,6 +145,18 @@ export function PlayerContent({
           Clase {data.numero}/{data.totalClases}
           <ChevronDown className="size-3.5" strokeWidth={2.5} />
         </button>
+        {/* Anterior y siguiente van juntas, como par de navegación entre
+            clases: anterior neutra, siguiente en magenta (la acción principal). */}
+        {data.anteriorId ? (
+          <button
+            type="button"
+            onClick={() => irALeccion(data.anteriorId!)}
+            aria-label="Clase anterior"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-text/10 text-uva-text hover:bg-uva-text/20"
+          >
+            <ChevronLeft className="size-5" strokeWidth={2.5} />
+          </button>
+        ) : null}
         {data.siguienteId ? (
           <button
             type="button"
