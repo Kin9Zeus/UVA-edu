@@ -2138,9 +2138,20 @@ async function main() {
     // Se elige AYER a las 3:00 p.m. de Bogotá porque es el instante donde las
     // dos capas discrepaban: TS lo ve vencido (ayer < hoy) y el SQL viejo lo
     // veía vigente (su cuenta daba hoy).
-    const ayer3pmBogota = new Date();
-    ayer3pmBogota.setUTCDate(ayer3pmBogota.getUTCDate() - 1);
-    ayer3pmBogota.setUTCHours(20, 0, 0, 0); // 20:00 UTC = 15:00 en Bogotá
+    //
+    // "Ayer" tiene que anclarse al día civil de BOGOTÁ, no al de UTC: entre
+    // las 00:00 y las 05:00 UTC, la fecha en Bogotá (UTC-5) todavía es la de
+    // "ayer" en términos UTC. `setUTCDate(...).getUTCDate() - 1` calculaba
+    // "ayer" restando sobre la fecha UTC, así que en esa ventana el resultado
+    // caía en HOY para Bogotá en vez de ayer — la prueba se volvía
+    // intermitente según la hora UTC en que corriera el pipeline, no un fallo
+    // real de la app (`suscripcionDaAcceso`/`estadoAcceso.ts` calculan el día
+    // civil con `Intl`+`timeZone: "America/Bogota"`, correctamente).
+    const hoyBogota = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+    const hoy3pmBogota = new Date(`${hoyBogota}T20:00:00.000Z`); // 20:00 UTC = 15:00 en Bogotá, del día civil correcto
+    // Bogotá no tiene horario de verano: restar 24h exactas siempre da el
+    // mismo instante del día civil anterior, sin volver a tocar UTC a mano.
+    const ayer3pmBogota = new Date(hoy3pmBogota.getTime() - 24 * 60 * 60_000);
     const fechaLimite = ayer3pmBogota.toISOString();
 
     // A estas alturas el usuario arrastra DOS suscripciones: la que quedó
