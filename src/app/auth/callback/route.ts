@@ -2,11 +2,17 @@ import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Este era el peor de los cuatro: redirigía a `next` sin validar NADA, ni
+  // siquiera el `startsWith("/")` de los demás. `next` lo arma el botón de
+  // Google desde el `?redirect=` de /login, así que
+  // `/login?redirect=//phishing.com` llevaba, tras un login real con Google,
+  // a otro dominio. Ver lib/redirect-seguro.ts.
+  const next = destinoInternoSeguro(searchParams.get("next"));
   const providerError = searchParams.get("error_description");
 
   if (providerError) {

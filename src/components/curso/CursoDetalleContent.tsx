@@ -26,7 +26,6 @@ export function CursoDetalleContent({
   sesionActiva,
   situacionExamen,
   calificaciones,
-  ruta,
   usuarioActualId,
   esAdmin,
 }: {
@@ -50,9 +49,6 @@ export function CursoDetalleContent({
   /** Reseñas del curso (estrellas + comentario + me gusta) — públicas, a
    * diferencia del examen: un visitante sin sesión también las ve. */
   calificaciones: CalificacionesCurso;
-  /** Ruta pública del curso (`/cursos/<slug>`), para que las Server Actions
-   * de calificaciones revaliden exactamente lo que Next.js cacheó. */
-  ruta: string;
   usuarioActualId: string | null;
   esAdmin: boolean;
 }) {
@@ -362,7 +358,6 @@ export function CursoDetalleContent({
       <div id="reseñas" className="order-6 scroll-mt-6 lg:order-none lg:col-span-2">
         <CursoCalificaciones
           cursoId={curso.id}
-          ruta={ruta}
           usuarioActualId={usuarioActualId}
           puedeCalificar={curso.tieneAcceso}
           esAdmin={esAdmin}

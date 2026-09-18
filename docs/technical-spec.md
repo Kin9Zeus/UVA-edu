@@ -237,11 +237,11 @@ el estudiante nunca la lee — recibe las preguntas ya despojadas desde
 | :---- | :---- | :---- |
 | **id** | UUID (Primary Key) | Identificador único |
 | **id\_examen** | UUID (Foreign Key) | Examen al que pertenece (ON DELETE CASCADE) |
-| **tipo** | Enum TipoPregunta | v1: OPCION\_UNICA, OPCION\_MULTIPLE, VERDADERO\_FALSO, RELLENAR\_ESPACIO |
+| **tipo** | Enum TipoPregunta | Implementados: OPCION\_UNICA, OPCION\_MULTIPLE, VERDADERO\_FALSO, RELLENAR\_ESPACIO, EMPAREJAR. El enum de Postgres ya declara además ORDENAR\_PASOS y RESPUESTA\_ABIERTA (Fase 2, sin UI ni calificación) — `TIPOS_IMPLEMENTADOS` (`src/lib/examenes/tipos.ts`) es el único punto que decide cuáles acepta la app hoy |
 | **enunciado** | JSONB | Documento Tiptap |
-| **puntos** | Int | Default 1. CHECK `>= 1 AND <= 100`. El puntaje se pondera por puntos, no por número de preguntas |
+| **puntos** | Int | Default 1. CHECK `>= 1 AND <= 100`. Hoy no pondera nada: al eliminarse el criterio por porcentaje, todas las preguntas pesan igual (hay que acertarlas todas). Se conserva por si vuelve una calificación ponderada |
 | **orden** | Int | Fraccionado, igual que módulos y lecciones (`src/lib/orden.ts`) |
-| **opciones** | JSONB (nullable) | `[{ id, texto, correcta }]` para los tipos de opciones |
+| **opciones** | JSONB (nullable) | `[{ id, texto, correcta }]` para los tipos de opciones; `[{ id, izquierda, derecha }]` para EMPAREJAR (mismo id ata cada par, nunca se expone como "correcta"). Sin CHECK de forma en la base — la valida `preguntaEntradaSchema` (zod) según `tipo` |
 | **respuestas\_aceptadas** | Text\[\] | Solo RELLENAR\_ESPACIO. Se comparan normalizadas (sin mayúsculas, tildes ni signos) |
 | **explicacion** | JSONB (nullable) | Feedback interno; no se le muestra al estudiante en la v1 |
 
@@ -256,10 +256,10 @@ por Server Actions con Service Role tras verificar identidad y acceso.
 | **id\_examen** | UUID (Foreign Key) | Examen rendido |
 | **id\_usuario** | UUID (FK, ON DELETE RESTRICT) | Un intento es evidencia de evaluación: no cascadea con el perfil |
 | **estado** | Enum EstadoIntentoExamen | EN\_CURSO, APROBADO, REPROBADO, EN\_REVISION |
-| **puntaje\_pct** | Decimal(5,2) (nullable) | 0-100. `null` mientras EN\_CURSO |
-| **nota\_requerida** | Int | Copia de `nota_aprobatoria` al iniciar: subir la exigencia después no reprueba a quien ya pasó |
+| **puntaje\_pct** | Decimal(5,2) (nullable) | 0-100. `null` mientras EN\_CURSO. **Informativo**: proporción de preguntas resueltas al cerrar. Ya no decide aprobado/reprobado; se sigue escribiendo porque la columna es NOT NULL al cerrar y tiene CHECK de rango |
+| **nota\_requerida** | Int | Copia histórica de `nota_aprobatoria` al iniciar. **Sin uso**: no queda ningún lector — se sigue escribiendo al crear el intento solo porque la columna es NOT NULL |
 | **preguntas\_congeladas** | JSONB | Las preguntas tal como se le presentaron a ESE estudiante, ya aleatorizadas, con sus respuestas correctas |
-| **respuestas** | JSONB | Respuestas dadas, indexadas por id de pregunta. Se reescribe en cada autoguardado |
+| **respuestas** | JSONB | `ProgresoIntento` (`src/lib/examenes/tipos.ts`): `{ resueltas, fallos, cola }` — las preguntas ya acertadas con su respuesta final, el contador de respuestas incorrectas (de donde salen las vidas) y los ids pendientes EN ORDEN. Sin CHECK de forma en la base; la convención es de la capa de aplicación, y `parsearProgreso` es el único lector. No hay autoguardado de borrador: se reescribe al confirmar cada respuesta |
 | **iniciado\_en / finalizado\_en** | DateTime | Timestamptz |
 | **expira\_en** | DateTime (nullable) | Corte por tiempo, congelado al iniciar. El servidor valida contra esto, nunca contra el reloj del cliente |
 
@@ -267,13 +267,212 @@ por Server Actions con Service Role tras verificar identidad y acceso.
 
 > * `intentos_examen_uno_en_curso` — índice **parcial** UNIQUE sobre (id\_usuario, id\_examen) WHERE estado \= 'EN\_CURSO'. Dos pestañas abiertas no pueden gastar dos intentos.
 > * `intentos_examen_cerrado_tiene_puntaje` — CHECK que impide un intento cerrado sin puntaje o uno EN\_CURSO con nota.
-> * `examenes_nota_aprobatoria_minima` — CHECK del piso de 75%.
+> * `examenes_nota_aprobatoria_minima` — CHECK del piso de 75% sobre `examenes.nota_aprobatoria`. La columna **se conserva tal cual** (default 75) pero ya no la escribe ni la lee ningún código: aprobar dejó de ser un umbral por porcentaje. No hizo falta migración para quitar el criterio, solo dejar de usarla.
 
 **Intentos por rondas, no de por vida:** `calcularDisponibilidad` (`src/lib/examen.ts`) es la única fuente de verdad de cuándo un estudiante puede iniciar un intento — la usan tanto `iniciarIntento` (Server Action) como `getSituacionExamen` (pantalla previa), así que nunca pueden divergir. `intentos_maximos` no limita el total histórico de intentos: es el tamaño de una ronda. Con `cerrados.length % intentosMaximos === 0` (ronda recién agotada), el cooldown pasa de `COOLDOWN_REINTENTO_MINUTOS` (15 min) a `COOLDOWN_AGOTADO_HORAS` (5h); al cumplirse, vuelve a estar disponible con una ronda nueva. No hay ningún estado permanente de "sin intentos" — el estudiante siempre recupera acceso solo, sin admin de por medio.
+
+**Aprobar = vaciar la cola. Reprobar = quedarse sin vidas.** No hay criterio por porcentaje, y por tanto tampoco una función `calificarIntento`: `responderPregunta` (`src/actions/examenes/intento.ts`) decide el veredicto con la cola y se lo pasa hecho a `cerrarIntento`, que solo escribe. Acertar saca la pregunta del frente de `ProgresoIntento.cola`; fallar la empuja al final y suma 1 a `fallos`. El intento cierra cuando `cola.length === 0` (APROBADO, `puntaje_pct` = 100 por construcción) o cuando las vidas llegan a 0 (REPROBADO inmediato, sin importar lo que quede en la cola). El cierre por tiempo (`enviarIntento` y la rama `vencido` de `responderPregunta`) **siempre reprueba**: terminar el examen completo es la única forma de aprobar.
+
+**Vidas, derivadas y no persistidas:** `calcularVidasRestantes(fallos)` (`src/lib/examenes/calificar.ts`) es la única fuente de verdad — la usan `responderPregunta` (Server Action que escribe), `getIntentoEnCurso` (retomar un intento a medias) y `getResultadoIntento`, mismo criterio que `calcularDisponibilidad` para el cooldown. No hay columna `vidas_restantes`: se calcula como `VIDAS_INICIALES` (constante, 5, fija para toda la plataforma — no es un campo de `examenes`) menos `ProgresoIntento.fallos`. **No** se cuentan las respuestas incorrectas guardadas: con la cola de reintentos, una pregunta fallada y luego acertada solo deja en `resueltas` su respuesta buena, así que el contador es el único rastro del fallo. `RespuestaEstudiante` (`src/lib/examenes/tipos.ts`) se extendió a `string | string[] | Record<string,string>` para poder representar el mapeo de pares de EMPAREJAR.
+
+**El orden lo manda el servidor:** con la cola de reintentos, "la siguiente pregunta" no es la del índice de al lado. `getIntentoEnCurso` devuelve `preguntaActualId` (= `cola[0]`) y cada `responderPregunta` que no cierra devuelve `siguientePreguntaId`; `ExamenRendir.tsx` solo los aplica. La validación de orden en el servidor es exactamente `preguntaId === cola[0]`.
 
 **Intento extra otorgado por admin:** `otorgarIntentoExtra` (`src/actions/admin/examenes.ts`) crea un intento directo con Service Role para saltarse la espera larga (no para "desbloquear" algo que de otro modo quedaría cerrado — nunca lo está). Reusa `congelarPreguntas` (`src/lib/examenes/congelar.ts`), compartida con el flujo del estudiante para que un intento otorgado por admin tenga exactamente la misma forma que uno iniciado normalmente.
 
 **Revisión de un intento (admin):** `getRevisionIntento` (`src/actions/admin/examenes.ts`) + `construirRevision` (`src/lib/examenes/revision.ts`, función pura) arman, pregunta por pregunta, qué marcó/escribió el estudiante, cuál era la respuesta correcta y si acertó — al contrario de `getResultadoIntento` (lo que ve el propio estudiante), que nunca revela la respuesta correcta. Se pide bajo demanda al expandir un intento en el panel, no precalculada para todos los intentos del examen.
+
+### **Módulo de Comunidad**
+
+Ver `docs/functional-spec.md` Módulo 10 y Flujo 15. Migraciones:
+`prisma/migrations/20260909000000_comunidad_f1` y las demás carpetas con
+`comunidad` en el nombre. RLS, triggers, vistas y bucket: `supabase/sql/083`
+a `087`, `089`, `090`, `094`, `095`, `100`, `101`, `103` y `104`.
+
+Todas las escrituras de la app van con el cliente de sesión (RLS aplica),
+salvo la firma de URLs de adjuntos, que usa Service Role después de autorizar
+con la sesión (ver `comunidad_adjuntos`).
+
+#### **Tabla: ComunidadPosts** (`comunidad_posts`)
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Lo genera el servidor antes del INSERT, para subir los adjuntos a una ruta que ya lo referencia |
+| **id\_usuario** | UUID (Foreign Key) | Autor. Siempre `auth.uid()` (policy de INSERT) |
+| **categoria** | Enum CategoriaComunidad | ANUNCIOS, PROYECTOS, PREGUNTAS, EMPLEO. ANUNCIOS exige administrador en la policy de INSERT |
+| **titulo** | String | Se vacía al eliminar |
+| **slug** | String (Unique) | Lo asigna un trigger al publicar; no cambia al editar el título |
+| **contenido** | String | Texto con marcadores `[[adjunto:<id>]]`. Se vacía al eliminar |
+| **eliminado** | Boolean | Borrado lógico. Solo un administrador puede volver de true a false |
+| **eliminado\_por\_admin** | Boolean | Lo recalcula el trigger según quién ejecuta el UPDATE; no se confía en el valor del cliente (089) |
+| **fijado** | Boolean | Solo un administrador lo cambia (trigger) y nunca nace en true (policy de INSERT) |
+| **empleo\_empresa / empleo\_modalidad / empleo\_ubicacion / empleo\_enlace** | String (nullable) | CHECK `comunidad_posts_empleo_coherente`: empresa, modalidad y enlace obligatorios en EMPLEO; los cuatro en null en otra categoría. Modalidad ∈ PRESENCIAL, REMOTO, HIBRIDO |
+| **creado\_en / actualizado\_en** | DateTime | Timestamptz |
+
+#### **Tabla: ComunidadRespuestas** (`comunidad_respuestas`)
+
+Mismo criterio que `comunidad_posts`, sin `titulo`, `slug`, `fijado` ni campos de
+Empleo. **No se editan:** el trigger solo permite vaciar `contenido` al eliminar.
+FK a `comunidad_posts` con ON DELETE CASCADE (en la práctica no ocurre: no hay
+DELETE real).
+
+#### **Tabla: ComunidadReacciones** (`comunidad_reacciones`)
+
+Una fila por usuario sobre un post **o** una respuesta: CHECK
+`comunidad_reacciones_exactamente_uno` más dos índices UNIQUE **parciales**,
+uno por tipo de objetivo. Como son parciales, PostgREST no puede usarlos en
+`ON CONFLICT`: la app hace INSERT y trata el 23505 como "ya estaba". Sin UPDATE.
+
+#### **Tabla: ComunidadAdjuntos** (`comunidad_adjuntos`)
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Se decide antes de insertar el post, para escribir el marcador definitivo en `contenido` |
+| **id\_post / id\_respuesta** | UUID (FK, nullable) | Exactamente uno. La policy de INSERT exige que el post o la respuesta sean del propio usuario |
+| **id\_usuario** | UUID (Foreign Key) | Dueño del archivo |
+| **ruta\_storage** | String | `{id_usuario}/{id_post o id_respuesta}/{id}.{extension}` en el bucket privado `comunidad-adjuntos` |
+| **nombre\_original / tipo\_archivo / es\_imagen / ancho / alto / tamano\_bytes** | Metadatos | `ancho`/`alto` solo para imágenes, ya normalizadas |
+
+#### **Tabla: ComunidadModeracion** (`comunidad_moderacion`)
+
+Evidencia de lo que un administrador eliminó: `contenido_original`,
+`id_eliminado_por` (debe ser el propio administrador, según la policy de INSERT)
+y `motivo`. SELECT e INSERT solo para administradores; sin UPDATE ni DELETE. Un
+trigger AFTER INSERT notifica al autor moderado.
+
+#### **Tabla: ComunidadReportes** (`comunidad_reportes`)
+
+Cola de moderación: `id_post`/`id_respuesta` (exactamente uno), `id_reportante`,
+`motivo`, `revisado`. UNIQUE parcial por reportante y contenido. INSERT solo con
+acceso a Comunidad y nunca sobre contenido propio; SELECT y UPDATE (solo la
+columna `revisado`) exclusivos de administradores. Un trigger AFTER UPDATE, al
+pasar `revisado` a true, notifica al reportante con el veredicto: eliminado si el
+contenido ya quedó eliminado, descartado si no (103).
+
+#### **Tabla: ConfiguracionComunidad** (`configuracion_comunidad`)
+
+Fila única (`CHECK id = 1`) con `fin_bootstrap`. **Sin uso desde 084:** el
+requisito de actividad reciente está desactivado y la función de acceso no la
+consulta. Se conserva para poder reintroducir el requisito sin rediseño. Solo la
+leen y escriben administradores.
+
+**Acceso — una sola fuente de verdad:** `private.comunidad_tiene_acceso(uuid)` =
+administrador **o** `private.suscripcion_da_acceso(uuid)` (084). La app y las
+policies usan el wrapper sin parámetro `public.comunidad_tiene_acceso()`, que
+siempre responde por `auth.uid()`. `resolverAccesoComunidad` (`src/lib/comunidad.ts`)
+solo lo consulta; el motivo que calcula se usa únicamente para el texto de la
+pantalla de Comunidad pausada.
+
+**Vistas públicas (085):** `comunidad_autor_publico` (id, nombre, foto) y
+`comunidad_actividad_reciente` proyectan solo las columnas que la UI necesita,
+con el mismo gate de acceso en el WHERE. Existen porque la RLS de `perfiles` y
+`certificados` no deja leer filas ajenas, y abrir esas filas expondría correo y
+celular.
+
+**Notificaciones (`notificaciones`, 094/095/100/103):** sin policy de INSERT
+para usuarios. Las generan triggers SECURITY DEFINER sobre la tabla de origen,
+que deciden el destinatario leyendo la base:
+
+| Tipo | Origen | Destinatario |
+| :---- | :---- | :---- |
+| COMUNIDAD\_RESPUESTA | INSERT en `comunidad_respuestas` | Autor del post, salvo que se responda a sí mismo |
+| COMUNIDAD\_ANUNCIO | INSERT en `comunidad_posts` con categoría ANUNCIOS | Todos los que tienen acceso, menos quien publica |
+| COMUNIDAD\_MODERACION | INSERT en `comunidad_moderacion` | Autor del contenido moderado |
+| COMUNIDAD\_REPORTE\_ELIMINADO / COMUNIDAD\_REPORTE\_DESCARTADO | `comunidad_reportes.revisado` pasa a true | Reportante |
+
+**Feed paginado en Postgres (P2-10, `112_feed_comunidad_paginado.sql`):**
+`public.buscar_feed_comunidad(p_categoria, p_solo_propios, p_busqueda, p_orden,
+p_pagina, p_por_pagina)` filtra, busca, ordena y pagina, y devuelve solo la
+página con `total_resultados` y la `pagina` efectiva (acotada a la última) en
+cada fila, más `total_respuestas`, `total_reacciones` y `me_reaccione`. Es
+`security invoker`: la RLS de Comunidad decide qué filas entran, y "Mis
+publicaciones" usa `auth.uid()`. La búsqueda compara `normalizar_busqueda()`
+(034) contra título, contenido y el nombre de `comunidad_autor_publico`, con
+`%`, `_` y `\` escapados, y tiene índices de trigramas sobre título y
+contenido. `getComunidadFeed` (`src/lib/comunidad.ts`) solo enriquece las filas
+de la página: autores, adjuntos y firma de imágenes. El riel "Más respondidas
+esta semana" usa `public.comunidad_mas_respondidas(p_dias, p_limite)`.
+Antes se traía el feed entero a Node, y eso además fallaba en silencio (URL
+demasiado larga en los `.in()`, conteos truncados por el tope de filas de la
+API).
+
+**Acceso evaluado una vez por consulta (`113_comunidad_tiene_acceso_initplan.sql`):**
+toda policy o vista de Comunidad llama `(select public.comunidad_tiene_acceso())`,
+nunca la función desnuda. Sin la subconsulta, Postgres la ejecutaba por cada
+fila: con 20.000 publicaciones el feed superaba el `statement_timeout`; con la
+subconsulta responde en décimas de segundo. `npm run db:check-rls-initplan`
+falla si una policy la vuelve a llamar sin envolver.
+
+**Supresión (104):** `private.anonimizar_usuario()` vacía `titulo`/`contenido`
+y marca `eliminado` y `eliminado_por_admin` en posts y respuestas del usuario.
+`anonimizarUsuario` (`src/actions/admin/usuarios.ts`) borra antes sus adjuntos
+(fila y archivo), porque SQL no puede llamar a la API de Storage.
+⚠️ **Brecha conocida:** no vacía `empleo_empresa`, `empleo_modalidad`,
+`empleo_ubicacion` ni `empleo_enlace`. Esas columnas siguen legibles vía API
+para cualquiera con acceso a Comunidad, aunque la UI ya no muestre el post. Hoy
+el trigger de transiciones y el CHECK de coherencia impiden vaciarlas; el
+arreglo requiere un cambio en SQL.
+
+### **Módulo de Calificaciones de Curso**
+
+Ver `docs/functional-spec.md` Módulo 11 y Flujo 16. Migraciones:
+`prisma/migrations/20260915000000_curso_calificaciones` y
+`20260915010000_curso_calificaciones_id_eliminado_por_idx`. RLS, trigger y
+vistas: `supabase/sql/102_curso_calificaciones.sql` (el trigger se redefine en
+`104`).
+
+#### **Tabla: CursoCalificaciones** (`curso_calificaciones`)
+
+| Parámetro | Tipo de Dato | Descripción   |
+| :---- | :---- | :---- |
+| **id** | UUID (Primary Key) | Identificador único |
+| **id\_curso** | UUID (FK, ON DELETE CASCADE) | Curso calificado |
+| **id\_usuario** | UUID (Foreign Key) | Autor. Siempre `auth.uid()` (policy de INSERT) |
+| **puntuacion** | Int | CHECK `between 1 and 5` |
+| **comentario** | String (nullable) | Hasta 1000 caracteres (validación en la app). `null` si está vacío |
+| **eliminado** | Boolean | Borrado lógico. Solo un administrador restaura |
+| **eliminado\_por\_admin / id\_eliminado\_por** | Boolean / UUID (nullable) | Solo los fija un administrador, junto con `eliminado = true` y firmando con su propio id |
+| **creado\_en / actualizado\_en** | DateTime | Timestamptz |
+
+Índice UNIQUE **parcial** `curso_calificaciones_unica_por_usuario` sobre
+(id\_curso, id\_usuario) WHERE NOT eliminado: una reseña activa por persona, y
+se puede volver a calificar después de eliminarla. Por ser parcial no admite
+`upsert`; `calificarCurso` busca la reseña activa y decide INSERT o UPDATE.
+
+#### **Tabla: CursoCalificacionReacciones** (`curso_calificacion_reacciones`)
+
+"Me gusta" a una reseña: `@@unique([id_calificacion, id_usuario])` normal, así
+que acá la app sí usa `upsert` con `ignoreDuplicates`. INSERT solo sobre una
+reseña no eliminada de un curso que el usuario puede ver; DELETE solo de la fila
+propia; sin UPDATE.
+
+**Vistas (102):** `curso_calificacion_autor_publico` (id, nombre, foto; abierta
+también a `anon`, porque las reseñas son públicas) y
+`curso_calificaciones_resumen` (promedio con dos decimales y total por curso,
+calculados al vuelo). Ambas repiten en el WHERE el filtro de visibilidad del
+curso.
+
+**Lista por tandas (P2-10):** `getCalificacionesCurso` (`src/lib/curso-calificaciones.ts`)
+trae solo la primera tanda (`RESENAS_POR_TANDA` = 9), con autores y reacciones
+de esas filas nada más. La reseña propia se consulta aparte, porque puede no
+estar en la primera tanda. "Ver más reseñas" llama a la Server Action
+`cargarMasCalificacionesCurso(cursoId, desde)`: es de solo lectura, usa el
+cliente de sesión (RLS decide) y valida el UUID y `desde`, que debe ser entero
+entre 0 y 5.000. La paginación es por **desplazamiento**, ordenada por
+`creado_en desc, id desc`, y pide una fila de más para saber si hay otra tanda.
+No se usa un cursor porque llegaría del navegador y habría que interpolarlo en un
+filtro `.or()` de PostgREST. El componente descarta repetidas por id
+(`src/lib/curso-calificaciones-tandas.ts`). El promedio y el total siguen
+saliendo de `curso_calificaciones_resumen`, así que el JSON-LD no cambia.
+
+**Revalidación:** las Server Actions de `src/actions/cursos/calificaciones.ts`
+no reciben la ruta desde el cliente; revalidan el patrón
+`/cursos/[cursoSlug]` (P2-9).
+
+**Supresión (104):** `private.anonimizar_usuario()` pone `comentario = null`,
+`eliminado = true` y `eliminado_por_admin = true`, y conserva `puntuacion`. Como
+el trigger de transiciones bloquea cambiar `comentario` en la misma transacción
+en que se elimina, la función enciende el GUC local `uva.anonimizando`, que el
+trigger reconoce. Es el mismo mecanismo que `purgar_bitacora_de_admin` (074).
 
 ### **Módulo de Operaciones y Seguimiento**
 
@@ -363,11 +562,17 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 
 > * **Tabla Progreso y Certificados:** SELECT, INSERT, UPDATE limitados a auth.uid() \= id\_usuario.  
 > * **Tablas de Exámenes (asimetría deliberada, ver supabase/sql/067):** `preguntas_examen` solo es legible por administradores —contiene las respuestas correctas, un SELECT sería el examen resuelto—. `intentos_examen` tiene SELECT para el dueño (o un administrador) y **ninguna** política de INSERT/UPDATE/DELETE: con RLS activo y sin política, Postgres deniega, así que un `PATCH /rest/v1/intentos_examen` con `{"estado":"APROBADO"}` no afecta ninguna fila. Es la excepción a la regla del proyecto de escribir con el cliente de sesión: el dato a escribir (la nota) es exactamente el que el usuario querría falsificar, y el trigger de certificación confía en él. Iniciar/autoguardar/enviar pasan por `src/actions/examenes/intento.ts`, que usa las lecturas de sesión para autorizar (RLS decide si ve el examen) y Service Role solo para escribir, siempre filtrando por el `id_usuario` de `auth.getUser()`.  
+> * **Tablas de Comunidad (083–104, ver §4 Módulo de Comunidad):** lectura de posts, respuestas, reacciones y adjuntos condicionada a `public.comunidad_tiene_acceso()`. Toda escritura exige además `correo_verificado()` y `cuenta_activa()`. `comunidad_moderacion` y `comunidad_reportes` (salvo INSERT de reportes) son exclusivas de administradores. Posts y respuestas siguen el patrón "privilegio de columna + trigger de transiciones" (abajo): solo un administrador fija o restaura, solo el autor reescribe, y un administrador solo puede vaciar el contenido de otra persona. Sin DELETE real en posts ni respuestas.
+> * **Tablas de Calificaciones de Curso (102):** SELECT abierto a `anon` para cursos publicados; en cursos ocultos, solo administradores o quien tiene acceso vigente, y el autor ve también su fila ya eliminada (necesario para que Postgres acepte el UPDATE que la elimina). INSERT solo con `private.tiene_acceso_vigente_curso`, correo verificado y cuenta activa.
 > * **Tablas Cursos, Módulos, Lecciones:**  
   * SELECT habilitado para todos los usuarios, condicionado a mostrado \= true.  
   * INSERT, UPDATE, DELETE restringidos estrictamente a perfiles donde rol \= 'administrador'.  
 > * **Generación de Firmas (Mux):** Las URLs firmadas de Mux solo se generan en el backend si el sistema detecta que existe un registro válido en Suscripciones (estado \= 'activa' o 'past\_due') o en Inscripciones asociado al usuario solicitante.  
-> * **Verificación de correo:** private.correo\_verificado() (SECURITY DEFINER, mismo criterio que private.es\_administrador()) chequea auth.users.email\_confirmed\_at para auth.uid() y se agrega al with check de inscripciones\_insert\_propio y progreso\_propio — un usuario sin correo confirmado no puede autoinscribirse a una membresía ni escribir su progreso de reproducción, ver Flujo 02.
+> * **Verificación de correo:** private.correo\_verificado() (SECURITY DEFINER, mismo criterio que private.es\_administrador()) chequea auth.users.email\_confirmed\_at para auth.uid() y se agrega al with check de inscripciones\_insert\_propio y progreso\_propio — un usuario sin correo confirmado no puede autoinscribirse a una membresía ni escribir su progreso de reproducción, ver Flujo 02.  
+> * **Patrón "privilegio de columna \+ trigger de transiciones" (P3-10, AUDIT-2026-09-15.md):** para una tabla donde el mismo UPDATE lo puede disparar tanto el autor (editar/borrar lo propio) como un administrador (moderar), una sola policy de RLS no alcanza — una policy autoriza la fila, no decide qué columnas cambian ni qué transición de estado es válida para cada rol. El patrón, usado en `comentarios` (065\_comentario\_moderacion.sql), `comunidad\_posts`/`comunidad\_respuestas` (083\_comunidad.sql, 087\_comunidad\_editar\_publicacion.sql) y `curso\_calificaciones` (102\_curso\_calificaciones.sql), tiene dos capas:  
+>   1. **Privilegio por columna** (`revoke update on tabla from authenticated; grant update (col\_a, col\_b, …) on tabla to authenticated;`) — acota QUÉ columnas puede tocar el rol en general, cerrando por defecto las que Supabase concede abiertas al crear la tabla.  
+>   2. **Trigger `before update`** (`private.<tabla>\_transiciones\_permitidas()`, SECURITY DEFINER) — decide, comparando `old.*` contra `new.*`, si la transición concreta es válida para quien la pide (ej.: el autor puede vaciar `contenido` pero no reescribirlo; solo un admin puede restaurar `eliminado = true → false`). Es la única capa que puede ver el valor anterior, algo que una policy de UPDATE no tiene disponible por columna.  
+>   Reusar este patrón (no inventar uno nuevo) para el próximo módulo donde autor y administrador compartan permiso de UPDATE sobre la misma fila con reglas de transición distintas.
 
 ## **6\. Autenticación e Identidad**
 
@@ -441,6 +646,7 @@ suscripción de pago abre el contenido por el mismo camino que una invitación.
   * El navegador del administrador solicita una URL de subida temporal a nuestro backend (POST /api/video/upload).  
   * El navegador transfiere el .mp4 directamente a la infraestructura de Mux, evitando agotar recursos o el ancho de banda del servidor de Next.js.  
   * Al terminar, Mux notifica vía Webhook cuando el activo está listo para actualizar la base de datos (id\_video\_mux).
+> * **Adjuntos de Comunidad (bucket privado `comunidad-adjuntos`, 086):** es el único bucket donde escribe un usuario que no es administrador. Límite de 10 MB. La policy de INSERT en Storage exige acceso a Comunidad y que la ruta empiece por `auth.uid()`. **No hay policy de SELECT en Storage:** la lectura se autoriza leyendo la fila de `comunidad_adjuntos` con el cliente de sesión, y solo entonces se firma la ruta con Service Role (1 h para imágenes del feed, 5 min para descargar documentos, `obtenerUrlAdjuntoComunidad`). Las imágenes se re-codifican a WebP (máximo 1600 px) con `sharp`; los documentos se validan por magic bytes contra la misma lista que los materiales de lección.
 
 ## **9\. Envío de Emails (Correos Transaccionales)**
 
@@ -450,6 +656,7 @@ suscripción de pago abre el contenido por el mismo camino que una invitación.
   * Confirmación de registro / verificación de correo (Integrado de forma nativa con Supabase Auth, token de 15 minutos, reenvío limitado a 1 cada 60 segundos).  
   * Recuperación de contraseña (Integrado de forma nativa con Supabase Auth).  
   * Aviso de fallo de pago y entrada al período de gracia.
+  * Aviso de moderación en Comunidad (`enviarCorreoComunidadModerada`, plantilla `src/emails/comunidad-moderada.tsx`): al autor cuyo contenido eliminó un administrador, con el motivo. Best-effort: si Resend falla, se registra y la moderación no se revierte.
 
 ## **10\. Entornos y CI/CD (Deploy)**
 

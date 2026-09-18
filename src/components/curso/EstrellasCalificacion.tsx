@@ -35,11 +35,13 @@ export function EstrellasInput({
   disabled?: boolean;
 }) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <span role="radiogroup" aria-label="Calificación en estrellas" className="inline-flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((estrella) => (
         <button
           key={estrella}
           type="button"
+          role="radio"
+          aria-checked={estrella === valor}
           disabled={disabled}
           onClick={() => onCambiar(estrella)}
           aria-label={`Calificar con ${estrella} estrella${estrella === 1 ? "" : "s"}`}

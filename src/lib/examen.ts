@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { calcularVidasRestantes } from "@/lib/examenes/calificar";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import {
   COOLDOWN_AGOTADO_HORAS,
   COOLDOWN_REINTENTO_MINUTOS,
+  parsearProgreso,
   prepararPreguntasParaEstudiante,
   type PreguntaCongelada,
   type PreguntaParaEstudiante,
-  type RespuestasIntento,
 } from "@/lib/examenes/tipos";
 
 /**
@@ -23,7 +24,6 @@ export type ExamenPublico = {
   id: string;
   titulo: string;
   instrucciones: DocumentoContenido | null;
-  notaAprobatoria: number;
   intentosMaximos: number | null;
   minutosLimite: number | null;
 };
@@ -42,7 +42,6 @@ export type IntentoPrevio = {
  *
  *   SIN_EXAMEN  el curso no exige examen (o está en borrador). El curso se
  *               completa con el 100% de lecciones, como siempre.
- *   BLOQUEADO   hay examen, pero todavía le faltan lecciones.
  *   DISPONIBLE  puede iniciar un intento ahora (una ronda nueva o en curso).
  *   EN_CURSO    tiene un intento abierto; hay que retomarlo, no crear otro.
  *   EN_ESPERA   tiene que esperar para reintentar. `esperaLarga` distingue
@@ -54,7 +53,6 @@ export type IntentoPrevio = {
  */
 export type SituacionExamen =
   | { situacion: "SIN_EXAMEN" }
-  | { situacion: "BLOQUEADO"; examen: ExamenPublico; leccionesPendientes: boolean }
   | {
       situacion: "DISPONIBLE";
       examen: ExamenPublico;
@@ -76,14 +74,23 @@ export type SituacionExamen =
       intentosUsados: number;
       ultimoIntento: IntentoPrevio;
     }
-  | { situacion: "APROBADO"; examen: ExamenPublico; intentoAprobado: IntentoPrevio };
+  | {
+      situacion: "APROBADO";
+      examen: ExamenPublico;
+      intentoAprobado: IntentoPrevio;
+      /** El examen se puede aprobar sin haber terminado las clases del curso
+       * (decisión de producto): esto distingue "ya aprobaste, pero el
+       * certificado espera a que termines el temario" de "certificado ya
+       * emitido" — sin este dato la UI mandaría a un estudiante a
+       * `/dashboard/certificados` a ver algo que todavía no existe. */
+      certificadoListo: boolean;
+    };
 
 function aExamenPublico(fila: Record<string, unknown>): ExamenPublico {
   return {
     id: fila.id as string,
     titulo: fila.titulo as string,
     instrucciones: resolverContenidoLeccion(fila.instrucciones ?? null, null),
-    notaAprobatoria: fila.nota_aprobatoria as number,
     intentosMaximos: (fila.intentos_maximos as number | null) ?? null,
     minutosLimite: (fila.minutos_limite as number | null) ?? null,
   };
@@ -159,7 +166,7 @@ export async function getSituacionExamen(
   // "no hay examen", que es exactamente lo que debe pasar.
   const { data: examenRow, error: errorExamen } = await supabase
     .from("examenes")
-    .select("id, titulo, instrucciones, nota_aprobatoria, intentos_maximos, minutos_limite")
+    .select("id, titulo, instrucciones, intentos_maximos, minutos_limite")
     .eq("id_curso", cursoId)
     .maybeSingle();
 
@@ -200,9 +207,20 @@ export async function getSituacionExamen(
 
   const aprobado = intentos.find((intento) => intento.estado === "APROBADO");
   if (aprobado) {
+    // El certificado ya se emitió (por el mismo trigger que aprobó el
+    // intento, o por el de `progreso` si las clases se completaron después)
+    // exactamente cuando existe la fila — no hay que recalcular
+    // `curso_esta_completo` acá, con que exista ya alcanza y es la misma
+    // fuente de verdad que usa la ficha de "Mis certificados".
+    const { count } = await supabase
+      .from("certificados")
+      .select("id", { count: "exact", head: true })
+      .eq("id_curso", cursoId);
+
     return {
       situacion: "APROBADO",
       examen,
+      certificadoListo: (count ?? 0) > 0,
       intentoAprobado: {
         id: aprobado.id,
         estado: "APROBADO",
@@ -222,18 +240,11 @@ export async function getSituacionExamen(
   const cerrados = intentos.filter((intento) => intento.estado !== "EN_CURSO");
   const intentosUsados = cerrados.length;
 
-  // El examen solo se desbloquea con el 100% de lecciones. La regla vive en
-  // Postgres (private.lecciones_completas_curso, supabase/sql/068) y se
-  // consulta por RPC en vez de recalcularse acá: es la MISMA función que usa
-  // el trigger de certificación, así que no pueden separarse.
-  const { data: leccionesCompletas } = await supabase.rpc("lecciones_completas_curso", {
-    p_id_curso: cursoId,
-  });
-
-  if (leccionesCompletas !== true) {
-    return { situacion: "BLOQUEADO", examen, leccionesPendientes: true };
-  }
-
+  // A propósito NO se exige 100% de lecciones para poder INTENTAR el examen
+  // (decisión de producto): eso solo pasaba por acá para producir el estado
+  // BLOQUEADO, que ya no existe. La certificación sigue exigiendo 100% de
+  // lecciones + examen aprobado vía private.curso_esta_completo
+  // (supabase/sql/068), sin cambios.
   const ultimoCerrado = cerrados[0];
   const ultimoIntento: IntentoPrevio | null = ultimoCerrado
     ? {
@@ -272,11 +283,21 @@ export async function getSituacionExamen(
 export type IntentoEnCurso = {
   id: string;
   examenTitulo: string;
-  notaRequerida: number;
-  /** Ya despojadas de respuestas correctas, en el orden que le tocó a este
-   * estudiante. */
+  /** TODAS las preguntas del examen, ya despojadas de respuestas correctas.
+   * El arreglo no cambia durante el intento: lo que se mueve es cuál de
+   * ellas toca (`preguntaActualId`), porque la cola las reordena. */
   preguntas: PreguntaParaEstudiante[];
-  respuestas: RespuestasIntento;
+  /** Pregunta que toca responder ahora — el frente de `ProgresoIntento.cola`.
+   * El cliente no lo deduce: con la cola de reintentos, la siguiente no es
+   * la del índice de al lado. */
+  preguntaActualId: string;
+  /** Cuántas preguntas lleva resueltas CORRECTAMENTE (para "Correctas X/Y" y
+   * la barra de progreso). */
+  resueltas: number;
+  /** Con qué vidas retoma quien recarga la página a mitad de un intento —
+   * `calcularVidasRestantes` (src/lib/examenes/calificar.ts), misma fuente
+   * que usa `responderPregunta` para decidir si el intento ya se cerró. */
+  vidasRestantes: number;
   expiraEn: string | null;
   iniciadoEn: string;
 };
@@ -345,7 +366,7 @@ export async function getIntentoEnCurso(
   const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select(
-      "id, id_usuario, estado, nota_requerida, preguntas_congeladas, respuestas, expira_en, iniciado_en, examen:examenes(titulo)",
+      "id, id_usuario, estado, preguntas_congeladas, respuestas, expira_en, iniciado_en, examen:examenes(titulo)",
     )
     .eq("id", intentoId)
     .maybeSingle();
@@ -367,13 +388,18 @@ export async function getIntentoEnCurso(
 
   const examen = Array.isArray(intento.examen) ? intento.examen[0] : intento.examen;
   const congeladas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
+  const progreso = parsearProgreso(intento.respuestas, congeladas);
 
   return {
     id: intento.id,
     examenTitulo: examen?.titulo ?? "Examen final",
-    notaRequerida: intento.nota_requerida,
     preguntas: prepararPreguntasParaEstudiante(congeladas),
-    respuestas: (intento.respuestas ?? {}) as RespuestasIntento,
+    // Un intento EN_CURSO nunca puede tener la cola vacía: vaciarla es
+    // justamente lo que lo cierra como APROBADO. Si pasara, es un cierre que
+    // no se completó, no un caso normal que haya que maquillar acá.
+    preguntaActualId: progreso.cola[0],
+    resueltas: Object.keys(progreso.resueltas).length,
+    vidasRestantes: calcularVidasRestantes(progreso.fallos),
     expiraEn: intento.expira_en,
     iniciadoEn: intento.iniciado_en,
   };
@@ -389,8 +415,13 @@ export async function getIntentoEnCurso(
 export type ResultadoIntentoVista = {
   id: string;
   estado: "APROBADO" | "REPROBADO" | "EN_REVISION";
+  /** Informativo: qué proporción de las preguntas quedó resuelta. Ya no
+   * decide aprobado/reprobado (eso lo deciden la cola y las vidas), y no se
+   * le muestra al estudiante como nota. */
   puntajePct: number | null;
-  notaRequerida: number;
+  /** Vidas que le quedaban al cerrar — `VIDAS_INICIALES` menos esto es
+   * cuántas gastó, que es lo que se le muestra junto a "X/Y correctas". */
+  vidasRestantes: number;
   finalizadoEn: string | null;
   preguntas: { id: string; enunciado: DocumentoContenido; acertada: boolean }[];
 };
@@ -413,7 +444,7 @@ export async function getResultadoIntento(
 ): Promise<ResultadoIntentoVista | null> {
   const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
-    .select("id, id_usuario, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, finalizado_en")
+    .select("id, id_usuario, estado, puntaje_pct, preguntas_congeladas, respuestas, finalizado_en")
     .eq("id", intentoId)
     .maybeSingle();
 
@@ -424,23 +455,26 @@ export async function getResultadoIntento(
   }
 
   const congeladas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
-  const respuestas = (intento.respuestas ?? {}) as RespuestasIntento;
+  const progreso = parsearProgreso(intento.respuestas, congeladas);
 
   // Se recalcula el acierto por pregunta en vez de guardarlo: la calificación
   // es determinista sobre datos ya congelados, así que dar el mismo resultado
   // está garantizado, y evita una columna más que mantener en sincronía.
+  // `progreso.resueltas` solo contiene las que quedaron BIEN, así que una
+  // pregunta que el estudiante reintentó sin acertar sale como fallada, que
+  // es exactamente lo que fue.
   const { calificarPregunta } = await import("@/lib/examenes/calificar");
 
   return {
     id: intento.id,
     estado: intento.estado,
     puntajePct: aPuntaje(intento.puntaje_pct),
-    notaRequerida: intento.nota_requerida,
+    vidasRestantes: calcularVidasRestantes(progreso.fallos),
     finalizadoEn: intento.finalizado_en,
     preguntas: congeladas.map((pregunta) => ({
       id: pregunta.id,
       enunciado: pregunta.enunciado,
-      acertada: calificarPregunta(pregunta, respuestas[pregunta.id]),
+      acertada: calificarPregunta(pregunta, progreso.resueltas[pregunta.id]),
     })),
   };
 }

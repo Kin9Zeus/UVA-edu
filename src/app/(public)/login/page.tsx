@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
 import { AuthVisual } from "@/components/auth/AuthVisual";
 import { AuthFlow } from "@/components/auth/AuthFlow";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import { metadataPublica } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "U.V.A. — Iniciar sesión",
-};
+// P2-6 (AUDIT-2026-09-15.md): de las páginas de auth, esta es la ÚNICA que
+// `robots.ts` deja indexable — `/recuperar`, `/actualizar-password` y
+// `/verificar-correo` están en el `disallow`. Aun así declaraba solo el
+// título y heredaba del layout raíz la descripción genérica "Plataforma de
+// cursos U.V.A", que es exactamente el estado que P2-6 vino a cerrar.
+//
+// El canonical importa aquí más que en el resto del sitio: la página recibe
+// `?redirect=`, `?email=` y `?error=`, así que la misma pantalla existe en
+// muchas direcciones. Fijarlo a `/login` a secas las colapsa en una —y de
+// paso evita que una URL con el correo de alguien en el query string termine
+// indexada—. `/registro` redirige aquí, así que esta es su canónica también.
+export const metadata: Metadata = metadataPublica({
+  titulo: "Iniciar sesión o crear cuenta",
+  descripcion:
+    "Entra a tu cuenta U.V.A. o créala con tu correo para acceder a los cursos del oficio de la construcción.",
+  ruta: "/login",
+});
 
 export default async function LoginPage({
   searchParams,
@@ -12,7 +28,10 @@ export default async function LoginPage({
   searchParams: Promise<{ redirect?: string; email?: string; error?: string }>;
 }) {
   const { redirect, email, error } = await searchParams;
-  const redirectTo = redirect?.startsWith("/") ? redirect : "/dashboard";
+  // Viaja a un campo oculto del formulario y al `next` del botón de Google,
+  // así que se sanea aquí también y no solo en el Server Action: ver
+  // lib/redirect-seguro.ts.
+  const redirectTo = destinoInternoSeguro(redirect);
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden min-[900px]:h-screen min-[900px]:flex-row min-[900px]:overflow-hidden">

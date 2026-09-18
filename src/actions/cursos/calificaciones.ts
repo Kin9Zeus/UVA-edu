@@ -4,8 +4,28 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-calificaciones-validacion";
+import { DESDE_MAXIMO_RESENAS, getTandaCalificacionesCurso, type TandaCalificaciones } from "@/lib/curso-calificaciones";
+import { esUuid } from "@/lib/slug";
 
 export type CalificacionCursoResultado = { error: string } | { success: true };
+
+/**
+ * Lo que se revalida tras cualquier cambio de reseñas: la ficha de curso,
+ * como PATRÓN de ruta (todas las fichas) y no la URL concreta.
+ *
+ * Antes cada acción recibía `ruta` como argumento y la pasaba tal cual a
+ * `revalidatePath`. Una Server Action es un endpoint público: cualquiera con
+ * sesión podía llamarla con la ruta que quisiera e invalidar la caché de
+ * otras páginas del sitio. Las reseñas solo se ven en
+ * `(public)/cursos/[cursoSlug]` (CursoDetalleContent), así que la ruta la
+ * decide el servidor. Se usa el patrón porque las acciones que reciben un
+ * id de reseña no conocen el slug, y buscarlo costaría una consulta por
+ * clic; la ficha lee la sesión en cada petición (no hay caché de datos que
+ * perder), así que invalidar todas no le cuesta nada a nadie.
+ */
+function revalidarFichasDeCurso() {
+  revalidatePath("/cursos/[cursoSlug]", "page");
+}
 
 /**
  * Crea o edita la reseña propia de un curso (estrellas 1-5 + comentario
@@ -20,9 +40,6 @@ export async function calificarCurso(
   cursoId: string,
   puntuacion: number,
   comentario: string,
-  /** Ruta a revalidar — la ficha del curso, público o dentro del dashboard
-   * según desde dónde se calificó. */
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -67,7 +84,7 @@ export async function calificarCurso(
   // solo pasa si el acceso venció justo entre cargar la página y enviar.
   if (error) return { error: "No pudimos guardar tu calificación. Verifica que tengas acceso vigente al curso." };
 
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -77,7 +94,6 @@ export async function calificarCurso(
  */
 export async function eliminarCalificacionPropia(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -85,14 +101,22 @@ export async function eliminarCalificacionPropia(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Debes iniciar sesión." };
 
-  const { error } = await supabase
+  // `.select("id")` para saber cuántas filas cambiaron: un UPDATE que no
+  // coincide con nada (id ajeno, o que RLS filtró) no es un error para
+  // PostgREST, y sin esto la acción respondía éxito sin haber borrado nada.
+  // No agrega ninguna exigencia nueva de RLS: Postgres ya aplica la policy de
+  // SELECT a la fila resultante de todo UPDATE con WHERE (ver el comentario
+  // de curso_calificaciones_select_publico, 102_curso_calificaciones.sql).
+  const { data: eliminadas, error } = await supabase
     .from("curso_calificaciones")
     .update({ eliminado: true })
     .eq("id", calificacionId)
-    .eq("id_usuario", user.id);
+    .eq("id_usuario", user.id)
+    .select("id");
 
   if (error) return { error: "No pudimos eliminar tu calificación." };
-  revalidatePath(ruta);
+  if (!eliminadas?.length) return { error: "No encontramos tu calificación. Recarga la página." };
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -106,7 +130,6 @@ export async function eliminarCalificacionPropia(
  */
 export async function moderarCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -117,12 +140,17 @@ export async function moderarCalificacion(
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
   if (perfil?.rol !== "ADMINISTRADOR") return { error: "No tienes permiso para moderar reseñas." };
 
-  const { error } = await supabase
+  // Mismo motivo que en eliminarCalificacionPropia, y aquí pesa más: sin
+  // contar filas, un id inexistente quedaba en la bitácora como una
+  // moderación que nunca ocurrió.
+  const { data: moderadas, error } = await supabase
     .from("curso_calificaciones")
     .update({ eliminado: true, eliminado_por_admin: true, id_eliminado_por: user.id })
-    .eq("id", calificacionId);
+    .eq("id", calificacionId)
+    .select("id");
 
   if (error) return { error: "No pudimos eliminar la reseña." };
+  if (!moderadas?.length) return { error: "Esa reseña ya no existe." };
 
   await registrarBitacora(supabase, {
     idAdmin: user.id,
@@ -131,7 +159,7 @@ export async function moderarCalificacion(
     idEntidadAfectada: calificacionId,
   });
 
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
@@ -141,7 +169,6 @@ export async function moderarCalificacion(
  * (src/actions/comentarios/like.ts). */
 export async function reaccionarCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -157,13 +184,12 @@ export async function reaccionarCalificacion(
     );
 
   if (error) return { error: "No pudimos guardar tu reacción." };
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
 }
 
 export async function quitarReaccionCalificacion(
   calificacionId: string,
-  ruta: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
   const {
@@ -178,6 +204,35 @@ export async function quitarReaccionCalificacion(
     .eq("id_usuario", user.id);
 
   if (error) return { error: "No pudimos quitar tu reacción." };
-  revalidatePath(ruta);
+  revalidarFichasDeCurso();
   return { success: true };
+}
+
+/**
+ * "Ver más reseñas" en la ficha del curso: la siguiente tanda a partir de
+ * `desde` (cuántas trae ya la pantalla). AUDIT-2026-09-15.md — P2-10.
+ *
+ * Solo lectura y con el cliente de sesión: RLS decide qué reseñas se ven
+ * (las de un curso oculto, solo con acceso), igual que la primera tanda que
+ * pinta el servidor. Funciona sin sesión, porque las reseñas son públicas;
+ * la sesión solo sirve para marcar los "me gusta" propios.
+ *
+ * Los dos argumentos llegan del navegador: se validan antes de consultar,
+ * y `desde` tiene tope para que no sirva para pedir desplazamientos caros.
+ */
+export async function cargarMasCalificacionesCurso(
+  cursoId: string,
+  desde: number,
+): Promise<{ error: string } | TandaCalificaciones> {
+  if (typeof cursoId !== "string" || !esUuid(cursoId)) return { error: "Curso inválido." };
+  if (!Number.isInteger(desde) || desde < 0 || desde > DESDE_MAXIMO_RESENAS) {
+    return { error: "No pudimos cargar más reseñas." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return getTandaCalificacionesCurso(cursoId, user?.id ?? null, desde);
 }

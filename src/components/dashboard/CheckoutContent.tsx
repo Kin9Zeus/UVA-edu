@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, TicketPercent, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,20 @@ export function CheckoutContent({
   const [validando, setValidando] = useState(false);
   const [pagando, setPagando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Segundos que faltan para poder volver a probar un cupón tras el rate
+  // limit (P2-1). null = sin bloqueo activo. Mismo patrón que
+  // CanjearCodigoForm, que ya lo hace para los códigos de invitación.
+  const [segundosBloqueo, setSegundosBloqueo] = useState<number | null>(null);
+
+  // Cuenta regresiva de un segundo en segundo mientras dure el bloqueo.
+  // Al llegar a 0 se limpia sola y el campo vuelve a habilitarse.
+  useEffect(() => {
+    if (segundosBloqueo === null || segundosBloqueo <= 0) return;
+    const id = setTimeout(() => {
+      setSegundosBloqueo((s) => (s !== null && s > 1 ? s - 1 : null));
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [segundosBloqueo]);
 
   const plan = planes.find((p) => p.id === idPlan) ?? planes[0];
 
@@ -122,6 +136,13 @@ export function CheckoutContent({
   const precioLista = formatearPrecio(plan.precio_centavos, plan.moneda);
   const total = desglose ? desglose.total : precioLista;
   const ocupado = validando || pagando;
+  /**
+   * Deliberadamente FUERA de `ocupado`: el bloqueo es del cupón, no del pago.
+   * Meterlo en `ocupado` deshabilitaría también el botón de pagar, y dejaría
+   * a alguien que se equivocó tecleando códigos sin poder comprar a precio
+   * de lista — un rate limit que termina costando la venta que protegía.
+   */
+  const cuponBloqueado = segundosBloqueo !== null && segundosBloqueo > 0;
 
   async function elegirPlan(nuevoId: string) {
     if (nuevoId === idPlan) return;
@@ -144,6 +165,9 @@ export function CheckoutContent({
     setCuponAplicado(null);
     setDesglose(null);
     setError(resultado.error);
+    if (typeof resultado.segundosEspera === "number") {
+      setSegundosBloqueo(resultado.segundosEspera);
+    }
   }
 
   async function aplicarCupon() {
@@ -157,11 +181,18 @@ export function CheckoutContent({
       setDesglose(resultado.desglose);
       setCuponAplicado(codigo.trim().toUpperCase());
       setMostrarCampo(false);
+      setSegundosBloqueo(null);
       return;
     }
     setDesglose(null);
     setCuponAplicado(null);
     setError(resultado.error);
+    // Solo viene cuando el rechazo fue por rate limit: deja el campo
+    // deshabilitado hasta que expire, en vez de que seguir dando clic
+    // muestre el mismo error una y otra vez.
+    if (typeof resultado.segundosEspera === "number") {
+      setSegundosBloqueo(resultado.segundosEspera);
+    }
   }
 
   function cerrarCampo() {
@@ -387,7 +418,7 @@ export function CheckoutContent({
                     onKeyDown={(e) => {
                       // Enter aplica: el campo está suelto, no dentro de un
                       // <form> que pueda enviarse solo.
-                      if (e.key === "Enter" && codigo.trim() && !ocupado) {
+                      if (e.key === "Enter" && codigo.trim() && !ocupado && !cuponBloqueado) {
                         e.preventDefault();
                         void aplicarCupon();
                       }
@@ -396,7 +427,7 @@ export function CheckoutContent({
                     placeholder="LANZAMIENTO"
                     autoComplete="off"
                     autoFocus
-                    disabled={ocupado}
+                    disabled={ocupado || cuponBloqueado}
                     className="h-10 font-mono text-sm tracking-[0.06em] uppercase"
                   />
                   <div className="flex gap-2">
@@ -404,10 +435,14 @@ export function CheckoutContent({
                       type="button"
                       variant="uva-secondary"
                       onClick={aplicarCupon}
-                      disabled={ocupado || codigo.trim().length === 0}
+                      disabled={ocupado || cuponBloqueado || codigo.trim().length === 0}
                       className="h-9 flex-1 text-[12.5px]"
                     >
-                      {validando ? "Validando…" : "Aplicar"}
+                      {cuponBloqueado
+                        ? `Espera ${segundosBloqueo}s`
+                        : validando
+                          ? "Validando…"
+                          : "Aplicar"}
                     </Button>
                     <Button
                       type="button"

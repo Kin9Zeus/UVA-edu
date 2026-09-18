@@ -76,8 +76,8 @@ export function ComunidadFiltros() {
           type="search"
           value={texto}
           onChange={(event) => alEscribir(event.target.value)}
-          placeholder="Buscar en Comunidad"
-          aria-label="Buscar en Comunidad"
+          placeholder="Buscar publicaciones o personas"
+          aria-label="Buscar publicaciones o personas en Comunidad"
           className="h-10 w-full rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-sm text-uva-text outline-none placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (

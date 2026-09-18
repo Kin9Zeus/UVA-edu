@@ -39,6 +39,12 @@
 | Panel Backoffice CMS / CRUD de Cursos | No | No | No | Permitido |
 | Otorgamiento de Cortesías y Cupones | No | No | No | Permitido |
 | Consulta de Bitácora y Eventos Webhook | No | No | No | Permitido |
+| Leer y participar en Comunidad (publicar, responder, reaccionar, reportar) | No | No | Permitido (solo con membresía vigente) | Permitido |
+| Publicar en Anuncios y fijar publicaciones de Comunidad | No | No | No | Permitido |
+| Moderar Comunidad y atender reportes | No | No | No | Permitido |
+| Ver reseñas y calificación promedio de un curso | Permitido | Permitido | Permitido | Permitido |
+| Calificar un curso (reseña propia) | No | No | Permitido (con acceso al curso) | Solo con acceso al curso |
+| Moderar reseñas de curso | No | No | No | Permitido |
 
 ## **3\. Módulos de Funcionalidad y Procesos**
 
@@ -98,11 +104,43 @@
 
 > * **Examen Opcional por Curso:** Como máximo un examen final por curso, y solo si quien lo crea decide que su curso lo necesita. Sin examen publicado, el curso certifica con el 100% de lecciones, como siempre.
 > * **Gate de Certificación:** Con examen publicado, aprobarlo es condición necesaria —junto al 100% de lecciones— para que el curso quede completo y se emita el certificado (Flujo 07, Revf5).
-> * **Nota Mínima:** 75% por regla de negocio, con piso impuesto en la base de datos. El administrador puede exigir más, nunca menos.
-> * **Tipos de Pregunta:** opción única, opción múltiple, verdadero/falso y respuesta corta. Enunciado con editor enriquecido (listas, citas, código), no solo texto plano.
-> * **Intentos por Rondas:** `intentos_maximos` (default 3) no es un tope de por vida, es el tamaño de una RONDA. Reprobar dentro de la ronda espera 15 minutos; agotar la ronda completa espera 5 horas y al cumplirse habilita una ronda nueva, indefinidamente y sin que un admin tenga que intervenir (aunque puede saltarse la espera). Tiempo límite opcional por examen, validado en el servidor.
-> * **Integridad del Intento:** las preguntas se congelan en el intento al iniciarlo, con su orden aleatorizado; editar el examen después no altera intentos en curso ni recalifica los ya rendidos.
-> * **Calificación Server-Side:** ponderada por puntos. Las respuestas correctas nunca viajan al navegador.
+> * **Acceso sin Gate de Lecciones:** A diferencia de la certificación, INTENTAR el examen no exige haber terminado las clases del curso — está disponible desde que se publica. Un estudiante puede aprobarlo antes de ver todo el temario; el certificado igual espera al 100% de lecciones.
+> * **Criterio de Aprobación (sin nota mínima):** no hay umbral por porcentaje. Se aprueba respondiendo CORRECTAMENTE todas las preguntas del examen antes de quedarse sin vidas; se reprueba al agotar las vidas (o al agotarse el tiempo con preguntas sin resolver). El administrador ya no configura "nota para aprobar": la columna `examenes.nota_aprobatoria` sigue existiendo por compatibilidad, pero no decide nada y no se pide en el formulario.
+> * **Tipos de Pregunta:** opción única, opción múltiple, verdadero/falso, respuesta corta y relacionar (pares). Enunciado con editor enriquecido (listas, citas, código), no solo texto plano.
+> * **Vidas:** el estudiante presenta cada intento con 5 vidas fijas para toda la plataforma (no configurables por examen). Una pregunta a la vez, respuesta fija al confirmarla, feedback inmediato de correcto/incorrecto sin revelar la respuesta correcta. Agotar las vidas cierra el intento YA como REPROBADO, sin importar cuántas preguntas le quedaran, y cuenta como uno de los intentos de la ronda.
+> * **Cola de Reintentos:** fallar una pregunta no la saca del examen — cuesta una vida y la manda al FINAL de la cola de pendientes, así que vuelve a aparecer después de las demás (nunca dos veces seguidas). El intento sigue abierto hasta que la cola queda vacía (APROBADO) o las vidas llegan a 0 (REPROBADO).
+> * **Intentos por Rondas:** `intentos_maximos` (default 3) no es un tope de por vida, es el tamaño de una RONDA. Reprobar dentro de la ronda (agotar las vidas o quedarse sin tiempo) espera 15 minutos; agotar la ronda completa espera 5 horas y al cumplirse habilita una ronda nueva, indefinidamente y sin que un admin tenga que intervenir (aunque puede saltarse la espera). Tiempo límite opcional por examen, validado en el servidor.
+> * **Integridad del Intento:** las preguntas se congelan en el intento al iniciarlo, con su orden aleatorizado; ese orden es el que arranca la cola. Editar el examen después no altera intentos en curso ni recalifica los ya rendidos.
+> * **Calificación Server-Side:** pregunta a pregunta, en el servidor. Las respuestas correctas nunca viajan al navegador, y el orden de la cola tampoco lo decide el cliente.
+
+### **Módulo 10: Comunidad**
+
+> * **Quién entra:** estudiantes con membresía vigente y administradores. La regla vive en una sola función de la base (`comunidad_tiene_acceso`) y la aplicación nunca la reimplementa. Una cortesía de un curso suelto no da acceso: hace falta membresía. Sin acceso, `/dashboard/comunidad` muestra la pantalla de Comunidad pausada con el motivo (sin suscripción, vencida o cancelada).
+> * **Requisito de actividad desactivado (decisión vigente):** el diseño original exigía, pasado un período de arranque, un certificado emitido en los últimos 30 días. Se quitó mientras la comunidad no tenga masa crítica (`084_comunidad_gate_sin_requisito_temporal.sql`). La maquinaria queda en la base sin usar: reintroducirlo es reescribir esa única función.
+> * **Categorías:** Anuncios (solo publica un administrador), Proyectos, Preguntas y Empleo. La categoría no se cambia después de publicar.
+> * **Publicaciones de Empleo:** exigen empresa, modalidad (presencial, remoto o híbrido) y un enlace a la vacante; la ubicación es opcional. En cualquier otra categoría esos campos no se guardan. La base lo impone con un CHECK, no solo el formulario.
+> * **Feed:** 20 publicaciones por página. Las fijadas van siempre primero. Se ordena por fecha (por defecto) o por relevancia (reacciones + respuestas), se filtra por categoría o por "Mis publicaciones", y se busca por título, contenido o nombre de la persona que publicó, sin distinguir mayúsculas ni tildes. El término se busca literal: `%` o `_` no actúan como comodines. Rieles laterales: las 6 publicaciones más recientes y las más respondidas de los últimos 7 días.
+> * **Hilo:** cada publicación tiene URL propia (`/dashboard/comunidad/<slug>`). El slug sale del título al publicar y no cambia al editarlo, para no romper enlaces compartidos.
+> * **Adjuntos:** hasta 6 por publicación o respuesta, de máximo 10 MB cada uno, insertados en el punto del texto donde el autor los puso. Imágenes JPG, PNG, WebP o GIF, que se normalizan a WebP de máximo 1600 px conservando la proporción. Documentos PDF, ZIP, Word, Excel o PowerPoint. El formato se decide por el contenido real del archivo, no por la extensión; SVG se rechaza. Si un archivo no es válido, no se publica nada.
+> * **Reacciones:** una por persona sobre cada publicación o respuesta; se quita y se vuelve a poner, no se edita.
+> * **Edición:** el autor edita título, contenido, adjuntos y datos de Empleo de su publicación mientras no esté eliminada. Las respuestas no se editan. Un administrador nunca puede reescribir el texto de otra persona, solo eliminarlo.
+> * **Eliminación por el autor:** borrado lógico silencioso. El hilo se conserva con un marcador de "publicación eliminada" y las respuestas no quedan huérfanas. Los adjuntos se borran de verdad.
+> * **Moderación por un administrador:** exige escribir un motivo. Antes de vaciar el contenido se guarda el texto original como evidencia (solo la leen administradores), se registra en la bitácora, se avisa al autor por correo y por notificación con el motivo, y se cierran los reportes pendientes sobre ese contenido. El marcador distingue "eliminado por moderación" de "eliminado por su autor".
+> * **Reportes:** cualquier persona con acceso reporta contenido ajeno, con motivo obligatorio, una sola vez por contenido; nunca el propio. Un reporte no oculta nada por sí solo: entra a la cola de `/admin/comunidad`, donde un administrador elimina (moderación, arriba) o descarta. Quien reportó recibe una notificación con el veredicto: eliminado o descartado.
+> * **Notificaciones en la app:** al autor cuando le responden (nunca por sus propias respuestas); a todos los que tienen acceso cuando se publica un anuncio; al autor cuando se modera su contenido; al reportante cuando se resuelve su reporte. Las genera la base de datos por trigger, nunca la aplicación.
+> * **Supresión de datos:** anonimizar una cuenta vacía y marca como eliminadas por moderación todas sus publicaciones y respuestas, y borra sus adjuntos (P1-2, `104_anonimizar_usuario_comunidad_calificaciones.sql`).
+
+### **Módulo 11: Calificaciones y Reseñas de Curso**
+
+> * **Qué es:** estrellas de 1 a 5 y un comentario opcional de hasta 1000 caracteres, en la ficha pública del curso.
+> * **Quién ve:** cualquiera, con o sin sesión, en cursos publicados. En un curso oculto solo las ve un administrador o quien tiene acceso vigente a ese curso. El nombre y la foto del autor se muestran; nunca su correo ni otros datos del perfil.
+> * **Quién califica:** quien tiene acceso vigente al curso (cortesía de ese curso, o membresía vigente si el curso está publicado o ya lo había empezado), con correo verificado y cuenta activa. Es el mismo umbral que comentar una lección. Sin acceso, el formulario no aparece.
+> * **Una reseña por persona y curso:** calificar de nuevo edita la reseña existente, no crea otra. El autor puede eliminarla y volver a calificar después.
+> * **Me gusta:** cualquier persona con sesión, correo verificado y cuenta activa reacciona a una reseña que puede ver, una vez por reseña.
+> * **Promedio y total:** se calculan al vuelo sobre las reseñas no eliminadas.
+> * **Lista por tandas:** la ficha muestra las 9 reseñas más recientes, y cada clic en **"Ver más reseñas"** agrega 9 más debajo. La URL no cambia: la ficha sigue siendo una sola página para buscadores.
+> * **Moderación:** un administrador oculta la reseña de otra persona con un clic. A diferencia de Comunidad, **no exige motivo ni avisa al autor**: la reseña es contenido público de la ficha, no un hilo de conversación. Queda igual registrada en la bitácora con el administrador que la firmó.
+> * **Supresión de datos:** anonimizar una cuenta borra el comentario de sus reseñas y las oculta; la puntuación numérica se conserva porque por sí sola no identifica a nadie.
 
 ## **4\. Flujos de Trabajo Detallados (End-to-End Workflows)**
 
@@ -259,17 +297,19 @@
 \[Admin\] Crea examen (borrador) ── Agrega preguntas ── Publica
                                                             │
                                                             ▼
-\[Estudiante\] Termina 100% de clases ──> Examen desbloqueado
+\[Estudiante\] Examen publicado ──> Disponible desde ya (no exige 100% de clases)
                                                             │
-                                            Inicia intento (preguntas congeladas)
+                                            Inicia intento (preguntas congeladas, 5 vidas)
                                                             │
-                                              Autoguardado cada 10s
+                                Responde una pregunta a la vez, fija al confirmarla
                                                             │
-                                    Envía (o se agota el tiempo) ──> Calificación server-side
+        Falla una ──> pierde 1 vida ──> la pregunta vuelve al FINAL de la cola de pendientes
                                                             │
                                       ┌─────────────────────┴─────────────────────┐
                                       ▼                                           ▼
-                              \[≥ nota requerida\]                        \[< nota requerida\]
+                        \[cola vacía: todas correctas\]            \[0 vidas, o se agota el tiempo\]
+                                      │                                           │
+                              Intento APROBADO                          Intento REPROBADO
                                       │                                           │
                         Certificado emitido por trigger              Espera 15 min y reintenta
                                                                      (dentro de la misma ronda)
@@ -285,24 +325,70 @@
 **Lado administrador**
 
 > 1. Desde el detalle de curso del panel (pestaña **Examen**), el Administrador crea el examen. Nace SIEMPRE en borrador: mientras `publicado = false` no existe para el estudiante ni bloquea ninguna certificación.
-> 2. Configura título, instrucciones (editor enriquecido), nota para aprobar (**mínimo 75%**, puede exigir más — lo impone la restricción `examenes_nota_aprobatoria_minima` en la base, no solo el formulario), intentos permitidos (default 3, admite "sin límite"), tiempo límite en minutos (admite "sin límite") y si se barajan preguntas y opciones.
-> 3. Agrega preguntas de cuatro tipos cerrados: **opción única**, **opción múltiple** (calificación todo-o-nada), **verdadero/falso** y **respuesta corta** (comparación normalizada: ignora mayúsculas, tildes y signos; admite varias respuestas aceptadas). El enunciado usa el mismo editor enriquecido que las lecciones, así que admite listas, citas y bloques de código. Las reordena por arrastre, igual que módulos y lecciones.
-> 4. El interruptor de publicar está bloqueado mientras el examen no tenga título, al menos una pregunta, y un margen de error razonable (con 3 preguntas al 75%, el estudiante tendría que acertarlas todas: la UI lo advierte antes de publicar, no después de que alguien repruebe).
+> 2. Configura título, instrucciones (editor enriquecido), intentos permitidos (default 3, admite "sin límite"), tiempo límite en minutos (admite "sin límite") y si se barajan preguntas y opciones. **No hay "nota para aprobar"**: el criterio es responderlas todas bien antes de quedarse sin vidas, así que no queda nada que graduar por porcentaje (la columna `examenes.nota_aprobatoria` permanece en la base con su default, sin que el formulario ni el código la usen para decidir).
+> 3. Agrega preguntas de cinco tipos cerrados: **opción única**, **opción múltiple** (calificación todo-o-nada), **verdadero/falso**, **respuesta corta** (comparación normalizada: ignora mayúsculas, tildes y signos; admite varias respuestas aceptadas) y **relacionar** (pares de elementos que el estudiante empareja; también todo-o-nada, mínimo dos pares). El enunciado usa el mismo editor enriquecido que las lecciones, así que admite listas, citas y bloques de código. Las reordena por arrastre, igual que módulos y lecciones.
+> 4. El interruptor de publicar está bloqueado mientras el examen no tenga título, al menos una pregunta, y ninguna pregunta a medio completar. Ya no hay aviso de "margen de error": con el criterio nuevo SIEMPRE hay que acertarlas todas, así que advertirlo describiría el comportamiento normal.
 > 5. Publicar es lo que cambia la regla de certificación del curso; queda registrado en la bitácora administrativa. Un examen con intentos ya presentados no se puede eliminar — se despublica.
-> 6. La pestaña "Estudiantes" agrupa por estudiante, no una fila por intento: cada uno se expande para ver su historial completo (número de intento — "2 de 3" —, estado, puntaje, fecha) y un botón **Ver revisión** por intento cerrado, con el detalle pregunta por pregunta — qué marcó/escribió el estudiante, cuál era la respuesta correcta, y si acertó (`getRevisionIntento`, a diferencia de lo que ve el propio estudiante, que nunca revela la respuesta correcta).
+> 6. La pestaña "Estudiantes" agrupa por estudiante, no una fila por intento: cada uno se expande para ver su historial completo (número de intento — "2 de 3" —, estado, fecha) y un botón **Ver revisión** por intento cerrado, que muestra cuántas preguntas resolvió, cuántas vidas gastó y el detalle pregunta por pregunta — qué marcó/escribió el estudiante, cuál era la respuesta correcta, y si acertó (`getRevisionIntento`, a diferencia de lo que ve el propio estudiante, que nunca revela la respuesta correcta).
 > 6.1. Si un estudiante agota una ronda completa de intentos sin aprobar, aparece con la etiqueta "Agotó su tanda" y, al expandirlo, un botón **Dar un intento extra** para saltarse la espera de 5 horas. No es la única forma de destrabarlo — la espera se resuelve sola — pero sí la única forma de que el estudiante no tenga que esperar. Queda registrado en la bitácora.
 
 **Lado estudiante**
 
-> 7. La ficha del curso muestra el examen desde el principio, con candado, para que sepa qué le falta para el certificado antes de llegar al final. En el reproductor, al llegar a la **última clase** del curso, el botón que en el resto del temario dice "Siguiente clase" cambia a **"Hacer examen"** y lleva directo a `/cursos/<slug>/examen` — no hace falta salir a la ficha del curso para encontrarlo.
-> 8. Al completar el 100% de las clases se desbloquea `/cursos/<slug>/examen`: pantalla previa con instrucciones, nota requerida, tiempo e intentos restantes.
-> 9. Al iniciar, el servidor **congela** en el intento las preguntas tal como se le presentan a ESE estudiante, ya aleatorizadas, junto con las respuestas correctas. Editar, reordenar o borrar una pregunta después no altera un intento en curso — mismo criterio que el snapshot de nombre/curso de un certificado (Revf4).
-> 10. Las respuestas se autoguardan cada 10 segundos. Si hay tiempo límite, se muestra una cuenta regresiva y el examen se envía solo al agotarse; el corte se valida contra `intentos_examen.expira_en` en el servidor, nunca contra el reloj del cliente, y un envío que llega tarde se califica con lo último autoguardado antes del vencimiento.
-> 11. La calificación es 100% server-side y ponderada por puntos, no por número de preguntas. El navegador nunca recibe las respuestas correctas (`prepararPreguntasParaEstudiante` las despoja), así que no podría calificar aunque quisiera.
-> 12. Aprueba con un puntaje ≥ la nota congelada en el intento. El certificado se emite en el mismo UPDATE, por trigger.
-> 13. Si reprueba ve su puntaje y **cuáles** preguntas falló, pero nunca cuál era la respuesta correcta: con intentos limitados, revelarla convertiría el reintento en un trámite.
+> 7. La ficha del curso muestra el examen desde el principio, sin candado: el estudiante puede presentarlo aunque no haya terminado todas las clases. En el reproductor, al llegar a la **última clase** del curso, el botón que en el resto del temario dice "Siguiente clase" cambia a **"Hacer examen"** y lleva directo a `/cursos/<slug>/examen` — no hace falta salir a la ficha del curso para encontrarlo.
+> 8. `/cursos/<slug>/examen` está disponible desde que el examen se publica (no exige haber visto ninguna clase): pantalla previa con instrucciones, vidas, tiempo e intentos restantes (ningún porcentaje: no hay nota que alcanzar). Lo que sí sigue exigiendo el 100% de las clases es la **certificación** (punto 12): se puede aprobar el examen antes de terminar el temario, pero el certificado no se emite hasta que también esté completo.
+> 9. Al iniciar, el servidor **congela** en el intento las preguntas tal como se le presentan a ESE estudiante, ya aleatorizadas, junto con las respuestas correctas. Editar, reordenar o borrar una pregunta después no altera un intento en curso — mismo criterio que el snapshot de nombre/curso de un certificado (Revf4). Para **relacionar**, se congelan además dos barajados independientes (uno por columna): si ambas columnas usaran el mismo orden, la posición delataría la pareja correcta.
+> 9.1. **Vidas y cola de reintentos:** el estudiante arranca cada intento con 5 vidas (fijas para toda la plataforma, no configurables por examen). Se ve una pregunta a la vez, estilo juego: al confirmar una respuesta queda fija (no se puede volver atrás) y se califica al instante — correcto/incorrecto, sin revelar cuál era la respuesta correcta. Acertar saca la pregunta de la cola de pendientes; **fallar cuesta una vida y manda esa pregunta al FINAL de la cola**, así que reaparece más adelante, después de las demás pendientes, y nunca dos veces seguidas. Al llegar a 0 vidas el intento se cierra YA como REPROBADO, sin importar cuántas preguntas quedaran, y cuenta como uno de los intentos de la ronda (punto 14) — los mismos cooldowns de 15 minutos / 5 horas aplican igual.
+> 10. Cada respuesta se persiste al confirmarla (no hay autoguardado de borrador ni botón "Enviar examen": el examen termina solo al vaciar la cola, agotar las vidas, o agotarse el tiempo). Qué pregunta toca después lo dice el servidor en cada respuesta — el cliente no puede deducirlo, porque la cola se reordena con cada fallo. Si hay tiempo límite, se muestra una cuenta regresiva; el corte se valida contra `intentos_examen.expira_en` en el servidor, nunca contra el reloj del cliente.
+> 11. La calificación es 100% server-side, pregunta por pregunta. El navegador nunca recibe las respuestas correctas (`prepararPreguntasParaEstudiante` las despoja), así que no podría calificar aunque quisiera — ni siquiera el feedback inmediato de correcto/incorrecto por pregunta se decide en el cliente.
+> 12. **Aprueba al responder correctamente TODAS las preguntas del examen** (los reintentos incluidos) antes de quedarse sin vidas. No hay umbral por porcentaje. El certificado se emite en el mismo UPDATE, por trigger, **solo si además ya completó el 100% de las clases** (`private.curso_esta_completo`, supabase/sql/068) — como ahora se puede aprobar el examen sin haber terminado el temario, aprobar no garantiza por sí solo la emisión; el trigger que corre al completar la última clase pendiente es el que la dispara en ese caso.
+> 12.1. **Corte por tiempo:** agotarse el cronómetro cierra el intento como REPROBADO siempre. Es consecuencia directa de quitar el criterio por nota: terminar el examen completo es la única forma de aprobar, y quien se quedó sin tiempo con preguntas pendientes no lo hizo.
+> 13. Si reprueba ve **cuántas resolvió y cuántas vidas usó** ("X/Y correctas · usaste N de 5 vidas", sin porcentajes) y **cuáles** preguntas no llegó a acertar, pero nunca cuál era la respuesta correcta: con intentos limitados, revelarla convertiría el reintento en un trámite.
 > 14. `intentos_maximos` no es un tope de por vida, es el tamaño de una RONDA (`calcularDisponibilidad`, src/lib/examen.ts — única fuente de verdad del cooldown, la usan tanto la Server Action que inicia el intento como la pantalla). Reprobar dentro de la ronda espera **15 minutos**; agotar la ronda completa (todos sus intentos sin aprobar) espera **5 horas**, y al cumplirse se habilita una ronda nueva de la misma cantidad de intentos — así indefinidamente, sin que un admin tenga que intervenir. Un administrador puede saltarse esa espera con **Dar un intento extra** (ver punto 6.1), pero no es necesario para que el estudiante eventualmente pueda volver a intentarlo.
-> 15. **Antifraude:** `preguntas_examen` no es legible por ningún estudiante (RLS solo la abre a administradores) e `intentos_examen` **no tiene ninguna política de escritura** — un `PATCH` directo contra la API con `{"estado":"APROBADO"}` no afecta ninguna fila. Iniciar, autoguardar y enviar pasan siempre por Server Actions que verifican identidad y acceso antes de escribir. Un índice parcial garantiza un único intento abierto por estudiante y examen, así que dos pestañas no consumen dos intentos.
+> 15. **Antifraude:** `preguntas_examen` no es legible por ningún estudiante (RLS solo la abre a administradores) e `intentos_examen` **no tiene ninguna política de escritura** — un `PATCH` directo contra la API con `{"estado":"APROBADO"}` no afecta ninguna fila. Iniciar el intento, responder cada pregunta y el cierre por tiempo pasan siempre por Server Actions que verifican identidad y acceso antes de escribir — incluida la calificación de cada respuesta y el conteo de vidas, siempre en el servidor. Un índice parcial garantiza un único intento abierto por estudiante y examen, así que dos pestañas no consumen dos intentos.
+
+### **Flujo 15: Comunidad — Publicar, Reportar y Moderar**
+
+\[Estudiante con membresía\] Publica (categoría + título + contenido + adjuntos)
+                                            │
+                         Validación completa ANTES de escribir (todo o nada)
+                                            │
+                                    Publicación en el feed
+                                            │
+              ┌─────────────────────────────┼─────────────────────────────┐
+              ▼                             ▼                             ▼
+     Otro estudiante responde      Otro estudiante reporta         El autor edita o elimina
+              │                             │                        (sin rastro de moderación)
+   Notificación al autor            Cola de /admin/comunidad
+                                            │
+                              ┌─────────────┴─────────────┐
+                              ▼                           ▼
+                    \[Admin elimina con motivo\]      \[Admin descarta\]
+                              │                           │
+            Evidencia + bitácora + correo y         Reporte cerrado
+            notificación al autor + reportes        + bitácora
+            cerrados                                      │
+                              │                           │
+                 Notificación al reportante: "eliminado" / "descartado"
+
+> 1. Al entrar a `/dashboard/comunidad`, la base decide si la sesión tiene acceso (Módulo 10). Sin acceso se muestra la pantalla de Comunidad pausada con su motivo.
+> 2. El estudiante elige categoría y escribe título (3 a 150 caracteres) y contenido (hasta 5000). En Empleo completa además empresa, modalidad, enlace y, opcionalmente, ubicación. Anuncios solo está disponible para un administrador.
+> 3. Al enviar, el servidor toma el autor de la sesión (nunca de un dato del navegador) y valida todo, adjuntos incluidos, antes de escribir. Si algo falla, no se crea nada.
+> 4. La publicación se inserta con los marcadores de adjunto ya definitivos y luego se suben los archivos a la carpeta privada del autor. Si un archivo falla en este punto, la publicación queda sin esa línea, pero no se rompe.
+> 5. Otra persona con acceso puede responder (hasta 2000 caracteres, con los mismos adjuntos), reaccionar o reportar. Responder notifica al autor de la publicación.
+> 6. Un reporte exige motivo y entra a la cola de `/admin/comunidad`, de la más antigua a la más reciente. Si el contenido reportado ya no existe, el reporte se cierra solo.
+> 7. El administrador **elimina**: escribe el motivo, se guarda el texto original como evidencia, se vacía el contenido, se borran los adjuntos, se registra en la bitácora, el autor recibe correo y notificación con el motivo, y se cierran todos los reportes pendientes sobre ese contenido. O **descarta**: el reporte se cierra sin tocar el contenido y queda en la bitácora.
+> 8. Quien reportó recibe una notificación que dice si el contenido se eliminó o se descartó el reporte.
+> 9. **Antifraude:** todo esto lo exige también la base de datos, no solo la aplicación. RLS limita la lectura a quien tiene acceso, y un trigger de transiciones impide que un estudiante fije, restaure o reescriba contenido ajeno, y que un administrador reescriba el texto de otra persona. Llamar a la API directamente no evita ninguna de estas reglas.
+
+### **Flujo 16: Calificar un Curso**
+
+> 1. En la ficha del curso (`/cursos/<slug>`), cualquiera ve el promedio, el total y las 9 reseñas más recientes. "Ver más reseñas" trae las siguientes 9 y desaparece al llegar a la última.
+> 2. Quien tiene acceso vigente al curso ve el formulario. Si ya había calificado, aparece precargado con su reseña.
+> 3. Al publicar, el servidor valida estrellas (entero de 1 a 5) y comentario (hasta 1000 caracteres; vacío se guarda como sin comentario). Si la persona ya tiene una reseña activa en ese curso, la edita; si no, crea una. La base impide una segunda reseña activa aunque dos envíos lleguen a la vez.
+> 4. Si el acceso venció entre cargar la página y enviar, la base rechaza la escritura y se le pide verificar su acceso.
+> 5. El autor puede eliminar su reseña. Si la operación no encuentra la reseña, responde con error: nunca confirma una eliminación que no ocurrió.
+> 6. Un administrador puede ocultar la reseña de otra persona. Queda firmada con su id y registrada en la bitácora. Solo un administrador puede restaurar una reseña eliminada, y hoy no hay pantalla para hacerlo.
+> 7. Cualquier persona con sesión, correo verificado y cuenta activa puede dar o quitar "me gusta" a una reseña que puede ver.
 
 ## **5\. Especificación de Reglas de Negocio, Validaciones y Edge Cases**
 

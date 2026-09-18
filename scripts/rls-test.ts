@@ -196,13 +196,34 @@ async function main() {
   }
   // Datos personales que la supresión tiene que dejar sin rastro. Se
   // escriben con service role: lo que se prueba es la anonimización, no si
-  // este usuario podría haberlos escrito por su cuenta.
+  // este usuario podría haberlos escrito por su cuenta. `foto_url` con una
+  // URL con forma real del bucket `avatares` (108): la función solo puede
+  // limpiar la columna, no el archivo (eso lo hace TypeScript antes de
+  // llamarla), así que acá alcanza con comprobar que la referencia se
+  // desconecta.
   const { error: errPerfilAnonimizar } = await admin
     .from("perfiles")
-    .update({ celular: "+57 300 1234567", pais: "CO", especialidad: "Dato personal de prueba" })
+    .update({
+      celular: "+57 300 1234567",
+      pais: "CO",
+      especialidad: "Dato personal de prueba",
+      foto_url: `${URL}/storage/v1/object/public/avatares/${userAnonimizar.user.id}/rls-test.webp`,
+    })
     .eq("id", userAnonimizar.user.id);
   if (errPerfilAnonimizar) {
     throw new Error(`No pude sembrar los datos del usuario a anonimizar: ${errPerfilAnonimizar.message}`);
+  }
+
+  // Cuenta desechable exclusiva para la prueba de autoservicio (109) — mismo
+  // motivo que userAnonimizar: irreversible, no se reutiliza para nada más.
+  const correoSupresionPropia = `rls-test-supresion-propia-${sufijo}@uva.test`;
+  const { data: userSupresionPropia, error: errSupresionPropia } = await admin.auth.admin.createUser({
+    email: correoSupresionPropia,
+    password,
+    email_confirm: true,
+  });
+  if (errSupresionPropia || !userSupresionPropia.user) {
+    throw new Error(`No pude crear el usuario para la supresión propia: ${errSupresionPropia?.message}`);
   }
 
   const { data: plan, error: errPlan } = await admin
@@ -280,6 +301,15 @@ async function main() {
   const clienteConAcceso: SupabaseClient = createClient(URL, ANON_KEY);
   const loginConAcceso = await clienteConAcceso.auth.signInWithPassword({ email: correoConAcceso, password });
   if (loginConAcceso.error) throw new Error(`No pude iniciar sesión (con acceso): ${loginConAcceso.error.message}`);
+
+  const clienteSupresionPropia: SupabaseClient = createClient(URL, ANON_KEY);
+  const loginSupresionPropia = await clienteSupresionPropia.auth.signInWithPassword({
+    email: correoSupresionPropia,
+    password,
+  });
+  if (loginSupresionPropia.error) {
+    throw new Error(`No pude iniciar sesión (supresión propia): ${loginSupresionPropia.error.message}`);
+  }
 
   // Curso PUBLICADO (`mostrado = true`) para la prueba de reproducción: así
   // la lectura de la lección no depende de RLS de visibilidad de curso (eso
@@ -492,6 +522,35 @@ async function main() {
       "anon no puede llamar registrar_canje_fallido (RPC solo service_role, P2-2)",
       clienteAnonimo.rpc("registrar_canje_fallido", { p_usuario_id: userSinAcceso.user!.id }),
     );
+    // Rate limit de la validación de cupones (106, P2-1 de AUDIT-2026-09-15).
+    // Mismo endurecimiento que las de arriba: el tope lo aplica el backend
+    // con Service Role, así que dejarlas invocables desde PostgREST lo
+    // volvería decorativo — cualquiera limpiaría su propio contador.
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_validar_cupon (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("verificar_limite_validar_cupon", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_validacion_cupon_fallida (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("registrar_validacion_cupon_fallida", {
+        p_usuario_id: userSinAcceso.user!.id,
+      }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar limpiar_intentos_validar_cupon (RPC solo service_role, P2-1)",
+      clienteAnonimo.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    // Rate limit de la generación de exámenes con IA (107, P3-9 de
+    // AUDIT-2026-09-15.md). Mismo endurecimiento: si fuera invocable desde
+    // PostgREST, cualquier sesión podría limpiar o mentir su propio contador.
+    await esperarBloqueado(
+      "anon no puede llamar verificar_limite_generar_examen (RPC solo service_role, P3-9)",
+      clienteAnonimo.rpc("verificar_limite_generar_examen", { p_usuario_id: userSinAcceso.user!.id }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar registrar_generacion_examen (RPC solo service_role, P3-9)",
+      clienteAnonimo.rpc("registrar_generacion_examen", { p_usuario_id: userSinAcceso.user!.id }),
+    );
     // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
     // service_role — el límite por IP de la página pública sería
     // decorativo si cualquiera pudiera seguir llamándola directo por
@@ -514,6 +573,20 @@ async function main() {
     await esperarPermitido(
       "anon SÍ puede leer curso_categorias de cursos publicados",
       clienteAnonimo.from("curso_categorias").select("id_curso, id_categoria").limit(1),
+    );
+    // P2-4 (AUDIT-2026-09-15, Fase 2): getCursosParaBuscador() y
+    // buscarCatalogoPublico() (lib/categoria.ts) pasaron del cliente
+    // cookie-bound al cliente público -- estas dos son la red de seguridad
+    // para que un grant faltante a `anon` se vea acá como fallo de test, no
+    // como catálogo vacío en producción sin ningún error en Sentry (las
+    // funciones de lib/categoria.ts tragan `error` y devuelven `[]`).
+    await esperarPermitido(
+      "anon SÍ puede llamar buscar_catalogo (RPC público, 034/062)",
+      clienteAnonimo.rpc("buscar_catalogo", { p_query: null, p_categoria_id: null, p_limite: 1, p_offset: 0 }),
+    );
+    await esperarPermitido(
+      "anon SÍ puede leer curso_instructores_publico (vista SECURITY DEFINER, 053/093)",
+      clienteAnonimo.from("curso_instructores_publico").select("id_curso, nombre").limit(1),
     );
 
     console.log("\n=== Sesión: ESTUDIANTE SIN ACCESO ===\n");
@@ -2272,6 +2345,66 @@ async function main() {
     );
 
     // ------------------------------------------------------------------
+    // Rate limit de la validación de cupones (106, P2-1 de AUDIT-2026-09-15)
+    //
+    // Las pruebas de la sesión ANÓNIMA ya comprueban que las tres RPC no son
+    // invocables desde PostgREST. Esta comprueba lo otro, que es el punto del
+    // hallazgo: que el tope DE VERDAD se dispara. Un rate limit que nadie
+    // ejerce es una tabla que se llena y nada más.
+    //
+    // Va con el cliente admin (Service Role) porque así es como lo llama
+    // `buscarCuponVigente`; el estudiante nunca toca estas funciones.
+    // ------------------------------------------------------------------
+    const idRateLimitCupon = userSinAcceso.user!.id;
+    await admin.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: idRateLimitCupon });
+
+    const { data: limiteInicial } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    registrar(
+      "sin intentos previos, la validación de cupones está permitida",
+      (limiteInicial as { permitido: boolean } | null)?.permitido === true,
+      JSON.stringify(limiteInicial),
+    );
+
+    // El límite es 10 por ventana de 15 minutos: al décimo fallo se bloquea.
+    for (let i = 0; i < 10; i++) {
+      await admin.rpc("registrar_validacion_cupon_fallida", { p_usuario_id: idRateLimitCupon });
+    }
+
+    const { data: limiteTrasFallos } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    const bloqueo = limiteTrasFallos as { permitido: boolean; segundos_espera: number } | null;
+    registrar(
+      "tras 10 validaciones fallidas el cupón queda bloqueado, con espera en segundos",
+      bloqueo?.permitido === false && typeof bloqueo.segundos_espera === "number" && bloqueo.segundos_espera > 0,
+      JSON.stringify(bloqueo),
+    );
+
+    // Un acierto limpia el contador: quien tiene un cupón bueno no debe
+    // quedar bloqueado por errores de tecleo previos (mismo criterio que
+    // `limpiar_intentos_canjear_codigo`, 023).
+    await admin.rpc("limpiar_intentos_validar_cupon", { p_usuario_id: idRateLimitCupon });
+    const { data: limiteTrasLimpiar } = await admin
+      .rpc("verificar_limite_validar_cupon", { p_usuario_id: idRateLimitCupon })
+      .single();
+    registrar(
+      "un cupón válido limpia el contador y levanta el bloqueo",
+      (limiteTrasLimpiar as { permitido: boolean } | null)?.permitido === true,
+      JSON.stringify(limiteTrasLimpiar),
+    );
+
+    // El barrido de 063 tiene que conocer la tabla nueva, o se llena para
+    // siempre — que es exactamente el hallazgo que 063 existe para cerrar.
+    const { data: barrido } = await admin.rpc("limpiar_intentos_rate_limit");
+    registrar(
+      "limpiar_intentos_rate_limit() incluye intentos_validar_cupon en el barrido",
+      ((barrido ?? []) as { tabla: string }[]).some((f) => f.tabla === "intentos_validar_cupon"),
+      JSON.stringify(barrido),
+    );
+
+    // ------------------------------------------------------------------
     // D-4: supresión de datos personales (075_anonimizar_usuario.sql)
     //
     // ------------------------------------------------------------------
@@ -2555,7 +2688,7 @@ async function main() {
 
     const { data: perfilAnonimizado } = await admin
       .from("perfiles")
-      .select("nombre, correo, celular, pais, especialidad, estado, anonimizado_en")
+      .select("nombre, correo, celular, pais, especialidad, foto_url, estado, anonimizado_en")
       .eq("id", userAnonimizar.user!.id)
       .single();
     const sinDatosPersonales =
@@ -2564,10 +2697,16 @@ async function main() {
       perfilAnonimizado?.celular === null &&
       perfilAnonimizado?.pais === null &&
       perfilAnonimizado?.especialidad === null &&
+      // 108_anonimizar_usuario_foto.sql: hueco que dejaba `foto_url` viva
+      // después de la supresión — el archivo lo borra TypeScript ANTES de
+      // llamar a esta RPC (esta prueba solo siembra la URL en `perfiles`,
+      // sin subir un archivo real, porque lo que hay que comprobar acá es
+      // que la RPC desconecta la referencia).
+      perfilAnonimizado?.foto_url === null &&
       perfilAnonimizado?.estado === "SUSPENDIDO" &&
       perfilAnonimizado?.anonimizado_en !== null;
     registrar(
-      "la supresión no deja ningún dato personal en `perfiles`",
+      "la supresión no deja ningún dato personal en `perfiles` (incluida la foto, 108)",
       sinDatosPersonales,
       JSON.stringify(perfilAnonimizado),
     );
@@ -2657,6 +2796,65 @@ async function main() {
       "repetir la supresión NO reescribe la fecha en que se hizo",
       perfilRepetido?.anonimizado_en === fechaPrimeraSupresion,
       `antes=${fechaPrimeraSupresion} despues=${perfilRepetido?.anonimizado_en}`,
+    );
+
+    // ------------------------------------------------------------------
+    // Autoservicio de supresión (109_supresion_propia_de_cuenta.sql, P2-11
+    // de AUDIT-2026-09-15.md). A diferencia de anonimizar_usuario(uuid), esta
+    // RPC no toma ningún parámetro — opera siempre sobre auth.uid() — así
+    // que no hace falta (ni se puede) probar "un usuario intenta suprimir a
+    // otro": la firma de la función ya lo hace imposible.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: AUTOSERVICIO DE SUPRESIÓN (109) ===\n");
+
+    await esperarBloqueado(
+      "anon no puede llamar solicitar_supresion_propia",
+      clienteAnonimo.rpc("solicitar_supresion_propia"),
+    );
+
+    // Mismo guardia que ya protege anonimizar_usuario(uuid): un admin no
+    // puede autoeliminarse, perdería el acceso con el que administra y
+    // podría dejar la plataforma sin ninguno.
+    await esperarBloqueado(
+      "un administrador NO puede autoeliminarse por autoservicio",
+      clienteAdmin.rpc("solicitar_supresion_propia"),
+    );
+
+    await esperarPermitido(
+      "un estudiante SÍ puede suprimir su propia cuenta por autoservicio",
+      clienteSupresionPropia.rpc("solicitar_supresion_propia"),
+    );
+
+    const { data: perfilSupresionPropia } = await admin
+      .from("perfiles")
+      .select("nombre, correo, estado, anonimizado_en")
+      .eq("id", userSupresionPropia.user!.id)
+      .single();
+    registrar(
+      "la supresión propia deja el perfil sin datos personales, igual que la de un admin",
+      perfilSupresionPropia?.nombre === "Usuario eliminado" &&
+        perfilSupresionPropia?.correo ===
+          `anon+${userSupresionPropia.user!.id.replace(/-/g, "")}@uva.invalid` &&
+        perfilSupresionPropia?.estado === "SUSPENDIDO" &&
+        perfilSupresionPropia?.anonimizado_en !== null,
+      JSON.stringify(perfilSupresionPropia),
+    );
+
+    // La RPC borra auth.sessions en la misma transacción (075), pero el
+    // access token de ESTA request sigue siendo válido hasta que expire por
+    // su cuenta — GoTrue lo verifica por firma, no contra la tabla de
+    // sesiones en cada llamada (mismo comentario que ya deja
+    // eliminarMiCuenta, src/actions/perfil/eliminar-cuenta.ts). Por eso la
+    // prueba determinística es un INSERT nuevo, no un UPDATE sobre el
+    // progreso que la propia RPC acaba de borrar (un UPDATE que no matchea
+    // ninguna fila "pasa" sin error y no probaría nada): progreso_insert_
+    // propio (019) exige private.cuenta_activa() en su WITH CHECK, así que
+    // se evalúa siempre, tenga o no filas previas.
+    await esperarBloqueado(
+      "tras la supresión propia, esa misma sesión ya no puede insertar progreso (cuenta_activa)",
+      clienteSupresionPropia
+        .from("progreso")
+        .insert({ id_usuario: userSupresionPropia.user!.id, id_leccion: idLeccionIntroductoria, completado: true }),
     );
 
     // ------------------------------------------------------------------
@@ -2891,6 +3089,67 @@ async function main() {
     if (!respuestaComunidad?.id) {
       throw new Error("La respuesta de prueba de Comunidad no devolvió id.");
     }
+
+    // buscar_feed_comunidad / comunidad_mas_respondidas (112, P2-10): son
+    // `security invoker`, así que la RLS de arriba es la que decide qué ven.
+    // Estos casos comprueban que la función no abre nada que la tabla cierre,
+    // y que la búsqueda por título y por nombre del autor funciona contra la
+    // base real (tildes y mayúsculas incluidas).
+    await esperarBloqueado(
+      "anon no puede ejecutar buscar_feed_comunidad",
+      clienteAnonimo.rpc("buscar_feed_comunidad", {}),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no recibe filas de buscar_feed_comunidad",
+      clienteSinAcceso.rpc("buscar_feed_comunidad", { p_busqueda: `${sufijo}` }),
+    );
+
+    await esperarBloqueado(
+      "estudiante sin suscripción no recibe filas de comunidad_mas_respondidas",
+      clienteSinAcceso.rpc("comunidad_mas_respondidas", {}),
+    );
+
+    const { data: feedPorTitulo, error: errFeedPorTitulo } = await clienteConAcceso.rpc("buscar_feed_comunidad", {
+      p_busqueda: `ANUNCIO rls TEST ${sufijo}`,
+    });
+    registrar(
+      "buscar_feed_comunidad encuentra por título sin distinguir mayúsculas",
+      !errFeedPorTitulo &&
+        Array.isArray(feedPorTitulo) &&
+        feedPorTitulo.length === 1 &&
+        feedPorTitulo[0].titulo === `Anuncio RLS test ${sufijo}` &&
+        Number(feedPorTitulo[0].total_resultados) === 1,
+      errFeedPorTitulo?.message ?? `${Array.isArray(feedPorTitulo) ? feedPorTitulo.length : 0} fila(s)`,
+    );
+
+    const { error: errNombreAutora } = await admin
+      .from("perfiles")
+      .update({ nombre: `Autora Feed Ñandú ${sufijo}` })
+      .eq("id", userConAcceso.user!.id);
+    if (errNombreAutora) throw new Error(`No pude nombrar a la autora de prueba: ${errNombreAutora.message}`);
+
+    const { data: feedPorNombre, error: errFeedPorNombre } = await clienteConAcceso.rpc("buscar_feed_comunidad", {
+      p_busqueda: `nandu ${sufijo}`,
+    });
+    const filaPorNombre = Array.isArray(feedPorNombre)
+      ? (feedPorNombre as { id: string; total_respuestas: number }[]).find((f) => f.id === postComunidad.id)
+      : undefined;
+    registrar(
+      "buscar_feed_comunidad encuentra por nombre del autor, sin tildes, con sus respuestas contadas",
+      !errFeedPorNombre && !!filaPorNombre && Number(filaPorNombre.total_respuestas) >= 1,
+      errFeedPorNombre?.message ?? (filaPorNombre ? "" : "el post de la autora no apareció"),
+    );
+
+    const { data: feedAjenoPropio, error: errFeedAjenoPropio } = await clienteAdmin.rpc("buscar_feed_comunidad", {
+      p_solo_propios: true,
+      p_busqueda: `nandu ${sufijo}`,
+    });
+    registrar(
+      "'Mis publicaciones' en buscar_feed_comunidad usa auth.uid(): el admin no ve como propio el post de otra persona",
+      !errFeedAjenoPropio && Array.isArray(feedAjenoPropio) && feedAjenoPropio.length === 0,
+      errFeedAjenoPropio?.message ?? `${Array.isArray(feedAjenoPropio) ? feedAjenoPropio.length : 0} fila(s)`,
+    );
 
     await esperarBloqueado(
       "estudiante sin suscripción no puede responder un post",
@@ -3527,6 +3786,7 @@ async function main() {
       userConAcceso.user!,
       userAdmin.user!,
       userAnonimizar.user!,
+      userSupresionPropia.user!,
     ];
 
     // Los pagos van antes que las suscripciones: `pagos.id_suscripcion` es una

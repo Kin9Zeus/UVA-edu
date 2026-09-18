@@ -6,16 +6,12 @@ import { isPasswordValid } from "@/lib/password";
 import { checkEmail } from "@/actions/auth/check-email";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never; email?: never }
   | { error?: never; needsConfirmation: true; email: string }
   | null;
-
-function safeRedirectTarget(value: FormDataEntryValue | null): string {
-  const target = String(value ?? "");
-  return target.startsWith("/") ? target : "/dashboard";
-}
 
 export async function registro(
   _prevState: RegistroState,
@@ -24,7 +20,8 @@ export async function registro(
   const email = String(formData.get("email") ?? "").trim();
   const nombre = String(formData.get("nombre") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = safeRedirectTarget(formData.get("redirect"));
+  // `startsWith("/")` dejaba pasar `//otro-dominio`: ver lib/redirect-seguro.ts.
+  const redirectTo = destinoInternoSeguro(formData.get("redirect"));
 
   if (!email) {
     return { error: "Completa tu correo." };

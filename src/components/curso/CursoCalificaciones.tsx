@@ -9,12 +9,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { EstrellasCalificacion, EstrellasInput } from "@/components/curso/EstrellasCalificacion";
 import {
   calificarCurso,
+  cargarMasCalificacionesCurso,
   eliminarCalificacionPropia,
   moderarCalificacion,
   reaccionarCalificacion,
   quitarReaccionCalificacion,
 } from "@/actions/cursos/calificaciones";
 import type { CalificacionesCurso } from "@/lib/curso-calificaciones";
+import {
+  agregarTanda,
+  desdeSiguienteTanda,
+  quedanMasReseñas,
+  reseñasVisibles,
+  type ReseñasAdicionales,
+} from "@/lib/curso-calificaciones-tandas";
 
 function iniciales(nombre: string) {
   return (
@@ -29,13 +37,11 @@ function iniciales(nombre: string) {
 
 function BotonMeGusta({
   calificacionId,
-  ruta,
   meGusta: meGustaInicial,
   total: totalInicial,
   puedeReaccionar,
 }: {
   calificacionId: string;
-  ruta: string;
   meGusta: boolean;
   total: number;
   puedeReaccionar: boolean;
@@ -53,7 +59,7 @@ function BotonMeGusta({
     setOptimista(siguiente);
     startTransition(async () => {
       const accion = siguiente.meGusta ? reaccionarCalificacion : quitarReaccionCalificacion;
-      const resultado = await accion(calificacionId, ruta);
+      const resultado = await accion(calificacionId);
       if ("error" in resultado) {
         setOptimista({ meGusta, total });
         return;
@@ -81,11 +87,9 @@ function BotonMeGusta({
  * en CursoDetalleContent): mismo umbral que comentar una lección. */
 function FormularioCalificacion({
   cursoId,
-  ruta,
   miCalificacion,
 }: {
   cursoId: string;
-  ruta: string;
   miCalificacion: CalificacionesCurso["miCalificacion"];
 }) {
   const router = useRouter();
@@ -101,7 +105,7 @@ function FormularioCalificacion({
     }
     setError(null);
     startTransition(async () => {
-      const resultado = await calificarCurso(cursoId, puntuacion, comentario, ruta);
+      const resultado = await calificarCurso(cursoId, puntuacion, comentario);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -113,7 +117,7 @@ function FormularioCalificacion({
   function eliminar() {
     if (!miCalificacion) return;
     startTransition(async () => {
-      const resultado = await eliminarCalificacionPropia(miCalificacion.id, ruta);
+      const resultado = await eliminarCalificacionPropia(miCalificacion.id);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -177,7 +181,6 @@ function FormularioCalificacion({
  * comentario es largo, corto o no existe: nada más se desalinea. */
 function CeldaResena({
   reseña,
-  ruta,
   usuarioActualId,
   esAdmin,
   pendienteModerar,
@@ -185,7 +188,6 @@ function CeldaResena({
   columna,
 }: {
   reseña: CalificacionesCurso["reseñas"][number];
-  ruta: string;
   usuarioActualId: string | null;
   esAdmin: boolean;
   pendienteModerar: boolean;
@@ -217,7 +219,6 @@ function CeldaResena({
         <div className="flex items-center gap-1">
           <BotonMeGusta
             calificacionId={reseña.id}
-            ruta={ruta}
             meGusta={reseña.meGusta}
             total={reseña.totalMeGusta}
             puedeReaccionar={Boolean(usuarioActualId)}
@@ -252,14 +253,12 @@ function CeldaResena({
  * visitante anónimo, y la UI de escribir/reaccionar simplemente no aparece. */
 export function CursoCalificaciones({
   cursoId,
-  ruta,
   usuarioActualId,
   puedeCalificar,
   esAdmin,
   datos,
 }: {
   cursoId: string;
-  ruta: string;
   usuarioActualId: string | null;
   puedeCalificar: boolean;
   esAdmin: boolean;
@@ -267,11 +266,45 @@ export function CursoCalificaciones({
 }) {
   const router = useRouter();
   const [pendienteModerar, startTransitionModerar] = useTransition();
+  const [errorModerar, setErrorModerar] = useState<string | null>(null);
+  const [cargando, startTransitionCargar] = useTransition();
+  const [errorCargar, setErrorCargar] = useState<string | null>(null);
+  /** Tandas traídas con "Ver más reseñas", además de la primera que pinta el
+   * servidor (`datos.reseñas`). Se conservan si la página se refresca (dar
+   * "me gusta" o calificar hace router.refresh): vaciarlas en ese momento
+   * haría saltar la lista hacia arriba. */
+  const [adicionales, setAdicionales] = useState<ReseñasAdicionales>(null);
+  /** Moderadas en esta visita. Una reseña de una tanda adicional no
+   * desaparece con router.refresh (solo se vuelve a pedir la primera), así
+   * que se oculta aquí. */
+  const [ocultas, setOcultas] = useState<ReadonlySet<string>>(new Set());
+
+  const reseñas = reseñasVisibles(datos.reseñas, adicionales, ocultas);
+  const hayMas = quedanMasReseñas(datos.hayMas, adicionales);
 
   function moderar(calificacionId: string) {
+    setErrorModerar(null);
     startTransitionModerar(async () => {
-      await moderarCalificacion(calificacionId, ruta);
+      const resultado = await moderarCalificacion(calificacionId);
+      if ("error" in resultado) {
+        setErrorModerar(resultado.error);
+        return;
+      }
+      setOcultas((actuales) => new Set(actuales).add(calificacionId));
       router.refresh();
+    });
+  }
+
+  function cargarMas() {
+    setErrorCargar(null);
+    const desde = desdeSiguienteTanda(datos.reseñas, adicionales);
+    startTransitionCargar(async () => {
+      const resultado = await cargarMasCalificacionesCurso(cursoId, desde);
+      if ("error" in resultado) {
+        setErrorCargar(resultado.error);
+        return;
+      }
+      setAdicionales((actuales) => agregarTanda(actuales, resultado));
     });
   }
 
@@ -289,20 +322,20 @@ export function CursoCalificaciones({
         <FormularioCalificacion
           key={datos.miCalificacion?.id ?? "nueva"}
           cursoId={cursoId}
-          ruta={ruta}
           miCalificacion={datos.miCalificacion}
         />
       )}
 
-      {datos.reseñas.length === 0 ? (
+      {errorModerar && <p className="text-xs text-uva-error-text">{errorModerar}</p>}
+
+      {reseñas.length === 0 ? (
         <p className="text-sm text-uva-text-faint">Todavía no hay reseñas de este curso.</p>
       ) : (
         <div className="grid grid-cols-1 gap-y-5 sm:grid-cols-3">
-          {datos.reseñas.map((reseña, index) => (
+          {reseñas.map((reseña, index) => (
             <CeldaResena
               key={reseña.id}
               reseña={reseña}
-              ruta={ruta}
               usuarioActualId={usuarioActualId}
               esAdmin={esAdmin}
               pendienteModerar={pendienteModerar}
@@ -310,6 +343,22 @@ export function CursoCalificaciones({
               columna={(index % 3) as 0 | 1 | 2}
             />
           ))}
+        </div>
+      )}
+
+      {hayMas && (
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            type="button"
+            variant="uva-secondary"
+            size="uva"
+            className="w-fit"
+            disabled={cargando}
+            onClick={cargarMas}
+          >
+            {cargando ? "Cargando…" : "Ver más reseñas"}
+          </Button>
+          {errorCargar && <p className="text-xs text-uva-error-text">{errorCargar}</p>}
         </div>
       )}
     </div>

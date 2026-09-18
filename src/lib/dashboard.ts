@@ -11,7 +11,7 @@ export type ClaseEnProgreso = {
   cursoTitulo: string;
   imagenPortada: string;
   moduloTitulo: string;
-  /** Todas las categorías del curso — mismo criterio que buscarCatalogo() (059). */
+  /** Todas las categorías del curso — mismo criterio que buscarCatalogoConCliente() (059). */
   categorias: CategoriaChip[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
   duracionTotalCursoSegundos: number;
@@ -71,12 +71,34 @@ export async function getInicioData() {
   );
 
   const cursoIds = candidatos.map((curso) => curso.curso_id as string);
-  const { data: categoriasPorCurso } = cursoIds.length
-    ? await supabase.from("curso_categorias").select("id_curso, categoria:categorias(id, nombre)").in("id_curso", cursoIds)
-    : { data: [] };
+
+  // P3-3 (AUDIT-2026-09-15.md): el temario de los cursos candidatos se traía
+  // con una consulta a `modulos` POR CURSO, dentro del loop de más abajo —
+  // insignificante con 8 cursos, pero crece linealmente con los cursos en
+  // progreso del estudiante. Una sola consulta con `.in()` trae el temario
+  // de TODOS los candidatos de una vez y se agrupa acá, mismo criterio que
+  // categoriasPorCursoMap. En paralelo con esa consulta: son independientes.
+  const [{ data: categoriasPorCurso }, { data: moduloRowsTodos }] = cursoIds.length
+    ? await Promise.all([
+        supabase.from("curso_categorias").select("id_curso, categoria:categorias(id, nombre)").in("id_curso", cursoIds),
+        supabase
+          .from("modulos")
+          .select(
+            "id_curso, orden, titulo, lecciones(id, slug, orden, duracion, id_video_mux, estado_procesamiento, progreso(completado, segundo_actual, actualizado_en))",
+          )
+          .in("id_curso", cursoIds),
+      ])
+    : [{ data: null }, { data: null }];
+
+  const modulosPorCursoMap = new Map<string, NonNullable<typeof moduloRowsTodos>>();
+  for (const modulo of moduloRowsTodos ?? []) {
+    const lista = modulosPorCursoMap.get(modulo.id_curso as string) ?? [];
+    lista.push(modulo);
+    modulosPorCursoMap.set(modulo.id_curso as string, lista);
+  }
 
   // Todas las categorías del curso, no solo la primera — mismo criterio que
-  // buscarCatalogo() (lib/categoria.ts, 059): `curso_categorias` es
+  // buscarCatalogoConCliente() (lib/categoria.ts, 059): `curso_categorias` es
   // muchos-a-muchos.
   const categoriasPorCursoMap = new Map<string, CategoriaChip[]>();
   for (const fila of categoriasPorCurso ?? []) {
@@ -95,16 +117,11 @@ export async function getInicioData() {
     // Temario ordenado (solo lecciones LISTAS, "borrador" no cuenta) con la
     // marca de completado propia embebida: RLS en `progreso` acota esa
     // relación a la fila del propio usuario, igual que si se consultara la
-    // tabla por separado.
-    const { data: moduloRows } = await supabase
-      .from("modulos")
-      .select(
-        "orden, titulo, lecciones(id, slug, orden, duracion, id_video_mux, estado_procesamiento, progreso(completado, segundo_actual, actualizado_en))",
-      )
-      .eq("id_curso", curso.curso_id)
-      .order("orden");
+    // tabla por separado. Ya viene traído en el `Map` de arriba, no por
+    // curso: ver el comentario de P3-3 junto a moduloRowsTodos.
+    const moduloRows = modulosPorCursoMap.get(curso.curso_id as string) ?? [];
 
-    const leccionesOrdenadas = (moduloRows ?? [])
+    const leccionesOrdenadas = moduloRows
       .slice()
       .sort((a, b) => a.orden - b.orden)
       .flatMap((modulo) =>

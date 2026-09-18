@@ -14,6 +14,15 @@
  * Solo mira LÍNEAS AGREGADAS del diff — una migración vieja que ya tenía
  * un DROP (de antes de esta regla) no debe romper el chequeo para siempre;
  * lo que importa es no agregar una nueva.
+ *
+ * P3-4 (AUDIT-2026-09-15.md): además de los patrones que BLOQUEAN (arriba),
+ * hay una segunda clase de riesgo que este gate solo ADVIERTE, sin fallar
+ * el build: `UPDATE`/`SET NOT NULL` sobre una tabla completa bloquean esa
+ * tabla (lock) por un tiempo proporcional a su tamaño — inofensivo con la
+ * tabla chica de hoy, no necesariamente con la de mañana. No se puede
+ * bloquear en duro: `SET NOT NULL` en una tabla de catálogo de 5 filas es
+ * completamente normal y no debe frenar un PR. Es una advertencia para que
+ * quien revisa decida con la migración a la vista, no una regla automática.
  */
 
 import { execSync } from "node:child_process";
@@ -25,6 +34,12 @@ const PATRONES_PELIGROSOS: Array<{ nombre: string; regex: RegExp }> = [
   { nombre: "DROP TABLE", regex: /drop\s+table/i },
   { nombre: "RENAME COLUMN", regex: /rename\s+column/i },
   { nombre: "RENAME TO / RENAME TABLE", regex: /rename\s+to|rename\s+table/i },
+];
+
+// No bloquean el build — ver el comentario de P3-4 arriba.
+const PATRONES_ADVERTENCIA: Array<{ nombre: string; regex: RegExp }> = [
+  { nombre: "SET NOT NULL", regex: /set\s+not\s+null/i },
+  { nombre: "UPDATE de tabla completa", regex: /^\s*update\s+/i },
 ];
 
 function ejecutar(comando: string): string {
@@ -47,6 +62,7 @@ function main() {
   }
 
   const hallazgos: string[] = [];
+  const advertencias: string[] = [];
   let archivoActual = "";
 
   for (const linea of diff.split("\n")) {
@@ -62,6 +78,26 @@ function main() {
         hallazgos.push(`${archivoActual}: ${nombre} → ${linea.slice(1).trim()}`);
       }
     }
+    for (const { nombre, regex } of PATRONES_ADVERTENCIA) {
+      if (regex.test(linea)) {
+        advertencias.push(`${archivoActual}: ${nombre} → ${linea.slice(1).trim()}`);
+      }
+    }
+  }
+
+  if (advertencias.length > 0) {
+    console.warn(
+      `\n⚠️  ${advertencias.length} sentencia(s) que bloquean la tabla (lock) por tiempo proporcional a su tamaño — revisar si la tabla es lo bastante grande para importar (P3-4, AUDIT-2026-09-15.md):\n`,
+    );
+    for (const advertencia of advertencias) {
+      console.warn(`   - ${advertencia}`);
+    }
+    console.warn(
+      "\n   No bloquea el build: en una tabla chica es normal y no amerita nada más.\n" +
+        "   En una tabla grande, preferir el patrón de dos pasos (agregar el CHECK\n" +
+        "   NOT VALID, validarlo aparte, y recién ahí SET NOT NULL) o hacer el UPDATE\n" +
+        "   por lotes.\n",
+    );
   }
 
   if (hallazgos.length === 0) {

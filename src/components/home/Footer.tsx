@@ -56,8 +56,12 @@ const linkClass =
 export async function Footer() {
   const supabase = createPublicClient();
 
-  // Todas las categorías son públicas (policy `categorias_select_publico`,
-  // supabase/sql/004): no hay filtro, solo un orden estable por nombre —
+  // No hay filtro explícito acá porque lo aplica RLS: la policy
+  // `categorias_select_publico` vigente es la de supabase/sql/005
+  // (`activo = true or private.es_administrador()`), que reemplaza al
+  // `using (true)` original de 004. Como este cliente es anónimo (Anon Key,
+  // sin sesión), la rama de administrador nunca se cumple y el footer lista
+  // solo las categorías activas. Solo se pide un orden estable por nombre —
   // `categorias` no tiene columna `orden` en el esquema.
   const { data, error } = await supabase
     .from("categorias")

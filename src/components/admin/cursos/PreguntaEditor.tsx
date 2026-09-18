@@ -10,8 +10,10 @@ import {
   DESCRIPCION_TIPO,
   ETIQUETA_TIPO,
   MAXIMO_OPCIONES_POR_PREGUNTA,
+  MAXIMO_PARES_EMPAREJAR,
   TIPOS_IMPLEMENTADOS,
   type OpcionPregunta,
+  type ParEmparejar,
   type PreguntaCompleta,
   type TipoPreguntaImplementado,
 } from "@/lib/examenes/tipos";
@@ -42,7 +44,7 @@ export function PreguntaEditor({
     tipo: TipoPreguntaImplementado;
     enunciado: DocumentoContenido;
     puntos: number;
-    opciones: OpcionPregunta[] | null;
+    opciones: OpcionPregunta[] | ParEmparejar[] | null;
     respuestasAceptadas: string[];
     explicacion: DocumentoContenido | null;
   }) => Promise<void>;
@@ -53,7 +55,17 @@ export function PreguntaEditor({
   const [tipo, setTipo] = useState<TipoPreguntaImplementado>(pregunta.tipo);
   const [enunciado, setEnunciado] = useState<DocumentoContenido>(pregunta.enunciado);
   const [puntos, setPuntos] = useState(pregunta.puntos);
-  const [opciones, setOpciones] = useState<OpcionPregunta[]>(pregunta.opciones ?? []);
+  const [opciones, setOpciones] = useState<OpcionPregunta[]>(
+    pregunta.tipo === "EMPAREJAR" ? [] : (pregunta.opciones as OpcionPregunta[] | null) ?? [],
+  );
+  const [pares, setPares] = useState<ParEmparejar[]>(
+    pregunta.tipo === "EMPAREJAR"
+      ? (pregunta.opciones as ParEmparejar[] | null) ?? []
+      : [
+          { id: crypto.randomUUID(), izquierda: "", derecha: "" },
+          { id: crypto.randomUUID(), izquierda: "", derecha: "" },
+        ],
+  );
   const [respuestas, setRespuestas] = useState<string[]>(
     pregunta.respuestasAceptadas.length > 0 ? pregunta.respuestasAceptadas : [""],
   );
@@ -76,6 +88,16 @@ export function PreguntaEditor({
         { id: crypto.randomUUID(), texto: "Verdadero", correcta: true },
         { id: crypto.randomUUID(), texto: "Falso", correcta: false },
       ]);
+      return;
+    }
+
+    if (nuevo === "EMPAREJAR") {
+      if (pares.length < 2) {
+        setPares([
+          { id: crypto.randomUUID(), izquierda: "", derecha: "" },
+          { id: crypto.randomUUID(), izquierda: "", derecha: "" },
+        ]);
+      }
       return;
     }
 
@@ -115,9 +137,11 @@ export function PreguntaEditor({
     );
   }
 
-  const esOpciones = tipo !== "RELLENAR_ESPACIO";
+  const esEmparejar = tipo === "EMPAREJAR";
+  const esOpciones = tipo !== "RELLENAR_ESPACIO" && !esEmparejar;
   const puedeAgregarOpcion =
     tipo !== "VERDADERO_FALSO" && opciones.length < MAXIMO_OPCIONES_POR_PREGUNTA;
+  const puedeAgregarPar = pares.length < MAXIMO_PARES_EMPAREJAR;
 
   async function handleGuardar() {
     setError(null);
@@ -125,7 +149,16 @@ export function PreguntaEditor({
 
     // Validación de cortesía: la del servidor manda, pero avisar acá evita el
     // viaje de ida y vuelta para los errores más comunes.
-    if (esOpciones) {
+    if (esEmparejar) {
+      if (pares.length < 2) {
+        setError("Un emparejamiento necesita al menos dos pares.");
+        return;
+      }
+      if (pares.some((par) => par.izquierda.trim() === "" || par.derecha.trim() === "")) {
+        setError("Hay pares sin completar.");
+        return;
+      }
+    } else if (esOpciones) {
       if (opciones.some((opcion) => opcion.texto.trim() === "")) {
         setError("Hay opciones sin texto.");
         return;
@@ -143,8 +176,12 @@ export function PreguntaEditor({
       tipo,
       enunciado,
       puntos,
-      opciones: esOpciones ? opciones.map((o) => ({ ...o, texto: o.texto.trim() })) : null,
-      respuestasAceptadas: esOpciones ? [] : limpias,
+      opciones: esEmparejar
+        ? pares.map((par) => ({ ...par, izquierda: par.izquierda.trim(), derecha: par.derecha.trim() }))
+        : esOpciones
+          ? opciones.map((o) => ({ ...o, texto: o.texto.trim() }))
+          : null,
+      respuestasAceptadas: esOpciones || esEmparejar ? [] : limpias,
       explicacion,
     });
   }
@@ -208,7 +245,78 @@ export function PreguntaEditor({
         </div>
       </div>
 
-      {esOpciones ? (
+      {esEmparejar ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-[13px] font-semibold text-uva-text">
+            Pares a relacionar
+            <span className="ml-2 font-normal text-uva-text-faint">
+              El estudiante empareja cada izquierda con su derecha correcta.
+            </span>
+          </legend>
+
+          {pares.map((par, indice) => (
+            <div key={par.id} className="flex items-center gap-2.5">
+              <Input
+                value={par.izquierda}
+                onChange={(event) => {
+                  const izquierda = event.target.value;
+                  setPares((actuales) =>
+                    actuales.map((item) => (item.id === par.id ? { ...item, izquierda } : item)),
+                  );
+                  marcarSucio();
+                }}
+                placeholder={`Izquierda ${indice + 1}`}
+                aria-label={`Elemento izquierdo del par ${indice + 1}`}
+              />
+              <Input
+                value={par.derecha}
+                onChange={(event) => {
+                  const derecha = event.target.value;
+                  setPares((actuales) =>
+                    actuales.map((item) => (item.id === par.id ? { ...item, derecha } : item)),
+                  );
+                  marcarSucio();
+                }}
+                placeholder={`Derecha ${indice + 1}`}
+                aria-label={`Elemento derecho del par ${indice + 1}`}
+              />
+              {pares.length > 2 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Eliminar el par ${indice + 1}`}
+                  onClick={() => {
+                    setPares((actuales) => actuales.filter((item) => item.id !== par.id));
+                    marcarSucio();
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+
+          {puedeAgregarPar && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              onClick={() => {
+                setPares((actuales) => [
+                  ...actuales,
+                  { id: crypto.randomUUID(), izquierda: "", derecha: "" },
+                ]);
+                marcarSucio();
+              }}
+            >
+              <Plus className="size-4" />
+              Agregar par
+            </Button>
+          )}
+        </fieldset>
+      ) : esOpciones ? (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-[13px] font-semibold text-uva-text">
             Opciones

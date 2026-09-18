@@ -36,7 +36,6 @@ import { motivosParaNoPublicarExamen } from "@/lib/examenes/publicacion";
 import {
   ETIQUETA_TIPO,
   MAXIMO_PREGUNTAS_POR_EXAMEN,
-  NOTA_APROBATORIA_MINIMA,
   TIPOS_IMPLEMENTADOS,
   type PreguntaCompleta,
   type TipoPreguntaImplementado,
@@ -181,7 +180,6 @@ function ExamenExistente({
 }) {
   const [titulo, setTitulo] = useState(examen.titulo);
   const [instrucciones, setInstrucciones] = useState<DocumentoContenido | null>(examen.instrucciones);
-  const [notaAprobatoria, setNotaAprobatoria] = useState(examen.notaAprobatoria);
   const [conLimiteIntentos, setConLimiteIntentos] = useState(examen.intentosMaximos !== null);
   const [intentosMaximos, setIntentosMaximos] = useState(examen.intentosMaximos ?? 3);
   const [conTiempo, setConTiempo] = useState(examen.minutosLimite !== null);
@@ -211,7 +209,6 @@ function ExamenExistente({
   // aplica la misma regla al publicar (alternarPublicacionExamen).
   const motivosSinPublicar = motivosParaNoPublicarExamen({
     titulo,
-    notaAprobatoria,
     preguntas: preguntas.map((pregunta) => ({ tipo: pregunta.tipo, puntos: pregunta.puntos })),
   });
   const bloqueadoParaPublicar = motivosSinPublicar.length > 0 && !examen.publicado;
@@ -228,7 +225,6 @@ function ExamenExistente({
     const resultado = await actualizarConfiguracionExamen(examen.id, cursoId, {
       titulo,
       instrucciones,
-      notaAprobatoria,
       intentosMaximos: conLimiteIntentos ? intentosMaximos : null,
       minutosLimite: conTiempo ? minutosLimite : null,
       aleatorizarPreguntas,
@@ -467,25 +463,10 @@ function ExamenExistente({
           </div>
         </div>
 
+        {/* Sin "nota para aprobar": el examen se aprueba respondiendo bien
+            TODAS las preguntas antes de quedarse sin vidas — no hay umbral
+            por porcentaje que configurar. */}
         <div className="flex flex-wrap gap-4">
-          <div className="w-[150px]">
-            <Label htmlFor="examen-nota">Nota para aprobar</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="examen-nota"
-                type="number"
-                min={NOTA_APROBATORIA_MINIMA}
-                max={100}
-                value={notaAprobatoria}
-                onChange={(event) => setNotaAprobatoria(Number(event.target.value))}
-              />
-              <span className="text-sm text-uva-muted">%</span>
-            </div>
-            <p className="mt-1 text-xs text-uva-text-faint">
-              Mínimo {NOTA_APROBATORIA_MINIMA}%.
-            </p>
-          </div>
-
           <div className="w-[150px]">
             <Label htmlFor="examen-intentos">Intentos permitidos</Label>
             <Input

@@ -3,15 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calificarIntento } from "@/lib/examenes/calificar";
+import { calcularVidasRestantes, calificarPregunta } from "@/lib/examenes/calificar";
 import { congelarPreguntas } from "@/lib/examenes/congelar";
 import { calcularDisponibilidad } from "@/lib/examen";
 import {
-  respuestasIntentoSchema,
+  parsearProgreso,
+  respuestaEstudianteSchema,
   TOLERANCIA_TIEMPO_SEGUNDOS,
   type PreguntaCongelada,
-  type RespuestasIntento,
+  type ProgresoIntento,
+  type RespuestaEstudiante,
 } from "@/lib/examenes/tipos";
+
+type AdminClient = ReturnType<typeof createAdminClient>;
 
 /**
  * Rendir un examen final (docs/functional-spec.md Flujo 14).
@@ -43,7 +47,9 @@ import {
 export type IntentoActionResult = { error?: string; success?: boolean; intentoId?: string };
 
 /** Sesión válida + id de usuario, o el error listo para devolver. */
-async function requireEstudiante() {
+async function requireEstudiante(): Promise<
+  { error: string } | { supabase: Awaited<ReturnType<typeof createClient>>; usuarioId: string }
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -58,8 +64,14 @@ async function requireEstudiante() {
  *
  * Verifica, en este orden: que el examen exista y sea visible para este
  * estudiante (RLS), que no lo haya aprobado ya, que no tenga otro intento
- * abierto, que haya terminado todas las lecciones, que le queden intentos y
- * que haya pasado el tiempo de espera desde el último fallido.
+ * abierto, que le queden intentos y que haya pasado el tiempo de espera desde
+ * el último fallido.
+ *
+ * A propósito NO exige haber terminado las lecciones del curso: el examen se
+ * puede intentar desde que el curso lo publica (decisión de producto). Esto
+ * es solo el gate de ACCESO/escritura de un intento — el gate de
+ * CERTIFICACIÓN sigue exigiendo 100% de lecciones + examen aprobado, sin
+ * cambios, vía `private.curso_esta_completo` (supabase/sql/068).
  */
 export async function iniciarIntento(cursoId: string): Promise<IntentoActionResult> {
   const sesion = await requireEstudiante();
@@ -95,16 +107,6 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
   // llegan a la vez).
   const abierto = previos.find((intento) => intento.estado === "EN_CURSO");
   if (abierto) return { success: true, intentoId: abierto.id };
-
-  // Misma función que usa el trigger de certificación — la regla de "terminó
-  // todas las lecciones" no se reimplementa acá.
-  const { data: leccionesCompletas } = await supabase.rpc("lecciones_completas_curso", {
-    p_id_curso: cursoId,
-  });
-
-  if (leccionesCompletas !== true) {
-    return { error: "Termina todas las clases del curso antes de presentar el examen." };
-  }
 
   // `intentos_maximos` no es un tope de por vida: es el tamaño de una ronda.
   // `calcularDisponibilidad` decide si toca esperar los 15 minutos normales
@@ -157,7 +159,14 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
       // debe cambiar el resultado de un intento ya empezado.
       nota_requerida: examen.nota_aprobatoria,
       preguntas_congeladas: preguntas,
-      respuestas: {},
+      // La cola arranca en el orden congelado que le tocó a ESTE estudiante:
+      // es el orden en que verá las preguntas, y al que vuelven las que
+      // falle (al final, ver `ProgresoIntento`).
+      respuestas: {
+        resueltas: {},
+        fallos: 0,
+        cola: preguntas.map((pregunta) => pregunta.id),
+      } satisfies ProgresoIntento,
       expira_en: expiraEn,
     })
     .select("id")
@@ -183,136 +192,339 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
 }
 
 /**
- * Autoguardado de respuestas. Se llama en cada cambio, así que no revalida
- * ninguna ruta — mismo criterio que `guardarSegundoActual` del reproductor.
+ * Porcentaje informativo de un intento: qué proporción de las preguntas del
+ * examen quedaron resueltas correctamente, redondeado a dos decimales (la
+ * columna es DECIMAL(5,2), con CHECK de rango 0-100).
  *
- * Solo escribe `respuestas`: nunca toca `estado` ni `puntaje_pct`, que son
- * exclusivos de `enviarIntento`.
+ * Ya NO decide nada —aprobar es terminar la cola, reprobar es quedarse sin
+ * vidas— pero `puntaje_pct` es NOT NULL y hay que llenarla en cada cierre.
+ * En un cierre APROBADO siempre da 100 por construcción: no se aprueba hasta
+ * que `cola` está vacía, o sea con todas las preguntas en `resueltas`.
  */
-export async function guardarRespuestas(
-  intentoId: string,
-  respuestas: RespuestasIntento,
-): Promise<{ ok: boolean }> {
-  const sesion = await requireEstudiante();
-  if ("error" in sesion) return { ok: false };
-  const { usuarioId } = sesion;
-
-  const parseo = respuestasIntentoSchema.safeParse(respuestas);
-  if (!parseo.success) return { ok: false };
-
-  // El filtro por `id_usuario` y por `estado` va en el propio UPDATE: con
-  // Service Role no hay RLS que lo haga, así que es lo único que impide
-  // escribir en el intento de otra persona o reabrir uno ya calificado.
-  const { error, count } = await createAdminClient()
-    .from("intentos_examen")
-    .update({ respuestas: parseo.data }, { count: "exact" })
-    .eq("id", intentoId)
-    .eq("id_usuario", usuarioId)
-    .eq("estado", "EN_CURSO");
-
-  return { ok: !error && (count ?? 0) > 0 };
+function puntajeInformativo(resueltas: number, totalPreguntas: number): number {
+  if (totalPreguntas <= 0) return 0;
+  return Math.round((resueltas / totalPreguntas) * 10000) / 100;
 }
 
-export type EnvioResultado = {
-  error?: string;
-  success?: boolean;
-  aprobado?: boolean;
-  puntajePct?: number;
-  /** true si el envío lo forzó el vencimiento del tiempo, no el estudiante. */
-  porTiempo?: boolean;
-};
-
 /**
- * Cierra el intento y lo califica.
+ * Cierra un intento, en el mismo UPDATE que exige el CHECK
+ * `intentos_examen_cerrado_tiene_puntaje` (estado + puntaje_pct +
+ * finalizado_en juntos). Compartido por `responderPregunta` (vidas agotadas o
+ * cola vacía) y `enviarIntento` (tiempo agotado).
  *
- * La calificación corre entera en el servidor sobre `preguntas_congeladas`
- * (que sí tiene las respuestas correctas). Nada de lo que mande el cliente se
- * usa como puntaje: solo sus respuestas.
+ * Recibe el veredicto YA decidido en vez de calcularlo: quien llama es el
+ * único que sabe cómo quedó la cola de reintentos, que es lo que define
+ * aprobado/reprobado (docs/functional-spec.md Módulo 9). Acá no hay ninguna
+ * regla de negocio, solo la escritura.
  */
-export async function enviarIntento(
+async function cerrarIntento(
+  admin: AdminClient,
   intentoId: string,
-  respuestas: RespuestasIntento,
-): Promise<EnvioResultado> {
-  const sesion = await requireEstudiante();
-  if ("error" in sesion) return { error: sesion.error };
-  const { usuarioId } = sesion;
-
-  const parseo = respuestasIntentoSchema.safeParse(respuestas);
-  if (!parseo.success) return { error: "Respuestas inválidas." };
-
-  const admin = createAdminClient();
-
-  const { data: intento } = await admin
-    .from("intentos_examen")
-    .select("id, id_usuario, estado, nota_requerida, preguntas_congeladas, respuestas, expira_en, examen:examenes(id_curso)")
-    .eq("id", intentoId)
-    .maybeSingle();
-
-  if (!intento || intento.id_usuario !== usuarioId) {
-    return { error: "No encontramos ese intento." };
-  }
-  if (intento.estado !== "EN_CURSO") {
-    return { error: "Este intento ya fue enviado." };
-  }
-
-  // Tiempo agotado: el intento se cierra igual, calificando lo que alcanzó a
-  // responder ANTES del vencimiento (lo ya autoguardado), no lo que llegue en
-  // este envío tardío. Sin esa distinción, dejar la pestaña abierta y enviar
-  // media hora después equivaldría a no tener límite de tiempo.
-  const vencido =
-    intento.expira_en !== null &&
-    Date.now() > new Date(intento.expira_en).getTime() + TOLERANCIA_TIEMPO_SEGUNDOS * 1000;
-
-  const respuestasFinales = vencido
-    ? ((intento.respuestas ?? {}) as RespuestasIntento)
-    : parseo.data;
-
-  const preguntas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
-  const resultado = calificarIntento(preguntas, respuestasFinales, intento.nota_requerida);
-
-  // El UPDATE repite el filtro por estado: si dos envíos llegan a la vez (el
-  // botón y el auto-envío por tiempo), el segundo no reescribe la nota del
-  // primero — afecta 0 filas y sale por el camino de abajo.
+  usuarioId: string,
+  estado: "APROBADO" | "REPROBADO",
+  puntajePct: number,
+  progresoFinal: ProgresoIntento,
+): Promise<{ ok: boolean; fallo: boolean }> {
+  // Mismo guard de carrera que ya existía: si dos disparadores llegan a la
+  // vez (ej. el cronómetro y una última respuesta), el segundo UPDATE no
+  // reescribe el cierre del primero — afecta 0 filas, sin `error`. Se
+  // distingue de un `error` de verdad (fallo transitorio de la base) porque
+  // en ese caso la respuesta que se estaba confirmando NUNCA se persistió
+  // en ninguna otra escritura (esta es la única del camino de cierre) — si
+  // se le dijera al estudiante "ya fue enviado" en vez de "reintenta", al
+  // recargar volvería a ver la misma pregunta con la misma vida de más.
   const { error, count } = await admin
     .from("intentos_examen")
     .update(
       {
-        estado: resultado.aprobado ? "APROBADO" : "REPROBADO",
-        puntaje_pct: resultado.puntajePct,
-        respuestas: respuestasFinales,
+        estado,
+        puntaje_pct: puntajePct,
+        respuestas: progresoFinal,
         finalizado_en: new Date().toISOString(),
       },
       { count: "exact" },
     )
     .eq("id", intentoId)
     .eq("id_usuario", usuarioId)
-    .eq("estado", "EN_CURSO")
-    .select("id");
+    .eq("estado", "EN_CURSO");
 
-  if (error) return { error: "No pudimos registrar tus respuestas. Intenta de nuevo." };
-  if ((count ?? 0) === 0) return { error: "Este intento ya fue enviado." };
+  return { ok: !error && (count ?? 0) > 0, fallo: Boolean(error) };
+}
 
-  // Si aprobó, el trigger `intento_examen_emite_certificado` (supabase/sql/068)
-  // ya emitió el certificado dentro de este mismo UPDATE — de ahí que se
-  // revaliden las rutas donde aparece.
-  const examen = Array.isArray(intento.examen) ? intento.examen[0] : intento.examen;
-  const cursoId = examen?.id_curso as string | undefined;
+/** Mensaje de error para un cierre que no se confirmó — distingue un fallo
+ * real de escritura (reintentable) de un cierre concurrente legítimo (otra
+ * vía ya cerró el intento primero). */
+function mensajeCierreFallido(cierre: { fallo: boolean }): string {
+  return cierre.fallo ? "No pudimos guardar tu respuesta. Intenta de nuevo." : "Este intento ya fue enviado.";
+}
 
+/** Revalida las rutas donde puede aparecer el resultado de un intento
+ * cerrado (certificado, progreso, ficha del curso). Compartido por
+ * `responderPregunta` y `enviarIntento` para no duplicar la consulta del
+ * slug del curso. */
+async function revalidarTrasCierre(admin: AdminClient, cursoId: string | undefined) {
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/certificados");
   revalidatePath("/dashboard/progreso");
-  if (cursoId) {
-    const { data: curso } = await admin.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
-    if (curso?.slug) {
-      revalidatePath(`/cursos/${curso.slug}`);
-      revalidatePath(`/cursos/${curso.slug}/examen`);
-    }
+  if (!cursoId) return;
+  const { data: curso } = await admin.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
+  if (curso?.slug) {
+    revalidatePath(`/cursos/${curso.slug}`);
+    revalidatePath(`/cursos/${curso.slug}/examen`);
   }
+}
+
+type IntentoParaResponder = {
+  id: string;
+  id_usuario: string;
+  estado: string;
+  preguntas_congeladas: unknown;
+  respuestas: unknown;
+  expira_en: string | null;
+  examen: { id_curso: string } | { id_curso: string }[] | null;
+};
+
+function idCursoDe(intento: IntentoParaResponder): string | undefined {
+  const examen = Array.isArray(intento.examen) ? intento.examen[0] : intento.examen;
+  return examen?.id_curso;
+}
+
+export type RespuestaPreguntaResultado =
+  | { error: string }
+  | {
+      success: true;
+      acierto: boolean;
+      vidasRestantes: number;
+      /** true si esta respuesta cerró el intento (no quedaban pendientes,
+       * vidas agotadas, o el tiempo ya se había vencido). El cliente debe
+       * navegar al resultado en vez de mostrar "Siguiente". */
+      cerrado: boolean;
+      /**
+       * Qué pregunta toca ahora. Solo cuando `cerrado` es false.
+       *
+       * Lo manda el servidor porque el cliente ya no puede deducirlo: con la
+       * cola de reintentos, la siguiente no es "la del índice de al lado" —
+       * una pregunta fallada vuelve al final de la fila, así que el orden
+       * real solo lo conoce `ProgresoIntento.cola`.
+       */
+      siguientePreguntaId?: string;
+      /** Solo si `cerrado` fue por tiempo ya vencido: la respuesta que se
+       * mandó en esta llamada NUNCA se calificó (ni entró al puntaje ni
+       * pudo restar vida) — el cliente no debe decir "Fallaste" de esto. */
+      porTiempo?: boolean;
+      aprobado?: boolean;
+      puntajePct?: number;
+    };
+
+/**
+ * Responde UNA pregunta del intento en curso: la califica, actualiza la cola
+ * de pendientes y, si corresponde (agotó las vidas o vació la cola), cierra
+ * el intento en el mismo paso.
+ *
+ * Cola de reintentos (docs/functional-spec.md Módulo 9): acertar saca la
+ * pregunta de la cola; fallar la manda al FINAL, así que vuelve a aparecer
+ * después de las demás pendientes —nunca dos veces seguidas— y cuesta una
+ * vida. El intento solo termina al quedarse sin vidas (REPROBADO) o al
+ * responder bien TODAS las preguntas, reintentos incluidos (APROBADO).
+ *
+ * Con la respuesta fija al elegir (no se puede volver atrás, decisión de
+ * producto), cada respuesta se persiste atómicamente en el momento en que se
+ * confirma, así que no hace falta autoguardado de borrador.
+ */
+export async function responderPregunta(
+  intentoId: string,
+  preguntaId: string,
+  respuesta: RespuestaEstudiante,
+): Promise<RespuestaPreguntaResultado> {
+  const sesion = await requireEstudiante();
+  if ("error" in sesion) return { error: sesion.error };
+  const { usuarioId } = sesion;
+
+  const parseo = respuestaEstudianteSchema.safeParse(respuesta);
+  if (!parseo.success) return { error: "Respuesta inválida." };
+
+  const admin = createAdminClient();
+  const { data: intento } = await admin
+    .from("intentos_examen")
+    .select(
+      "id, id_usuario, estado, preguntas_congeladas, respuestas, expira_en, examen:examenes(id_curso)",
+    )
+    .eq("id", intentoId)
+    .maybeSingle<IntentoParaResponder>();
+
+  if (!intento || intento.id_usuario !== usuarioId) return { error: "No encontramos ese intento." };
+  if (intento.estado !== "EN_CURSO") return { error: "Este intento ya fue enviado." };
+
+  const preguntas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
+  const progreso = parsearProgreso(intento.respuestas, preguntas);
+  const cursoId = idCursoDe(intento);
+
+  // Tiempo ya vencido: esta respuesta no cuenta, se cierra con lo que ya
+  // había antes de que llegara — mismo criterio que el `enviarIntento`
+  // anterior, solo que ahora no hay "envío tardío del cliente" que
+  // descartar porque cada respuesta ya se persistió al confirmarla.
+  const vencido =
+    intento.expira_en !== null &&
+    Date.now() > new Date(intento.expira_en).getTime() + TOLERANCIA_TIEMPO_SEGUNDOS * 1000;
+
+  if (vencido) {
+    // Siempre REPROBADO: la única forma de aprobar es terminar TODAS las
+    // preguntas correctamente, y quien se quedó sin tiempo con la cola a
+    // medias no lo hizo.
+    const puntajePct = puntajeInformativo(Object.keys(progreso.resueltas).length, preguntas.length);
+    const cierre = await cerrarIntento(admin, intentoId, usuarioId, "REPROBADO", puntajePct, progreso);
+    if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
+    await revalidarTrasCierre(admin, cursoId);
+    return {
+      success: true,
+      acierto: false,
+      vidasRestantes: calcularVidasRestantes(progreso.fallos),
+      cerrado: true,
+      porTiempo: true,
+      aprobado: false,
+      puntajePct,
+    };
+  }
+
+  const pregunta = preguntas.find((p) => p.id === preguntaId);
+  if (!pregunta) return { error: "Esa pregunta no existe en este intento." };
+
+  // Idempotente: repetir una pregunta YA RESUELTA (reintento de red) no resta
+  // vida de nuevo ni reordena la cola. Solo se llega a `resueltas` acertando,
+  // así que el acierto es true por construcción.
+  if (Object.hasOwn(progreso.resueltas, preguntaId)) {
+    return {
+      success: true,
+      acierto: true,
+      vidasRestantes: calcularVidasRestantes(progreso.fallos),
+      cerrado: false,
+      siguientePreguntaId: progreso.cola[0],
+    };
+  }
+
+  // Orden: solo se responde la pregunta que está al frente de la cola.
+  // Defensa contra un cliente que llame a la action saltándose preguntas, no
+  // algo que la UI normal pueda producir.
+  if (progreso.cola[0] !== preguntaId) return { error: "Responde las preguntas en orden." };
+
+  const acierto = calificarPregunta(pregunta, parseo.data);
+  // Acertar saca la pregunta de la cola; fallar la manda al final (vuelve
+  // después de las demás pendientes) y cuesta una vida. Una respuesta
+  // incorrecta NO se guarda: `resueltas` es solo lo que quedó bien.
+  const progresoNuevo: ProgresoIntento = acierto
+    ? {
+        resueltas: { ...progreso.resueltas, [preguntaId]: parseo.data },
+        fallos: progreso.fallos,
+        cola: progreso.cola.slice(1),
+      }
+    : {
+        resueltas: progreso.resueltas,
+        fallos: progreso.fallos + 1,
+        cola: [...progreso.cola.slice(1), preguntaId],
+      };
+
+  const vidasRestantes = calcularVidasRestantes(progresoNuevo.fallos);
+  const puntajePct = puntajeInformativo(
+    Object.keys(progresoNuevo.resueltas).length,
+    preguntas.length,
+  );
+
+  // Sin vidas: se cierra YA como REPROBADO, sin importar cuánto quede en la
+  // cola. Es una regla explícita, no una consecuencia de ningún puntaje.
+  if (vidasRestantes === 0) {
+    const cierre = await cerrarIntento(admin, intentoId, usuarioId, "REPROBADO", puntajePct, progresoNuevo);
+    if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
+    await revalidarTrasCierre(admin, cursoId);
+    return { success: true, acierto, vidasRestantes: 0, cerrado: true, aprobado: false, puntajePct };
+  }
+
+  // Cola vacía con vidas de sobra: respondió bien todas las preguntas del
+  // examen (los reintentos incluidos). Única forma de aprobar.
+  if (progresoNuevo.cola.length === 0) {
+    const cierre = await cerrarIntento(admin, intentoId, usuarioId, "APROBADO", puntajePct, progresoNuevo);
+    if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
+    await revalidarTrasCierre(admin, cursoId);
+    return { success: true, acierto, vidasRestantes, cerrado: true, aprobado: true, puntajePct };
+  }
+
+  // No se cierra: solo se persiste el progreso, sigue EN_CURSO. Mismo
+  // filtro de dueño+estado que el resto de las escrituras de este módulo.
+  const { error, count } = await admin
+    .from("intentos_examen")
+    .update({ respuestas: progresoNuevo }, { count: "exact" })
+    .eq("id", intentoId)
+    .eq("id_usuario", usuarioId)
+    .eq("estado", "EN_CURSO");
+
+  if (error) return { error: "No pudimos guardar tu respuesta. Intenta de nuevo." };
+  if ((count ?? 0) === 0) return { error: "Este intento ya fue enviado." };
 
   return {
     success: true,
-    aprobado: resultado.aprobado,
-    puntajePct: resultado.puntajePct,
-    porTiempo: vencido,
+    acierto,
+    vidasRestantes,
+    cerrado: false,
+    siguientePreguntaId: progresoNuevo.cola[0],
   };
+}
+
+export type EnvioResultado = { error?: string; success?: boolean; aprobado?: boolean; puntajePct?: number };
+
+/**
+ * Cierra el intento por vencimiento del cronómetro (único disparador que
+ * queda: ya no hay botón "Enviar examen" — el examen termina solo al vaciar
+ * la cola de preguntas, agotar las vidas, o agotarse el tiempo). Cierra con
+ * lo que ya está persistido en `respuestas`: cada respuesta se guardó
+ * atómicamente al confirmarla, así que no hay nada que el cliente deba (ni
+ * pueda) mandar en este llamado.
+ *
+ * Valida `expira_en` en el servidor, igual que hace `responderPregunta` para
+ * su propia rama de "se acabó el tiempo" — nunca contra el reloj del
+ * cliente. Sin esto, cualquier llamada autenticada (el `tick()` del
+ * cronómetro dispara la primera con el reloj del NAVEGADOR, sin garantía de
+ * que esté bien puesto) cerraba el intento aunque todavía quedara tiempo de
+ * verdad.
+ */
+export async function enviarIntento(intentoId: string): Promise<EnvioResultado> {
+  const sesion = await requireEstudiante();
+  if ("error" in sesion) return { error: sesion.error };
+  const { usuarioId } = sesion;
+
+  const admin = createAdminClient();
+  const { data: intento } = await admin
+    .from("intentos_examen")
+    .select("id, id_usuario, estado, preguntas_congeladas, respuestas, expira_en, examen:examenes(id_curso)")
+    .eq("id", intentoId)
+    .maybeSingle<IntentoParaResponder>();
+
+  if (!intento || intento.id_usuario !== usuarioId) return { error: "No encontramos ese intento." };
+  if (intento.estado !== "EN_CURSO") return { error: "Este intento ya fue enviado." };
+
+  // Sin tolerancia de gracia acá a propósito: a diferencia de
+  // `responderPregunta` (que la usa para decidir si una respuesta que llegó
+  // justo después del corte todavía cuenta), esta comprobación solo decide
+  // si YA se puede cerrar — sumarle 30s de gracia solo demoraría el cierre
+  // real sin ganar nada, porque no hay ninguna respuesta en vuelo que
+  // proteger.
+  const vencido = intento.expira_en !== null && Date.now() >= new Date(intento.expira_en).getTime();
+
+  if (!vencido) return { error: "El tiempo del examen todavía no se agotó." };
+
+  const preguntas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
+  const progreso = parsearProgreso(intento.respuestas, preguntas);
+
+  // Siempre REPROBADO: aprobar exige haber respondido bien TODAS las
+  // preguntas, y ese caso cierra solo en `responderPregunta` (cola vacía)
+  // antes de que el cronómetro llegue acá. Quien llega por tiempo agotado,
+  // por definición, dejó la cola a medias.
+  const puntajePct = puntajeInformativo(Object.keys(progreso.resueltas).length, preguntas.length);
+  const cierre = await cerrarIntento(admin, intentoId, usuarioId, "REPROBADO", puntajePct, progreso);
+  if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
+
+  // El trigger `intento_examen_emite_certificado` (supabase/sql/068) solo
+  // emite si el intento cerró APROBADO; se revalidan igual las rutas del
+  // resultado, que sí cambian.
+  await revalidarTrasCierre(admin, idCursoDe(intento));
+
+  return { success: true, aprobado: false, puntajePct };
 }

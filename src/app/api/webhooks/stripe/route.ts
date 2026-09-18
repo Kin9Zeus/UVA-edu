@@ -69,7 +69,16 @@ export async function POST(request: NextRequest) {
   // de Stripe, así que no hay contra qué conciliar el evento. Cuando se
   // implemente va AQUÍ: firma e idempotencia ya quedaron resueltas arriba y
   // no hay forma de agregar negocio salteándolas.
-  console.log("[webhook:stripe] evento verificado", { id: evento.id, tipo: evento.type });
+  console.log(
+    JSON.stringify({
+      nivel: "info",
+      timestamp: new Date().toISOString(),
+      scope: "webhook:stripe",
+      message: "evento verificado",
+      idEvento: evento.id,
+      tipoEvento: evento.type,
+    }),
+  );
 
   await marcarProcesado("stripe", evento.id);
   return NextResponse.json({ received: true });

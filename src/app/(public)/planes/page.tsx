@@ -3,10 +3,14 @@ import { Header } from "@/components/home/Header";
 import { Footer } from "@/components/home/Footer";
 import { Pricing } from "@/components/home/Pricing";
 import { connection } from "next/server";
+import { metadataPublica } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "U.V.A. — Un plan, todo el gremio",
-};
+export const metadata: Metadata = metadataPublica({
+  titulo: "Un plan, todo el gremio",
+  descripcion:
+    "Un solo plan da acceso a todo el catálogo de U.V.A: cursos, materiales descargables y certificado al terminar.",
+  ruta: "/planes",
+});
 
 export default async function PlanesPage() {
   // P2-2 (AUDIT-2026-09-08): fuerza el render dinámico. Esta era una de las

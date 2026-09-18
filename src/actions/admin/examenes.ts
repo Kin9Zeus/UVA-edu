@@ -19,10 +19,12 @@ import {
   examenConfiguracionSchema,
   esTipoImplementado,
   MAXIMO_PREGUNTAS_POR_EXAMEN,
+  parsearProgreso,
   preguntaEntradaSchema,
   type OpcionPregunta,
+  type ParEmparejar,
   type PreguntaCongelada,
-  type RespuestasIntento,
+  type ProgresoIntento,
   type TipoPreguntaImplementado,
 } from "@/lib/examenes/tipos";
 import type { AdminActionResult } from "@/actions/admin/categorias";
@@ -49,8 +51,16 @@ const ENUNCIADO_VACIO: DocumentoContenido = { type: "doc", content: [{ type: "pa
 /** Plantilla inicial por tipo, para que "Agregar pregunta" deje algo editable
  * y no un formulario en blanco que no valida. Verdadero/falso llega con sus
  * dos opciones fijas ya puestas: no tiene sentido escribirlas a mano cada vez. */
-function opcionesInicialesPara(tipo: TipoPreguntaImplementado): OpcionPregunta[] | null {
+function opcionesInicialesPara(
+  tipo: TipoPreguntaImplementado,
+): OpcionPregunta[] | ParEmparejar[] | null {
   if (tipo === "RELLENAR_ESPACIO") return null;
+  if (tipo === "EMPAREJAR") {
+    return [
+      { id: randomUUID(), izquierda: "", derecha: "" },
+      { id: randomUUID(), izquierda: "", derecha: "" },
+    ];
+  }
   if (tipo === "VERDADERO_FALSO") {
     return [
       { id: randomUUID(), texto: "Verdadero", correcta: true },
@@ -139,7 +149,6 @@ export async function actualizarConfiguracionExamen(
   input: {
     titulo: string;
     instrucciones: DocumentoContenido | null;
-    notaAprobatoria: number;
     intentosMaximos: number | null;
     minutosLimite: number | null;
     aleatorizarPreguntas: boolean;
@@ -158,12 +167,14 @@ export async function actualizarConfiguracionExamen(
   if (!parseo.success) return { error: primerError(parseo) };
   const config = parseo.data;
 
+  // `nota_aprobatoria` NO se toca: el examen ya no se aprueba por porcentaje
+  // (se aprueba respondiendo bien todas las preguntas antes de quedarse sin
+  // vidas), así que la columna se queda con lo que tuviera y nadie la pisa.
   const { error } = await admin.supabase
     .from("examenes")
     .update({
       titulo: config.titulo,
       instrucciones: config.instrucciones,
-      nota_aprobatoria: config.notaAprobatoria,
       intentos_maximos: config.intentosMaximos,
       minutos_limite: config.minutosLimite,
       aleatorizar_preguntas: config.aleatorizarPreguntas,
@@ -171,17 +182,7 @@ export async function actualizarConfiguracionExamen(
     })
     .eq("id", examenId);
 
-  // 23514 = check constraint. La única que puede saltar acá es
-  // `examenes_nota_aprobatoria_minima`, y solo si alguien llama la acción
-  // directamente saltándose el schema de Zod.
-  if (error) {
-    return {
-      error:
-        error.code === "23514"
-          ? "La nota para aprobar debe estar entre 75% y 100%."
-          : "No pudimos guardar la configuración del examen.",
-    };
-  }
+  if (error) return { error: "No pudimos guardar la configuración del examen." };
 
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
   return { success: true };
@@ -213,7 +214,7 @@ export async function alternarPublicacionExamen(
   if (publicado) {
     const { data: examen } = await admin.supabase
       .from("examenes")
-      .select("titulo, nota_aprobatoria, preguntas_examen(tipo, puntos)")
+      .select("titulo, preguntas_examen(tipo, puntos, opciones)")
       .eq("id", examenId)
       .maybeSingle();
 
@@ -221,13 +222,21 @@ export async function alternarPublicacionExamen(
 
     const motivos = motivosParaNoPublicarExamen({
       titulo: examen.titulo,
-      notaAprobatoria: examen.nota_aprobatoria,
       preguntas: (examen.preguntas_examen ?? [])
         .filter((pregunta) => esTipoImplementado(pregunta.tipo))
-        .map((pregunta) => ({
-          tipo: pregunta.tipo as TipoPreguntaImplementado,
-          puntos: pregunta.puntos as number,
-        })),
+        .map((pregunta) => {
+          const tipo = pregunta.tipo as TipoPreguntaImplementado;
+          // Único caso detectable sin repetir aquí toda la validación de
+          // `preguntaEntradaSchema`: EMPAREJAR recién creada (plantilla de
+          // `opcionesInicialesPara`, dos pares vacíos) que nadie llegó a
+          // editar — "answerable por id" sin que el estudiante lea nada.
+          const incompleta =
+            tipo === "EMPAREJAR" &&
+            ((pregunta.opciones as { izquierda?: string; derecha?: string }[] | null) ?? []).some(
+              (par) => !par.izquierda?.trim() || !par.derecha?.trim(),
+            );
+          return { tipo, puntos: pregunta.puntos as number, incompleta };
+        }),
     });
 
     if (motivos.length > 0) {
@@ -362,7 +371,7 @@ export async function actualizarPregunta(
     tipo: TipoPreguntaImplementado;
     enunciado: DocumentoContenido;
     puntos: number;
-    opciones: OpcionPregunta[] | null;
+    opciones: OpcionPregunta[] | ParEmparejar[] | null;
     respuestasAceptadas: string[];
     explicacion: DocumentoContenido | null;
   },
@@ -561,7 +570,13 @@ export async function otorgarIntentoExtra(
     id_usuario: usuarioId,
     nota_requerida: examen.nota_aprobatoria,
     preguntas_congeladas: preguntas,
-    respuestas: {},
+    // Misma inicialización que `iniciarIntento`: la cola arranca en el orden
+    // congelado que le tocó a este estudiante (ver `ProgresoIntento`).
+    respuestas: {
+      resueltas: {},
+      fallos: 0,
+      cola: preguntas.map((pregunta) => pregunta.id),
+    } satisfies ProgresoIntento,
     expira_en: expiraEn,
   });
   if (errorIntento) return { error: "No pudimos crear el intento extra." };
@@ -593,8 +608,13 @@ export type RevisionIntentoResultado = {
   id: string;
   estudianteNombre: string;
   estado: "EN_CURSO" | "APROBADO" | "REPROBADO" | "EN_REVISION";
+  /** Informativo: proporción de preguntas resueltas. Ya no hay nota mínima
+   * con la que compararlo — se aprueba respondiéndolas todas bien antes de
+   * quedarse sin vidas. */
   puntajePct: number | null;
-  notaRequerida: number;
+  /** Vidas gastadas en el intento (respuestas incorrectas, reintentos de la
+   * misma pregunta incluidos). */
+  vidasGastadas: number;
   iniciadoEn: string;
   finalizadoEn: string | null;
   preguntas: RevisionPregunta[];
@@ -636,7 +656,7 @@ export async function getRevisionIntento(
   const { data: intento, error } = await createAdminClient()
     .from("intentos_examen")
     .select(
-      "id, estado, puntaje_pct, nota_requerida, preguntas_congeladas, respuestas, iniciado_en, finalizado_en, usuario:perfiles(nombre)",
+      "id, estado, puntaje_pct, preguntas_congeladas, respuestas, iniciado_en, finalizado_en, usuario:perfiles(nombre)",
     )
     .eq("id", intentoId)
     .maybeSingle();
@@ -667,16 +687,20 @@ export async function getRevisionIntento(
 
   const usuario = Array.isArray(intento.usuario) ? intento.usuario[0] : intento.usuario;
   const congeladas = (intento.preguntas_congeladas ?? []) as PreguntaCongelada[];
-  const respuestas = (intento.respuestas ?? {}) as RespuestasIntento;
+  const progreso = parsearProgreso(intento.respuestas, congeladas);
 
   return {
     id: intento.id,
     estudianteNombre: usuario?.nombre ?? "Usuario eliminado",
     estado: intento.estado,
     puntajePct: intento.puntaje_pct === null ? null : Number(intento.puntaje_pct),
-    notaRequerida: intento.nota_requerida,
+    vidasGastadas: progreso.fallos,
     iniciadoEn: intento.iniciado_en,
     finalizadoEn: intento.finalizado_en,
-    preguntas: construirRevision(congeladas, respuestas),
+    // `progreso.resueltas` son solo las que quedaron BIEN: una pregunta que
+    // el estudiante reintentó sin acertar aparece como "sin responder", que
+    // es verdad — nunca dio la respuesta correcta. Cuántas veces la falló
+    // queda fuera de alcance de esta vista.
+    preguntas: construirRevision(congeladas, progreso.resueltas),
   };
 }

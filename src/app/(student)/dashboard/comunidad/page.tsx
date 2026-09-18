@@ -29,7 +29,6 @@ export default async function ComunidadPage({
   const { posts, pagina, totalPaginas } = await getComunidadFeed({
     categoria: categoriaActiva,
     soloPropios,
-    usuarioId: soloPropios ? acceso.usuarioId : undefined,
     busqueda: q,
     orden: ordenActivo,
     pagina: paginaActiva,

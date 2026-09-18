@@ -8,17 +8,23 @@ function opciones(...marcas: boolean[]) {
   return marcas.map((correcta, i) => ({ id: `o${i + 1}`, texto: `Opción ${i + 1}`, correcta }));
 }
 
+/** Completa los dos campos de EMPAREJAR (`null` salvo que el test los pise)
+ * para no repetirlos en cada fixture de pregunta de este archivo. */
+function pregunta(parcial: Omit<PreguntaCongelada, "paresIzquierda" | "paresDerecha">): PreguntaCongelada {
+  return { paresIzquierda: null, paresDerecha: null, ...parcial };
+}
+
 describe("construirRevision", () => {
   it("marca cuál opción eligió el estudiante y cuál era la correcta", () => {
     const preguntas: PreguntaCongelada[] = [
-      {
+      pregunta({
         id: "p1",
         tipo: "OPCION_UNICA",
         enunciado,
         puntos: 1,
         opciones: opciones(true, false),
         respuestasAceptadas: [],
-      },
+      }),
     ];
     const [revision] = construirRevision(preguntas, { p1: "o2" });
 
@@ -31,14 +37,14 @@ describe("construirRevision", () => {
 
   it("una pregunta sin responder no marca ninguna opción", () => {
     const preguntas: PreguntaCongelada[] = [
-      {
+      pregunta({
         id: "p1",
         tipo: "OPCION_MULTIPLE",
         enunciado,
         puntos: 1,
         opciones: opciones(true, true, false),
         respuestasAceptadas: [],
-      },
+      }),
     ];
     const [revision] = construirRevision(preguntas, {});
 
@@ -48,14 +54,14 @@ describe("construirRevision", () => {
 
   it("respuesta corta: expone lo que escribió y las respuestas aceptadas", () => {
     const preguntas: PreguntaCongelada[] = [
-      {
+      pregunta({
         id: "p1",
         tipo: "RELLENAR_ESPACIO",
         enunciado,
         puntos: 1,
         opciones: null,
         respuestasAceptadas: ["V-Ray", "Chaos V-Ray"],
-      },
+      }),
     ];
     const [revision] = construirRevision(preguntas, { p1: "vray" });
 
@@ -67,14 +73,14 @@ describe("construirRevision", () => {
 
   it("respuesta corta sin responder: respuestaTexto queda null, no string vacío", () => {
     const preguntas: PreguntaCongelada[] = [
-      {
+      pregunta({
         id: "p1",
         tipo: "RELLENAR_ESPACIO",
         enunciado,
         puntos: 1,
         opciones: null,
         respuestasAceptadas: ["vray"],
-      },
+      }),
     ];
     const [sinResponder] = construirRevision(preguntas, {});
     const [espacios] = construirRevision(preguntas, { p1: "   " });
@@ -85,8 +91,8 @@ describe("construirRevision", () => {
 
   it("conserva el orden y la longitud de las preguntas congeladas", () => {
     const preguntas: PreguntaCongelada[] = [
-      { id: "a", tipo: "OPCION_UNICA", enunciado, puntos: 1, opciones: opciones(true, false), respuestasAceptadas: [] },
-      { id: "b", tipo: "VERDADERO_FALSO", enunciado, puntos: 1, opciones: opciones(false, true), respuestasAceptadas: [] },
+      pregunta({ id: "a", tipo: "OPCION_UNICA", enunciado, puntos: 1, opciones: opciones(true, false), respuestasAceptadas: [] }),
+      pregunta({ id: "b", tipo: "VERDADERO_FALSO", enunciado, puntos: 1, opciones: opciones(false, true), respuestasAceptadas: [] }),
     ];
     const revision = construirRevision(preguntas, { a: "o1", b: "o2" });
 

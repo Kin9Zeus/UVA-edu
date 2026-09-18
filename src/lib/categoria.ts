@@ -1,4 +1,7 @@
+import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 
@@ -23,12 +26,12 @@ export type CursoDeCategoria = {
   totalClases: number;
   imagenPortada: string;
   /**
-   * `true` solo cuando `buscarCatalogo({ incluirProgreso: true })` lo pidió
-   * (el catálogo del dashboard) y el estudiante ya completó el 100% de las
-   * lecciones LISTAS del curso Y, si el curso exige examen final, lo aprobó
-   * (Revf5 — mismo criterio que decide la emisión del certificado, ver
-   * lib/progreso.ts). En el catálogo público siempre queda `undefined` — ver
-   * buscarCatalogo().
+   * `true` solo cuando lo trae `buscarCatalogoConProgreso()` (el catálogo
+   * del dashboard) y el estudiante ya completó el 100% de las lecciones
+   * LISTAS del curso Y, si el curso exige examen final, lo aprobó (Revf5 —
+   * mismo criterio que decide la emisión del certificado, ver
+   * lib/progreso.ts). En el catálogo público (`buscarCatalogoPublico()`)
+   * siempre queda `undefined`.
    */
   completado?: boolean;
   /**
@@ -53,9 +56,20 @@ export type ResultadoCatalogo = {
 
 export const CURSOS_POR_PAGINA = 12;
 
-/** Categorías activas para el selector de filtro del catálogo. */
+/**
+ * Categorías activas para el selector de filtro del catálogo.
+ *
+ * P2-4 (AUDIT-2026-09-15, Fase 2): cliente público (Anon Key, sin cookies)
+ * en vez del cookie-bound. La policy `categorias_select_publico` es
+ * `activo = true OR es_administrador()` (077) y acá ya se filtra
+ * `.eq("activo", true)` explícito, así que el `OR` del admin solo agrega
+ * filas que este `.eq()` descarta de todas formas — el resultado es
+ * idéntico para cualquier rol. El selector de edición del panel
+ * (`getCategoriasParaEdicion`, src/lib/admin/cursos.ts), que sí necesita
+ * ver las inactivas, es una función distinta y no se toca.
+ */
 export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase.from("categorias").select("id, slug, nombre").eq("activo", true).order("nombre");
   return (data ?? []) as CategoriaActiva[];
 }
@@ -63,10 +77,16 @@ export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
 /**
  * Resuelve una categoría por slug o UUID (los enlaces anteriores al cambio
  * de rutas siguen resolviendo por UUID), sin traer sus cursos — eso lo
- * resuelve buscarCatalogo() por separado, ya paginado y filtrado.
+ * resuelven buscarCatalogoPublico()/buscarCatalogoConProgreso() por
+ * separado, ya paginado y filtrado.
+ *
+ * P2-4 (Fase 2): mismo cambio de cliente que getCategoriasActivas() — y
+ * arriba de eso, envuelta en `cache()` de React porque hoy se llama dos
+ * veces por request en `/catalogo/[categoriaSlug]` (generateMetadata + el
+ * componente), igual que ya hace getPerfilActual() (lib/perfil.ts).
  */
-export async function resolverCategoria(identificador: string): Promise<CategoriaInfo | null> {
-  const supabase = await createClient();
+export const resolverCategoria = cache(async (identificador: string): Promise<CategoriaInfo | null> => {
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("categorias")
     .select("id, slug, nombre, descripcion")
@@ -74,7 +94,13 @@ export async function resolverCategoria(identificador: string): Promise<Categori
     .eq("activo", true)
     .maybeSingle();
   return data as CategoriaInfo | null;
-}
+});
+
+type OpcionesBuscarCatalogo = {
+  query?: string;
+  categoriaId?: string;
+  pagina?: number;
+};
 
 /**
  * Revf3 ("Catálogo con búsqueda por palabra clave y filtro por categoría"):
@@ -82,20 +108,22 @@ export async function resolverCategoria(identificador: string): Promise<Categori
  * `buscar_catalogo` (supabase/sql/034_busqueda_catalogo.sql) usa un índice
  * de trigramas insensible a tildes, no un `.filter()` sobre todo el
  * catálogo traído al cliente.
+ *
+ * P2-4 (Fase 2): compartida por buscarCatalogoPublico() y
+ * buscarCatalogoConProgreso() — antes era una sola función con un flag
+ * `incluirProgreso` que decidía el cliente de Supabase por dentro. Se separó
+ * en dos exports porque el cliente cookie-bound es *incompatible* con
+ * `unstable_cache` (Next.js lo bloquea si detecta `cookies()` dentro), así
+ * que la próxima vez que se cachee la rama pública, un flag interno habría
+ * sido una trampa fácil de pisar sin darse cuenta. Con dos funciones, usar
+ * el cliente equivocado en la rama equivocada falla en el tipo de la firma,
+ * no en producción.
  */
-export async function buscarCatalogo(opciones: {
-  query?: string;
-  categoriaId?: string;
-  pagina?: number;
-  /**
-   * Solo el catálogo del dashboard del estudiante lo pasa en `true`. La
-   * fuente es `progreso_cursos_estudiante` (033), otorgada nada más a
-   * `authenticated` — pedirla desde el catálogo público (anon) fallaría con
-   * un error de permisos, así que el default es no consultarla.
-   */
-  incluirProgreso?: boolean;
-}): Promise<ResultadoCatalogo> {
-  const supabase = await createClient();
+async function buscarCatalogoConCliente(
+  supabase: SupabaseClient,
+  opciones: OpcionesBuscarCatalogo,
+  incluirProgreso: boolean,
+): Promise<ResultadoCatalogo> {
   const pagina = Math.max(1, Math.floor(opciones.pagina ?? 1) || 1);
   const offset = (pagina - 1) * CURSOS_POR_PAGINA;
 
@@ -125,7 +153,7 @@ export async function buscarCatalogo(opciones: {
   const filas = data as FilaBusqueda[];
   const totalResultados = filas[0]?.total_resultados ?? 0;
 
-  const progresoPorCurso = opciones.incluirProgreso
+  const progresoPorCurso = incluirProgreso
     ? await getProgresoPorCurso(
         supabase,
         filas.map((fila) => fila.curso_id),
@@ -153,6 +181,22 @@ export async function buscarCatalogo(opciones: {
   };
 }
 
+/** Catálogo público (`/catalogo`) — cliente sin cookies, sin progreso del estudiante. */
+export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
+  return buscarCatalogoConCliente(createPublicClient(), opciones, false);
+}
+
+/**
+ * Catálogo del dashboard (`/dashboard/catalogo`) — cliente de sesión, con
+ * progreso del estudiante. La fuente es `progreso_cursos_estudiante` (033),
+ * otorgada nada más a `authenticated`: pedirla desde el cliente público
+ * fallaría con un error de permisos, por eso esta rama necesita la sesión.
+ */
+export async function buscarCatalogoConProgreso(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
+  const supabase = await createClient();
+  return buscarCatalogoConCliente(supabase, opciones, true);
+}
+
 /**
  * `curso_id -> {completado, examenPendiente}` para el catálogo del
  * dashboard (033/078). Solo trae las filas de los cursos de esta página, no
@@ -166,7 +210,7 @@ export async function buscarCatalogo(opciones: {
  * catálogo podía decir "Completado" en un curso con el examen pendiente.
  */
 async function getProgresoPorCurso(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   cursoIds: string[],
 ): Promise<Map<string, { completado: boolean; examenPendiente: boolean }>> {
   const progresoPorCurso = new Map<string, { completado: boolean; examenPendiente: boolean }>();
@@ -204,9 +248,16 @@ export type CursoOpcionBuscador = {
  * coincidencias mientras se escribe, sin disparar una consulta al
  * servidor por tecla — ver BuscadorInput.tsx). Se pide una sola vez y se
  * cachea en el cliente — ver src/actions/cursos/buscador.ts.
+ *
+ * P2-4 (Fase 2): cliente público — `.eq("mostrado", true)` explícito ya
+ * filtra igual que la rama pública de `cursos_select_publicos` (077), y
+ * `curso_instructores_publico` (ver lib/instructores.ts) es una vista
+ * SECURITY DEFINER pensada justo para servir esto sin sesión: es "la única
+ * puerta pública a los datos de un profesor", no algo que RLS le niegue a
+ * un visitante anónimo.
  */
 export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data } = await supabase
     .from("cursos")
@@ -215,9 +266,9 @@ export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
     .order("titulo");
 
   const cursos = data ?? [];
-  // Dos consultas fijas, no una por curso: el nombre del profesor ya no se
-  // puede embeber en el `.select()` de arriba porque vive en `perfiles`, que
-  // RLS no le abre a un visitante sin sesión (ver lib/instructores.ts).
+  // Dos consultas fijas, no una por curso: el nombre del profesor vive en
+  // `perfiles`, así que se resuelve vía la vista pública en vez de un embed
+  // directo de PostgREST hacia `perfiles` (ver lib/instructores.ts).
   const instructoresPorCurso = await getInstructoresDeCursos(
     supabase,
     cursos.map((curso) => curso.id as string),
