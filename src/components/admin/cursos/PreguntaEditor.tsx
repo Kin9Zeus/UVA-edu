@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import {
   DESCRIPCION_TIPO,
+  esTipoCreable,
   ETIQUETA_TIPO,
   MAXIMO_OPCIONES_POR_PREGUNTA,
   MAXIMO_PARES_EMPAREJAR,
-  TIPOS_IMPLEMENTADOS,
+  TIPOS_CREABLES,
   type OpcionPregunta,
   type ParEmparejar,
   type PreguntaCompleta,
@@ -71,6 +72,13 @@ export function PreguntaEditor({
   );
   const [explicacion, setExplicacion] = useState<DocumentoContenido | null>(pregunta.explicacion);
   const [error, setError] = useState<string | null>(null);
+
+  // OPCION_MULTIPLE y RELLENAR_ESPACIO ya no se pueden CREAR (`TIPOS_CREABLES`
+  // en src/lib/examenes/tipos.ts), pero una pregunta que ya era de uno de esos
+  // dos tipos antes del cambio sigue abriéndose acá para editar su enunciado,
+  // puntos u opciones — por eso el tipo actual se agrega a la lista si no es
+  // creable, en vez de desaparecer del selector y forzar un cambio no pedido.
+  const opcionesTipo = esTipoCreable(pregunta.tipo) ? TIPOS_CREABLES : [pregunta.tipo, ...TIPOS_CREABLES];
 
   function marcarSucio() {
     onDirtyChange(true);
@@ -206,7 +214,7 @@ export function PreguntaEditor({
             onChange={(event) => cambiarTipo(event.target.value as TipoPreguntaImplementado)}
             className="h-9 w-full rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-[13.5px] text-uva-text outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
           >
-            {TIPOS_IMPLEMENTADOS.map((valor) => (
+            {opcionesTipo.map((valor) => (
               <option key={valor} value={valor}>
                 {ETIQUETA_TIPO[valor]}
               </option>

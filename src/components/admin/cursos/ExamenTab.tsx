@@ -36,9 +36,9 @@ import { motivosParaNoPublicarExamen } from "@/lib/examenes/publicacion";
 import {
   ETIQUETA_TIPO,
   MAXIMO_PREGUNTAS_POR_EXAMEN,
-  TIPOS_IMPLEMENTADOS,
+  TIPOS_CREABLES,
   type PreguntaCompleta,
-  type TipoPreguntaImplementado,
+  type TipoPreguntaCreable,
 } from "@/lib/examenes/tipos";
 import {
   actualizarConfiguracionExamen,
@@ -258,7 +258,7 @@ function ExamenExistente({
     router.refresh();
   }
 
-  async function handleAgregarPregunta(tipo: TipoPreguntaImplementado) {
+  async function handleAgregarPregunta(tipo: TipoPreguntaCreable) {
     setPending(true);
     const resultado = await crearPregunta(examen.id, cursoId, tipo);
     setPending(false);
@@ -618,7 +618,7 @@ function ExamenExistente({
         {preguntas.length < MAXIMO_PREGUNTAS_POR_EXAMEN && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-uva-text-faint">Agregar:</span>
-            {TIPOS_IMPLEMENTADOS.map((tipo) => (
+            {TIPOS_CREABLES.map((tipo) => (
               <Button
                 key={tipo}
                 type="button"

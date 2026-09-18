@@ -7,16 +7,13 @@ import {
   ESQUEMAS_POR_TIPO,
   ESQUEMA_RESPUESTA_GEMINI,
   MAXIMO_PARES_EMPAREJAR_GENERADOS,
-  MINIMO_CORRECTAS_OPCION_MULTIPLE,
   MINIMO_PARES_EMPAREJAR_GENERADOS,
   OPCIONES_POR_PREGUNTA,
   TIPOS_GENERABLES,
   TranscripcionesFaltantesError,
   preguntaEmparejarSchema,
   preguntaGeneradaSchema,
-  preguntaOpcionMultipleSchema,
   preguntaOpcionUnicaSchema,
-  preguntaRellenarEspacioSchema,
   preguntaVerdaderoFalsoSchema,
 } from "./tipos";
 
@@ -93,34 +90,6 @@ describe("preguntaGeneradaSchema", () => {
     expect(preguntaGeneradaSchema.safeParse({ ...opcionUnica, tipo: "RELLENO" }).success).toBe(false);
   });
 
-  describe("OPCION_MULTIPLE", () => {
-    const base = {
-      tipo: "OPCION_MULTIPLE" as const,
-      videoId: "v1",
-      question: "¿Cuáles de estos son materiales pétreos?",
-      options: ["Grava", "Acero", "Arena", "Madera"],
-      sourceFragment: "grava y arena son materiales pétreos",
-    };
-
-    it("acepta dos o más correctas sin llegar a todas", () => {
-      expect(
-        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0, 2] }).success,
-      ).toBe(true);
-    });
-
-    it("rechaza una sola correcta: eso es OPCION_UNICA, no OPCION_MULTIPLE", () => {
-      expect(
-        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0] }).success,
-      ).toBe(false);
-    });
-
-    it("rechaza índices repetidos", () => {
-      expect(
-        preguntaOpcionMultipleSchema.safeParse({ ...base, correctAnswerIndices: [0, 0] }).success,
-      ).toBe(false);
-    });
-  });
-
   describe("VERDADERO_FALSO", () => {
     it("acepta una afirmación con su valor de verdad", () => {
       const resultado = preguntaVerdaderoFalsoSchema.safeParse({
@@ -131,30 +100,6 @@ describe("preguntaGeneradaSchema", () => {
         sourceFragment: "el concreto se mide en metros cúbicos",
       });
       expect(resultado.success).toBe(true);
-    });
-  });
-
-  describe("RELLENAR_ESPACIO", () => {
-    it("acepta entre una y varias respuestas aceptadas", () => {
-      const resultado = preguntaRellenarEspacioSchema.safeParse({
-        tipo: "RELLENAR_ESPACIO",
-        videoId: "v1",
-        question: "¿Cómo se llama el Análisis de Precios Unitarios, por su sigla?",
-        acceptedAnswers: ["APU"],
-        sourceFragment: "el Análisis de Precios Unitarios, o APU",
-      });
-      expect(resultado.success).toBe(true);
-    });
-
-    it("rechaza cero respuestas aceptadas: sería imposible de aprobar", () => {
-      const resultado = preguntaRellenarEspacioSchema.safeParse({
-        tipo: "RELLENAR_ESPACIO",
-        videoId: "v1",
-        question: "¿?",
-        acceptedAnswers: [],
-        sourceFragment: "da igual",
-      });
-      expect(resultado.success).toBe(false);
     });
   });
 
@@ -228,9 +173,7 @@ describe("ESQUEMA_RESPUESTA_GEMINI", () => {
    */
   const schemasPorTipo = {
     OPCION_UNICA: preguntaOpcionUnicaSchema,
-    OPCION_MULTIPLE: preguntaOpcionMultipleSchema,
     VERDADERO_FALSO: preguntaVerdaderoFalsoSchema,
-    RELLENAR_ESPACIO: preguntaRellenarEspacioSchema,
     EMPAREJAR: preguntaEmparejarSchema,
   } as const;
 
@@ -268,12 +211,6 @@ describe("ESQUEMA_RESPUESTA_GEMINI", () => {
     expect(ESQUEMAS_POR_TIPO.OPCION_UNICA.properties.options.maxItems).toBe(OPCIONES_POR_PREGUNTA);
     expect(ESQUEMAS_POR_TIPO.OPCION_UNICA.properties.correctAnswerIndex.maximum).toBe(
       OPCIONES_POR_PREGUNTA - 1,
-    );
-  });
-
-  it("exige al menos el mínimo de correctas en OPCION_MULTIPLE", () => {
-    expect(ESQUEMAS_POR_TIPO.OPCION_MULTIPLE.properties.correctAnswerIndices.minItems).toBe(
-      MINIMO_CORRECTAS_OPCION_MULTIPLE,
     );
   });
 

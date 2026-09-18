@@ -17,6 +17,7 @@ import { motivosParaNoPublicarExamen } from "@/lib/examenes/publicacion";
 import { construirRevision, type RevisionPregunta } from "@/lib/examenes/revision";
 import {
   examenConfiguracionSchema,
+  esTipoCreable,
   esTipoImplementado,
   MAXIMO_PREGUNTAS_POR_EXAMEN,
   parsearProgreso,
@@ -25,6 +26,7 @@ import {
   type ParEmparejar,
   type PreguntaCongelada,
   type ProgresoIntento,
+  type TipoPreguntaCreable,
   type TipoPreguntaImplementado,
 } from "@/lib/examenes/tipos";
 import type { AdminActionResult } from "@/actions/admin/categorias";
@@ -321,12 +323,15 @@ export async function eliminarExamen(examenId: string, cursoId: string): Promise
 export async function crearPregunta(
   examenId: string,
   cursoId: string,
-  tipo: TipoPreguntaImplementado,
+  tipo: TipoPreguntaCreable,
 ): Promise<AdminActionResult & { id?: string }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(examenId).success) return { error: "Examen inválido." };
-  if (!esTipoImplementado(tipo)) return { error: "Tipo de pregunta no válido." };
+  // No `esTipoImplementado`: esa acepta OPCION_MULTIPLE y RELLENAR_ESPACIO,
+  // que siguen siendo válidos para RENDIR una pregunta ya existente pero ya
+  // no para CREAR una nueva (ver el comentario de TIPOS_CREABLES).
+  if (!esTipoCreable(tipo)) return { error: "Tipo de pregunta no válido." };
 
   const { count } = await admin.supabase
     .from("preguntas_examen")
@@ -387,6 +392,23 @@ export async function actualizarPregunta(
   const parseo = preguntaEntradaSchema.safeParse(input);
   if (!parseo.success) return { error: primerError(parseo) };
   const pregunta = parseo.data;
+
+  // `preguntaEntradaSchema` valida contra TIPOS_IMPLEMENTADOS a propósito
+  // (editar una pregunta que YA es OPCION_MULTIPLE/RELLENAR_ESPACIO tiene que
+  // poder guardarse), así que la restricción de TIPOS_CREABLES se hace acá:
+  // convertir CUALQUIER pregunta a uno de esos dos tipos sería crear uno
+  // nuevo por otra puerta. Se permite guardar sin tocar el tipo (edición
+  // normal de una pregunta vieja), no se permite llegar a él desde otro tipo.
+  if (!esTipoCreable(pregunta.tipo)) {
+    const { data: actual } = await admin.supabase
+      .from("preguntas_examen")
+      .select("tipo")
+      .eq("id", preguntaId)
+      .maybeSingle();
+    if (actual?.tipo !== pregunta.tipo) {
+      return { error: "Tipo de pregunta no válido." };
+    }
+  }
 
   // Dos variantes que normalizan igual ("V-Ray" y "vray") no aportan nada:
   // `calificarPregunta` las compara ya normalizadas, así que la segunda es

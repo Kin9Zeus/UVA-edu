@@ -24,22 +24,17 @@ describe("textoADocumento", () => {
 
 describe("aOpcionesPregunta", () => {
   it("marca correcta solo la opción del índice pedido", () => {
-    const opciones = aOpcionesPregunta(["a", "b", "c", "d"], [1]);
+    const opciones = aOpcionesPregunta(["a", "b", "c", "d"], 1);
     expect(opciones.map((o) => o.correcta)).toEqual([false, true, false, false]);
   });
 
-  it("sirve igual para OPCION_MULTIPLE con varios índices correctos", () => {
-    const opciones = aOpcionesPregunta(["a", "b", "c", "d"], [0, 2]);
-    expect(opciones.map((o) => o.correcta)).toEqual([true, false, true, false]);
-  });
-
   it("genera un id distinto por opción", () => {
-    const opciones = aOpcionesPregunta(["a", "b"], [0]);
+    const opciones = aOpcionesPregunta(["a", "b"], 0);
     expect(new Set(opciones.map((o) => o.id)).size).toBe(2);
   });
 
   it("recorta espacios del texto de la opción", () => {
-    const opciones = aOpcionesPregunta(["  con espacios  "], [0]);
+    const opciones = aOpcionesPregunta(["  con espacios  "], 0);
     expect(opciones[0].texto).toBe("con espacios");
   });
 });

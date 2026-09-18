@@ -29,11 +29,8 @@ export function textoADocumento(texto: string): DocumentoContenido {
 }
 
 /**
- * Convierte `options` + los índices correctos a la forma que guarda el CMS.
- * Sirve tanto para OPCION_UNICA (un solo índice) como para OPCION_MULTIPLE
- * (varios): al CMS le da igual cuántas `OpcionPregunta.correcta` haya en la
- * lista, es `preguntaEntradaSchema` quien decide qué combinación es válida
- * para cada `tipo` — acá solo se traduce la forma.
+ * Convierte `options` + el índice correcto de OPCION_UNICA a la forma que
+ * guarda el CMS.
  *
  * Los ids se generan acá con `crypto.randomUUID()`, igual que cuando un
  * administrador crea una opción a mano: son lo que el estudiante manda como
@@ -41,15 +38,11 @@ export function textoADocumento(texto: string): DocumentoContenido {
  * dentro de la pregunta y no derivados del texto (editar el texto de una
  * opción no puede cambiar su identidad).
  */
-export function aOpcionesPregunta(
-  options: string[],
-  correctAnswerIndices: number[],
-): OpcionPregunta[] {
-  const correctas = new Set(correctAnswerIndices);
+export function aOpcionesPregunta(options: string[], correctAnswerIndex: number): OpcionPregunta[] {
   return options.map((texto, indice) => ({
     id: crypto.randomUUID(),
     texto: texto.trim(),
-    correcta: correctas.has(indice),
+    correcta: indice === correctAnswerIndex,
   }));
 }
 
@@ -122,14 +115,7 @@ function aFilaPregunta(
       return {
         ...base,
         tipo: "OPCION_UNICA",
-        opciones: aOpcionesPregunta(pregunta.options, [pregunta.correctAnswerIndex]),
-        respuestas_aceptadas: [],
-      };
-    case "OPCION_MULTIPLE":
-      return {
-        ...base,
-        tipo: "OPCION_MULTIPLE",
-        opciones: aOpcionesPregunta(pregunta.options, pregunta.correctAnswerIndices),
+        opciones: aOpcionesPregunta(pregunta.options, pregunta.correctAnswerIndex),
         respuestas_aceptadas: [],
       };
     case "VERDADERO_FALSO":
@@ -138,13 +124,6 @@ function aFilaPregunta(
         tipo: "VERDADERO_FALSO",
         opciones: aOpcionesVerdaderoFalso(pregunta.correctAnswer),
         respuestas_aceptadas: [],
-      };
-    case "RELLENAR_ESPACIO":
-      return {
-        ...base,
-        tipo: "RELLENAR_ESPACIO",
-        opciones: null,
-        respuestas_aceptadas: pregunta.acceptedAnswers,
       };
     case "EMPAREJAR":
       return {
@@ -163,11 +142,11 @@ function aFilaPregunta(
  * sin validar sería guardar una pregunta que quizá inventa contenido, en una
  * tabla que decide quién obtiene certificado.
  *
- * Cada pregunta se guarda con el `tipo` que el modelo eligió — uno de los
- * cinco de `TIPOS_GENERABLES` (los mismos que el CMS sabe calificar sola,
- * `TIPOS_IMPLEMENTADOS`) — traducido a la forma del CMS por `aFilaPregunta()`.
- * No hay un tipo por defecto: `preguntaGeneradaSchema` ya rechazó cualquier
- * pregunta sin uno de los cinco válidos antes de llegar acá.
+ * Cada pregunta se guarda con el `tipo` que el modelo eligió — uno de los de
+ * `TIPOS_GENERABLES` (los mismos que se pueden CREAR desde el CMS,
+ * `TIPOS_CREABLES`) — traducido a la forma del CMS por `aFilaPregunta()`. No
+ * hay un tipo por defecto: `preguntaGeneradaSchema` ya rechazó cualquier
+ * pregunta sin uno de esos tipos válidos antes de llegar acá.
  *
  * El examen queda con `publicado = false` — siempre, incluso al regenerar uno
  * que ya estaba publicado. Un examen generado por un modelo no se le pone

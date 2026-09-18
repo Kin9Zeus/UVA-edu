@@ -23,7 +23,9 @@ import { contenidoLeccionSchema, type DocumentoContenido } from "@/lib/editor/ti
 // ------------------------------------------------------------
 
 /** Los tipos "cerrados" que la app califica sola, sin intervención humana.
- * Son los únicos que se pueden crear y rendir. */
+ * Son los que se pueden RENDIR: una pregunta ya guardada de cualquiera de
+ * estos cinco se muestra y se califica con normalidad, aunque ya no todos se
+ * puedan CREAR nuevos (ver `TIPOS_CREABLES`, más abajo). */
 export const TIPOS_IMPLEMENTADOS = [
   "OPCION_UNICA",
   "OPCION_MULTIPLE",
@@ -33,6 +35,27 @@ export const TIPOS_IMPLEMENTADOS = [
 ] as const;
 
 export type TipoPreguntaImplementado = (typeof TIPOS_IMPLEMENTADOS)[number];
+
+/**
+ * Subconjunto de `TIPOS_IMPLEMENTADOS` que se puede CREAR nuevo — a mano
+ * desde el CMS (botones "Agregar:" de `ExamenTab.tsx`) o generado por IA
+ * (`src/lib/examenes/generacion/tipos.ts`).
+ *
+ * OPCION_MULTIPLE y RELLENAR_ESPACIO se retiraron de aquí por decisión de
+ * producto: la app sigue mostrando y calificando con normalidad las preguntas
+ * de esos dos tipos que ya existían antes del cambio (por eso siguen en
+ * `TIPOS_IMPLEMENTADOS`), pero nadie —ni un admin a mano ni la IA— puede
+ * crear una pregunta nueva de esos tipos. `crearPregunta`
+ * (src/actions/admin/examenes.ts) es quien hace cumplir esto en el servidor;
+ * `esTipoCreable` es el único lugar que sabe cuáles son.
+ */
+export const TIPOS_CREABLES = ["OPCION_UNICA", "VERDADERO_FALSO", "EMPAREJAR"] as const;
+
+export type TipoPreguntaCreable = (typeof TIPOS_CREABLES)[number];
+
+export function esTipoCreable(tipo: string): tipo is TipoPreguntaCreable {
+  return (TIPOS_CREABLES as readonly string[]).includes(tipo);
+}
 
 /**
  * Declarados en el enum de Postgres pero todavía sin UI ni calificación —
