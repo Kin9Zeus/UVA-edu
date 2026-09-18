@@ -1857,7 +1857,15 @@ async function main() {
       .eq("id_usuario", userConAcceso.user!.id);
     if (errVencerPanel) throw new Error(`No pude vencer la suscripción para el panel: ${errVencerPanel.message}`);
 
-    const { data: filaVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
+    // Las tres llamadas de abajo revisan `error` antes de mirar `data`. Antes
+    // no lo hacían: un fallo transitorio de la RPC (timeout, 5xx) llegaba
+    // como `data: null` y se reportaba como "0 fila(s)" — indistinguible de
+    // un filtro roto, y en la prueba NEGATIVA (ACTIVA) peor: `null` no
+    // incluye a nadie, así que pasaba en verde sin haber probado nada.
+    const detalleRpc = (error: { message: string } | null, filas: unknown[] | null) =>
+      error ? `error de la RPC: ${error.message}` : `${(filas ?? []).length} fila(s)`;
+
+    const { data: filaVencida, error: errFilaVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
       p_query: correoConAcceso,
       p_limite: 5,
       p_offset: 0,
@@ -1867,11 +1875,13 @@ async function main() {
     );
     registrar(
       "admin_listar_usuarios reporta VENCIDA para una ACTIVA con fecha pasada, no el estado crudo",
-      filaDelUsuario?.suscripcion_estado === "VENCIDA",
-      `suscripcion_estado=${filaDelUsuario?.suscripcion_estado ?? "fila no encontrada"}`,
+      !errFilaVencida && filaDelUsuario?.suscripcion_estado === "VENCIDA",
+      errFilaVencida
+        ? `error de la RPC: ${errFilaVencida.message}`
+        : `suscripcion_estado=${filaDelUsuario?.suscripcion_estado ?? "fila no encontrada"}`,
     );
 
-    const { data: filtroVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
+    const { data: filtroVencida, error: errFiltroVencida } = await clienteAdmin.rpc("admin_listar_usuarios", {
       p_query: correoConAcceso,
       p_suscripcion: "VENCIDA",
       p_limite: 5,
@@ -1879,11 +1889,12 @@ async function main() {
     });
     registrar(
       "filtro suscripcion=VENCIDA SÍ encuentra al acceso vencido por fecha",
-      (filtroVencida ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
-      `${(filtroVencida ?? []).length} fila(s)`,
+      !errFiltroVencida &&
+        (filtroVencida ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
+      detalleRpc(errFiltroVencida, filtroVencida),
     );
 
-    const { data: filtroActiva } = await clienteAdmin.rpc("admin_listar_usuarios", {
+    const { data: filtroActiva, error: errFiltroActiva } = await clienteAdmin.rpc("admin_listar_usuarios", {
       p_query: correoConAcceso,
       p_suscripcion: "ACTIVA",
       p_limite: 5,
@@ -1891,8 +1902,9 @@ async function main() {
     });
     registrar(
       "filtro suscripcion=ACTIVA YA NO incluye al acceso vencido por fecha",
-      !(filtroActiva ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
-      `${(filtroActiva ?? []).length} fila(s)`,
+      !errFiltroActiva &&
+        !(filtroActiva ?? []).some((fila: { id: string }) => fila.id === userConAcceso.user!.id),
+      detalleRpc(errFiltroActiva, filtroActiva),
     );
 
     // ------------------------------------------------------------------
