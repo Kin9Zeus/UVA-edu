@@ -211,6 +211,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: true,
       vidasRestantes: VIDAS_INICIALES,
       cerrado: false,
@@ -229,6 +230,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: false,
       vidasRestantes: VIDAS_INICIALES - 1,
       cerrado: false,
@@ -260,6 +262,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: true,
       vidasRestantes: VIDAS_INICIALES - 1,
       cerrado: true,
@@ -281,6 +284,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: true,
       vidasRestantes: VIDAS_INICIALES,
       cerrado: true,
@@ -334,6 +338,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: false,
       vidasRestantes: 0,
       cerrado: true,
@@ -357,6 +362,7 @@ describe("responderPregunta", () => {
 
     expect(resultado).toEqual({
       success: true,
+      enProgreso: false,
       acierto: true,
       vidasRestantes: VIDAS_INICIALES - 1,
       cerrado: false,
@@ -417,6 +423,88 @@ describe("responderPregunta", () => {
 
     expect(await responderPregunta("intento-1", P1, invalida)).toEqual({ error: "Respuesta inválida." });
     expect(servidorFalso.llamadasA("from:intentos_examen")).toHaveLength(0);
+  });
+
+  describe("EMPAREJAR calificado por par", () => {
+    const PE = "33333333-3333-4333-8333-333333333333";
+    const PARES_DERECHA = [
+      { id: "i1", izquierda: "A", derecha: "1", idMostrado: "d1" },
+      { id: "i2", izquierda: "B", derecha: "2", idMostrado: "d2" },
+    ];
+
+    function preguntaEmparejar(id: string): PreguntaCongelada {
+      return {
+        id,
+        tipo: "EMPAREJAR",
+        enunciado: {} as PreguntaCongelada["enunciado"],
+        puntos: 1,
+        opciones: null,
+        respuestasAceptadas: [],
+        paresIzquierda: PARES_DERECHA.map(({ id: idPar, izquierda, derecha }) => ({ id: idPar, izquierda, derecha })),
+        paresDerecha: PARES_DERECHA,
+      };
+    }
+
+    function conIntentoEmparejar(
+      intento: Partial<typeof INTENTO> = {},
+      updates: { count?: number; error?: unknown }[] = [{ count: 1 }],
+    ) {
+      servidorFalso.responderEnOrden("from:intentos_examen", [
+        {
+          data: {
+            ...INTENTO,
+            preguntas_congeladas: [preguntaEmparejar(PE)],
+            respuestas: progreso([PE]),
+            ...intento,
+          },
+        },
+        ...updates,
+      ]);
+      servidorFalso.responder("from:cursos", { data: { slug: "revit-basico" } });
+    }
+
+    it("un par correcto con otros pendientes: sigue abierta, sin gastar vida ni escribir nada", async () => {
+      conIntentoEmparejar({}, []);
+
+      const resultado = await responderPregunta("intento-1", PE, { i1: "d1" });
+
+      expect(resultado).toEqual({ success: true, enProgreso: true });
+      // Solo la lectura inicial: nada de UPDATE mientras la pregunta sigue
+      // abierta — es justo lo que la evita gastar vidas o tocar la cola.
+      expect(servidorFalso.llamadasA("from:intentos_examen")).toHaveLength(1);
+    });
+
+    it("todos los pares correctos y completos: se resuelve como un acierto normal", async () => {
+      conIntentoEmparejar();
+
+      const resultado = await responderPregunta("intento-1", PE, { i1: "d1", i2: "d2" });
+
+      expect(resultado).toEqual({
+        success: true,
+        enProgreso: false,
+        acierto: true,
+        vidasRestantes: VIDAS_INICIALES,
+        cerrado: true,
+        aprobado: true,
+        puntajePct: 100,
+      });
+    });
+
+    it("un par mal, aunque falten otros por armar, falla la pregunta YA — no espera a que termine de emparejar", async () => {
+      conIntentoEmparejar();
+
+      const resultado = await responderPregunta("intento-1", PE, { i1: "d2" });
+
+      expect(resultado).toEqual({
+        success: true,
+        enProgreso: false,
+        acierto: false,
+        vidasRestantes: VIDAS_INICIALES - 1,
+        cerrado: false,
+        siguientePreguntaId: PE,
+      });
+      expect(progresoGuardado()).toEqual({ resueltas: {}, fallos: 1, cola: [PE] });
+    });
   });
 });
 

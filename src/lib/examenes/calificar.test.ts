@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   barajar,
   calcularVidasRestantes,
+  calificarEmparejarParcial,
   calificarPregunta,
   normalizarRespuestaCorta,
 } from "@/lib/examenes/calificar";
@@ -237,6 +238,44 @@ describe("prepararPreguntasParaEstudiante", () => {
     // El id "oculto" (idMostrado) sí puede salir — es lo que reemplaza al
     // real precisamente para que este no salga.
     expect(idsDerecha).toEqual(new Set(["oculto-real-1", "oculto-real-2"]));
+  });
+});
+
+describe("calificarEmparejarParcial", () => {
+  const paresDerecha = [
+    { id: "p1", izquierda: "Centralizar", derecha: "Proceso claro", idMostrado: "d1" },
+    { id: "p2", izquierda: "Veracidad", derecha: "Datos actualizados", idMostrado: "d2" },
+    { id: "p3", izquierda: "Evitar duplicados", derecha: "Una sola fuente", idMostrado: "d3" },
+  ];
+
+  it("un mapa vacío sigue abierto: nada que reprobar todavía", () => {
+    expect(calificarEmparejarParcial(paresDerecha, {})).toBe("sigue");
+  });
+
+  it("un par correcto entre varios, incompleto, sigue abierto", () => {
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "d1" })).toBe("sigue");
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "d1", p2: "d2" })).toBe("sigue");
+  });
+
+  it("todos los pares correctos y completos: correcto", () => {
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "d1", p2: "d2", p3: "d3" })).toBe("correcto");
+  });
+
+  // El caso que motiva la función: fallar YA, sin esperar a que arme el resto.
+  it("un solo par mal basta para dar la pregunta por fallada, aunque falten otros por armar", () => {
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "d2" })).toBe("incorrecto");
+  });
+
+  it("un par mal en un mapa por lo demás completo también es incorrecto", () => {
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "d2", p2: "d2", p3: "d3" })).toBe("incorrecto");
+  });
+
+  it("responder con el id real (no idMostrado) cuenta como par mal, no como pendiente", () => {
+    expect(calificarEmparejarParcial(paresDerecha, { p1: "p1" })).toBe("incorrecto");
+  });
+
+  it("sin pares nunca es 'sigue', aunque el mapa esté vacío", () => {
+    expect(calificarEmparejarParcial([], {})).toBe("incorrecto");
   });
 });
 

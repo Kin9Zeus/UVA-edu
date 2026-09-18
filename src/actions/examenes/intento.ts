@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularVidasRestantes, calificarPregunta } from "@/lib/examenes/calificar";
+import { calcularVidasRestantes, calificarEmparejarParcial, calificarPregunta } from "@/lib/examenes/calificar";
 import { congelarPreguntas } from "@/lib/examenes/congelar";
 import { calcularDisponibilidad } from "@/lib/examen";
 import {
@@ -291,8 +291,18 @@ function idCursoDe(intento: IntentoParaResponder): string | undefined {
 
 export type RespuestaPreguntaResultado =
   | { error: string }
+  /**
+   * Solo EMPAREJAR calificado por par (ver `calificarEmparejarParcial` y el
+   * bloque de abajo en `responderPregunta`): este par salió correcto pero la
+   * pregunta TODAVÍA NO se resolvió, quedan pares por armar. Ninguno de los
+   * campos de la otra rama aplica — no se gastó vida, no se tocó la cola, la
+   * pregunta actual sigue siendo la misma y el cliente no debe pintar ningún
+   * veredicto ni ofrecer "Siguiente".
+   */
+  | { success: true; enProgreso: true }
   | {
       success: true;
+      enProgreso: false;
       acierto: boolean;
       vidasRestantes: number;
       /** true si esta respuesta cerró el intento (no quedaban pendientes,
@@ -320,6 +330,15 @@ export type RespuestaPreguntaResultado =
  * Responde UNA pregunta del intento en curso: la califica, actualiza la cola
  * de pendientes y, si corresponde (agotó las vidas o vació la cola), cierra
  * el intento en el mismo paso.
+ *
+ * EXCEPCIÓN: EMPAREJAR puede llamar acá varias veces por pregunta, una por
+ * cada par que se arma, y la mayoría de esas llamadas no califican nada
+ * todavía — devuelven `{ enProgreso: true }` y salen antes de tocar la cola
+ * o las vidas (ver el bloque de `calificarEmparejarParcial` más abajo). Todo
+ * lo que sigue de esta función, sobre la cola/vidas/cierre, es exactamente
+ * lo mismo para EMPAREJAR que para el resto de tipos: solo corre en la
+ * llamada que de verdad resuelve la pregunta (falló un par, o se completó
+ * correcta).
  *
  * Cola de reintentos (docs/functional-spec.md Módulo 9): acertar saca la
  * pregunta de la cola; fallar la manda al FINAL, así que vuelve a aparecer
@@ -377,6 +396,7 @@ export async function responderPregunta(
     await revalidarTrasCierre(admin, cursoId);
     return {
       success: true,
+      enProgreso: false,
       acierto: false,
       vidasRestantes: calcularVidasRestantes(progreso.fallos),
       cerrado: true,
@@ -395,6 +415,7 @@ export async function responderPregunta(
   if (Object.hasOwn(progreso.resueltas, preguntaId)) {
     return {
       success: true,
+      enProgreso: false,
       acierto: true,
       vidasRestantes: calcularVidasRestantes(progreso.fallos),
       cerrado: false,
@@ -406,6 +427,23 @@ export async function responderPregunta(
   // Defensa contra un cliente que llame a la action saltándose preguntas, no
   // algo que la UI normal pueda producir.
   if (progreso.cola[0] !== preguntaId) return { error: "Responde las preguntas en orden." };
+
+  // EMPAREJAR se califica POR PAR, no de una sola vez al completar el mapa:
+  // cada toque en la columna derecha llama acá con el mapa acumulado hasta
+  // ese momento. Si todos los pares presentes son correctos pero todavía
+  // falta alguno, la pregunta sigue abierta — no se gasta vida, no se toca
+  // la cola, y el cliente lo interpreta como "sigue emparejando". Solo se
+  // sigue de largo hacia `calificarPregunta` cuando ya hay un par mal (falla
+  // YA, sin esperar a que arme el resto) o cuando el mapa quedó completo.
+  if (pregunta.tipo === "EMPAREJAR") {
+    const mapa =
+      typeof parseo.data === "object" && parseo.data !== null && !Array.isArray(parseo.data)
+        ? (parseo.data as Record<string, string>)
+        : {};
+    if (calificarEmparejarParcial(pregunta.paresDerecha ?? [], mapa) === "sigue") {
+      return { success: true, enProgreso: true };
+    }
+  }
 
   const acierto = calificarPregunta(pregunta, parseo.data);
   // Acertar saca la pregunta de la cola; fallar la manda al final (vuelve
@@ -435,7 +473,15 @@ export async function responderPregunta(
     const cierre = await cerrarIntento(admin, intentoId, usuarioId, "REPROBADO", puntajePct, progresoNuevo);
     if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
     await revalidarTrasCierre(admin, cursoId);
-    return { success: true, acierto, vidasRestantes: 0, cerrado: true, aprobado: false, puntajePct };
+    return {
+      success: true,
+      enProgreso: false,
+      acierto,
+      vidasRestantes: 0,
+      cerrado: true,
+      aprobado: false,
+      puntajePct,
+    };
   }
 
   // Cola vacía con vidas de sobra: respondió bien todas las preguntas del
@@ -444,7 +490,15 @@ export async function responderPregunta(
     const cierre = await cerrarIntento(admin, intentoId, usuarioId, "APROBADO", puntajePct, progresoNuevo);
     if (!cierre.ok) return { error: mensajeCierreFallido(cierre) };
     await revalidarTrasCierre(admin, cursoId);
-    return { success: true, acierto, vidasRestantes, cerrado: true, aprobado: true, puntajePct };
+    return {
+      success: true,
+      enProgreso: false,
+      acierto,
+      vidasRestantes,
+      cerrado: true,
+      aprobado: true,
+      puntajePct,
+    };
   }
 
   // No se cierra: solo se persiste el progreso, sigue EN_CURSO. Mismo
@@ -461,6 +515,7 @@ export async function responderPregunta(
 
   return {
     success: true,
+    enProgreso: false,
     acierto,
     vidasRestantes,
     cerrado: false,

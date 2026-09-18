@@ -1,5 +1,6 @@
 import {
   VIDAS_INICIALES,
+  type ParEmparejarCongelado,
   type PreguntaCongelada,
   type RespuestaEstudiante,
 } from "@/lib/examenes/tipos";
@@ -110,6 +111,47 @@ export function calificarPregunta(
   const marcadas = conjuntoDeIds(respuesta);
   if (marcadas.length !== correctas.length) return false;
   return marcadas.every((id, indice) => id === correctas[indice]);
+}
+
+/**
+ * Veredicto de un mapa PARCIAL de EMPAREJAR — el que `responderPregunta`
+ * consulta en CADA par que el estudiante arma, no solo cuando ya están
+ * todos, para poder fallar la pregunta apenas se equivoca en uno en vez de
+ * esperar a que intente completarlos todos.
+ *
+ *   "sigue"      todos los pares presentes en `mapa` son correctos, pero
+ *                todavía faltan por armar. No hay veredicto final: la
+ *                pregunta sigue abierta, no se gasta vida.
+ *   "correcto"   todos los pares están presentes y todos son correctos —
+ *                exactamente lo que `calificarPregunta` también decidiría
+ *                para un mapa completo, pero es útil poder pedirlo aparte
+ *                (`responderPregunta` decide qué hacer sin llamar dos veces
+ *                a la misma comparación).
+ *   "incorrecto" al menos uno de los pares presentes está mal, sin importar
+ *                si el mapa ya está completo o no: la pregunta se da por
+ *                fallada YA, no se espera a que arme el resto.
+ *
+ * Recibe `pares` (no la `PreguntaCongelada` completa) porque es lo único que
+ * necesita, y es más fácil de fijar en un test que construir una pregunta
+ * entera para cada caso.
+ */
+export type VeredictoParcialEmparejar = "sigue" | "correcto" | "incorrecto";
+
+export function calificarEmparejarParcial(
+  pares: ParEmparejarCongelado[],
+  mapa: Record<string, string>,
+): VeredictoParcialEmparejar {
+  // Mismo caso degenerado que `calificarPregunta`: sin pares no hay nada que
+  // emparejar bien, y no puede darse por acertado por coincidencia de dos
+  // conjuntos vacíos.
+  if (pares.length === 0) return "incorrecto";
+
+  const hayError = pares.some(
+    (par) => Object.hasOwn(mapa, par.id) && mapa[par.id] !== par.idMostrado,
+  );
+  if (hayError) return "incorrecto";
+
+  return Object.keys(mapa).length === pares.length ? "correcto" : "sigue";
 }
 
 /**

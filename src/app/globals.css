@@ -92,6 +92,18 @@
   --color-uva-error: var(--uva-error);
   --color-uva-error-soft: var(--uva-error-soft);
   --color-uva-error-text: var(--uva-error-text);
+  --color-uva-pair-1: var(--uva-pair-1);
+  --color-uva-pair-1-soft: var(--uva-pair-1-soft);
+  --color-uva-pair-2: var(--uva-pair-2);
+  --color-uva-pair-2-soft: var(--uva-pair-2-soft);
+  --color-uva-pair-3: var(--uva-pair-3);
+  --color-uva-pair-3-soft: var(--uva-pair-3-soft);
+  --color-uva-pair-4: var(--uva-pair-4);
+  --color-uva-pair-4-soft: var(--uva-pair-4-soft);
+  --color-uva-pair-5: var(--uva-pair-5);
+  --color-uva-pair-5-soft: var(--uva-pair-5-soft);
+  --color-uva-pair-6: var(--uva-pair-6);
+  --color-uva-pair-6-soft: var(--uva-pair-6-soft);
   --radius-uva-xs: 4px;
   --radius-uva-sm: 8px;
   --radius-uva-md: 10px;
@@ -194,6 +206,31 @@
   --uva-badge-danger-fg: #fca5a5;
   --uva-badge-neutral-bg: #27272a;
   --uva-badge-neutral-fg: #a1a1aa;
+
+  /* Paleta de PAREJAS para la pregunta EMPAREJAR (src/components/examen/PreguntaEmparejar.tsx).
+     Excepción puntual a CLAUDE.md §3.3 ("el acento es exclusivo de CTAs,
+     estados activos y progreso"): acá el color no es un CTA ni un estado de
+     acierto, es la única forma de identificar QUÉ va con QUÉ sin depender de
+     leer un número. Por eso son tonos nuevos, ninguno reciclado de
+     --uva-accent/--uva-valid/--uva-warning/--uva-error: reutilizar el verde o
+     el rojo de "bien"/"mal" haría que una pareja sin calificar se leyera como
+     un acierto o un fallo antes de que el examen se corrija. Seis tonos:
+     alcanza para MAXIMO_PARES_EMPAREJAR_GENERADOS (6); en una pregunta armada
+     a mano con más pares (hasta MAXIMO_PARES_EMPAREJAR, 8) el componente los
+     repite por índice — dos parejas comparten color, siguen siendo
+     distinguibles por el número que las acompaña. */
+  --uva-pair-1: #3b82f6; /* azul */
+  --uva-pair-1-soft: rgba(59, 130, 246, 0.16);
+  --uva-pair-2: #f97316; /* naranja */
+  --uva-pair-2-soft: rgba(249, 115, 22, 0.16);
+  --uva-pair-3: #a855f7; /* violeta */
+  --uva-pair-3-soft: rgba(168, 85, 247, 0.16);
+  --uva-pair-4: #06b6d4; /* cian */
+  --uva-pair-4-soft: rgba(6, 182, 212, 0.16);
+  --uva-pair-5: #f2c012; /* dorado, mismo tono de --uva-accent-2 */
+  --uva-pair-5-soft: rgba(242, 192, 18, 0.16);
+  --uva-pair-6: #6366f1; /* índigo */
+  --uva-pair-6-soft: rgba(99, 102, 241, 0.16);
 }
 
 .dark {

@@ -48,17 +48,31 @@ function valorVacioPara(pregunta: PreguntaParaEstudiante): RespuestaEstudiante {
   return "";
 }
 
+/**
+ * ¿Esta pregunta califica al TOCAR, sin un botón "Confirmar" aparte?
+ *
+ * EMPAREJAR entró acá aunque tenga varios pasos: cada toque en la columna
+ * derecha ya es una respuesta que se manda sola (`responderPregunta` la
+ * califica por par, ver `calificarEmparejarParcial`) — el estudiante nunca
+ * arma un borrador que confirme después, solo va tocando y el servidor va
+ * diciendo si sigue o si falló. Es "atómica por par", no una sola vez por
+ * pregunta como OPCION_UNICA/VERDADERO_FALSO, pero para esta pantalla
+ * (¿hay que mostrar el botón "Confirmar respuesta" de abajo?) la respuesta
+ * es la misma: no.
+ */
 function esAtomica(pregunta: PreguntaParaEstudiante): boolean {
-  return pregunta.tipo === "OPCION_UNICA" || pregunta.tipo === "VERDADERO_FALSO";
+  return (
+    pregunta.tipo === "OPCION_UNICA" ||
+    pregunta.tipo === "VERDADERO_FALSO" ||
+    pregunta.tipo === "EMPAREJAR"
+  );
 }
 
-/** ¿El borrador ya es una respuesta que se puede confirmar? */
+/** ¿El borrador ya es una respuesta que se puede confirmar con el botón de
+ * abajo? Solo lo consultan OPCION_MULTIPLE y RELLENAR_ESPACIO — las dos
+ * únicas que siguen usando ese botón (`esAtomica` cubre las demás). */
 function borradorCompleto(pregunta: PreguntaParaEstudiante, borrador: RespuestaEstudiante): boolean {
   if (pregunta.tipo === "OPCION_MULTIPLE") return Array.isArray(borrador) && borrador.length > 0;
-  if (pregunta.tipo === "EMPAREJAR") {
-    const mapa = typeof borrador === "object" && !Array.isArray(borrador) ? borrador : {};
-    return Object.keys(mapa).length === (pregunta.izquierdas ?? []).length;
-  }
   if (pregunta.tipo === "RELLENAR_ESPACIO") return typeof borrador === "string" && borrador.trim() !== "";
   return false;
 }
@@ -220,6 +234,11 @@ export function ExamenRendir({
         return;
       }
 
+      // Solo EMPAREJAR: este par salió bien pero la pregunta sigue abierta —
+      // nada que pintar, nada que gastar. El estudiante sigue tocando el
+      // resto de los pares con las mismas tarjetas en pantalla.
+      if (resultado.enProgreso) return;
+
       setVidas(resultado.vidasRestantes);
       if (resultado.acierto) {
         setCorrectas((c) => c + 1);
@@ -349,10 +368,21 @@ export function ExamenRendir({
       </Button>
     );
   } else if (esAtomica(preguntaActual)) {
+    // El atajo de teclado (A–D) solo existe para preguntas con `opciones`
+    // planas: EMPAREJAR no tiene letras que elegir, tocar es la única forma.
+    const conAtajoDeTeclado = (preguntaActual.opciones ?? []).length > 0;
     accion = (
       <p className="flex h-[46px] items-center justify-center text-[13px] text-uva-text-faint">
-        {enviando ? "Calificando…" : "Toca tu respuesta"}
-        <span className="hidden lg:inline">&nbsp;o usa las teclas A–{LETRAS[(preguntaActual.opciones ?? []).length - 1] ?? "D"}</span>
+        {enviando
+          ? "Calificando…"
+          : preguntaActual.tipo === "EMPAREJAR"
+            ? "Relaciona cada elemento con su pareja"
+            : "Toca tu respuesta"}
+        {conAtajoDeTeclado && (
+          <span className="hidden lg:inline">
+            &nbsp;o usa las teclas A–{LETRAS[(preguntaActual.opciones ?? []).length - 1] ?? "D"}
+          </span>
+        )}
       </p>
     );
   } else {
@@ -515,8 +545,12 @@ function IconoVeredicto({ elegida, veredicto }: { elegida: boolean; veredicto: V
  * botón de confirmar está en la barra inferior, fuera de este componente).
  *
  * Atómicos (OPCION_UNICA, VERDADERO_FALSO): tocar la opción ya es "terminé",
- * así que califican al instante. Compuestos (OPCION_MULTIPLE,
- * RELLENAR_ESPACIO, EMPAREJAR) se confirman con el botón de abajo.
+ * así que califican al instante. EMPAREJAR también califica al tocar, pero
+ * por PAR: cada vez que arma uno llama a `onConfirmar` con el mapa hasta ese
+ * momento, y el servidor decide si sigue abierta o ya se resolvió (ver
+ * `esAtomica` en ExamenRendir y `calificarEmparejarParcial`). Las dos que
+ * quedan (OPCION_MULTIPLE, RELLENAR_ESPACIO) siguen siendo un borrador que
+ * se confirma con el botón de abajo.
  */
 function PreguntaCuerpo({
   pregunta,
@@ -621,7 +655,10 @@ function PreguntaCuerpo({
         izquierdas={pregunta.izquierdas ?? []}
         derechas={pregunta.derechas ?? []}
         valor={mapa}
-        onCambiar={onBorrador}
+        // `onConfirmar`, no `onBorrador`: cada par armado se manda al
+        // servidor de una vez (calificación por par), no se acumula en un
+        // borrador que se confirma después.
+        onCambiar={onConfirmar}
         disabled={disabled}
         resultado={veredicto}
       />
