@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tieneAccesoVigente } from "@/lib/mux/acceso";
-import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 
 export type AccesoCurso = {
@@ -12,16 +11,6 @@ export type AccesoCurso = {
 };
 
 const SIN_ACCESO: AccesoCurso = { tieneAcceso: false, tieneCortesia: false, suscripcion: null };
-
-/** Ver el comentario dentro de obtenerAccesoAlCurso. */
-async function perfilDeUsuario(supabase: SupabaseClient, usuarioId: string) {
-  const actual = await getUsuarioActual();
-  if (actual?.id === usuarioId) {
-    const { perfil } = await getPerfilActual();
-    return { data: perfil ? { rol: perfil.rol } : null };
-  }
-  return supabase.from("perfiles").select("rol").eq("id", usuarioId).single();
-}
 
 /**
  * Única función que decide si un usuario puede ver el CONTENIDO de un curso
@@ -59,14 +48,7 @@ export async function obtenerAccesoAlCurso(
   // fila se conserva marcada `activo = false`, no se borra (f4accesos.md).
   const [{ data: perfil }, { data: inscripcion }, { data: suscripcionRaw }, { data: filaInstructor }] =
     await Promise.all([
-      // El rol se pide vía getPerfilActual() cuando `usuarioId` es el de la
-      // sesión —que es el caso de los tres llamadores— porque esa función
-      // está envuelta en cache() de React y el layout del dashboard ya la
-      // resolvió en este mismo render: sale gratis en vez de costar otro
-      // viaje a US-East por la misma fila. Si algún día se llama con el id de
-      // OTRO usuario, el fallback consulta como siempre y el resultado es el
-      // mismo.
-      perfilDeUsuario(supabase, usuarioId),
+      supabase.from("perfiles").select("rol").eq("id", usuarioId).single(),
       supabase
         .from("inscripciones")
         .select("id")

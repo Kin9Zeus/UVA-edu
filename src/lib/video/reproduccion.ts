@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mux } from "@/lib/mux/client";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { logError } from "@/lib/log";
-import { getUsuarioActual } from "@/lib/perfil";
 
 // Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5,
 // tarea "Reproductor Mux con URL firmada"): un token capturado de la red
@@ -45,7 +44,14 @@ export async function resolverTokenReproduccion(
   supabase: SupabaseClient,
   leccionId: string,
 ): Promise<TokenReproduccionResultado> {
-  const user = await getUsuarioActual();
+  // El usuario sale del MISMO cliente que se recibe, no de getUsuarioActual():
+  // esta función existe separada del Server Action justamente para poder
+  // llamarse fuera de una petición de Next (scripts/rls-test.ts la invoca
+  // con clientes autenticados a mano), y getUsuarioActual() lee cookies().
+  // getClaims() verifica el JWT en local, así que tampoco cuesta un viaje a
+  // Supabase como costaba getUser().
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ? { id: claimsData.claims.sub } : null;
 
   const { data: leccion } = await supabase
     .from("lecciones")
