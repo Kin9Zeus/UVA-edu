@@ -152,6 +152,7 @@ async function pedirAlModelo(
   modelo: string,
   mensajeUsuario: string,
   systemPrompt: string,
+  esquema: object,
 ): Promise<string> {
   const { temperatura, topP, maxTokensSalida } = configuracionGemini();
 
@@ -163,7 +164,7 @@ async function pedirAlModelo(
       // Salida estructurada: el servidor obliga la forma, así que no hay que
       // pelearse con markdown, ```json de adorno ni texto antes del objeto.
       responseMimeType: "application/json",
-      responseSchema: ESQUEMA_RESPUESTA_GEMINI as unknown as Schema,
+      responseSchema: esquema as Schema,
       maxOutputTokens: maxTokensSalida,
       // Razonar le sirve: tiene que repartir preguntas entre videos sin
       // mezclar conceptos y encontrar una frase textual que sostenga cada una.
@@ -185,9 +186,7 @@ async function pedirAlModelo(
   const motivoCorte = respuesta.candidates?.[0]?.finishReason;
 
   if (motivoCorte === "MAX_TOKENS") {
-    throw new Error(
-      "La respuesta del modelo se cortó por longitud. Genera el examen con menos preguntas por video.",
-    );
+    throw new Error("La respuesta del modelo se cortó por longitud.");
   }
 
   if (motivoCorte && motivoCorte !== "STOP") {
@@ -225,21 +224,28 @@ async function pedirAlModelo(
  * Exportada —como `limitarAlTotal`— para que
  * `npm run examenes:probar-generacion` ejercite ESTE camino y no una copia
  * suya: una prueba de humo que reimplementa lo que dice comprobar no comprueba
- * nada.
+ * nada. También la usan las descripciones generadas con IA
+ * (src/lib/descripciones-ia/), que pasan su propio esquema y área de log.
  */
 export async function pedirConCadenaDeModelos(
   cliente: GoogleGenAI,
   mensajeUsuario: string,
   systemPrompt: string,
   courseId: string,
+  opciones: { esquema?: object; area?: string; scope?: string } = {},
 ): Promise<string> {
+  const {
+    esquema = ESQUEMA_RESPUESTA_GEMINI,
+    area = AREA_LOG,
+    scope = SCOPE_LOG,
+  } = opciones;
   const { modelos, latenciaObjetivoMs } = configuracionGemini();
   const fallos: string[] = [];
   const inicio = Date.now();
 
   for (const [indice, modelo] of modelos.entries()) {
     try {
-      const texto = await pedirAlModelo(cliente, modelo, mensajeUsuario, systemPrompt);
+      const texto = await pedirAlModelo(cliente, modelo, mensajeUsuario, systemPrompt, esquema);
 
       // Terminó BIEN, pero lento. Se registra igual: una cola que se satura no
       // pasa de 3s a fallar de golpe, primero pasa a 40s durante unos días.
@@ -247,8 +253,8 @@ export async function pedirConCadenaDeModelos(
       // que no se generó. No altera el resultado; solo deja rastro.
       const tardanza = Date.now() - inicio;
       if (tardanza > latenciaObjetivoMs) {
-        logError(SCOPE_LOG, "la generación superó la latencia objetivo", null, {
-          area: AREA_LOG,
+        logError(scope, "la generación superó la latencia objetivo", null, {
+          area,
           courseId,
           modelo,
           msTranscurridos: tardanza,
@@ -265,8 +271,8 @@ export async function pedirConCadenaDeModelos(
       const detalle = error instanceof Error ? error.message : String(error);
       fallos.push(`${modelo}: ${detalle}`);
 
-      logError(SCOPE_LOG, "el modelo no respondió; se pasa al siguiente de la cadena", error, {
-        area: AREA_LOG,
+      logError(scope, "el modelo no respondió; se pasa al siguiente de la cadena", error, {
+        area,
         courseId,
         modeloFallido: modelo,
         modeloSiguiente: modelos[indice + 1],

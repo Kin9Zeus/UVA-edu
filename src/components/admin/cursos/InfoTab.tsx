@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ import {
 import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
 import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstructores";
 import { subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
+import { generarDescripcionCursoConIa } from "@/actions/admin/descripcionesIa";
 import { useAdminToast } from "@/components/admin/Toast";
 import {
   ACCEPT_PORTADA,
@@ -82,6 +84,31 @@ export function InfoTab({
   const [portadaPendiente, setPortadaPendiente] = useState<File | null>(null);
   const inputPortadaRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
+  const [generandoDescripcion, setGenerandoDescripcion] = useState(false);
+  const [errorDescripcion, setErrorDescripcion] = useState<string | null>(null);
+
+  /** Carga la propuesta en el campo sin guardarla: queda como un cambio más
+   * del formulario, que se guarda (o se descarta) con el botón de la cabecera. */
+  async function handleGenerarDescripcion() {
+    if (
+      descripcion.trim() !== "" &&
+      !window.confirm("La IA va a reemplazar la descripción actual. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
+    ) {
+      return;
+    }
+
+    setGenerandoDescripcion(true);
+    setErrorDescripcion(null);
+    const resultado = await generarDescripcionCursoConIa(cursoId);
+    setGenerandoDescripcion(false);
+
+    if (resultado.error || !resultado.descripcion) {
+      setErrorDescripcion(resultado.error ?? "No pudimos generar la descripción.");
+      return;
+    }
+    onDescripcionChange(resultado.descripcion);
+    showToast("Propuesta lista. Revísala y guarda los cambios para publicarla.");
+  }
 
   const previewPendiente = useMemo(
     () => (portadaPendiente ? URL.createObjectURL(portadaPendiente) : null),
@@ -170,7 +197,31 @@ export function InfoTab({
       </div>
 
       <div>
-        <Label htmlFor="info-descripcion">Descripción</Label>
+        <div className="mb-[5px] flex items-center">
+          <Label htmlFor="info-descripcion" className="mb-0">
+            Descripción
+          </Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="auto"
+            className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent"
+            onClick={handleGenerarDescripcion}
+            disabled={generandoDescripcion}
+            title="Escribe la descripción a partir del temario y el contenido de las lecciones"
+          >
+            <Sparkles className="size-3.5" />
+            {generandoDescripcion ? "Generando…" : "Generar con IA"}
+          </Button>
+        </div>
+        {errorDescripcion && (
+          <div
+            role="alert"
+            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+          >
+            {errorDescripcion}
+          </div>
+        )}
         <Textarea
           id="info-descripcion"
           value={descripcion}

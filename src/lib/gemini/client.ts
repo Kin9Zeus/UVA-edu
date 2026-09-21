@@ -27,16 +27,24 @@ import { configuracionGemini, ESPERA_MAXIMA_S } from "./configuracion";
  * Los números de tiempo, reintentos y modelos ya no están acá: los decide
  * `configuracionGemini()`, que los lee del entorno y comprueba que sigan
  * siendo compatibles con el barredor de trabajos atascados.
+ *
+ * `tiempoLimiteMs` permite acortar el límite por llamada a quien espera la
+ * respuesta con la pantalla abierta (las descripciones con IA): el valor de la
+ * configuración está pensado para un examen que corre en segundo plano.
  */
-export function crearClienteGemini(): GoogleGenAI {
+export function crearClienteGemini(
+  opciones: { tiempoLimiteMs?: number } = {},
+): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "Falta GEMINI_API_KEY. La generación de exámenes con IA no puede funcionar sin ella.",
+      "Falta GEMINI_API_KEY. La generación con IA no puede funcionar sin ella.",
     );
   }
 
-  const { tiempoLimiteMs, intentosPorModelo, esperaBaseMs } = configuracionGemini();
+  const configuracion = configuracionGemini();
+  const { intentosPorModelo, esperaBaseMs } = configuracion;
+  const tiempoLimiteMs = opciones.tiempoLimiteMs ?? configuracion.tiempoLimiteMs;
 
   /**
    * Reintentos ante fallos transitorios de la API, CONTRA EL MISMO MODELO.

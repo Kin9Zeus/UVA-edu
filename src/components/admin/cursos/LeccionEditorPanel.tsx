@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,13 +11,14 @@ import {
   crearSubidaRecurso,
   confirmarSubidaRecurso,
 } from "@/actions/admin/cursos";
+import { generarContenidoLeccionConIa } from "@/actions/admin/descripcionesIa";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminToast } from "@/components/admin/Toast";
 import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
-import type { DocumentoContenido } from "@/lib/editor/tipos";
+import { contenidoEstaVacio, type DocumentoContenido } from "@/lib/editor/tipos";
 
 type CambiosLeccion = Pick<
   LeccionDetalle,
@@ -72,6 +73,12 @@ export function LeccionEditorPanel({
   // reporta un nuevo `duracion` tras terminar de procesar (ver más abajo).
   const [duracion, setDuracion] = useState(leccion.duracion);
   const [contenido, setContenido] = useState<DocumentoContenido | null>(leccion.contenido);
+  // Lo que el editor recibe al montar. Cambia solo cuando la IA propone un
+  // contenido: junto con `versionEditor` (la `key`) remonta RichTextEditor
+  // con la propuesta, que queda SIN guardar hasta que el admin lo decida.
+  const [contenidoInicial, setContenidoInicial] = useState<DocumentoContenido | null>(leccion.contenido);
+  const [versionEditor, setVersionEditor] = useState(0);
+  const [generando, setGenerando] = useState(false);
   // Lo último que quedó guardado en el servidor. NO es `leccion` (esa prop
   // es la foto del momento en que este panel se montó): después de guardar
   // hay que comparar contra el guardado más reciente, no contra el original.
@@ -107,7 +114,34 @@ export function LeccionEditorPanel({
    */
   function handleContenidoListo(normalizado: DocumentoContenido) {
     setContenido(normalizado);
-    setGuardadoComo((actual) => ({ ...actual, contenido: normalizado }));
+    // Un remontaje por propuesta de la IA no es "lo guardado": si también
+    // moviera `guardadoComo`, la propuesta se vería como sin cambios.
+    if (versionEditor === 0) {
+      setGuardadoComo((actual) => ({ ...actual, contenido: normalizado }));
+    }
+  }
+
+  async function handleGenerarConIa() {
+    if (
+      !contenidoEstaVacio(contenido) &&
+      !window.confirm("La IA va a reemplazar el contenido actual del editor. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
+    ) {
+      return;
+    }
+
+    setGenerando(true);
+    setError(null);
+    const resultado = await generarContenidoLeccionConIa(leccion.id, cursoId);
+    setGenerando(false);
+
+    if (resultado.error || !resultado.contenido) {
+      setError(resultado.error ?? "No pudimos generar el contenido.");
+      return;
+    }
+    setContenidoInicial(resultado.contenido);
+    setContenido(resultado.contenido);
+    setVersionEditor((version) => version + 1);
+    showToast("Propuesta lista. Revísala y pulsa \"Guardar cambios\" para publicarla.");
   }
 
   useEffect(() => {
@@ -352,9 +386,28 @@ export function LeccionEditorPanel({
             alto bastante mayor al bloque de 160-420px que tenía en la
             columna angosta original. */}
         <div className="flex flex-1 flex-col">
-          <Label>Contenido de la clase</Label>
+          <div className="mb-[5px] flex items-center">
+            <Label className="mb-0">Contenido de la clase</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="auto"
+              className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent"
+              onClick={handleGenerarConIa}
+              disabled={generando || video.estadoProcesamiento !== "LISTO"}
+              title={
+                video.estadoProcesamiento === "LISTO"
+                  ? "Escribe la introducción, qué vas a aprender, cómo está organizada la sesión y los objetivos, a partir de la transcripción del video"
+                  : "Disponible cuando el video termine de procesarse"
+              }
+            >
+              <Sparkles className="size-3.5" />
+              {generando ? "Generando…" : "Generar con IA"}
+            </Button>
+          </div>
           <RichTextEditor
-            initialContent={leccion.contenido}
+            key={versionEditor}
+            initialContent={contenidoInicial}
             onChange={setContenido}
             onReady={handleContenidoListo}
             placeholder="Escribe el resumen/teoría de esta clase…"
