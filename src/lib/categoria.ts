@@ -1,9 +1,11 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
+import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
 
 /** Chip de categoría reutilizado por el catálogo y por "Tu progreso" (lib/progreso.ts). */
 export type CategoriaChip = { id: string; nombre: string };
@@ -68,11 +70,15 @@ export const CURSOS_POR_PAGINA = 12;
  * (`getCategoriasParaEdicion`, src/lib/admin/cursos.ts), que sí necesita
  * ver las inactivas, es una función distinta y no se toca.
  */
-export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
-  const supabase = createPublicClient();
-  const { data } = await supabase.from("categorias").select("id, slug, nombre").eq("activo", true).order("nombre");
-  return (data ?? []) as CategoriaActiva[];
-}
+export const getCategoriasActivas = unstable_cache(
+  async (): Promise<CategoriaActiva[]> => {
+    const supabase = createPublicClient();
+    const { data } = await supabase.from("categorias").select("id, slug, nombre").eq("activo", true).order("nombre");
+    return (data ?? []) as CategoriaActiva[];
+  },
+  ["categorias-activas"],
+  { tags: [TAG_CATEGORIAS], revalidate: REVALIDAR_SEGUNDOS },
+);
 
 /**
  * Resuelve una categoría por slug o UUID (los enlaces anteriores al cambio
@@ -182,9 +188,13 @@ async function buscarCatalogoConCliente(
 }
 
 /** Catálogo público (`/catalogo`) — cliente sin cookies, sin progreso del estudiante. */
-export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
-  return buscarCatalogoConCliente(createPublicClient(), opciones, false);
-}
+export const buscarCatalogoPublico = unstable_cache(
+  async (opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> => {
+    return buscarCatalogoConCliente(createPublicClient(), opciones, false);
+  },
+  ["catalogo-publico"],
+  { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
+);
 
 /**
  * Catálogo del dashboard (`/dashboard/catalogo`) — cliente de sesión, con
@@ -256,7 +266,8 @@ export type CursoOpcionBuscador = {
  * puerta pública a los datos de un profesor", no algo que RLS le niegue a
  * un visitante anónimo.
  */
-export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
+export const getCursosParaBuscador = unstable_cache(
+  async (): Promise<CursoOpcionBuscador[]> => {
   const supabase = createPublicClient();
 
   const { data } = await supabase
@@ -279,4 +290,7 @@ export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
     titulo: curso.titulo,
     instructorNombre: nombresDeInstructores(instructoresPorCurso.get(curso.id) ?? []),
   }));
-}
+  },
+  ["cursos-para-buscador"],
+  { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
+);

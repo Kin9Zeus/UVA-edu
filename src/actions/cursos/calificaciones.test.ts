@@ -58,7 +58,7 @@ describe("sin sesión ninguna acción escribe ni revalida", () => {
     ["quitarReaccionCalificacion", () => quitarReaccionCalificacion("cal-1")],
   ])("%s", async (_nombre, accion) => {
     expect(await accion()).toEqual(SIN_SESION);
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
     expect(servidorFalso.revalidaciones).toEqual([]);
   });
 });
@@ -107,7 +107,7 @@ describe("calificarCurso", () => {
     [3.5, "La calificación debe ser un número entero."],
   ])("puntuación %s se rechaza antes de leer la base", async (puntuacion, mensaje) => {
     expect(await calificarCurso("curso-1", puntuacion, "")).toEqual({ error: mensaje });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it("un comentario de más de 1000 caracteres se rechaza sin escribir", async () => {

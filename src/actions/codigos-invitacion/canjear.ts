@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enviarCorreoBienvenida } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type CanjearCodigoResult = {
   error?: string;
@@ -55,9 +56,7 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };

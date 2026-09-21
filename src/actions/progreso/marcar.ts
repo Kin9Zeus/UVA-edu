@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type MarcarLeccionState = { error: string } | { ok: true; completado: boolean };
 
@@ -19,9 +20,7 @@ export async function marcarLeccion(
   completado: boolean,
 ): Promise<MarcarLeccionState> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
@@ -56,9 +55,7 @@ export async function marcarLeccion(
  */
 export async function iniciarProgresoLeccion(leccionId: string): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) return;
 
@@ -96,9 +93,7 @@ export async function guardarSegundoActual(
   segundos: number,
 ): Promise<{ ok: boolean }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) return { ok: false };
   if (!Number.isFinite(segundos)) return { ok: false };

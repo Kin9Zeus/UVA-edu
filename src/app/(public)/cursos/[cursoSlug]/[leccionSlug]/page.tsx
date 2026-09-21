@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPerfilActual } from "@/lib/perfil";
+import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
 import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { esUuid } from "@/lib/slug";
@@ -15,10 +15,7 @@ export async function generateMetadata({
   params: Promise<{ cursoSlug: string; leccionSlug: string }>;
 }): Promise<Metadata> {
   const { cursoSlug, leccionSlug } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
   if (!data) return { title: "U.V.A. — Clase" };
 

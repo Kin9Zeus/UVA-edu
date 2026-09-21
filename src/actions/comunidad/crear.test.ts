@@ -66,7 +66,7 @@ describe("crearPostComunidad", () => {
     expect(await crearPostComunidad("PREGUNTAS", "¿Qué losa uso?", "Detalle", "/dashboard/comunidad")).toEqual({
       error: "Debes iniciar sesión para publicar.",
     });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it("publica con el autor de la sesión y un id decidido en el servidor", async () => {
@@ -98,7 +98,7 @@ describe("crearPostComunidad", () => {
     expect(
       await crearPostComunidad(categoria as "PREGUNTAS", titulo, contenido, "/dashboard/comunidad"),
     ).toEqual({ error: mensaje });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it("sin acceso a la comunidad no publica", async () => {
@@ -237,7 +237,7 @@ describe("responderPostComunidad", () => {
     expect(await responderPostComunidad("post-1", "Hola", "/dashboard/comunidad/x")).toEqual({
       error: "Debes iniciar sesión para responder.",
     });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it("responde con el autor de la sesión en el post indicado", async () => {
@@ -254,7 +254,7 @@ describe("responderPostComunidad", () => {
     ["larga", "a".repeat(2001), "La respuesta es demasiado larga."],
   ])("respuesta %s: se rechaza sin tocar la base", async (_caso, contenido, mensaje) => {
     expect(await responderPostComunidad("post-1", contenido, "/dashboard/comunidad/x")).toEqual({ error: mensaje });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it.each([

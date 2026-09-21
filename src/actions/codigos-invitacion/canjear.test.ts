@@ -84,7 +84,7 @@ describe("rate limit (P2-2 de AUDIT-2026-08-24)", () => {
       segundosEspera: 420,
     });
     // Si probara el código estando bloqueado, el límite no limitaría nada.
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser", "rpc:verificar_limite_canjear_codigo"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims", "rpc:verificar_limite_canjear_codigo"]);
   });
 
   it("si el chequeo del límite falla, no canjea (falla cerrado)", async () => {
@@ -154,7 +154,7 @@ describe("canje exitoso", () => {
     expect(await canjearCodigoInvitacion("  UVA-2026  ")).toEqual({ success: true });
 
     expect(servidorFalso.operaciones()).toEqual([
-      "auth:getUser",
+      "auth:getClaims",
       "rpc:verificar_limite_canjear_codigo",
       "rpc:canjear_codigo_invitacion",
       "rpc:limpiar_intentos_canjear_codigo",

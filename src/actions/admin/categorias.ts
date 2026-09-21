@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidarCategoriasPublicas } from "@/lib/cache-catalogo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
@@ -60,6 +61,10 @@ export async function crearCategoria(input: {
   });
 
   revalidatePath("/admin/categorias");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCategoriasPublicas();
   return { success: true };
 }
 
@@ -93,6 +98,10 @@ export async function actualizarCategoria(
   revalidatePath("/admin/categorias");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCategoriasPublicas();
   return { success: true };
 }
 
@@ -104,6 +113,10 @@ export async function toggleActivaCategoria(id: string, activo: boolean): Promis
   if (error) return { error: "No pudimos actualizar la categoría." };
 
   revalidatePath("/admin/categorias");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCategoriasPublicas();
   return { success: true };
 }
 
@@ -191,6 +204,10 @@ export async function reasignarYEliminarCategoria(
   revalidatePath("/admin/cursos");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCategoriasPublicas();
   return { success: true };
 }
 
@@ -214,5 +231,9 @@ export async function eliminarCategoria(id: string): Promise<AdminActionResult> 
   });
 
   revalidatePath("/admin/categorias");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCategoriasPublicas();
   return { success: true };
 }

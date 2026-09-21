@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type ExportarDatosResultado =
   | { error: string }
@@ -29,9 +30,7 @@ export type ExportarDatosResultado =
  */
 export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) {
     return { error: "Debes iniciar sesión." };

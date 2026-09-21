@@ -17,6 +17,7 @@ import type {
   ComunidadDatosEmpleo,
 } from "@/lib/comunidad-tipos";
 import { COMUNIDAD_POSTS_POR_PAGINA } from "@/lib/comunidad-tipos";
+import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
 
 // Cubre la duración de una vista del feed/detalle, no solo un clic —a
 // diferencia de la URL de descarga de un documento (obtenerUrlAdjuntoComunidad,
@@ -50,14 +51,17 @@ export type {
  */
 export async function resolverAccesoComunidad(): Promise<AccesoComunidad> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { acceso: false, motivo: "SIN_SUSCRIPCION" };
 
-  const [{ data: tieneAcceso }, { data: perfil }] = await Promise.all([
+  // El rol sale de getPerfilActual() y no de una consulta propia: está
+  // envuelta en cache() de React, así que dentro de un mismo render la
+  // comparte con (student)/dashboard/layout.tsx, que ya la resolvió antes de
+  // llegar acá. Consultar `perfiles` otra vez era pedir la misma fila dos
+  // veces por petición — ~190 ms de ida y vuelta a US-East por nada.
+  const [{ data: tieneAcceso }, { perfil }] = await Promise.all([
     supabase.rpc("comunidad_tiene_acceso"),
-    supabase.from("perfiles").select("rol").eq("id", user.id).single(),
+    getPerfilActual(),
   ]);
 
   if (tieneAcceso) {
@@ -292,9 +296,7 @@ export async function getComunidadFeed(opciones?: {
   pagina?: number;
 }): Promise<ComunidadFeedResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   const soloPropios = opciones?.soloPropios ?? false;
   const { data, error } = await supabase.rpc("buscar_feed_comunidad", {
@@ -351,9 +353,7 @@ export async function getComunidadFeed(opciones?: {
  * (la página responde con 404). */
 export async function getComunidadPost(identificador: string): Promise<ComunidadPostDetalle | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   const { data: post, error } = await supabase
     .from("comunidad_posts")

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { buscarPaisPorCodigo } from "@/lib/paises";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type ActualizarPerfilState = { error: string; success?: never } | { error?: never; success: true } | null;
 
@@ -26,9 +27,7 @@ export async function actualizarPerfil(
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };

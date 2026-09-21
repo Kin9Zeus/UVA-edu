@@ -58,7 +58,7 @@ describe("eliminarPostComunidad", () => {
 
   it("sin sesión no lee nada", async () => {
     expect(await eliminarPostComunidad("post-1", "/dashboard/comunidad")).toEqual({ error: "Debes iniciar sesión." });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   });
 
   it("un estudiante sobre un post ajeno: rechazo y ninguna escritura", async () => {

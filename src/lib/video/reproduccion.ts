@@ -44,9 +44,14 @@ export async function resolverTokenReproduccion(
   supabase: SupabaseClient,
   leccionId: string,
 ): Promise<TokenReproduccionResultado> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // El usuario sale del MISMO cliente que se recibe, no de getUsuarioActual():
+  // esta función existe separada del Server Action justamente para poder
+  // llamarse fuera de una petición de Next (scripts/rls-test.ts la invoca
+  // con clientes autenticados a mano), y getUsuarioActual() lee cookies().
+  // getClaims() verifica el JWT en local, así que tampoco cuesta un viaje a
+  // Supabase como costaba getUser().
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ? { id: claimsData.claims.sub } : null;
 
   const { data: leccion } = await supabase
     .from("lecciones")

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarUsuarioAdmin } from "@/lib/admin/revalidarUsuario";
@@ -8,6 +9,7 @@ import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/m
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { borrarFotoPerfil } from "@/lib/perfil/avatar";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { olvidarGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import { logError } from "@/lib/log";
@@ -25,6 +27,13 @@ export async function suspenderActivarUsuario(
     .eq("id", usuarioId);
 
   if (error) return { error: "No pudimos actualizar el estado del usuario." };
+
+  // El proxy cachea `estado` 30 s por proceso para no pagar un round-trip a
+  // US-East en cada request (ver src/lib/supabase/guardia-sesion.ts). Tirar
+  // la entrada acá hace que, en esta instancia, la suspensión siga siendo
+  // instantánea en vez de esperar al TTL. Vale para los dos sentidos: al
+  // reactivar, el usuario deja de estar suspendido sin esperar tampoco.
+  olvidarGuardiaSesion(usuarioId);
 
   // Revocación proactiva: el chequeo de estado en proxy.ts solo actúa en la
   // próxima request del usuario, así que sin esto una sesión ya abierta
@@ -99,6 +108,10 @@ export async function cambiarRolProfesor(
   revalidatePath("/admin/usuarios");
   revalidarUsuarioAdmin();
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   return { success: true };
 }
 
@@ -166,6 +179,10 @@ export async function actualizarEspecialidadProfesor(
   // El nombre y la especialidad del profesor salen en el detalle público de
   // cada curso que dicta.
   revalidatePath("/catalogo");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   return { success: true };
 }
 
@@ -498,6 +515,10 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
       usuarioId,
     });
   }
+
+  // `anonimizar_usuario` deja la cuenta en SUSPENDIDO dentro de su
+  // transacción: mismo motivo que en suspenderActivarUsuario.
+  olvidarGuardiaSesion(usuarioId);
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,

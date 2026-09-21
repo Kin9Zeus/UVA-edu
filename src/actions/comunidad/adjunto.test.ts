@@ -34,7 +34,7 @@ it("sin sesión no lee ni firma nada", async () => {
   expect(await obtenerUrlAdjuntoComunidad("adj-1")).toEqual({
     error: "Debes iniciar sesión para descargar este archivo.",
   });
-  expect(servidorFalso.operaciones()).toEqual(["auth:getUser"]);
+  expect(servidorFalso.operaciones()).toEqual(["auth:getClaims"]);
   expect(servidorFalso.clientesCreados.admin).toBe(0);
 });
 
@@ -60,7 +60,7 @@ it("con acceso: lee con la sesión y firma con Service Role la ruta de ESA fila"
   ]);
 
   // Orden: la autorización va antes que la firma.
-  expect(servidorFalso.operaciones()).toEqual(["auth:getUser", "from:comunidad_adjuntos", BUCKET]);
+  expect(servidorFalso.operaciones()).toEqual(["auth:getClaims", "from:comunidad_adjuntos", BUCKET]);
 });
 
 describe("si la firma falla", () => {
