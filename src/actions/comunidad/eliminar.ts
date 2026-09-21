@@ -8,6 +8,7 @@ import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { enviarCorreoComunidadModerada } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type EliminarComunidadResultado = { error: string } | { success: true };
 
@@ -84,9 +85,7 @@ export async function eliminarPostComunidad(
   motivo?: string,
 ): Promise<EliminarComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { data: post, error: errorLectura } = await supabase
@@ -160,9 +159,7 @@ export async function eliminarRespuestaComunidad(
   motivo?: string,
 ): Promise<EliminarComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { data: respuesta, error: errorLectura } = await supabase

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calcularVidasRestantes, calificarEmparejarParcial, calificarPregunta } from "@/lib/examenes/calificar";
 import { congelarPreguntas } from "@/lib/examenes/congelar";
 import { calcularDisponibilidad } from "@/lib/examen";
+import { getUsuarioActual } from "@/lib/perfil";
 import {
   parsearProgreso,
   respuestaEstudianteSchema,
@@ -51,9 +52,7 @@ async function requireEstudiante(): Promise<
   { error: string } | { supabase: Awaited<ReturnType<typeof createClient>>; usuarioId: string }
 > {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." } as const;
   return { supabase, usuarioId: user.id } as const;

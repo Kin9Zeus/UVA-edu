@@ -152,7 +152,7 @@ describe("getComunidadFeed — enriquece solo la página", () => {
     servidorFalso.responder("rpc:buscar_feed_comunidad", { data: [] });
 
     expect(await getComunidadFeed({ pagina: 4 })).toEqual({ posts: [], pagina: 1, totalPaginas: 1 });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser", "rpc:buscar_feed_comunidad"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims", "rpc:buscar_feed_comunidad"]);
   });
 });
 

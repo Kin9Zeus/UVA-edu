@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type CrearComentarioResultado = { error: string } | { success: true; id: string };
 
@@ -35,9 +36,7 @@ export async function crearComentario(
   ruta: string,
 ): Promise<CrearComentarioResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para comentar." };
 
   const parseo = contenidoSchema.safeParse(contenido);

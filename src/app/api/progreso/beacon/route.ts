@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 /**
  * Excepción deliberada a CLAUDE.md §3.1 ("Route Handlers reservados
@@ -90,9 +91,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) return NextResponse.json({ error: "Sin sesión." }, { status: 401 });
 

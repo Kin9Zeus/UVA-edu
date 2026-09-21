@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 
 // Los route groups entre paréntesis no aparecen en la URL, así que el muro
 // de acceso debe matchear por el path público (ej. "/dashboard", "/admin"),
@@ -104,15 +105,16 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
   }
 
   if (requiresAuth && claims) {
-    // `email_confirmed_at` NO viaja en el JWT, así que este chequeo sigue
-    // necesitando el usuario fresco del servidor. Se paga el round-trip solo
-    // en /dashboard y /admin (donde ya se hace además una consulta a
-    // `perfiles`), no en las rutas públicas, que son la mayoría del tráfico.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // Las dos comprobaciones de abajo (correo verificado + cuenta no
+    // suspendida) viven ahora en `getGuardiaSesion`, con una caché de 30 s
+    // por proceso y las dos consultas en paralelo en vez de en serie. El
+    // porqué completo —y por qué cachearlas no abre ningún hueco, dado que
+    // `private.cuenta_activa()` y `private.correo_verificado()` ya cierran
+    // las escrituras en RLS— está en el comentario de cabecera de
+    // src/lib/supabase/guardia-sesion.ts.
+    const guardia = await getGuardiaSesion(supabase, claims.sub);
 
-    if (!user) {
+    if (!guardia) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -123,36 +125,22 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
     // nunca se alcanza aquí (con "Confirm email" activo en Supabase,
     // signInWithPassword ya rechaza el login antes de crear sesión — ver
     // src/actions/auth/login.ts), pero queda como defensa en profundidad.
-    if (!user.email_confirmed_at) {
+    if (!guardia.correoVerificado) {
       return NextResponse.redirect(new URL("/verificar-correo", request.url));
     }
-
-    // P2-8 (AUDIT-2026-09-04.md): antes esta consulta traía "rol, estado"
-    // para además redirigir a /acceso-denegado si el rol no era
-    // ADMINISTRADOR en rutas /admin — pero `(admin)/admin/layout.tsx` ya
-    // hace exactamente esa misma consulta y el mismo redirect (lo tenía
-    // documentado como "defensa en profundidad", cuando en realidad corre
-    // siempre: toda request a /admin pasa por ese layout). Quitar el
-    // chequeo de rol de acá no abre ningún hueco, solo deja de pagar la
-    // misma consulta dos veces por request.
-    //
-    // "estado" sí se queda: es lo único que hace el signOut() de abajo, y
-    // ese signOut no es redundante con el layout (que solo redirige, no
-    // limpia la cookie) — verificado que un access_token ya emitido sigue
-    // pasando auth.getUser() después de un auth.admin.signOut(id, "global")
-    // hasta que expira solo, así que sin este chequeo puntual una cuenta
-    // recién suspendida seguiría "viéndose" logueada por el resto de la
-    // sesión en vez de cerrarse al instante.
-    const { data: perfil } = await supabase
-      .from("perfiles")
-      .select("estado")
-      .eq("id", user.id)
-      .single();
 
     // Cuenta suspendida por un administrador: se cierra la sesión en cada
     // request a una ruta protegida, no solo al iniciar sesión — así una
     // suspensión hecha a mitad de sesión también saca al usuario.
-    if (perfil?.estado === "SUSPENDIDO") {
+    //
+    // P2-8 (AUDIT-2026-09-04.md): el chequeo de ROL que antes había acá se
+    // quitó porque `(admin)/admin/layout.tsx` ya hace la misma consulta y el
+    // mismo redirect. `estado` sí se queda: es lo único que dispara este
+    // signOut, y ese signOut no es redundante con el layout (que solo
+    // redirige, no limpia la cookie) — verificado que un access_token ya
+    // emitido sigue pasando auth.getUser() después de un
+    // auth.admin.signOut(id, "global") hasta que expira solo.
+    if (guardia.suspendido) {
       await supabase.auth.signOut();
       const loginUrl = new URL("/login", request.url);
       const response = NextResponse.redirect(loginUrl);

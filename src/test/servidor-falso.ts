@@ -82,7 +82,7 @@ export const servidorFalso = {
     estado.efectosExternos = [];
   },
 
-  /** Usuario que devuelve `auth.getUser()`. `null` = sin sesión. */
+  /** Usuario que devuelven `auth.getUser()` y `auth.getClaims()`. `null` = sin sesión. */
   conUsuario(usuario: typeof estado.usuario) {
     estado.usuario = usuario;
   },
@@ -215,6 +215,20 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
             return respuestaDe(operacion);
           }
           if (metodo === "getUser") return { data: { user: estado.usuario }, error: null };
+          // `getClaims()` devuelve los claims del JWT, no un `User`. Las
+          // Server Actions leen el id de acá desde que `getUsuarioActual()`
+          // (src/lib/perfil.ts) dejó de pagar un round-trip a Supabase por
+          // cada llamada. Se deriva del mismo `conUsuario()` que ya
+          // configuran los tests para que ninguno tenga que saber cuál de los
+          // dos métodos usa la acción por dentro.
+          if (metodo === "getClaims") {
+            return {
+              data: estado.usuario
+                ? { claims: { sub: estado.usuario.id, email: estado.usuario.email } }
+                : null,
+              error: null,
+            };
+          }
           return { data: { user: estado.usuario, session: null }, error: null };
         };
       },

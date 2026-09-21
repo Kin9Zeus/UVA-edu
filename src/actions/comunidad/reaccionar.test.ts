@@ -36,7 +36,7 @@ describe.each([
 
     expect(await reaccionar("obj-1", RUTA)).toEqual({ error: "Debes iniciar sesión." });
     expect(await quitar("obj-1", RUTA)).toEqual({ error: "Debes iniciar sesión." });
-    expect(servidorFalso.operaciones()).toEqual(["auth:getUser", "auth:getUser"]);
+    expect(servidorFalso.operaciones()).toEqual(["auth:getClaims", "auth:getClaims"]);
   });
 
   it(`reaccionar inserta con el usuario de la sesión en \`${columna}\``, async () => {

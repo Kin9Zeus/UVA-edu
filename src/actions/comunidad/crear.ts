@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
+import { getUsuarioActual } from "@/lib/perfil";
 import {
   tituloSchema,
   contenidoPostSchema,
@@ -72,9 +73,7 @@ export async function crearPostComunidad(
   datosEmpleo?: DatosEmpleoComunidad,
 ): Promise<CrearPostComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para publicar." };
 
   const parseoCategoria = categoriaSchema.safeParse(categoria);
@@ -163,9 +162,7 @@ export async function responderPostComunidad(
   adjuntosFormData: FormData = new FormData(),
 ): Promise<CrearRespuestaComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para responder." };
 
   const parseo = contenidoRespuestaSchema.safeParse(contenido);

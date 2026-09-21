@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type ReportarComunidadResultado = { error: string } | { success: true };
 
@@ -17,9 +18,7 @@ export async function reportarComunidad(
   motivo: string,
 ): Promise<ReportarComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const motivoLimpio = motivo.trim();

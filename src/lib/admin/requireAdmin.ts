@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 /**
  * Guard para Server Actions del panel admin. RLS ya bloquea en la base de
@@ -9,9 +10,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function requireAdmin() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   if (!user) {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." } as const;

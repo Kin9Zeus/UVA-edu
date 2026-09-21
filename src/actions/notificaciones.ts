@@ -2,13 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 /** Marca una notificación propia como leída — al hacer clic en ella. */
 export async function marcarNotificacionLeida(id: string): Promise<{ error: string } | { success: true }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
@@ -27,9 +26,7 @@ export async function marcarNotificacionLeida(id: string): Promise<{ error: stri
  * propia. */
 export async function eliminarNotificacion(id: string): Promise<{ error: string } | { success: true }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase.from("notificaciones").delete().eq("id", id).eq("id_usuario", user.id);
@@ -44,9 +41,7 @@ export async function eliminarNotificacion(id: string): Promise<{ error: string 
  * explícito por claridad y para no depender en silencio de esa capa sola. */
 export async function marcarTodasNotificacionesLeidas(): Promise<{ error: string } | { success: true }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase

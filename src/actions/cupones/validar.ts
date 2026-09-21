@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { calcularDesglose } from "@/lib/pagos/descuento";
 import { buscarCuponVigente } from "@/lib/pagos/cupones";
 import { formatearPrecio } from "@/lib/planes";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type ValidarCuponResult =
   | { ok: true; desglose: DesgloseVisible }
@@ -57,9 +58,7 @@ export async function validarCodigoCupon(
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   // Autenticado: no es un validador público de códigos.
   if (!user) {

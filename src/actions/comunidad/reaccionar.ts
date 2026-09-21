@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type ReaccionComunidadResultado = { error: string } | { success: true };
 
@@ -20,9 +21,7 @@ async function reaccionar(
   ruta: string,
 ): Promise<ReaccionComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
@@ -41,9 +40,7 @@ async function quitarReaccion(
   ruta: string,
 ): Promise<ReaccionComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase

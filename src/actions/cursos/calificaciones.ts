@@ -6,6 +6,7 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-calificaciones-validacion";
 import { DESDE_MAXIMO_RESENAS, getTandaCalificacionesCurso, type TandaCalificaciones } from "@/lib/curso-calificaciones";
 import { esUuid } from "@/lib/slug";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type CalificacionCursoResultado = { error: string } | { success: true };
 
@@ -42,9 +43,7 @@ export async function calificarCurso(
   comentario: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const parseoPuntuacion = puntuacionSchema.safeParse(puntuacion);
@@ -96,9 +95,7 @@ export async function eliminarCalificacionPropia(
   calificacionId: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   // `.select("id")` para saber cuántas filas cambiaron: un UPDATE que no
@@ -132,9 +129,7 @@ export async function moderarCalificacion(
   calificacionId: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
@@ -171,9 +166,7 @@ export async function reaccionarCalificacion(
   calificacionId: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
@@ -192,9 +185,7 @@ export async function quitarReaccionCalificacion(
   calificacionId: string,
 ): Promise<CalificacionCursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
@@ -229,10 +220,7 @@ export async function cargarMasCalificacionesCurso(
     return { error: "No pudimos cargar más reseñas." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   return getTandaCalificacionesCurso(cursoId, user?.id ?? null, desde);
 }

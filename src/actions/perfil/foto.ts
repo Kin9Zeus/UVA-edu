@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { procesarFotoPerfil } from "@/lib/fotoPerfilServidor";
 import { BUCKET_AVATARES, extraerRutaAvatar } from "@/lib/perfil/avatar";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type FotoPerfilResultado = { error: string } | { success: true; url: string };
 
@@ -19,9 +20,7 @@ export type FotoPerfilResultado = { error: string } | { success: true; url: stri
  */
 export async function subirFotoPerfil(formData: FormData): Promise<FotoPerfilResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const archivo = formData.get("archivo");
@@ -67,9 +66,7 @@ export async function subirFotoPerfil(formData: FormData): Promise<FotoPerfilRes
 /** Quita la foto de perfil propia — vuelve a mostrar las iniciales. */
 export async function eliminarFotoPerfil(): Promise<{ error: string } | { success: true }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { data: perfil } = await supabase.from("perfiles").select("foto_url").eq("id", user.id).single();

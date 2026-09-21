@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mux } from "@/lib/mux/client";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { logError } from "@/lib/log";
+import { getUsuarioActual } from "@/lib/perfil";
 
 // Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5,
 // tarea "Reproductor Mux con URL firmada"): un token capturado de la red
@@ -44,9 +45,7 @@ export async function resolverTokenReproduccion(
   supabase: SupabaseClient,
   leccionId: string,
 ): Promise<TokenReproduccionResultado> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
 
   const { data: leccion } = await supabase
     .from("lecciones")

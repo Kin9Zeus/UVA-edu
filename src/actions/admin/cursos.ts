@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -362,6 +363,10 @@ export async function crearCurso(input: {
   });
 
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   return { success: true, id: data.id, slug: data.slug };
 }
 
@@ -448,6 +453,10 @@ export async function actualizarInfoCurso(
   revalidatePath("/admin/cursos");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   revalidarCursoPublico();
   // El slug sale del título: si cambió, la URL donde está el administrador
   // (/admin/cursos/<slug-viejo>) ya no resuelve. CursoDetalleView usa este
@@ -524,6 +533,10 @@ export async function actualizarConfiguracionCurso(
 
   revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   return { success: true };
 }
 
@@ -551,6 +564,10 @@ export async function alternarPublicacionCurso(cursoId: string, mostrado: boolea
   });
 
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   revalidarCursoAdmin();
   return { success: true };
 }
@@ -613,6 +630,10 @@ export async function subirPortadaCurso(
 
   revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   revalidarCursoPublico();
   return { success: true, url: publicUrl };
 }
@@ -665,6 +686,10 @@ export async function eliminarCurso(cursoId: string): Promise<AdminActionResult>
   });
 
   revalidatePath("/admin/cursos");
+  // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);
+  // esto lo vacia para que el cambio se vea en la siguiente peticion, sin
+  // ventana de contenido rancio.
+  revalidarCatalogoPublico();
   return { success: true };
 }
 

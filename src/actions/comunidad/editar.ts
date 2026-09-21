@@ -13,6 +13,7 @@ import {
   empleoEnlaceSchema,
 } from "@/lib/comunidad-validacion";
 import type { DatosEmpleoComunidad } from "@/actions/comunidad/crear";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type EditarPostComunidadResultado = { error: string } | { success: true };
 
@@ -55,9 +56,7 @@ export async function editarPostComunidad(
   datosEmpleo?: DatosEmpleoComunidad,
 ): Promise<EditarPostComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { data: post } = await supabase

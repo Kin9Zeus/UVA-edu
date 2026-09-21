@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BUCKET_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-adjuntos";
+import { getUsuarioActual } from "@/lib/perfil";
 
 // Solo tiene que sobrevivir el click — mismo criterio y misma duración que
 // obtenerUrlRecurso (src/actions/cursos/recurso.ts).
@@ -26,9 +27,7 @@ export type UrlAdjuntoComunidadResultado = { error: string } | { url: string };
  */
 export async function obtenerUrlAdjuntoComunidad(adjuntoId: string): Promise<UrlAdjuntoComunidadResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para descargar este archivo." };
 
   const { data: adjunto } = await supabase

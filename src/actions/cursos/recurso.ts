@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUsuarioActual } from "@/lib/perfil";
 
 const BUCKET_MATERIALES = "materiales-lecciones";
 // Solo tiene que sobrevivir el click: el navegador abre la URL de
@@ -34,9 +35,7 @@ export type UrlRecursoResultado = { error: string } | { url: string };
  */
 export async function obtenerUrlRecurso(recursoId: string): Promise<UrlRecursoResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para descargar este material." };
 
   const { data: recurso } = await supabase

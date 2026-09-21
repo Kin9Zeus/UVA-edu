@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/perfil";
 
 export type LikeComentarioResultado = { error: string } | { success: true };
 
@@ -17,9 +18,7 @@ export async function darLikeComentario(
   ruta: string,
 ): Promise<LikeComentarioResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
@@ -41,9 +40,7 @@ export async function quitarLikeComentario(
   ruta: string,
 ): Promise<LikeComentarioResultado> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
   const { error } = await supabase
