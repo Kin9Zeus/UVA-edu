@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 // componente servidor (`SoporteContent`) y se pasa como `children` al
 // `Accordion` cliente, patrón normal de RSC.
 export type TemaSoporte =
-  "centro-de-ayuda" | "contacto" | "terminos" | "privacidad";
+  "centro-de-ayuda" | "contacto" | "terminos y condiciones" | "privacidad";
 
 // Contenido redactado a partir de docs/legal/contenido-soporte.md (borrador
 // revisado). A diferencia de Contacto/Términos/Privacidad, esta sección no
@@ -146,8 +146,8 @@ export const TEMAS_SOPORTE: {
       "Contenido en preparación. Pronto encontrarás aquí las formas de comunicarte con nosotros.",
   },
   {
-    id: "terminos",
-    titulo: "Términos",
+    id: "terminos y condiciones",
+    titulo: "Términos y condiciones",
     contenido:
       "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de U.V.A.",
   },
