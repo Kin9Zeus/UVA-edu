@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, X } from "lucide-react";
+import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { formatDuracion } from "@/lib/admin/format";
 import type { LeccionPlayerItem } from "@/lib/leccion";
 
@@ -95,12 +96,7 @@ export function TemarioDrawer({
                   >
                     <div className="relative h-[38px] w-[62px] shrink-0 overflow-hidden rounded-uva-md bg-uva-surface-2">
                       {leccion.miniaturaUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
-                        <img
-                          src={leccion.miniaturaUrl}
-                          alt=""
-                          className="absolute inset-0 size-full object-cover"
-                        />
+                        <MiniaturaMux src={leccion.miniaturaUrl} className="absolute inset-0 size-full object-cover" />
                       )}
                       {completadaSinAbrir ? (
                         <div className="absolute inset-0 grid place-items-center bg-uva-bg/45">

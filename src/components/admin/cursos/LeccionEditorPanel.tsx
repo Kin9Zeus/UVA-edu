@@ -301,6 +301,7 @@ export function LeccionEditorPanel({
                 errorProcesamiento={video.errorProcesamiento}
                 idMuxUploadId={leccion.idMuxUploadId}
                 idVideoMux={video.idVideoMux}
+                estudiantesConNotas={leccion.estudiantesConNotas}
                 onEstadoChange={(cambios) => {
                   setVideo(cambios);
                   setDuracion(cambios.duracion);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw, UploadCloud } from "lucide-react";
+import { RotateCcw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -10,6 +10,7 @@ import {
   contarProgresoLeccion,
   iniciarSubidaVideoLeccion,
   obtenerEstadoProcesamientoLeccion,
+  quitarVideoLeccion,
 } from "@/actions/admin/mux";
 import type { EstadoProcesamiento } from "@/actions/admin/mux";
 
@@ -54,6 +55,7 @@ export function VideoUploader({
   idMuxUploadId,
   idVideoMux,
   titulo,
+  estudiantesConNotas,
   onEstadoChange,
 }: {
   leccionId: string;
@@ -63,6 +65,9 @@ export function VideoUploader({
   idMuxUploadId: string | null;
   idVideoMux: string | null;
   titulo: string;
+  /** Para el aviso de "Quitar video": sus notas quedan, pero sus marcas de
+   * tiempo dejan de corresponder a un video. Solo el número (117). */
+  estudiantesConNotas: number;
   onEstadoChange: (cambios: {
     estadoProcesamiento: EstadoProcesamiento;
     errorProcesamiento: string | null;
@@ -74,6 +79,11 @@ export function VideoUploader({
   const [confirmandoReemplazo, setConfirmandoReemplazo] = useState<{ totalEstudiantes: number } | null>(
     null,
   );
+  const [confirmandoQuitar, setConfirmandoQuitar] = useState<{ totalEstudiantes: number } | null>(null);
+  // `idMuxUploadId` llega como foto del momento en que se montó el editor:
+  // tras "Quitar video" hay que olvidarlo aquí, o la vista de abajo seguiría
+  // creyendo que hay una subida en curso ("Procesando").
+  const [uploadPendiente, setUploadPendiente] = useState(idMuxUploadId);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -122,8 +132,9 @@ export function VideoUploader({
       setLocal({ fase: "error", mensaje: inicio.error ?? "No pudimos iniciar la subida." });
       return;
     }
-    // Mux ya limpió cualquier estado anterior (id_mux_asset_id, error) al
-    // crear este upload; reflejarlo también localmente para que el resto
+    // El servidor ya limpió el error anterior al crear este upload (el
+    // asset viejo sigue anotado hasta que el nuevo esté listo, para poder
+    // borrarlo de Mux); reflejarlo también localmente para que el resto
     // del panel dejemos de mostrar el video/errores del intento previo.
     onEstadoChange({
       estadoProcesamiento: "SUBIENDO",
@@ -169,6 +180,23 @@ export function VideoUploader({
     handleElegirArchivo();
   }
 
+  async function handleClickQuitar() {
+    const resultado = await contarProgresoLeccion(leccionId);
+    setConfirmandoQuitar({ totalEstudiantes: resultado.total ?? 0 });
+  }
+
+  async function handleQuitar() {
+    const resultado = await quitarVideoLeccion(leccionId, cursoId);
+    setConfirmandoQuitar(null);
+    if (resultado.error) {
+      setLocal({ fase: "error", mensaje: resultado.error });
+      return;
+    }
+    setUploadPendiente(null);
+    setLocal({ fase: "inactivo" });
+    onEstadoChange({ estadoProcesamiento: "SUBIENDO", errorProcesamiento: null, idVideoMux: null, duracion: null });
+  }
+
   const inputOculto = (
     <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleArchivoElegido} />
   );
@@ -195,6 +223,40 @@ export function VideoUploader({
     />
   );
 
+  const dialogoConfirmarQuitar = confirmandoQuitar && (
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => !open && setConfirmandoQuitar(null)}
+      title="Quitar video"
+      description={
+        <>
+          El video se borrará de Mux y la lección quedará sin video hasta que subas otro. Esta
+          acción no se puede deshacer.
+          {confirmandoQuitar.totalEstudiantes > 0 && (
+            <>
+              {" "}
+              {confirmandoQuitar.totalEstudiantes === 1
+                ? "1 estudiante tiene"
+                : `${confirmandoQuitar.totalEstudiantes} estudiantes tienen`}{" "}
+              progreso en esta lección: se reinicia su punto de reanudación; la marca de
+              &quot;completada&quot; no se pierde.
+            </>
+          )}
+          {estudiantesConNotas > 0 && (
+            <>
+              {" "}
+              {estudiantesConNotas === 1 ? "1 estudiante tiene" : `${estudiantesConNotas} estudiantes tienen`}{" "}
+              notas con marca de tiempo en esta lección: se conservan, pero dejarán de apuntar a
+              un momento del video.
+            </>
+          )}
+        </>
+      }
+      confirmLabel="Quitar video"
+      onConfirm={handleQuitar}
+    />
+  );
+
   // Prioridad: lo que está pasando EN ESTA sesión del navegador (local) por
   // encima de lo último que sabíamos por props/polling — así el porcentaje
   // de subida no se pisa con un estado desactualizado.
@@ -216,7 +278,7 @@ export function VideoUploader({
     );
   }
 
-  if (local.fase === "procesando" || (idMuxUploadId && estadoProcesamiento !== "LISTO" && estadoProcesamiento !== "ERROR")) {
+  if (local.fase === "procesando" || (uploadPendiente && estadoProcesamiento !== "LISTO" && estadoProcesamiento !== "ERROR")) {
     return (
       <div className="flex items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-3.5 py-3">
         {inputOculto}
@@ -255,10 +317,17 @@ export function VideoUploader({
       <div className="flex flex-col gap-2">
         {inputOculto}
         {dialogoConfirmarReemplazo}
+        {dialogoConfirmarQuitar}
         <VideoPlayer leccionId={leccionId} titulo={titulo} />
-        <Button type="button" variant="outline" size="sm" onClick={handleClickReemplazar}>
-          Reemplazar video
-        </Button>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" className="flex-1" onClick={handleClickReemplazar}>
+            Reemplazar video
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleClickQuitar}>
+            <Trash2 className="size-3.5" />
+            Quitar video
+          </Button>
+        </div>
       </div>
     );
   }

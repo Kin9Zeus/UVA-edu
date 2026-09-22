@@ -7,6 +7,12 @@ import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  borrarAssetsEncolados,
+  deshacerEncolado,
+  encolarAssetsParaBorrar,
+  type AssetPorBorrar,
+} from "@/lib/mux/limpieza";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
@@ -750,11 +756,56 @@ export async function eliminarModulo(moduloId: string): Promise<AdminActionResul
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
 
-  const { error } = await admin.supabase.from("modulos").delete().eq("id", moduloId);
-  if (error) return { error: "No pudimos eliminar el módulo." };
+  // Sus lecciones se van con el módulo (ON DELETE CASCADE), y sus videos
+  // tienen que irse de Mux con ellas — ver `borrarConSusVideos`.
+  const { data: lecciones, error: errorLecciones } = await admin.supabase
+    .from("lecciones")
+    .select("id, id_mux_asset_id")
+    .eq("id_modulo", moduloId);
+  if (errorLecciones) return { error: "No pudimos leer las lecciones del módulo." };
+
+  const borrado = await borrarConSusVideos(assetsDeLecciones(lecciones ?? []), () =>
+    admin.supabase.from("modulos").delete().eq("id", moduloId),
+  );
+  if (borrado === "sin-cola") return { error: "No pudimos preparar el borrado de los videos. Intenta de nuevo." };
+  if (borrado === "error") return { error: "No pudimos eliminar el módulo." };
 
   revalidarCursoAdmin();
   return { success: true };
+}
+
+function assetsDeLecciones(lecciones: { id: string; id_mux_asset_id: string | null }[]): AssetPorBorrar[] {
+  return lecciones
+    .filter((leccion) => leccion.id_mux_asset_id)
+    .map((leccion) => ({ idLeccion: leccion.id, idAsset: leccion.id_mux_asset_id! }));
+}
+
+/**
+ * Borra una lección o un módulo junto con sus videos en Mux (P2-7,
+ * AUDIT-2026-09-22.md). Antes solo se borraba la fila y el video quedaba
+ * huérfano en Mux ocupando uno de los 10 cupos del plan gratuito.
+ *
+ * Orden: encolar los assets → borrar la fila → recién entonces borrarlos en
+ * Mux. Si el DELETE falla, los videos siguen en uso y se sacan de la cola
+ * (`mux:limpiar` no comprueba si un asset se usa). Si falla el borrado en
+ * Mux, queda en cola para `npm run mux:limpiar`.
+ */
+async function borrarConSusVideos(
+  assets: AssetPorBorrar[],
+  borrarFila: () => PromiseLike<{ error: unknown }>,
+): Promise<"ok" | "sin-cola" | "error"> {
+  const servicio = createAdminClient();
+  const idsCola = await encolarAssetsParaBorrar(servicio, assets);
+  if (!idsCola) return "sin-cola";
+
+  const { error } = await borrarFila();
+  if (error) {
+    await deshacerEncolado(servicio, idsCola);
+    return "error";
+  }
+
+  await borrarAssetsEncolados(servicio, assets, idsCola);
+  return "ok";
 }
 
 /**
@@ -913,15 +964,19 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(leccionId).success) return { error: "Lección inválida." };
 
-  // El título hace falta ANTES del delete — después ya no hay de dónde
-  // leerlo para la bitácora.
+  // El título y el asset hacen falta ANTES del delete — después ya no hay
+  // de dónde leerlos.
   const [{ data: leccion }, { data: curso }] = await Promise.all([
-    admin.supabase.from("lecciones").select("titulo").eq("id", leccionId).maybeSingle(),
+    admin.supabase.from("lecciones").select("titulo, id_mux_asset_id").eq("id", leccionId).maybeSingle(),
     admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
   ]);
 
-  const { error } = await admin.supabase.from("lecciones").delete().eq("id", leccionId);
-  if (error) return { error: "No pudimos eliminar la lección." };
+  const assets = assetsDeLecciones(leccion ? [{ id: leccionId, ...leccion }] : []);
+  const borrado = await borrarConSusVideos(assets, () =>
+    admin.supabase.from("lecciones").delete().eq("id", leccionId),
+  );
+  if (borrado === "sin-cola") return { error: "No pudimos preparar el borrado del video. Intenta de nuevo." };
+  if (borrado === "error") return { error: "No pudimos eliminar la lección." };
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,

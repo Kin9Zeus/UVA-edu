@@ -270,6 +270,14 @@
 > 3. Se ejecuta el proceso de *Direct Upload* a Mux generando un nuevo playback\_id.  
 > 4. El backend actualiza la columna id\_video\_mux de la lección con el nuevo identificador.  
 > 5. **Regla de integridad:** Se conservan intactos el ID de la lección y las asociaciones en módulos. Sobre el progreso de cada estudiante: la marca de lección **completada** se conserva (el video sigue siendo, en esencia, el mismo contenido), pero el **segundo de reanudación se reinicia a 0**, porque el video cambió y el punto exacto donde iba el estudiante ya no corresponde a nada coherente en el archivo nuevo.
+> 6. Al confirmarse el video nuevo, el anterior se **borra de Mux** (no queda ocupando cupo del plan).
+
+### **Flujo 10b: Backoffice — Quitar el Video de una Lección**
+
+> 1. En el editor de la lección, con un video listo, el Administrador selecciona "Quitar video". Un diálogo avisa cuántos estudiantes tienen progreso (se reinicia su punto de reanudación; la marca de completada se conserva) y cuántos tienen notas con marca de tiempo (se conservan, pero dejan de apuntar a un momento del video).
+> 2. Al confirmar, el video se **borra de Mux** y la lección vuelve al estado "sin video" de una lección recién creada, lista para subir otro. Su transcripción se elimina.
+> 3. **Eliminar una lección o un módulo** también borra de Mux los videos de las lecciones eliminadas; el diálogo de confirmación lo advierte.
+> 4. Si alguien borra un video directamente desde el panel de Mux, la lección pasa a **Error** ("El video se borró en Mux") para que el equipo lo note y suba otro, en vez de seguir marcada como lista con un video inexistente.
 
 ### **Flujo 11: Backoffice — Otorgamiento de Accesos Manuales y Cortesías**
 

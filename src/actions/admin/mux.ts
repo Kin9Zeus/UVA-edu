@@ -1,12 +1,34 @@
 "use server";
 
 import { headers } from "next/headers";
+import { z } from "zod";
 import { mux } from "@/lib/mux/client";
+import { borrarAssetsEncolados, deshacerEncolado, encolarAssetsParaBorrar } from "@/lib/mux/limpieza";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
-import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
+import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
+import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
 import type { AdminActionResult } from "@/actions/admin/categorias";
+
+const idSchema = z.string().uuid();
+
+/**
+ * Los campos que dejan una lección "sin video": los mismos valores con los
+ * que nace una lección recién creada (`SUBIENDO` sin `id_mux_upload_id` es
+ * el estado "todavía no tiene video" que ya entiende el panel).
+ * scripts/mux-sincronizar-assets.ts repite estos valores (no puede importar
+ * un archivo "use server").
+ */
+const LECCION_SIN_VIDEO = {
+  id_video_mux: null,
+  id_mux_asset_id: null,
+  id_mux_upload_id: null,
+  duracion: null,
+  estado_procesamiento: "SUBIENDO",
+  error_procesamiento: null,
+} as const;
 
 /**
  * Excepción deliberada a `siteUrl()` (src/lib/site-url.ts) — el único sitio
@@ -107,11 +129,15 @@ export async function iniciarSubidaVideoLeccion(
     return { error: "Mux no devolvió una URL de subida." };
   }
 
+  // `id_mux_asset_id` NO se limpia acá: es lo que `video.asset.ready` lee
+  // para saber qué asset viejo borrar al confirmar un reemplazo. Antes se
+  // ponía en null, así que esa limpieza nunca encontraba nada y cada
+  // reemplazo dejaba el video anterior huérfano en Mux ocupando cupo (P2-7,
+  // AUDIT-2026-09-22.md).
   const { error } = await admin.supabase
     .from("lecciones")
     .update({
       id_mux_upload_id: upload.id,
-      id_mux_asset_id: null,
       estado_procesamiento: "SUBIENDO",
       error_procesamiento: null,
     })
@@ -195,4 +221,85 @@ export async function contarProgresoLeccion(leccionId: string): Promise<ConteoPr
 
   if (error) return { error: "No pudimos comprobar el progreso de los estudiantes." };
   return { total: count ?? 0 };
+}
+
+/**
+ * "Quitar video" del editor de lecciones (P2-7, AUDIT-2026-09-22.md).
+ *
+ * Antes no existía: la única salida para liberar un cupo del plan de Mux era
+ * borrar el asset desde el panel de Mux, y la lección quedaba en LISTO
+ * apuntando a un video inexistente (reproductor que no carga, miniatura
+ * rota). Ahora la lección vuelve al estado "sin video" y el asset se borra
+ * de Mux en el mismo paso.
+ *
+ * Orden, para que ningún fallo deje un video vivo en la cola ni un asset
+ * huérfano sin registro:
+ *   1. encolar el asset en `mux_assets_pendientes_eliminacion`;
+ *   2. quitarle el video a la lección — si falla, se deshace el encolado
+ *      (el asset sigue en uso);
+ *   3. recién entonces borrarlo de Mux. Si eso falla, queda en cola para
+ *      `npm run mux:limpiar`; la lección ya está sin video igual.
+ *
+ * Un upload todavía en curso (sin asset) no se encola: al limpiar
+ * `id_mux_upload_id`, el `video.asset.ready` que llegue después no encuentra
+ * lección y el webhook borra ese asset huérfano.
+ *
+ * Como en un reemplazo, el segundo de reanudación de los estudiantes vuelve a
+ * 0 y la marca de completada se conserva. La transcripción se borra: describe
+ * un video que ya no existe, y el generador de exámenes la usaría.
+ */
+export async function quitarVideoLeccion(leccionId: string, cursoId: string): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+  if (!idSchema.safeParse(leccionId).success || !idSchema.safeParse(cursoId).success) {
+    return { error: "Lección inválida." };
+  }
+
+  const [{ data: leccion }, { data: curso }] = await Promise.all([
+    admin.supabase
+      .from("lecciones")
+      .select("id, titulo, id_mux_asset_id, id_mux_upload_id")
+      .eq("id", leccionId)
+      .maybeSingle(),
+    admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
+  ]);
+  if (!leccion) return { error: "La lección no existe." };
+  if (!leccion.id_mux_asset_id && !leccion.id_mux_upload_id) {
+    return { error: "Esta lección no tiene video." };
+  }
+
+  const servicio = createAdminClient();
+  const assets = leccion.id_mux_asset_id ? [{ idLeccion: leccionId, idAsset: leccion.id_mux_asset_id }] : [];
+  const idsCola = await encolarAssetsParaBorrar(servicio, assets);
+  if (!idsCola) return { error: "No pudimos preparar el borrado del video. Intenta de nuevo." };
+
+  const { error } = await admin.supabase.from("lecciones").update(LECCION_SIN_VIDEO).eq("id", leccionId);
+  if (error) {
+    await deshacerEncolado(servicio, idsCola);
+    return { error: "No pudimos quitar el video de la lección." };
+  }
+
+  // Service Role: son filas de otros usuarios, y el admin no tiene policy
+  // de escritura sobre `progreso` ni sobre `transcripciones_video`.
+  await Promise.all([
+    servicio.from("progreso").update({ segundo_actual: 0 }).eq("id_leccion", leccionId),
+    servicio.from("transcripciones_video").delete().eq("id_leccion", leccionId),
+  ]);
+
+  await borrarAssetsEncolados(servicio, assets, idsCola);
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Quitó el video de una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoId,
+    detalles: `${curso?.titulo ?? "curso desconocido"} — ${leccion.titulo ?? "sin título"}${
+      leccion.id_mux_asset_id ? ` (asset: ${leccion.id_mux_asset_id})` : " (subida en curso)"
+    }`,
+  });
+
+  revalidarCursoAdmin();
+  revalidarCursoPublico();
+  revalidarCatalogoPublico();
+  return { success: true };
 }

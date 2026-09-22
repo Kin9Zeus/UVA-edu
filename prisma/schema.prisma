@@ -829,16 +829,13 @@ model Lecciones {
   @@map("lecciones")
 }
 
-/// Cola de assets de Mux pendientes de eliminar tras un reemplazo de video
-/// (ver comentario en id_video_mux arriba: el asset viejo nunca se borra
-/// antes de confirmar que el nuevo quedó listo). Se llena desde el webhook
-/// (video.asset.ready) porque es el único punto que ve el id del asset
-/// anterior antes de que el UPDATE de `lecciones` lo sobreescriba.
-///
-/// El borrado real contra la API de Mux (mux.video.assets.delete) todavía
-/// no está implementado — depende de tener acceso al dominio de Mux del
-/// equipo. `eliminado`/`eliminado_en` quedan listos para cuando exista ese
-/// job de limpieza.
+/// Cola de assets de Mux por borrar. Todo borrado de un video pasa primero
+/// por acá (src/lib/mux/limpieza.ts): el reemplazo (webhook
+/// video.asset.ready), "Quitar video", eliminar una lección o un módulo, y
+/// los assets huérfanos que ninguna lección espera (P2-7,
+/// AUDIT-2026-09-22.md). Se borra en Mux en el acto; lo que falle queda con
+/// `eliminado = false` y lo reintenta `npm run mux:limpiar`.
+/// `id_leccion` es null para los huérfanos y tras borrar la lección.
 model MuxAssetsPendientesEliminacion {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_leccion   String?   @db.Uuid

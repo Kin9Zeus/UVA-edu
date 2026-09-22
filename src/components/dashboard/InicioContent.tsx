@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatHoras } from "@/lib/admin/format";
@@ -70,11 +71,20 @@ export function InicioContent({
                   }
                 >
                   {clase.reanudarEn ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
-                    <img
+                    <MiniaturaMux
                       src={clase.reanudarEn.url}
-                      alt=""
                       className="absolute inset-0 size-full object-cover"
+                      respaldo={
+                        esPortadaReal(clase.imagenPortada) && (
+                          <Image
+                            src={clase.imagenPortada}
+                            alt=""
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover"
+                          />
+                        )
+                      }
                     />
                   ) : (
                     esPortadaReal(clase.imagenPortada) && (

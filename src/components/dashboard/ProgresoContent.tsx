@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import {
   Select,
   SelectContent,
@@ -134,11 +135,20 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   }
                 >
                   {curso.reanudarEn ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
-                    <img
+                    <MiniaturaMux
                       src={curso.reanudarEn.url}
-                      alt=""
                       className="absolute inset-0 size-full object-cover"
+                      respaldo={
+                        esPortadaReal(curso.imagenPortada) && (
+                          <Image
+                            src={curso.imagenPortada}
+                            alt=""
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover"
+                          />
+                        )
+                      }
                     />
                   ) : (
                     esPortadaReal(curso.imagenPortada) && (

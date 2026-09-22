@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { BarChart2, ChevronLeft, CircleCheck, Clock, Download, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
@@ -42,10 +43,8 @@ function MiniaturaClase({
   return (
     <div className="relative h-[42px] w-[72px] shrink-0 overflow-hidden rounded-uva-md bg-uva-surface-2">
       {url && (
-        // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
-        <img
+        <MiniaturaMux
           src={url}
-          alt=""
           loading="lazy"
           className={`absolute inset-0 size-full object-cover ${bloqueada ? "opacity-40" : ""}`}
         />

@@ -411,6 +411,7 @@ export function ModuloCard({
           <>
             ¿Eliminar &quot;{modulo.titulo}&quot; y todas sus lecciones? Esta acción no se puede
             deshacer.
+            {modulo.lecciones.some((leccion) => leccion.idVideoMux) && " Sus videos también se borrarán de Mux."}
             {modulo.estudiantesConProgreso > 0 && (
               <>
                 {" "}
@@ -442,6 +443,7 @@ export function ModuloCard({
         description={
           <>
             ¿Eliminar &quot;{borrandoLeccion?.titulo}&quot;? Esta acción no se puede deshacer.
+            {borrandoLeccion?.idVideoMux && " Su video también se borrará de Mux."}
             {!!borrandoLeccion && borrandoLeccion.estudiantesConProgreso > 0 && (
               <>
                 {" "}

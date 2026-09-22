@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import Mux from "@mux/mux-node";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
-import { eliminarAssetMux } from "@/lib/mux/limpieza";
+import { borrarAssetsEncolados, eliminarAssetMux, encolarAssetsParaBorrar } from "@/lib/mux/limpieza";
 import { descargarTranscripcionMux } from "@/lib/mux/transcripcion";
 import { logError } from "@/lib/log";
 
@@ -125,6 +125,18 @@ export async function POST(request: NextRequest) {
         .select("id, id_mux_asset_id")
         .eq("id_mux_upload_id", data.upload_id)
         .maybeSingle();
+
+      // Ninguna lección espera este upload: se superó con otro ("Cancelar y
+      // reintentar"), se quitó el video o se borró la lección mientras Mux
+      // procesaba. Nadie va a reproducir este asset, y con el plan gratuito
+      // de Mux (10 videos) cada huérfano ocupa un cupo: se borra ya (P2-7,
+      // AUDIT-2026-09-22.md). Encolado primero, igual que el reemplazo.
+      if (!leccionActual) {
+        const huerfano = [{ idLeccion: null, idAsset: data.id }];
+        const idsCola = await encolarAssetsParaBorrar(admin, huerfano);
+        if (idsCola) await borrarAssetsEncolados(admin, huerfano, idsCola);
+        break;
+      }
 
       const { error } = await admin
         .from("lecciones")
@@ -265,6 +277,47 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ error: "no se pudo actualizar la lección" }, { status: 500 });
       }
+      break;
+    }
+
+    // Red de seguridad de P2-7 (AUDIT-2026-09-22.md): alguien borró el asset
+    // desde el panel de Mux. Antes nadie se enteraba y la lección seguía en
+    // LISTO apuntando a un video inexistente (reproductor que no carga,
+    // miniatura rota). Ahora queda en ERROR con un mensaje que el panel ya
+    // sabe mostrar, con el botón "Reintentar" para subir otro.
+    //
+    // Los borrados que hace la propia app (quitar video, reemplazo,
+    // eliminar lección) no caen acá: para cuando llega este evento, ninguna
+    // lección apunta ya a ese asset.
+    case "video.asset.deleted": {
+      const data = evento.data as DatosAsset;
+
+      const { error } = await admin
+        .from("lecciones")
+        .update({
+          id_video_mux: null,
+          id_mux_asset_id: null,
+          duracion: null,
+          estado_procesamiento: "ERROR",
+          error_procesamiento: "El video se borró en Mux. Sube uno nuevo.",
+        })
+        .eq("id_mux_asset_id", data.id);
+
+      if (error) {
+        logError("webhook:mux", "no se pudo marcar la lección tras borrarse el asset en Mux", error, {
+          area: "webhook",
+          idEvento: evento.id,
+          assetId: data.id,
+        });
+        return NextResponse.json({ error: "no se pudo actualizar la lección" }, { status: 500 });
+      }
+
+      // Si ese asset estaba en la cola de borrado, ya no hay nada que borrar.
+      await admin
+        .from("mux_assets_pendientes_eliminacion")
+        .update({ eliminado: true, eliminado_en: new Date().toISOString() })
+        .eq("id_asset_mux", data.id)
+        .eq("eliminado", false);
       break;
     }
 
