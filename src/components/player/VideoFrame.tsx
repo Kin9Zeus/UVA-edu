@@ -1,7 +1,8 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { VideoPlayer } from "@/components/features/VideoPlayer";
+import type { RefObject } from "react";
+import { VideoPlayer, type ControlReproductor } from "@/components/features/VideoPlayer";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,6 +26,7 @@ export function VideoFrame({
   titulo,
   segundoActual,
   onTerminado,
+  controlRef,
   className,
 }: {
   leccionId: string;
@@ -34,6 +36,8 @@ export function VideoFrame({
   segundoActual?: number;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
+  /** Ver ControlReproductor (features/VideoPlayer.tsx). */
+  controlRef?: RefObject<ControlReproductor | null>;
   className?: string;
 }) {
   if (videoListo) {
@@ -45,6 +49,7 @@ export function VideoFrame({
           titulo={titulo}
           segundoActual={segundoActual}
           onTerminado={onTerminado}
+          controlRef={controlRef}
         />
       </div>
     );

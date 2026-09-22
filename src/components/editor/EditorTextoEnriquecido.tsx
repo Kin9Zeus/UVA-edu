@@ -65,9 +65,21 @@ export const EditorTextoEnriquecido = forwardRef<
      * publicación nueva. Se hidrata una sola vez, al montar. */
     contenidoInicial?: string;
     etiquetaAdjuntoExistente?: (id: string) => string;
+    /** Oculta el botón de adjuntar: solo Comunidad sube archivos. Las
+     * notas de clase (NotasTab) reusan el editor sin adjuntos. */
+    sinAdjuntos?: boolean;
   }
 >(function EditorTextoEnriquecido(
-  { placeholder, autoFocus, onCambiar, onErrorAdjunto, alturaMinima = "min-h-24", contenidoInicial, etiquetaAdjuntoExistente },
+  {
+    placeholder,
+    autoFocus,
+    onCambiar,
+    onErrorAdjunto,
+    alturaMinima = "min-h-24",
+    contenidoInicial,
+    etiquetaAdjuntoExistente,
+    sinAdjuntos = false,
+  },
   ref,
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -170,18 +182,22 @@ export const EditorTextoEnriquecido = forwardRef<
             <Icono className="size-[15px]" strokeWidth={2.2} />
           </button>
         ))}
-        <div className="mx-1 h-5 w-px bg-uva-divider" />
-        <button
-          type="button"
-          title="Adjuntar imagen o archivo"
-          aria-label="Adjuntar imagen o archivo"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => fileInputRef.current?.click()}
-          className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text"
-        >
-          <Paperclip className="size-[15px]" strokeWidth={2.2} />
-        </button>
-        <input ref={fileInputRef} type="file" accept={ACEPTA_ADJUNTO} multiple className="hidden" onChange={elegirArchivos} />
+        {!sinAdjuntos && (
+          <>
+            <div className="mx-1 h-5 w-px bg-uva-divider" />
+            <button
+              type="button"
+              title="Adjuntar imagen o archivo"
+              aria-label="Adjuntar imagen o archivo"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => fileInputRef.current?.click()}
+              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text"
+            >
+              <Paperclip className="size-[15px]" strokeWidth={2.2} />
+            </button>
+            <input ref={fileInputRef} type="file" accept={ACEPTA_ADJUNTO} multiple className="hidden" onChange={elegirArchivos} />
+          </>
+        )}
       </div>
       {/* `text-base sm:text-sm`, como `ui/input`: con 14 px, iOS Safari hace
           zoom al enfocar el editor (lo hace con cualquier campo de menos de

@@ -3,6 +3,7 @@ import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructor
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { estadoDeCurso, porcentajeMostrado, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
+import { logError } from "@/lib/log";
 
 export type RecursoDetalle = {
   id: string;
@@ -30,6 +31,10 @@ export type LeccionDetalle = {
    * cascade de la base (progreso.id_leccion → ON DELETE CASCADE) la borra
    * en silencio si no se avisa antes. */
   estudiantesConProgreso: number;
+  /** Estudiantes distintos con notas privadas en esta lección. Solo el
+   * número (admin_notas_por_leccion, 117): el admin no lee notas. Mismo
+   * motivo de aviso que el progreso — el cascade también las borra. */
+  estudiantesConNotas: number;
 };
 
 export type ModuloDetalle = {
@@ -40,6 +45,8 @@ export type ModuloDetalle = {
   /** Unión de estudiantesConProgreso de todas sus lecciones (sin duplicar
    * quien tiene progreso en más de una). */
   estudiantesConProgreso: number;
+  /** Estudiantes distintos con notas en alguna de sus lecciones. */
+  estudiantesConNotas: number;
 };
 
 export type EstudianteDeCurso = {
@@ -199,10 +206,21 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     .select("id, id_usuario, tipo_acceso, activo, usuario:perfiles!inscripciones_id_usuario_fkey(nombre, slug)")
     .eq("id_curso", cursoId);
 
-  const { data: progreso } =
+  const [{ data: progreso }, { data: notasPorNivel, error: errorNotas }] = await Promise.all([
     leccionIds.length > 0
-      ? await supabase.from("progreso").select("id_usuario, id_leccion, completado").in("id_leccion", leccionIds)
-      : { data: [] };
+      ? supabase.from("progreso").select("id_usuario, id_leccion, completado").in("id_leccion", leccionIds)
+      : Promise.resolve({ data: [] as { id_usuario: string; id_leccion: string; completado: boolean }[] }),
+    supabase.rpc("admin_notas_por_leccion", { p_id_curso: cursoId }),
+  ]);
+  // Si el conteo falla, el aviso sale sin la línea de notas: el borrado no
+  // depende de esto, pero conviene enterarse.
+  if (errorNotas) {
+    logError("admin:cursoDetalle", "no se pudo contar las notas por lección", errorNotas, { cursoId });
+  }
+  const estudiantesConNotas = new Map<string, number>();
+  for (const fila of (notasPorNivel ?? []) as { nivel: string; id: string; estudiantes: number }[]) {
+    estudiantesConNotas.set(`${fila.nivel}:${fila.id}`, fila.estudiantes);
+  }
 
   const progresoPorUsuario = new Map<string, { total: number; completados: number }>();
   const usuariosPorLeccion = new Map<string, Set<string>>();
@@ -221,12 +239,18 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     const lecciones = modulo.lecciones.map((leccion) => ({
       ...leccion,
       estudiantesConProgreso: usuariosPorLeccion.get(leccion.id)?.size ?? 0,
+      estudiantesConNotas: estudiantesConNotas.get(`leccion:${leccion.id}`) ?? 0,
     }));
     const usuariosModulo = new Set<string>();
     for (const leccion of lecciones) {
       for (const usuarioId of usuariosPorLeccion.get(leccion.id) ?? []) usuariosModulo.add(usuarioId);
     }
-    return { ...modulo, lecciones, estudiantesConProgreso: usuariosModulo.size };
+    return {
+      ...modulo,
+      lecciones,
+      estudiantesConProgreso: usuariosModulo.size,
+      estudiantesConNotas: estudiantesConNotas.get(`modulo:${modulo.id}`) ?? 0,
+    };
   });
 
   // Estado del examen final de ESTE curso para cada estudiante que aparece

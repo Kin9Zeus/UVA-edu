@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, FileCheck, List } from "lucide-react";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import type { LeccionPlayer } from "@/lib/leccion";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
+import type { NotaLeccion } from "@/lib/notas";
+import type { ControlReproductor } from "@/components/features/VideoPlayer";
 import { VideoFrame } from "./VideoFrame";
 import {
   TabsHeader,
   RecursosTab,
   ResumenTab,
   ComentariosTab,
+  PanelLateralHeader,
   contarComentarios,
+  type PanelLateral,
   type TabPlayer,
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
+import { NotasTab } from "./NotasTab";
 
 // Tarjeta de refuerzo psicológico: solo el % y cuántas clases faltan, sin la
 // lista de clases (esa vive en TemarioDrawer, no hay que duplicarla).
@@ -55,16 +60,25 @@ function ProgresoCard({
 export function PlayerContent({
   data,
   comentariosIniciales,
+  notasIniciales,
+  segundoEnUrl = null,
   usuarioActualId,
   esAdmin,
 }: {
   data: LeccionPlayer;
   comentariosIniciales: ComentarioConRespuestas[];
+  /** Notas privadas del usuario en esta clase (vacío sin sesión). */
+  notasIniciales: NotaLeccion[];
+  /** `?t=` de la URL: al llegar desde una nota, arranca en ese segundo en
+   * vez del punto de reanudación guardado en `progreso`. */
+  segundoEnUrl?: number | null;
   usuarioActualId: string | null;
   esAdmin: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<TabPlayer>("recursos");
+  // Panel derecho en desktop: Comentarios o Notas.
+  const [panel, setPanel] = useState<PanelLateral>("comentarios");
   const [temarioOpen, setTemarioOpen] = useState(false);
   const [completada, setCompletada] = useState(data.completada);
   // Copia local de qué clases están completadas: permite que la lista lateral
@@ -74,6 +88,32 @@ export function PlayerContent({
     new Map(data.lecciones.map((leccion) => [leccion.id, leccion.completado])),
   );
   const [, startTransition] = useTransition();
+  const controlRef = useRef<ControlReproductor | null>(null);
+  const videoRef = useRef<HTMLDivElement>(null);
+  // Las notas viven acá y no en NotasTab: cambiar de pestaña desmonta la
+  // pestaña, y lo recién guardado no debe perderse al volver. Van
+  // etiquetadas con su lección para descartarlas si este mismo componente
+  // se reutiliza al navegar a otra clase (mismo segmento de ruta).
+  const [estadoNotas, setEstadoNotas] = useState({ leccionId: data.leccionId, notas: notasIniciales });
+  if (estadoNotas.leccionId !== data.leccionId) {
+    setEstadoNotas({ leccionId: data.leccionId, notas: notasIniciales });
+  }
+  const notas = estadoNotas.notas;
+  const cambiarNotas = (actualizar: (notas: NotaLeccion[]) => NotaLeccion[]) =>
+    setEstadoNotas((estado) => ({ ...estado, notas: actualizar(estado.notas) }));
+
+  // Salto desde una nota: lleva el video al segundo y, si quedó fuera de
+  // la pantalla (en celular la lista está debajo), lo trae a la vista.
+  function saltarA(segundo: number) {
+    controlRef.current?.irA(segundo);
+    const marco = videoRef.current;
+    if (!marco) return;
+    const { top, bottom } = marco.getBoundingClientRect();
+    if (top < 0 || bottom > window.innerHeight) {
+      const reducirMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      marco.scrollIntoView({ behavior: reducirMovimiento ? "auto" : "smooth", block: "start" });
+    }
+  }
 
   // Se dispara al abrir la clase, no al terminarla: es lo que le da sentido
   // a "Seguir viendo" en la ficha del curso y a "Sigue aprendiendo" del
@@ -241,13 +281,14 @@ export function PlayerContent({
           {/* Mobile: el video llega a los bordes de la pantalla (margen
               negativo cancelando el padding del contenedor de la página);
               desde lg vuelve a su ancho normal dentro de la columna. */}
-          <div className="-mx-[clamp(20px,3vw,44px)] lg:mx-0">
+          <div ref={videoRef} className="-mx-[clamp(20px,3vw,44px)] scroll-mt-16 lg:mx-0">
             <VideoFrame
               leccionId={data.leccionId}
               videoListo={data.videoListo}
               titulo={data.leccionTitulo}
-              segundoActual={data.segundoActual}
+              segundoActual={segundoEnUrl ?? data.segundoActual}
               onTerminado={completarPorFinDeVideo}
+              controlRef={controlRef}
               className="rounded-none lg:rounded-uva-md"
             />
           </div>
@@ -271,9 +312,24 @@ export function PlayerContent({
               onTab={setTab}
               totalRecursos={data.recursos.length}
               totalComentarios={contarComentarios(comentariosIniciales)}
+              totalNotas={usuarioActualId ? notas.length : undefined}
             />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
             {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
+            {tab === "notas" && usuarioActualId && (
+              <div className="lg:hidden">
+                <NotasTab
+                  leccionId={data.leccionId}
+                  cursoSlug={data.cursoSlug}
+                  lecciones={data.lecciones}
+                  videoListo={data.videoListo}
+                  notas={notas}
+                  onCambiarNotas={cambiarNotas}
+                  controlRef={controlRef}
+                  onSaltar={saltarA}
+                />
+              </div>
+            )}
             {tab === "comentarios" && (
               <div className="lg:hidden">
                 <ComentariosTab
@@ -305,16 +361,36 @@ export function PlayerContent({
         <div className="hidden flex-col gap-[clamp(14px,2vw,24px)] lg:flex">
           <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
 
-          <div className="flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-            <ComentariosTab
-              ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
-              leccionId={data.leccionId}
-              comentarios={comentariosIniciales}
-              puedeComentar={data.puedeComentar}
-              usuarioActualId={usuarioActualId}
-              esAdmin={esAdmin}
-              onCambio={() => router.refresh()}
+          <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+            <PanelLateralHeader
+              panel={panel}
+              onPanel={setPanel}
+              totalComentarios={contarComentarios(comentariosIniciales)}
+              totalNotas={usuarioActualId ? notas.length : undefined}
             />
+            {panel === "notas" && usuarioActualId ? (
+              <NotasTab
+                leccionId={data.leccionId}
+                cursoSlug={data.cursoSlug}
+                lecciones={data.lecciones}
+                videoListo={data.videoListo}
+                notas={notas}
+                onCambiarNotas={cambiarNotas}
+                controlRef={controlRef}
+                onSaltar={saltarA}
+              />
+            ) : (
+              <ComentariosTab
+                ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
+                leccionId={data.leccionId}
+                comentarios={comentariosIniciales}
+                puedeComentar={data.puedeComentar}
+                usuarioActualId={usuarioActualId}
+                esAdmin={esAdmin}
+                onCambio={() => router.refresh()}
+                mostrarTitulo={false}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   Users,
   TrendingUp,
   Award,
+  NotebookPen,
   User,
   CreditCard,
   PanelLeftClose,
@@ -29,6 +30,7 @@ const navPrincipal = [
 const navProgreso = [
   { href: "/dashboard/progreso", label: "Progreso", icon: TrendingUp },
   { href: "/dashboard/certificados", label: "Certificados", icon: Award },
+  { href: "/dashboard/notas", label: "Mis notas", icon: NotebookPen },
   { href: "/dashboard/perfil", label: "Perfil", icon: User },
   { href: "/dashboard/suscripcion", label: "Suscripción", icon: CreditCard },
 ];

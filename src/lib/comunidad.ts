@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { esUuid } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { tiempoRelativo, extensionArchivo } from "@/lib/admin/format";
+import { tiempoRelativo, formatFecha, extensionArchivo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
 import { BUCKET_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-adjuntos";
 import type {
@@ -108,6 +108,18 @@ function datosEmpleoDeFila(fila: FilaPost): ComunidadDatosEmpleo | null {
     ubicacion: fila.empleo_ubicacion,
     enlace: fila.empleo_enlace,
   };
+}
+
+/**
+ * Empleo muestra fecha exacta (día/mes/año), no relativa: quien busca
+ * trabajo compara varias vacantes a la vez y necesita saber si sigue
+ * abierta — "hace 3 semanas" no distingue una publicación reciente de una
+ * que lleva meses ahí sin que nadie la cierre. El resto de Comunidad
+ * (preguntas, proyectos, anuncios) sigue con tiempo relativo, que es lo
+ * esperable en un foro.
+ */
+function tiempoDePost(fechaIso: string, categoria: CategoriaComunidad): string {
+  return categoria === "EMPLEO" ? formatFecha(fechaIso) : tiempoRelativo(fechaIso);
 }
 
 /**
@@ -333,7 +345,7 @@ export async function getComunidadFeed(opciones?: {
         // La función ya excluye las eliminadas.
         eliminado: false,
         eliminadoPorAdmin: false,
-        tiempo: tiempoRelativo(fila.creado_en),
+        tiempo: tiempoDePost(fila.creado_en, fila.categoria),
         autorId: fila.id_usuario,
         autorNombre: extra.autorNombre,
         autorFotoUrl: extra.autorFotoUrl,
@@ -402,7 +414,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
       fijado: false,
       eliminado: true,
       eliminadoPorAdmin: post.eliminado_por_admin,
-      tiempo: tiempoRelativo(post.creado_en),
+      tiempo: tiempoDePost(post.creado_en, post.categoria),
       autorId: post.id_usuario,
       autorNombre: autor?.nombre ?? "Estudiante UVA",
       autorFotoUrl: autor?.foto_url ?? null,
@@ -439,7 +451,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
     fijado: post.fijado,
     eliminado: post.eliminado,
     eliminadoPorAdmin: post.eliminado_por_admin,
-    tiempo: tiempoRelativo(post.creado_en),
+    tiempo: tiempoDePost(post.creado_en, post.categoria),
     autorId: post.id_usuario,
     autorNombre: extraPost.autorNombre,
     autorFotoUrl: extraPost.autorFotoUrl,

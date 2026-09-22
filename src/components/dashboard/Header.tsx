@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LogOut, CreditCard, Award, User, ShieldCheck, Users } from "lucide-react";
+import { ChevronDown, LogOut, CreditCard, Award,
+  NotebookPen, User, ShieldCheck, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
@@ -148,6 +149,13 @@ export function Header({
             >
               <Award className="size-4" />
               Mis certificados
+            </DropdownMenuLinkItem>
+            <DropdownMenuLinkItem
+              render={<Link href="/dashboard/notas" />}
+              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
+            >
+              <NotebookPen className="size-4" />
+              Mis notas
             </DropdownMenuLinkItem>
             {esAdmin && (
               <>

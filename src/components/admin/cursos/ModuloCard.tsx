@@ -53,6 +53,11 @@ const ESTADO_TONO = {
  * El estado de las lecciones vive en ContenidoTab (fuente única), porque el
  * editor lateral necesita ver y actualizar la misma lección que la fila.
  */
+/** D1 (docs/notas-leccion.md): borrar la lección borra también las notas privadas de los estudiantes. */
+function avisoNotas(estudiantes: number, donde: string): string {
+  return `${estudiantes === 1 ? "1 estudiante tiene" : `${estudiantes} estudiantes tienen`} notas personales en ${donde} — se eliminarán.`;
+}
+
 export function ModuloCard({
   modulo,
   posicion,
@@ -198,6 +203,7 @@ export function ModuloCard({
         idVideoMux: null,
         recursos: [],
         estudiantesConProgreso: 0,
+        estudiantesConNotas: 0,
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);
       onSeleccionarLeccion(nueva);
@@ -416,6 +422,14 @@ export function ModuloCard({
                 </strong>
               </>
             )}
+            {modulo.estudiantesConNotas > 0 && (
+              <>
+                {" "}
+                <strong className="text-uva-error-text">
+                  {avisoNotas(modulo.estudiantesConNotas, "estas lecciones")}
+                </strong>
+              </>
+            )}
           </>
         }
         confirmText={modulo.titulo}
@@ -436,6 +450,14 @@ export function ModuloCard({
                     ? "1 estudiante tiene"
                     : `${borrandoLeccion.estudiantesConProgreso} estudiantes tienen`}{" "}
                   progreso guardado en esta lección — se perderá.
+                </strong>
+              </>
+            )}
+            {!!borrandoLeccion && borrandoLeccion.estudiantesConNotas > 0 && (
+              <>
+                {" "}
+                <strong className="text-uva-error-text">
+                  {avisoNotas(borrandoLeccion.estudiantesConNotas, "esta lección")}
                 </strong>
               </>
             )}

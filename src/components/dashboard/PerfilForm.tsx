@@ -66,13 +66,16 @@ export function PerfilForm({
 
   return (
     <div
-      className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)]"
+      className="grid grid-cols-1 items-start gap-[18px] lg:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)]"
       style={{ maxWidth: 1080 }}
     >
-      <div className="flex flex-col gap-[18px]">
-        <h1 className="text-[36px] text-uva-text">Mi perfil</h1>
+      {/* En móvil las dos columnas se "disuelven" (`contents`) y cada bloque
+          se reubica con `order`: perfil → contraseña → acceso → certificados →
+          datos → eliminar. Desde `lg` vuelven a ser dos columnas. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-[18px]">
+        <h1 className="order-1 text-[36px] text-uva-text lg:order-none">Mi perfil</h1>
 
-        <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+        <div className="order-2 flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6 lg:order-none">
           <div className="flex items-center gap-4">
             <EditorFotoPerfil nombre={nombre} fotoUrl={fotoUrl} size="lg" />
             <div className="min-w-0">
@@ -223,9 +226,11 @@ export function PerfilForm({
           </form>
         </div>
 
-        <CambiarPasswordForm />
+        <div className="order-3 lg:order-none">
+          <CambiarPasswordForm />
+        </div>
 
-        <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
+        <div className="order-6 flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6 lg:order-none">
           <h2 className="text-base text-uva-text">Tus datos</h2>
           <p className="text-sm text-uva-text-muted">
             Descarga una copia de todos los datos personales asociados a tu
@@ -234,20 +239,36 @@ export function PerfilForm({
           <ExportarDatosButton />
         </div>
 
-        <EliminarCuentaCard correo={correo} tienePassword={tienePassword} />
+        <div className="order-7 lg:order-none">
+          <EliminarCuentaCard correo={correo} tienePassword={tienePassword} />
+        </div>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="contents lg:flex lg:flex-col lg:gap-[18px]">
+        {/* Espaciador invisible, solo en desktop: iguala la altura del
+            título "Mi perfil" (h1) de la columna izquierda + su gap, para
+            que "Tu acceso" arranque a la altura de la tarjeta del perfil
+            en vez de pegado al borde de arriba de la cuadrícula. En mobile
+            (`hidden`) no debe ocupar espacio — las dos columnas se aplanan
+            en una sola. No es un <h1> real (evita un encabezado duplicado
+            para quien navega por títulos); `aria-hidden` es una segunda
+            capa además de `invisible`, que ya lo saca del árbol de
+            accesibilidad en los navegadores modernos. */}
+        <div aria-hidden className="invisible hidden text-[36px] lg:block">
+          Mi perfil
+        </div>
         {estadoAcceso && (
-          <EstadoAccesoCard
-            tipo={estadoAcceso.tipo}
-            fechaVigencia={estadoAcceso.fechaVigencia}
-            diasRestantes={estadoAcceso.diasRestantes}
-            vigencia={estadoAcceso.vigencia}
-          />
+          <div className="order-4 lg:order-none">
+            <EstadoAccesoCard
+              tipo={estadoAcceso.tipo}
+              fechaVigencia={estadoAcceso.fechaVigencia}
+              diasRestantes={estadoAcceso.diasRestantes}
+              vigencia={estadoAcceso.vigencia}
+            />
+          </div>
         )}
 
-        <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-[22px]">
+        <div className="order-5 flex flex-col gap-3 lg:order-none rounded-uva-md border border-uva-divider bg-uva-surface p-[22px]">
           <div className="flex items-center gap-2.5">
             <h4 className="font-heading text-[17px] text-uva-text">
               Mis certificados

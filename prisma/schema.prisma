@@ -238,6 +238,7 @@ model Perfiles {
   curso_calificacion_reacciones  CursoCalificacionReacciones[]
   notificaciones                 Notificaciones[]              @relation("NotificacionesDelUsuario")
   notificaciones_generadas       Notificaciones[]              @relation("NotificacionesGeneradasPorActor")
+  notas_leccion                  NotasLeccion[]
 
   @@map("perfiles")
 }
@@ -822,6 +823,7 @@ model Lecciones {
   recursos            RecursosDescargables[]
   assetsMuxPendientes MuxAssetsPendientesEliminacion[]
   comentarios         Comentarios[]
+  notas               NotasLeccion[]
 
   @@index([id_modulo, orden])
   @@map("lecciones")
@@ -1162,6 +1164,39 @@ model Progreso {
   @@unique([id_usuario, id_leccion])
   @@index([id_leccion])
   @@map("progreso")
+}
+
+/// Nota privada de un estudiante anclada a un segundo del video de una
+/// lección ("Mis notas", docs/notas-leccion.md). Solo la lee y escribe su
+/// autor — ni siquiera un administrador (RLS en
+/// supabase/sql/115_notas_leccion.sql). Topes (largo, rango del segundo,
+/// 200 por lección) viven también ahí, como CHECK/trigger.
+model NotasLeccion {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario     String   @db.Uuid
+  id_leccion     String   @db.Uuid
+  /// Segundo del video al que apunta la nota. Entero: el progreso ya se
+  /// guarda en segundos enteros y la UI no ofrece más precisión.
+  segundo        Int
+  /// Mismo formato que `Comentarios.contenido` (lib/formato-texto.tsx).
+  contenido      String
+  /// `lecciones.id_video_mux` al crear la nota, fijado por trigger (nunca
+  /// por el cliente). Si el video se reemplaza deja de coincidir y la UI
+  /// avisa que el minuto puede no corresponder.
+  id_video_mux   String?
+  creado_en      DateTime @default(now()) @db.Timestamptz
+  actualizado_en DateTime @updatedAt @db.Timestamptz
+
+  usuario Perfiles  @relation(fields: [id_usuario], references: [id])
+  /// D1 (docs/notas-leccion.md): borrar una lección borra sus notas.
+  leccion Lecciones @relation(fields: [id_leccion], references: [id], onDelete: Cascade)
+
+  /// Notas de una clase ordenadas por segundo, y de un curso completo
+  /// (id_leccion IN (...)) del mismo usuario.
+  @@index([id_usuario, id_leccion, segundo])
+  /// FK: el borrado en cascada al eliminar una lección.
+  @@index([id_leccion])
+  @@map("notas_leccion")
 }
 
 model Certificados {

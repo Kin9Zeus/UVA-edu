@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
 import { getComentariosDeLeccion } from "@/lib/comentarios";
+import { getNotasDeLeccion } from "@/lib/notas";
+import { parsearSegundoEnUrl } from "@/lib/notas-validacion";
 import { esUuid } from "@/lib/slug";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlayerContent } from "@/components/player/PlayerContent";
@@ -36,10 +38,14 @@ export async function generateMetadata({
 // se hace acá.
 export default async function LeccionPlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ cursoSlug: string; leccionSlug: string }>;
+  searchParams: Promise<{ [clave: string]: string | string[] | undefined }>;
 }) {
   const { cursoSlug, leccionSlug } = await params;
+  // `?t=<segundo>`: enlace directo al minuto de una nota (docs/notas-leccion.md §6.4).
+  const segundoEnUrl = parsearSegundoEnUrl((await searchParams).t);
   const perfilActual = await getPerfilActual();
   const { user } = perfilActual;
 
@@ -76,10 +82,14 @@ export default async function LeccionPlayerPage({
   // Enlace viejo con el UUID del curso o de la clase: misma URL con slugs.
   // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
   if (esUuid(cursoSlug) || esUuid(leccionSlug)) {
-    redirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}`);
+    redirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}${segundoEnUrl !== null ? `?t=${segundoEnUrl}` : ""}`);
   }
 
-  const comentarios = await getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null);
+  // En paralelo: las notas no deben sumar un viaje a Supabase en serie.
+  const [comentarios, notas] = await Promise.all([
+    getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null),
+    getNotasDeLeccion(data.leccionId, user?.id ?? null),
+  ]);
 
   return (
     <>
@@ -92,6 +102,8 @@ export default async function LeccionPlayerPage({
         <PlayerContent
           data={data}
           comentariosIniciales={comentarios}
+          notasIniciales={notas}
+          segundoEnUrl={segundoEnUrl}
           usuarioActualId={user?.id ?? null}
           esAdmin={perfilActual.perfil?.rol === "ADMINISTRADOR"}
         />
