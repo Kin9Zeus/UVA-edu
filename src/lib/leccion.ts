@@ -4,6 +4,8 @@ import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { getSituacionExamen } from "@/lib/examen";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { logError } from "@/lib/log";
 
 export type RecursoLeccion = {
   id: string;
@@ -38,7 +40,6 @@ export type LeccionPlayer = {
   cursoId: string;
   cursoSlug: string;
   cursoTitulo: string;
-  categoriaSlug: string;
   leccionId: string;
   leccionSlug: string;
   leccionTitulo: string;
@@ -89,31 +90,36 @@ export async function getLeccionPlayer(
   // quien tiene cortesía, o membresía con progreso ya guardado. Filtrar acá
   // de nuevo por `mostrado` le cortaría el reproductor a esa misma gente
   // que RLS sí autoriza.
-  const { data: curso } = await supabase
+  //
+  // Un fallo de la base LANZA en todo lo que decide qué clase se muestra y
+  // desde qué segundo (AUDIT-2026-09-22.md, seguimiento de P2-3): el curso, el
+  // temario, el acceso (obtenerAccesoAlCurso) y el progreso. Antes cada fallo
+  // salía como `null` —la página lo leía como "sin acceso" y devolvía al
+  // estudiante a la ficha, o a un 404— o, en el progreso, como "sin avance":
+  // el video arrancaba en 0 y el guardado periódico pisaba el segundo donde
+  // el estudiante de verdad se había quedado. Lo accesorio (los recursos
+  // descargables) se degrada y queda registrado: no vale tumbar la clase.
+  //
+  // `maybeSingle` y no `single`: con `single`, "no existe" también llega
+  // como error (PGRST116) y lanzaría en vez de responder 404.
+  const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
     .select("id, slug, titulo, mostrado")
     .eq(esUuid(identificadorCurso) ? "id" : "slug", identificadorCurso)
-    .single();
+    .maybeSingle();
+  lanzarSiFalla(errorCurso, "getLeccionPlayer:cursos");
 
   if (!curso) return null;
   const cursoId = curso.id;
 
-  const { data: categoriaCurso } = await supabase
-    .from("curso_categorias")
-    .select("categoria:categorias(slug)")
-    .eq("id_curso", cursoId)
-    .limit(1)
-    .maybeSingle();
-  const categoriaEmbebida = categoriaCurso?.categoria;
-  const categoria = Array.isArray(categoriaEmbebida) ? categoriaEmbebida[0] : categoriaEmbebida;
-
-  const { data: modulos } = await supabase
+  const { data: modulos, error: errorModulos } = await supabase
     .from("modulos")
     .select(
       "id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, resumen, contenido, id_video_mux, estado_procesamiento)",
     )
     .eq("id_curso", cursoId)
     .order("orden");
+  lanzarSiFalla(errorModulos, "getLeccionPlayer:modulos");
 
   // La lista lateral y el temario numeran las clases de corrido (1..N) a lo
   // largo de todo el curso, no por módulo: el encabezado dice "Clase 7 de 18".
@@ -169,7 +175,7 @@ export async function getLeccionPlayer(
     { id_leccion: string; completado: boolean; segundo_actual: number }
   >();
   if (usuarioId) {
-    const { data: progresoRows } = await supabase
+    const { data: progresoRows, error: errorProgreso } = await supabase
       .from("progreso")
       .select("id_leccion, completado, segundo_actual")
       .eq("id_usuario", usuarioId)
@@ -177,6 +183,7 @@ export async function getLeccionPlayer(
         "id_leccion",
         plano.map((leccion) => leccion.id),
       );
+    lanzarSiFalla(errorProgreso, "getLeccionPlayer:progreso");
     for (const fila of progresoRows ?? []) {
       progresoPorLeccion.set(fila.id_leccion as string, fila);
     }
@@ -204,11 +211,17 @@ export async function getLeccionPlayer(
   // usable, y no debe llegar al cliente. La descarga pasa por
   // obtenerUrlRecurso() (src/actions/cursos/recurso.ts), que la vuelve a
   // leer server-side justo antes de firmarla (P1-1, AUDIT-2026-08-26.md).
-  const { data: recursos } = await supabase
+  const { data: recursos, error: errorRecursos } = await supabase
     .from("recursos_descargables")
     .select("id, nombre, tipo_archivo, tamano_bytes")
     .eq("id_leccion", leccionId)
     .order("creado_en");
+  if (errorRecursos) {
+    logError("leccion:recursos", "no se pudieron leer los recursos de la clase", errorRecursos, {
+      area: "reproductor",
+      leccionId,
+    });
+  }
 
   const completadas = lecciones.filter((leccion) => leccion.completado).length;
   const totalClases = lecciones.length;
@@ -226,7 +239,6 @@ export async function getLeccionPlayer(
     cursoId: curso.id,
     cursoSlug: curso.slug,
     cursoTitulo: curso.titulo,
-    categoriaSlug: categoria?.slug ?? "",
     leccionId: actual.id,
     leccionSlug: actual.slug,
     leccionTitulo: actual.titulo,

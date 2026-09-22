@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
 import { getComentariosDeLeccion } from "@/lib/comentarios";
@@ -68,11 +69,13 @@ export default async function LeccionPlayerPage({
     // puede ser slug o UUID (enlaces viejos) — mismo criterio que
     // getCursoPublico (lib/curso.ts).
     const supabase = await createClient();
-    const { data: curso } = await supabase
+    const { data: curso, error } = await supabase
       .from("cursos")
       .select("id")
       .eq(esUuid(cursoSlug) ? "id" : "slug", cursoSlug)
       .maybeSingle();
+    // Un fallo aquí no es "el curso no existe": sin esto, respondía 404.
+    lanzarSiFalla(error, "LeccionPlayerPage:cursos");
     if (curso) {
       redirect(`/cursos/${cursoSlug}`);
     }
