@@ -35,7 +35,7 @@ vi.mock("@/lib/supabase/public", () => import("@/test/servidor-falso").then((m) 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
-const { buscarCatalogoPublico, buscarCatalogoConProgreso, getCategoriasActivas, getCursosParaBuscador } =
+const { buscarCatalogoPublico, buscarCatalogoConProgreso, getCategoriasActivas, getCursosParaBuscador, resolverCategoria } =
   await import("@/lib/categoria");
 const { logError } = await import("@/lib/log");
 
@@ -234,5 +234,36 @@ describe("getCursosParaBuscador", () => {
     expect(await getCursosParaBuscador()).toEqual([]);
     expect(llamadasA("cursos-para-buscador")[0].resultado).toBe("rechazo");
     expect(logError).toHaveBeenCalledWith("catalogo:buscador", expect.any(String), expect.anything(), expect.anything());
+  });
+});
+
+describe("resolverCategoria — 'no existe' y 'falló' son cosas distintas", () => {
+  it("categoría existente: la devuelve", async () => {
+    const categoria = { id: "c1", slug: "bim", nombre: "BIM", descripcion: null };
+    servidorFalso.responder("from:categorias", { data: categoria, error: null });
+
+    expect(await resolverCategoria("bim")).toEqual(categoria);
+  });
+
+  it("no existe o está inactiva: null, y la página hará notFound() (404)", async () => {
+    servidorFalso.responder("from:categorias", { data: null, error: null });
+
+    expect(await resolverCategoria("no-existe")).toBeNull();
+  });
+
+  it("la consulta falla: LANZA en vez de devolver null (antes era un 404 durante cualquier caída)", async () => {
+    servidorFalso.responder("from:categorias", { data: null, error: ERROR_PG });
+
+    await expect(resolverCategoria("bim")).rejects.toThrow(/resolverCategoria falló.*57014/);
+  });
+
+  it("un uuid busca por id y un slug por slug (enlaces anteriores al cambio de rutas)", async () => {
+    servidorFalso.responder("from:categorias", { data: null, error: null });
+
+    await resolverCategoria("3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f");
+    await resolverCategoria("modelado-bim");
+
+    const filtros = servidorFalso.encadenado("from:categorias", "eq").map((args) => args[0]);
+    expect(filtros).toEqual(["id", "activo", "slug", "activo"]);
   });
 });

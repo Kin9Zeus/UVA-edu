@@ -71,9 +71,13 @@ export type ResultadoCatalogo = {
 export const CURSOS_POR_PAGINA = 12;
 
 /**
- * Convierte un error de PostgREST en una excepción dentro de una función
- * cacheada. Es lo que hace funcionar la caché ante un fallo: `unstable_cache`
- * guarda lo que la función DEVUELVE y descarta lo que LANZA
+ * Convierte un error de PostgREST en una excepción, para que un fallo de la
+ * base nunca se confunda con "no hay datos" (un catálogo vacío, una categoría
+ * que no existe).
+ *
+ * Dentro de una función cacheada es, además, lo que hace funcionar la caché
+ * ante un fallo: `unstable_cache` guarda lo que la función DEVUELVE y
+ * descarta lo que LANZA
  * (node_modules/next/dist/server/web/spec-extension/unstable-cache.js: el
  * resultado solo se escribe después del `await` de la función). Devolver un
  * vacío, como se hacía antes, era pedirle que guardara el vacío.
@@ -146,15 +150,26 @@ const categoriasActivasCacheadas = unstable_cache(
  * arriba de eso, envuelta en `cache()` de React porque hoy se llama dos
  * veces por request en `/catalogo/[categoriaSlug]` (generateMetadata + el
  * componente), igual que ya hace getPerfilActual() (lib/perfil.ts).
+ *
+ * `null` significa "no existe o está inactiva" y nada más: las páginas lo
+ * convierten en `notFound()`. Un ERROR de la consulta LANZA
+ * (AUDIT-2026-09-22.md, P2-3 seguimiento): antes también devolvía `null`, así
+ * que durante una caída de Supabase cada categoría respondía 404. Un
+ * buscador que rastreara el sitio en ese momento leería "esta página ya no
+ * existe" y podría desindexarla; con el error, la página responde con el
+ * `error.tsx` (500, "reintenta"), que un rastreador trata como temporal.
  */
 export const resolverCategoria = cache(async (identificador: string): Promise<CategoriaInfo | null> => {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("categorias")
     .select("id, slug, nombre, descripcion")
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .eq("activo", true)
     .maybeSingle();
+  // `maybeSingle` no marca error cuando no hay fila (eso llega como
+  // `data: null`), así que cualquier `error` acá es un fallo real.
+  fallarSiError(error, "resolverCategoria");
   return data as CategoriaInfo | null;
 });
 
