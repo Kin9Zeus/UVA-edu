@@ -22,6 +22,7 @@ import {
 } from "./PlayerTabs";
 import { TemarioDrawer } from "./TemarioDrawer";
 import { NotasTab } from "./NotasTab";
+import { porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
 // Tarjeta de refuerzo psicológico: solo el % y cuántas clases faltan, sin la
 // lista de clases (esa vive en TemarioDrawer, no hay que duplicarla).
@@ -131,8 +132,7 @@ export function PlayerContent({
     router.push(`/cursos/${data.cursoSlug}/${slugPorLeccionId.get(leccionId) ?? leccionId}`);
 
   const completadas = [...completadoPorLeccion.values()].filter(Boolean).length;
-  const porcentaje =
-    data.totalClases > 0 ? Math.round((completadas / data.totalClases) * 100) : 0;
+  const porcentaje = porcentajeLecciones(completadas, data.totalClases);
 
   function toggleCompletada() {
     const siguiente = !completada;

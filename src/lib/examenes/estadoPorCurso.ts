@@ -89,6 +89,19 @@ export function estadoDeCurso(
 }
 
 /**
+ * Porcentaje de lecciones vistas, el que alimenta a `estadoDeCurso` y a
+ * `porcentajeMostrado`. Todas las pantallas lo calculan con esta función
+ * para que "100%" signifique lo mismo en todas.
+ *
+ * Hacia abajo, no al más cercano: con `Math.round`, 199 de 200 clases daba
+ * 100 (99.5 redondeado) y `estadoDeCurso` marcaba COMPLETADO un curso sin
+ * examen al que todavía le faltaba una clase. El 100 solo sale con todas.
+ */
+export function porcentajeLecciones(completadas: number, total: number): number {
+  return total > 0 ? Math.floor((completadas / total) * 100) : 0;
+}
+
+/**
  * El porcentaje que se MUESTRA junto al estado (barra de progreso del
  * dashboard del estudiante, columna "Progreso" de `EstudiantesTab.tsx`,
  * barra de `UsuarioDetalleView.tsx`) — no siempre el de lecciones vistas.

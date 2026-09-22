@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import type { CategoriaChip } from "@/lib/categoria";
+import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
 export type ClaseEnProgreso = {
   leccionId: string;
@@ -60,14 +61,26 @@ export async function getInicioData() {
 
   const { data: progresoCursos } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, curso_slug, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas")
+    .select(
+      "curso_id, curso_slug, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado",
+    )
     .order("ultima_actividad", { ascending: false });
 
   // Ya en orden de última actividad (la vista ordena así) y ya sin los
   // cursos terminados o sin ninguna lección lista todavía: nada de esto
   // necesita traer progreso lección por lección.
+  //
+  // "Terminado" con la misma regla que el resto de pantallas (P2-4): un
+  // curso con el examen aprobado ya está COMPLETADO aunque falten clases, y
+  // no debe seguir apareciendo aquí como si estuviera a medias.
   const candidatos = (progresoCursos ?? []).filter(
-    (curso) => curso.lecciones_total > 0 && curso.lecciones_completadas < curso.lecciones_total,
+    (curso) =>
+      curso.lecciones_total > 0 &&
+      curso.lecciones_completadas < curso.lecciones_total &&
+      estadoDeCurso(porcentajeLecciones(curso.lecciones_completadas, curso.lecciones_total), {
+        requerido: curso.examen_requerido === true,
+        aprobado: curso.examen_aprobado === true,
+      }) !== "COMPLETADO",
   );
 
   const cursoIds = candidatos.map((curso) => curso.curso_id as string);
@@ -196,7 +209,7 @@ export async function getInicioData() {
       duracion: siguiente.duracion,
       clasesCompletadas: completadas,
       totalClases: leccionesOrdenadas.length,
-      progreso: Math.round((completadas / leccionesOrdenadas.length) * 100),
+      progreso: porcentajeLecciones(completadas, leccionesOrdenadas.length),
       reanudarEn,
     });
   }

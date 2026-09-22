@@ -6,6 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
+import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
 /** Chip de categoría reutilizado por el catálogo y por "Tu progreso" (lib/progreso.ts). */
 export type CategoriaChip = { id: string; nombre: string };
@@ -214,10 +215,12 @@ export async function buscarCatalogoConProgreso(opciones: OpcionesBuscarCatalogo
  * tiene fila en la vista — el `Map` simplemente no lo incluye, y `.get()`
  * devuelve `undefined`, que en CursoCard se trata igual que `false`.
  *
- * Mismo criterio que getProgresoData() (lib/progreso.ts): el 100% de
- * lecciones no basta si el curso exige examen final y no está aprobado
- * (Revf5) — antes esta función solo miraba lecciones y la tarjeta del
- * catálogo podía decir "Completado" en un curso con el examen pendiente.
+ * La regla la decide `estadoDeCurso` (la misma de getProgresoData() y del
+ * panel de admin): si el curso exige examen, aprobarlo basta aunque falten
+ * clases (supabase/sql/114). Antes esto se calculaba acá a mano y se había
+ * quedado con la regla vieja (100% de clases Y examen aprobado): la tarjeta
+ * del catálogo no marcaba "Completado" un curso que en "Mi progreso" sí lo
+ * estaba (P2-4, AUDIT-2026-09-22.md).
  */
 async function getProgresoPorCurso(
   supabase: SupabaseClient,
@@ -232,15 +235,14 @@ async function getProgresoPorCurso(
     .in("curso_id", cursoIds);
 
   for (const fila of data ?? []) {
-    const total = fila.lecciones_total as number;
-    const completadas = fila.lecciones_completadas as number;
-    const cienPorCiento = total > 0 && completadas >= total;
-    const examenRequerido = fila.examen_requerido === true;
-    const examenAprobado = fila.examen_aprobado === true;
+    const estado = estadoDeCurso(
+      porcentajeLecciones(fila.lecciones_completadas as number, fila.lecciones_total as number),
+      { requerido: fila.examen_requerido === true, aprobado: fila.examen_aprobado === true },
+    );
 
     progresoPorCurso.set(fila.curso_id as string, {
-      completado: cienPorCiento && (!examenRequerido || examenAprobado),
-      examenPendiente: cienPorCiento && examenRequerido && !examenAprobado,
+      completado: estado === "COMPLETADO",
+      examenPendiente: estado === "EXAMEN_PENDIENTE",
     });
   }
   return progresoPorCurso;

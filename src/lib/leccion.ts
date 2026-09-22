@@ -4,6 +4,7 @@ import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { getSituacionExamen } from "@/lib/examen";
+import { porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
 export type RecursoLeccion = {
   id: string;
@@ -243,7 +244,7 @@ export async function getLeccionPlayer(
     })),
     lecciones,
     completadas,
-    porcentaje: totalClases > 0 ? Math.round((completadas / totalClases) * 100) : 0,
+    porcentaje: porcentajeLecciones(completadas, totalClases),
     completada: !!progresoPorLeccion.get(actual.id)?.completado,
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
     anteriorSlug: indice > 0 ? plano[indice - 1].slug : null,

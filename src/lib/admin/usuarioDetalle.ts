@@ -3,6 +3,7 @@ import { estadoSuscripcionEfectivo, tipoAccesoGratuito, type TipoAccesoGratuito 
 import {
   estadoDeCurso,
   getEstadoExamenPorCurso,
+  porcentajeLecciones,
   porcentajeMostrado,
   type EstadoCursoConExamen,
 } from "@/lib/examenes/estadoPorCurso";
@@ -158,7 +159,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
     const total = totalLecciones ?? 0;
     const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
-    const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+    const porcentaje = porcentajeLecciones(completados, total);
     const ultimaActividad = (progreso ?? []).reduce<string | null>((max, registro) => {
       if (!registro.fecha_actualizacion) return max;
       if (!max || new Date(registro.fecha_actualizacion) > new Date(max)) return registro.fecha_actualizacion;
@@ -240,7 +241,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       .eq("modulo.id_curso", cursoId);
 
     const total = totalLecciones ?? 0;
-    const porcentaje = total > 0 ? Math.round((datos.completados / total) * 100) : 0;
+    const porcentaje = porcentajeLecciones(datos.completados, total);
 
     cursos.push({
       inscripcionId: null,

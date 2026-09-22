@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estadoDeCurso, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
+import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 
 describe("estadoDeCurso", () => {
   it("sin examen, el 100% de clases completa el curso (comportamiento previo a Revf5)", () => {
@@ -42,5 +42,38 @@ describe("porcentajeMostrado", () => {
 
   it("con examen exigido y sin aprobar, muestra el porcentaje real de lecciones", () => {
     expect(porcentajeMostrado(80, { requerido: true, aprobado: false })).toBe(80);
+  });
+});
+
+describe("porcentajeLecciones", () => {
+  it("redondea hacia abajo: el 100 solo sale con todas las clases vistas", () => {
+    // Con Math.round, 199/200 daba 100 y el curso sin examen salía COMPLETADO.
+    expect(porcentajeLecciones(199, 200)).toBe(99);
+    expect(estadoDeCurso(porcentajeLecciones(199, 200), undefined)).toBe("EN_PROGRESO");
+    expect(porcentajeLecciones(200, 200)).toBe(100);
+    expect(porcentajeLecciones(2, 3)).toBe(66);
+  });
+
+  it("sin lecciones es 0, no NaN", () => {
+    expect(porcentajeLecciones(0, 0)).toBe(0);
+  });
+});
+
+/**
+ * P2-4 (AUDIT-2026-09-22.md): la tabla completa de la regla, con conteos
+ * reales de clases. Es la que ahora comparten el catálogo del dashboard,
+ * "Mi progreso", "Sigue aprendiendo" y el panel de admin.
+ */
+describe("regla de curso completado (P2-4)", () => {
+  it.each([
+    // [completadas, total, examen, esperado]
+    [6, 10, undefined, "EN_PROGRESO"],
+    [10, 10, undefined, "COMPLETADO"],
+    [6, 10, { requerido: true, aprobado: false }, "EN_PROGRESO"],
+    [10, 10, { requerido: true, aprobado: false }, "EXAMEN_PENDIENTE"],
+    [6, 10, { requerido: true, aprobado: true }, "COMPLETADO"],
+    [10, 10, { requerido: true, aprobado: true }, "COMPLETADO"],
+  ] as const)("%i/%i clases, examen %o → %s", (completadas, total, examen, esperado) => {
+    expect(estadoDeCurso(porcentajeLecciones(completadas, total), examen)).toBe(esperado);
   });
 });

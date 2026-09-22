@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
-import { estadoDeCurso, porcentajeMostrado, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
+import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
 import { logError } from "@/lib/log";
 
@@ -287,7 +287,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     // ("Completado") en vez de 50%.
     const porcentaje =
       leccionIds.length > 0 && agregados
-        ? Math.round((agregados.completados / leccionIds.length) * 100)
+        ? porcentajeLecciones(agregados.completados, leccionIds.length)
         : 0;
 
     return {
@@ -329,7 +329,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     for (const usuarioId of usuarioIdsSinInscripcion) {
       const agregados = progresoPorUsuario.get(usuarioId)!;
       const porcentaje =
-        leccionIds.length > 0 ? Math.round((agregados.completados / leccionIds.length) * 100) : 0;
+        leccionIds.length > 0 ? porcentajeLecciones(agregados.completados, leccionIds.length) : 0;
 
       estudiantes.push({
         inscripcionId: null,

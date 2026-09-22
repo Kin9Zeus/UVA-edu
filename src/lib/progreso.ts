@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
-import { porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
+import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 
 export type CursoConProgreso = {
   cursoId: string;
@@ -65,9 +65,10 @@ export async function getProgresoData(): Promise<ProgresoData> {
   const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
     const total = fila.lecciones_total as number;
     const completadas = fila.lecciones_completadas as number;
-    const porcentaje = total > 0 ? Math.round((completadas / total) * 100) : 0;
+    const porcentaje = porcentajeLecciones(completadas, total);
     const examenRequerido = fila.examen_requerido === true;
     const examenAprobado = fila.examen_aprobado === true;
+    const examen = { requerido: examenRequerido, aprobado: examenAprobado };
 
     return {
       cursoId: fila.curso_id as string,
@@ -80,7 +81,7 @@ export async function getProgresoData(): Promise<ProgresoData> {
       // el curso, la barra tiene que decir 100% aunque falten clases — mismo
       // criterio que `completado` más abajo, aplicado al número en vez de al
       // booleano (ver `porcentajeMostrado`).
-      porcentaje: porcentajeMostrado(porcentaje, { requerido: examenRequerido, aprobado: examenAprobado }),
+      porcentaje: porcentajeMostrado(porcentaje, examen),
       examenRequerido,
       examenAprobado,
       // Antes esto era `porcentaje === 100` en la UI. Con exámenes, un curso
@@ -94,7 +95,10 @@ export async function getProgresoData(): Promise<ProgresoData> {
       // se puede rendir sin haber visto ninguna lección, así que negar el
       // certificado por las clases sería exigir el requisito en un extremo
       // del flujo y no en el otro.
-      completado: examenRequerido ? examenAprobado : porcentaje === 100,
+      //
+      // La regla vive solo en `estadoDeCurso`: copiarla acá fue lo que dejó
+      // al catálogo del dashboard con la versión vieja (P2-4).
+      completado: estadoDeCurso(porcentaje, examen) === "COMPLETADO",
       reanudarEn: null as CursoConProgreso["reanudarEn"],
     };
   });
