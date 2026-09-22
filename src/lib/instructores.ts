@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Quién dicta un curso. Es una cuenta real (`perfiles` con rol PROFESOR), no
@@ -58,11 +59,7 @@ export async function getInstructoresDeCursos(
   // (`estricto`, y quien llama lo registra) o se registra aquí y degrada igual
   // que antes.
   if (error) {
-    if (estricto) {
-      throw new Error(
-        `curso_instructores_publico falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`,
-      );
-    }
+    if (estricto) lanzarSiFalla(error, "curso_instructores_publico");
     logError("instructores", "no se pudieron leer los instructores de los cursos", error, {
       area: "catalogo",
       cursos: cursoIds.length,
