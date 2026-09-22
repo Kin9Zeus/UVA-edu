@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { servidorFalso, type LlamadaRegistrada } from "@/test/servidor-falso";
 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
+vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
 import { getCalificacionesCurso, getTandaCalificacionesCurso, RESENAS_POR_TANDA } from "@/lib/curso-calificaciones";
+import { logError } from "@/lib/log";
 
 /**
  * Reseñas de curso por tandas — AUDIT-2026-09-15.md, P2-10 (Fase 2).
@@ -37,6 +39,7 @@ const esFilaUnica = (llamada: LlamadaRegistrada) => llamada.cadena.some((c) => c
 
 beforeEach(() => {
   servidorFalso.reiniciar();
+  vi.mocked(logError).mockClear();
 });
 
 describe("getTandaCalificacionesCurso", () => {
@@ -178,5 +181,23 @@ describe("getCalificacionesCurso", () => {
       hayMas: false,
       miCalificacion: null,
     });
+  });
+
+  it("si fallan las consultas: degrada igual que antes, pero ahora cada fallo queda registrado", async () => {
+    // AUDIT-2026-09-22.md, seguimiento de P2-3. Antes "falló" y "no hay reseñas"
+    // se veían igual y no dejaban rastro.
+    const error = { message: "permission denied", code: "42501" };
+    servidorFalso.responder("from:curso_calificaciones_resumen", { data: null, error });
+    servidorFalso.responder("from:curso_calificaciones", { data: null, error });
+
+    expect(await getCalificacionesCurso(CURSO, ESTUDIANTE)).toEqual({
+      promedio: null,
+      total: 0,
+      reseñas: [],
+      hayMas: false,
+      miCalificacion: null,
+    });
+    const consultas = vi.mocked(logError).mock.calls.map((llamada) => (llamada[3] as { consulta: string }).consulta);
+    expect(consultas.sort()).toEqual(["propia", "resumen", "tanda"]);
   });
 });

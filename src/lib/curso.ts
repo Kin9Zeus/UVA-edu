@@ -4,6 +4,7 @@ import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { logError } from "@/lib/log";
 
 export type LeccionPublica = {
   id: string;
@@ -187,16 +188,30 @@ export async function getCursoPublico(
   // de arriba: sus datos viven en `perfiles`, que RLS no le abre a un
   // visitante sin sesión. Se leen por la vista `curso_instructores_publico`,
   // que recorta la proyección a nombre y especialidad — ver lib/instructores.ts.
-  const [{ count: totalRecursos }, acceso, instructores] = await Promise.all([
+  //
+  // Ante un fallo (AUDIT-2026-09-22.md, seguimiento de P2-3), lo que define
+  // qué puede hacer el estudiante LANZA —el acceso (obtenerAccesoAlCurso) y el
+  // progreso, más abajo— y la página responde 500 con "Reintentar": mostrar el
+  // candado a quien paga, o el temario sin ✓, es peor que no mostrar nada.
+  // Lo accesorio se degrada, queda registrado y OCULTA el dato en vez de
+  // inventarlo: sin recursos no se pinta el contador (CursoDetalleContent solo
+  // lo muestra si es > 0), y los instructores ya se registran y degradan en
+  // lib/instructores.ts. Lanzar también por esto convertiría un permiso roto
+  // en una sola vista —una migración, no una caída— en un 500 de todas las
+  // fichas públicas hasta que alguien lo arregle.
+  const [{ count: totalRecursos, error: errorRecursos }, acceso, instructores] = await Promise.all([
     leccionIds.length > 0
       ? supabase
           .from("recursos_descargables")
           .select("id", { count: "exact", head: true })
           .in("id_leccion", leccionIds)
-      : Promise.resolve({ count: 0 }),
+      : Promise.resolve({ count: 0, error: null }),
     obtenerAccesoAlCurso(supabase, usuarioId, cursoId),
     getInstructoresDeCurso(supabase, cursoId),
   ]);
+  if (errorRecursos) {
+    logError("curso:ficha", "no se pudo contar los recursos del curso", errorRecursos, { area: "catalogo", cursoId });
+  }
 
   const tieneAcceso = acceso.tieneAcceso;
   // Tuvo una suscripción y ya no le sirve: el temario se sigue viendo, pero
@@ -214,11 +229,12 @@ export async function getCursoPublico(
   // sobrevive al vencimiento — los ✓ del temario y "Seguir viendo" tienen
   // que seguir ahí cuando renueve, en la clase donde se quedó.
   if (usuarioId && leccionIds.length > 0) {
-    const { data: progresoRows } = await supabase
+    const { data: progresoRows, error: errorProgreso } = await supabase
       .from("progreso")
       .select("id_leccion, completado")
       .eq("id_usuario", usuarioId)
       .in("id_leccion", leccionIds);
+    lanzarSiFalla(errorProgreso, "getCursoPublico:progreso");
 
     progresoIniciado = (progresoRows ?? []).length > 0;
     for (const fila of progresoRows ?? []) {

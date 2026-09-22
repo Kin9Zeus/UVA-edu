@@ -14,6 +14,7 @@ vi.mock("@/lib/accesoCurso", () => ({
 vi.mock("@/lib/mux/miniatura", () => ({ getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
 
 const { getCursoPublico } = await import("@/lib/curso");
+const { logError } = await import("@/lib/log");
 
 const ERROR_PG = { message: "canceling statement due to statement timeout", code: "57014" };
 
@@ -41,6 +42,7 @@ const filaCurso = {
 
 beforeEach(() => {
   servidorFalso.reiniciar();
+  vi.mocked(logError).mockClear();
 });
 
 describe("getCursoPublico", () => {
@@ -81,6 +83,33 @@ describe("getCursoPublico", () => {
     const metodos = servidorFalso.llamadasA("from:cursos")[0].cadena.map((c) => c.metodo);
     expect(metodos).toContain("maybeSingle");
     expect(metodos).not.toContain("single");
+  });
+
+  it("si falla el progreso del estudiante: LANZA (el temario sin ✓ ni 'Seguir viendo' le diría que perdió su avance)", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+    servidorFalso.responder("from:progreso", { data: null, error: ERROR_PG });
+
+    await expect(getCursoPublico("revit-desde-cero", "u1")).rejects.toThrow(/getCursoPublico:progreso falló/);
+  });
+
+  it("si falla el conteo de recursos: NO lanza, lo registra y el contador queda en 0 (la ficha no lo pinta)", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+    servidorFalso.responder("from:recursos_descargables", { count: null, error: ERROR_PG });
+
+    const curso = await getCursoPublico("revit-desde-cero", null);
+
+    expect(curso?.totalRecursos).toBe(0);
+    expect(logError).toHaveBeenCalledWith("curso:ficha", expect.any(String), ERROR_PG, expect.anything());
+  });
+
+  it("si fallan los instructores: NO lanza, degrada a sin instructores (y lib/instructores.ts lo registra)", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+    servidorFalso.responder("from:curso_instructores_publico", { data: null, error: ERROR_PG });
+
+    const curso = await getCursoPublico("revit-desde-cero", null);
+
+    expect(curso?.instructores).toEqual([]);
+    expect(logError).toHaveBeenCalledWith("instructores", expect.any(String), ERROR_PG, expect.anything());
   });
 
   it("un uuid busca por id y un slug por slug (enlaces anteriores al cambio de rutas)", async () => {
