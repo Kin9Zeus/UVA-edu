@@ -21,7 +21,7 @@ import {
   renderizarTextoFormateado,
 } from "@/lib/formato-texto";
 
-export type TabPlayer = "recursos" | "resumen" | "comentarios";
+export type TabPlayer = "recursos" | "resumen" | "notas" | "comentarios";
 
 const TAB_BASE =
   "flex cursor-pointer items-center gap-[7px] rounded-full border-0 px-4 py-[9px] text-[13px] font-semibold";
@@ -31,6 +31,7 @@ export function TabsHeader({
   onTab,
   totalRecursos,
   totalComentarios,
+  totalNotas,
 }: {
   tab: TabPlayer;
   onTab: (tab: TabPlayer) => void;
@@ -38,6 +39,9 @@ export function TabsHeader({
   /** Omitido en la vista previa sin sesión (LeccionVistaPreviaContent), que
    * no tiene comentarios: sin este dato la pestaña no se muestra. */
   totalComentarios?: number;
+  /** Omitido sin sesión (vista previa pública): las notas son de un
+   * usuario, sin sesión no hay a quién pertenezcan. */
+  totalNotas?: number;
 }) {
   const clase = (activo: boolean) =>
     `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
@@ -52,9 +56,9 @@ export function TabsHeader({
         Resumen
         <span className="font-mono text-[11px] opacity-65" />
       </button>
-      {/* Solo en mobile: desktop ya muestra los comentarios en su propio
-          panel fijo junto al video (PlayerContent.tsx), así que ahí esta
-          pestaña sobraría. */}
+      {/* Comentarios y Notas, solo en mobile: desktop los muestra en el
+          panel de la derecha, junto al video (PanelLateralHeader, en
+          PlayerContent.tsx), así que ahí estas pestañas sobrarían. */}
       {totalComentarios !== undefined && (
         <button
           type="button"
@@ -63,6 +67,63 @@ export function TabsHeader({
         >
           Comentarios
           <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+        </button>
+      )}
+      {totalNotas !== undefined && (
+        <button
+          type="button"
+          onClick={() => onTab("notas")}
+          className={`${clase(tab === "notas")} lg:hidden`}
+        >
+          Notas
+          <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+export type PanelLateral = "comentarios" | "notas";
+
+/**
+ * Selector del panel derecho en desktop: Comentarios / Notas, con las
+ * mismas píldoras que TabsHeader (Recursos / Resumen) bajo el video.
+ */
+export function PanelLateralHeader({
+  panel,
+  onPanel,
+  totalComentarios,
+  totalNotas,
+}: {
+  panel: PanelLateral;
+  onPanel: (panel: PanelLateral) => void;
+  totalComentarios: number;
+  /** Omitido sin sesión: sin notas, el selector no tiene nada que alternar. */
+  totalNotas?: number;
+}) {
+  const clase = (activo: boolean) =>
+    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-uva-divider pb-3.5">
+      <button
+        type="button"
+        onClick={() => onPanel("comentarios")}
+        aria-pressed={panel === "comentarios"}
+        className={clase(panel === "comentarios")}
+      >
+        Comentarios
+        <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+      </button>
+      {totalNotas !== undefined && (
+        <button
+          type="button"
+          onClick={() => onPanel("notas")}
+          aria-pressed={panel === "notas"}
+          className={clase(panel === "notas")}
+        >
+          Notas
+          <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>
         </button>
       )}
     </div>
@@ -212,6 +273,7 @@ export function ComentariosTab({
   usuarioActualId,
   esAdmin,
   onCambio,
+  mostrarTitulo = true,
 }: {
   /** Ruta pública de la clase (`/cursos/<slug-curso>/<slug-lección>`), para
    * que las acciones de comentarios (crear/eliminar/like) revaliden la
@@ -226,6 +288,9 @@ export function ComentariosTab({
   /** El árbol vive en el servidor (RSC) — tras publicar/borrar/dar like se
    * refresca con `router.refresh()`, avisado acá en vez de duplicar estado. */
   onCambio: () => void;
+  /** false dentro del panel derecho: la píldora "Comentarios N" de
+   * PanelLateralHeader ya hace de título, repetirlo sobraría. */
+  mostrarTitulo?: boolean;
 }) {
   const visibles = useMemo(() => comentariosVisibles(comentarios), [comentarios]);
   const total = visibles.reduce((acc, comentario) => acc + 1 + comentario.respuestas.length, 0);
@@ -237,28 +302,34 @@ export function ComentariosTab({
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="flex items-center gap-2.5">
-        <h4 className="m-0 flex items-baseline gap-1.5 font-heading text-[17px] font-bold text-uva-text">
-          Comentarios
-          <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
-        </h4>
-        {visibles.length > 1 && (
-          <select
-            aria-label="Ordenar comentarios"
-            value={orden}
-            onChange={(event) => setOrden(event.target.value as OrdenComentarios)}
-            className="ml-auto cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2 py-1 text-[12px] text-uva-muted outline-none hover:text-uva-text focus-visible:border-uva-accent"
-          >
-            {(Object.keys(ORDEN_LABEL) as OrdenComentarios[]).map((valor) => (
-              <option key={valor} value={valor}>
-                {ORDEN_LABEL[valor]}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {(mostrarTitulo || visibles.length > 1) && (
+        <div className="flex items-center gap-2.5">
+          {mostrarTitulo && (
+            <h4 className="m-0 flex items-baseline gap-1.5 font-heading text-[17px] font-bold text-uva-text">
+              Comentarios
+              <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
+            </h4>
+          )}
+          {visibles.length > 1 && (
+            <select
+              aria-label="Ordenar comentarios"
+              value={orden}
+              onChange={(event) => setOrden(event.target.value as OrdenComentarios)}
+              className="ml-auto cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2 py-1 text-[12px] text-uva-muted outline-none hover:text-uva-text focus-visible:border-uva-accent"
+            >
+              {(Object.keys(ORDEN_LABEL) as OrdenComentarios[]).map((valor) => (
+                <option key={valor} value={valor}>
+                  {ORDEN_LABEL[valor]}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       {total === 0 && (
-        <p className="m-0 -mt-2 text-[12px] text-uva-muted">Sé el primero en comentar esta clase</p>
+        <p className={`m-0 text-[12px] text-uva-muted ${mostrarTitulo ? "-mt-2" : ""}`}>
+          Sé el primero en comentar esta clase
+        </p>
       )}
 
       {puedeComentar ? (

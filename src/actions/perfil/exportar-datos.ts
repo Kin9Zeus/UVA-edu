@@ -48,6 +48,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     { data: comunidadRespuestas },
     { data: calificaciones },
     { data: notificaciones },
+    { data: notas },
   ] = await Promise.all([
     supabase
       .from("perfiles")
@@ -102,6 +103,14 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
       .from("notificaciones")
       .select("tipo, leida, creado_en")
       .eq("id_usuario", user.id),
+    // Notas privadas con marca de tiempo (docs/notas-leccion.md §8).
+    supabase
+      .from("notas_leccion")
+      .select(
+        "segundo, contenido, creado_en, actualizado_en, leccion:lecciones(titulo, modulo:modulos(curso:cursos(titulo)))",
+      )
+      .eq("id_usuario", user.id)
+      .order("creado_en"),
   ]);
 
   if (!perfil) {
@@ -124,6 +133,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     comunidad_respuestas: comunidadRespuestas ?? [],
     calificaciones_de_curso: calificaciones ?? [],
     notificaciones: notificaciones ?? [],
+    notas: notas ?? [],
   };
 
   return {

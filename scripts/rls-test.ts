@@ -1497,6 +1497,148 @@ async function main() {
       clienteConAcceso.from("recursos_descargables").select("id").eq("id", recurso.id),
     );
 
+    // ------------------------------------------------------------------
+    // Notas privadas con marca de tiempo (115_notas_leccion.sql,
+    // docs/notas-leccion.md §9). Parte 1, con la suscripción todavía
+    // vigente; la parte 2 corre justo después de vencerla, la 3 con la
+    // sesión de administrador.
+    // ------------------------------------------------------------------
+    console.log("\n=== Notas de lección (115) ===\n");
+
+    const { data: notaCreada, error: errNotaCreada } = await clienteConAcceso
+      .from("notas_leccion")
+      .insert({
+        id_usuario: userConAcceso.user!.id,
+        id_leccion: idLeccionDePago,
+        segundo: 204,
+        contenido: "Nota RLS test",
+        id_video_mux: "falsificado-por-el-cliente",
+      })
+      .select("id, id_video_mux")
+      .single();
+    registrar(
+      "notas: con acceso vigente SÍ crea una nota en una lección de pago",
+      !errNotaCreada && !!notaCreada,
+      errNotaCreada?.message,
+    );
+    if (!notaCreada) throw new Error(`No pude crear la nota de prueba: ${errNotaCreada?.message}`);
+    const idNotaPrueba: string = notaCreada.id;
+    // La lección de pago no tiene video: lo correcto es null, nunca lo que
+    // mandó el cliente.
+    registrar(
+      "notas: id_video_mux lo fija el trigger, no el cliente",
+      notaCreada.id_video_mux === null,
+      `quedó ${JSON.stringify(notaCreada.id_video_mux)}`,
+    );
+
+    await esperarBloqueado("notas: anon no puede leer notas", clienteAnonimo.from("notas_leccion").select("id"));
+    await esperarBloqueado(
+      "notas: anon no puede crear notas",
+      clienteAnonimo
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionIntroductoria, segundo: 1, contenido: "x" })
+        .select(),
+    );
+    await esperarBloqueado(
+      "notas: otro estudiante NO lee la nota ajena",
+      clienteSinAcceso.from("notas_leccion").select("id").eq("id", idNotaPrueba),
+    );
+    await esperarBloqueado(
+      "notas: otro estudiante NO edita la nota ajena",
+      clienteSinAcceso.from("notas_leccion").update({ contenido: "editada por otro" }).eq("id", idNotaPrueba).select(),
+    );
+    await esperarBloqueado(
+      "notas: otro estudiante NO borra la nota ajena",
+      clienteSinAcceso.from("notas_leccion").delete().eq("id", idNotaPrueba).select(),
+    );
+    const { data: notaSigueViva } = await admin
+      .from("notas_leccion")
+      .select("contenido")
+      .eq("id", idNotaPrueba)
+      .maybeSingle();
+    registrar(
+      "notas: la nota ajena sigue intacta tras los intentos de otro estudiante",
+      notaSigueViva?.contenido === "Nota RLS test",
+    );
+    await esperarBloqueado(
+      "notas: NO se puede crear una nota a nombre de otro usuario",
+      clienteSinAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionIntroductoria, segundo: 1, contenido: "x" })
+        .select(),
+    );
+    await esperarBloqueado(
+      "notas: sin acceso NO crea notas en una lección de pago",
+      clienteSinAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userSinAcceso.user!.id, id_leccion: idLeccionDePago, segundo: 1, contenido: "x" })
+        .select(),
+    );
+    await esperarPermitido(
+      "notas: sin acceso SÍ crea notas en la lección introductoria",
+      clienteSinAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userSinAcceso.user!.id, id_leccion: idLeccionIntroductoria, segundo: 1, contenido: "x" })
+        .select()
+        .single(),
+    );
+    await esperarBloqueado(
+      "notas: el autor NO puede mover su nota a otra lección",
+      clienteConAcceso.from("notas_leccion").update({ id_leccion: idLeccionIntroductoria }).eq("id", idNotaPrueba).select(),
+    );
+    await esperarBloqueado(
+      "notas: el autor NO puede reescribir id_video_mux",
+      clienteConAcceso.from("notas_leccion").update({ id_video_mux: "otro" }).eq("id", idNotaPrueba).select(),
+    );
+    await esperarBloqueado(
+      "notas: CHECK rechaza un segundo negativo",
+      clienteConAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, segundo: -1, contenido: "x" })
+        .select(),
+    );
+    await esperarBloqueado(
+      "notas: CHECK rechaza una nota vacía",
+      clienteConAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, segundo: 1, contenido: "" })
+        .select(),
+    );
+    await esperarBloqueado(
+      "notas: CHECK rechaza una nota de más de 2.000 caracteres",
+      clienteConAcceso
+        .from("notas_leccion")
+        .insert({
+          id_usuario: userConAcceso.user!.id,
+          id_leccion: idLeccionDePago,
+          segundo: 1,
+          contenido: "x".repeat(2001),
+        })
+        .select(),
+    );
+
+    // Tope de 200 por (usuario, lección). El relleno va con service role
+    // (RLS no aplica, el trigger sí): 199 + la nota de arriba = 200.
+    const { error: errRelleno } = await admin.from("notas_leccion").insert(
+      Array.from({ length: 199 }, (_, i) => ({
+        id_usuario: userConAcceso.user!.id,
+        id_leccion: idLeccionDePago,
+        segundo: i,
+        contenido: "relleno RLS test",
+      })),
+    );
+    if (errRelleno) throw new Error(`No pude sembrar las notas de relleno: ${errRelleno.message}`);
+    const { error: errNota201 } = await clienteConAcceso
+      .from("notas_leccion")
+      .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, segundo: 1, contenido: "la 201" })
+      .select();
+    registrar(
+      "notas: la nota 201 en la misma lección se rechaza con el código del tope",
+      errNota201?.code === "P0N01",
+      errNota201 ? `${errNota201.code} ${errNota201.message}` : "se insertó",
+    );
+    await admin.from("notas_leccion").delete().eq("contenido", "relleno RLS test");
+
     // Simula "la fecha de renovación ya pasó", no "la suscripción nació
     // vencida": hay que mover fecha_inicio hacia atrás junto con
     // fecha_renovacion, o el UPDATE choca contra
@@ -1536,6 +1678,29 @@ async function main() {
     await esperarPermitido(
       "el progreso del acceso vencido sigue guardado (vuelve donde iba al renovar)",
       clienteConAcceso.from("progreso").select("id").eq("id_usuario", userConAcceso.user!.id),
+    );
+
+    // Notas, parte 2 (docs/notas-leccion.md §3.1): el acceso vencido
+    // conserva sus apuntes — los lee y los edita desde "Mis notas" — pero no
+    // crea nuevos en lecciones de pago. `esperarPermitido` solo mira que no
+    // haya error, así que acá se cuentan las filas.
+    const { data: notaVencidaLeida } = await clienteConAcceso
+      .from("notas_leccion")
+      .select("id")
+      .eq("id", idNotaPrueba);
+    registrar("notas: acceso vencido SÍ lee su propia nota", notaVencidaLeida?.length === 1);
+    const { data: notaVencidaEditada } = await clienteConAcceso
+      .from("notas_leccion")
+      .update({ contenido: "Nota RLS test (editada)" })
+      .eq("id", idNotaPrueba)
+      .select("id");
+    registrar("notas: acceso vencido SÍ edita su propia nota", notaVencidaEditada?.length === 1);
+    await esperarBloqueado(
+      "notas: acceso vencido NO crea notas en una lección de pago",
+      clienteConAcceso
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, segundo: 5, contenido: "x" })
+        .select(),
     );
 
     // Se devuelve a vigente: las pruebas del panel de más abajo cuentan
@@ -1686,6 +1851,77 @@ async function main() {
       password,
     });
     if (loginAdmin.error) throw new Error(`No pude iniciar sesión como admin: ${loginAdmin.error.message}`);
+
+    // Notas, parte 3: ni un administrador lee los apuntes de otra persona
+    // (docs/notas-leccion.md §3.1, mínimo privilegio).
+    await esperarBloqueado(
+      "notas: un administrador NO lee la nota de un estudiante",
+      clienteAdmin.from("notas_leccion").select("id").eq("id", idNotaPrueba),
+    );
+
+    // 117: la única ventana del admin hacia las notas es un conteo agregado
+    // para el aviso de borrado del CMS — sin contenido ni ids de usuario.
+    const { data: conteoNotas, error: errConteoNotas } = await clienteAdmin.rpc("admin_notas_por_leccion", {
+      p_id_curso: cursoAcceso.id,
+    });
+    const filasConteo = (conteoNotas ?? []) as Record<string, unknown>[];
+    const filaPago = filasConteo.find((fila) => fila.nivel === "leccion" && fila.id === idLeccionDePago);
+    registrar(
+      "notas: el admin ve CUÁNTOS estudiantes tienen notas en una lección (117)",
+      !errConteoNotas && filaPago?.estudiantes === 1,
+      errConteoNotas?.message ?? `fila: ${JSON.stringify(filaPago)}`,
+    );
+    registrar(
+      "notas: el conteo del admin no expone contenido ni usuarios (solo nivel, id, estudiantes)",
+      filasConteo.every((fila) => Object.keys(fila).sort().join(",") === "estudiantes,id,nivel"),
+    );
+    await esperarBloqueado(
+      "notas: un estudiante NO puede llamar el conteo del admin",
+      clienteConAcceso.rpc("admin_notas_por_leccion", { p_id_curso: cursoAcceso.id }),
+    );
+    await esperarBloqueado(
+      "notas: anon NO puede llamar el conteo del admin",
+      clienteAnonimo.rpc("admin_notas_por_leccion", { p_id_curso: cursoAcceso.id }),
+    );
+    const { data: notaBorrada } = await clienteConAcceso
+      .from("notas_leccion")
+      .delete()
+      .eq("id", idNotaPrueba)
+      .select("id");
+    registrar("notas: el autor SÍ borra su propia nota", notaBorrada?.length === 1);
+
+    // D1: borrar una lección borra las notas de esa lección. Lección
+    // desechable en el curso no publicado, creada y borrada en el mismo
+    // paso, para no alterar el conteo de lecciones de ningún otro fixture.
+    const { data: moduloNotas, error: errModuloNotas } = await admin
+      .from("modulos")
+      .insert({ id_curso: cursoNoPublicado.id, titulo: "Módulo notas RLS test", orden: 90 })
+      .select("id")
+      .single();
+    if (errModuloNotas || !moduloNotas) throw new Error(`No pude crear el módulo de notas: ${errModuloNotas?.message}`);
+    const { data: leccionNotas, error: errLeccionNotas } = await admin
+      .from("lecciones")
+      .insert({
+        id_modulo: moduloNotas.id,
+        titulo: "Lección notas RLS test",
+        slug: `leccion-notas-rls-test-${sufijo}`,
+        orden: 10,
+        estado_procesamiento: "LISTO",
+      })
+      .select("id")
+      .single();
+    if (errLeccionNotas || !leccionNotas) throw new Error(`No pude crear la lección de notas: ${errLeccionNotas?.message}`);
+    const { error: errNotaCascada } = await admin
+      .from("notas_leccion")
+      .insert({ id_usuario: userConAcceso.user!.id, id_leccion: leccionNotas.id, segundo: 3, contenido: "cascada" });
+    if (errNotaCascada) throw new Error(`No pude sembrar la nota de cascada: ${errNotaCascada.message}`);
+    await admin.from("lecciones").delete().eq("id", leccionNotas.id);
+    const { count: notasHuerfanas } = await admin
+      .from("notas_leccion")
+      .select("id", { count: "exact", head: true })
+      .eq("id_leccion", leccionNotas.id);
+    registrar("notas: borrar una lección borra sus notas (D1)", notasHuerfanas === 0, `quedaron ${notasHuerfanas}`);
+    await admin.from("modulos").delete().eq("id", moduloNotas.id);
 
     await esperarPermitido(
       "administrador SÍ puede listar usuarios por el RPC",
@@ -2686,6 +2922,15 @@ async function main() {
       throw new Error(`No pude sembrar la reseña de curso a anonimizar: ${errCalificacionAnon.message}`);
     }
 
+    // Nota privada (116): la supresión tiene que borrarla.
+    const { error: errNotaAnon } = await admin.from("notas_leccion").insert({
+      id_usuario: userAnonimizar.user!.id,
+      id_leccion: idLeccionIntroductoria,
+      segundo: 10,
+      contenido: "Nota con datos personales de prueba",
+    });
+    if (errNotaAnon) throw new Error(`No pude sembrar la nota a anonimizar: ${errNotaAnon.message}`);
+
     await esperarBloqueado(
       "un estudiante NO puede anonimizar a otro usuario",
       clienteConAcceso.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
@@ -2707,6 +2952,16 @@ async function main() {
     await esperarPermitido(
       "un administrador SÍ puede anonimizar la cuenta de otro usuario",
       clienteAdmin.rpc("anonimizar_usuario", { p_id_usuario: userAnonimizar.user!.id }),
+    );
+
+    const { count: notasTrasAnonimizar } = await admin
+      .from("notas_leccion")
+      .select("id", { count: "exact", head: true })
+      .eq("id_usuario", userAnonimizar.user!.id);
+    registrar(
+      "la supresión borra las notas privadas del usuario (116)",
+      notasTrasAnonimizar === 0,
+      `quedaron ${notasTrasAnonimizar}`,
     );
 
     const { data: perfilAnonimizado } = await admin
@@ -3832,6 +4087,9 @@ async function main() {
       await admin.from("comunidad_posts").delete().eq("id_usuario", usuario.id);
       await admin.from("certificados").delete().eq("id_usuario", usuario.id);
       await admin.from("progreso").delete().eq("id_usuario", usuario.id);
+      // `notas_leccion.id_usuario` es RESTRICT (la cuenta se anonimiza, no
+      // se borra): una nota superviviente haría fallar el deleteUser.
+      await admin.from("notas_leccion").delete().eq("id_usuario", usuario.id);
       await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);
       await admin.from("suscripciones").delete().eq("id_usuario", usuario.id);
       // Explícito aunque `comentarios` cascadee desde `lecciones`: la FK a

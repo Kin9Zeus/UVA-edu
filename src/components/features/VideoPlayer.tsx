@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import MuxPlayer from "@mux/mux-player-react";
 import type MuxPlayerElement from "@mux/mux-player";
 import { obtenerTokenReproduccion } from "@/actions/video/reproduccion";
@@ -27,6 +27,20 @@ const INTERVALO_RENOVACION_TOKEN_MS = DURACION_TOKEN_MS - 3 * 60 * 1000;
 const UMBRAL_COMPLETADO = 0.9;
 
 /**
+ * Control imperativo mínimo del reproductor, para quien vive fuera de él
+ * (la pestaña Notas: leer el segundo actual, saltar a una marca, pausar
+ * mientras se escribe — docs/notas-leccion.md §6.2). Funciones y no estado:
+ * leer la posición no debe re-renderizar a nadie en cada `timeupdate`.
+ */
+export type ControlReproductor = {
+  segundoActual: () => number;
+  irA: (segundo: number) => void;
+  pausar: () => void;
+  reanudar: () => void;
+  estaReproduciendo: () => boolean;
+};
+
+/**
  * Reproductor de una lección. Nunca recibe un playback ID "a secas": pide
  * su propio token firmado al montar (obtenerTokenReproduccion valida sesión
  * y acceso vigente en el servidor antes de firmar, CLAUDE.md §3.3) y no lo
@@ -46,6 +60,7 @@ export function VideoPlayer({
   titulo,
   segundoActual = 0,
   onTerminado,
+  controlRef,
 }: {
   leccionId: string;
   titulo: string;
@@ -53,6 +68,8 @@ export function VideoPlayer({
   segundoActual?: number;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
+  /** Se llena con el control del reproductor mientras está montado. */
+  controlRef?: RefObject<ControlReproductor | null>;
 }) {
   const [estado, setEstado] = useState<
     { tipo: "cargando" } | { tipo: "error"; mensaje: string } | { tipo: "listo"; playbackId: string; token: string }
@@ -91,6 +108,38 @@ export function VideoPlayer({
   // renovación se quedó atrás (el navegador pausa `setTimeout` en pestañas
   // en segundo plano, algo común en móvil) y toca refrescar de inmediato.
   const tokenExpiraEnRef = useRef(0);
+
+  // Las funciones leen `mediaRef` en el momento de la llamada, así que
+  // sirven aunque <MuxPlayer> todavía no esté montado (cargando el token):
+  // antes de eso el "segundo actual" es el punto de reanudación.
+  useEffect(() => {
+    if (!controlRef) return;
+    controlRef.current = {
+      segundoActual: () => mediaRef.current?.currentTime ?? posicionRef.current,
+      irA: (segundo) => {
+        const media = mediaRef.current;
+        if (!media) return;
+        const duracion = media.duration;
+        // Una nota puede apuntar más allá del final si el video se reemplazó
+        // por uno más corto: se lleva al final en vez de fallar.
+        media.currentTime =
+          typeof duracion === "number" && Number.isFinite(duracion) && duracion > 0
+            ? Math.min(segundo, Math.max(0, duracion - 0.5))
+            : segundo;
+      },
+      pausar: () => mediaRef.current?.pause(),
+      reanudar: () => {
+        // `play()` rechaza la promesa si el navegador bloquea la
+        // reproducción (p. ej. sin gesto del usuario): no es un error de la
+        // app, el estudiante puede darle play él mismo.
+        void mediaRef.current?.play()?.catch(() => {});
+      },
+      estaReproduciendo: () => !!mediaRef.current && !mediaRef.current.paused,
+    };
+    return () => {
+      controlRef.current = null;
+    };
+  }, [controlRef]);
 
   // Pide el token firmado (server-side, valida acceso vigente en cada
   // llamada — CLAUDE.md §3.3). Devuelve si la llamada llegó a resolverse
