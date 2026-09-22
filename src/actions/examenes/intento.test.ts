@@ -574,6 +574,29 @@ describe("iniciarIntento", () => {
     expect(congelarPreguntas).toHaveBeenCalledWith("examen-1", true, false);
   });
 
+  it("si falla la lectura de intentos previos, NO crea uno (antes: se saltaba la espera entre intentos)", async () => {
+    // AUDIT-2026-09-22.md, seguimiento de P2-3: el fallo salía como "ningún
+    // intento previo" y calcularDisponibilidad([]) decía "disponible".
+    servidorFalso.responder("from:intentos_examen", {
+      data: null,
+      error: { message: "canceling statement due to statement timeout", code: "57014" },
+    });
+
+    expect(await iniciarIntento("curso-1")).toEqual({ error: "No pudimos iniciar el examen. Intenta de nuevo." });
+    expect(insercion()).toBeUndefined();
+    expect(congelarPreguntas).not.toHaveBeenCalled();
+  });
+
+  it("si falla la lectura del examen, no dice que el curso no tiene examen", async () => {
+    servidorFalso.responder("from:examenes", {
+      data: null,
+      error: { message: "canceling statement due to statement timeout", code: "57014" },
+    });
+
+    expect(await iniciarIntento("curso-1")).toEqual({ error: "No pudimos iniciar el examen. Intenta de nuevo." });
+    expect(insercion()).toBeUndefined();
+  });
+
   it("dos pestañas a la vez (UNIQUE 23505): devuelve el intento que ganó la carrera", async () => {
     servidorFalso.responderEnOrden("from:intentos_examen", [
       { data: [] },

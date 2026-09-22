@@ -154,13 +154,37 @@ function restantesEnRonda(intentosUsados: number, intentosMaximos: number | null
   return enRondaActual === 0 ? intentosMaximos : intentosMaximos - enRondaActual;
 }
 
+/**
+ * Qué pasa si una consulta falla depende de quién pregunta (AUDIT-2026-09-22.md,
+ * seguimiento de P2-3):
+ *
+ * - Por defecto (la ficha del curso, la última clase del reproductor) se
+ *   registra y se devuelve SIN_EXAMEN: el examen es un recuadro más de esas
+ *   pantallas y tumbarlas por un fallo de lectura sería peor que degradarlas.
+ *   SIN_EXAMEN OCULTA el recuadro (ExamenCta devuelve null) en vez de
+ *   inventar un estado. Antes, un fallo al leer los intentos seguía con una
+ *   lista vacía y salía DISPONIBLE con 0 intentos usados, también para quien
+ *   ya había aprobado o estaba esperando para reintentar; y un fallo al contar
+ *   certificados le decía a quien ya lo tenía que terminara sus clases.
+ *
+ * - `estricto` (la página del examen, cuyo contenido ES este estado) LANZA:
+ *   la página responde 500 con "Reintentar". Degradar ahí mandaba al
+ *   estudiante de vuelta a la ficha como si el curso no tuviera examen.
+ */
 export async function getSituacionExamen(
   cursoId: string,
   usuarioId: string | null,
+  { estricto = false }: { estricto?: boolean } = {},
 ): Promise<SituacionExamen> {
   if (!usuarioId) return { situacion: "SIN_EXAMEN" };
 
   const supabase = await createClient();
+
+  const fallo = (error: { message?: string; code?: string }, tabla: string): SituacionExamen => {
+    if (estricto) lanzarSiFalla(error, `getSituacionExamen:${tabla}`);
+    logError("examen", `getSituacionExamen: la consulta de ${tabla} falló`, error, { area: "examenes", cursoId });
+    return { situacion: "SIN_EXAMEN" };
+  };
 
   // RLS ya filtra: solo devuelve la fila si el examen está publicado y el
   // estudiante tiene acceso vigente al curso. Un examen en borrador sale como
@@ -174,15 +198,8 @@ export async function getSituacionExamen(
   // Un `data: null` legítimo (examen en borrador o sin acceso) es
   // indistinguible de un `error` a simple vista, pero solo el segundo merece
   // quedar registrado: es lo que escondía el 42501 de D-17 detrás de un
-  // inocente "SIN_EXAMEN". Aquí NO se lanza —a diferencia de las dos
-  // funciones de abajo— porque "no hay examen" es un estado normal de esta
-  // pantalla y tumbarla por un fallo de lectura sería peor que degradarla.
-  if (errorExamen) {
-    logError("examen", "getSituacionExamen: la consulta de examenes falló", errorExamen, {
-      area: "examenes",
-      cursoId,
-    });
-  }
+  // inocente "SIN_EXAMEN". Ver `estricto` arriba.
+  if (errorExamen) return fallo(errorExamen, "examenes");
 
   if (!examenRow) return { situacion: "SIN_EXAMEN" };
   const examen = aExamenPublico(examenRow);
@@ -197,12 +214,7 @@ export async function getSituacionExamen(
     .eq("id_usuario", usuarioId)
     .order("iniciado_en", { ascending: false });
 
-  if (errorIntentos) {
-    logError("examen", "getSituacionExamen: la consulta de intentos_examen falló", errorIntentos, {
-      area: "examenes",
-      cursoId,
-    });
-  }
+  if (errorIntentos) return fallo(errorIntentos, "intentos_examen");
 
   const intentos = intentosRow ?? [];
 
@@ -213,10 +225,17 @@ export async function getSituacionExamen(
     // exactamente cuando existe la fila — no hay que recalcular
     // `curso_esta_completo` acá, con que exista ya alcanza y es la misma
     // fuente de verdad que usa la ficha de "Mis certificados".
-    const { count } = await supabase
+    //
+    // Con `id_usuario` explícito: la policy `certificados_select_propio`
+    // (077) le abre al ADMINISTRADOR los certificados de todos, así que sin
+    // este filtro un admin que aprobó el examen veía "Tu certificado está
+    // listo" en cuanto cualquier estudiante tuviera el suyo.
+    const { count, error: errorCertificados } = await supabase
       .from("certificados")
       .select("id", { count: "exact", head: true })
-      .eq("id_curso", cursoId);
+      .eq("id_curso", cursoId)
+      .eq("id_usuario", usuarioId);
+    if (errorCertificados) return fallo(errorCertificados, "certificados");
 
     return {
       situacion: "APROBADO",
