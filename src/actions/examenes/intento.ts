@@ -7,6 +7,7 @@ import { calcularVidasRestantes, calificarEmparejarParcial, calificarPregunta } 
 import { congelarPreguntas } from "@/lib/examenes/congelar";
 import { calcularDisponibilidad } from "@/lib/examen";
 import { getUsuarioActual } from "@/lib/perfil";
+import { logError } from "@/lib/log";
 import {
   parsearProgreso,
   respuestaEstudianteSchema,
@@ -58,6 +59,12 @@ async function requireEstudiante(): Promise<
   return { supabase, usuarioId: user.id } as const;
 }
 
+/** Una lectura de autorización de `iniciarIntento` falló: se registra y NO se crea nada. */
+function falloAlIniciar(consulta: string, error: unknown, cursoId: string): IntentoActionResult {
+  logError("examen:iniciar", `iniciarIntento: la consulta de ${consulta} falló`, error, { area: "examenes", cursoId });
+  return { error: "No pudimos iniciar el examen. Intenta de nuevo." };
+}
+
 /**
  * Inicia un intento del examen final del curso.
  *
@@ -79,20 +86,29 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
 
   // Cliente de SESIÓN: RLS solo devuelve la fila si el examen está publicado y
   // el estudiante tiene acceso vigente al curso. Es el chequeo de acceso.
-  const { data: examen } = await supabase
+  const { data: examen, error: errorExamen } = await supabase
     .from("examenes")
     .select("id, nota_aprobatoria, intentos_maximos, minutos_limite, aleatorizar_preguntas, aleatorizar_opciones")
     .eq("id_curso", cursoId)
     .maybeSingle();
 
+  if (errorExamen) return falloAlIniciar("examenes", errorExamen, cursoId);
   if (!examen) return { error: "Este curso no tiene un examen disponible." };
 
-  const { data: intentos } = await supabase
+  const { data: intentos, error: errorIntentos } = await supabase
     .from("intentos_examen")
     .select("id, estado, finalizado_en")
     .eq("id_examen", examen.id)
     .eq("id_usuario", usuarioId)
     .order("iniciado_en", { ascending: false });
+
+  // Sin esto, un fallo de lectura salía como "ningún intento previo"
+  // (AUDIT-2026-09-22.md, seguimiento de P2-3): no veía que ya había
+  // aprobado ni el intento abierto, `calcularDisponibilidad([])` respondía
+  // "disponible" y se creaba un intento nuevo con Service Role saltándose la
+  // espera entre intentos. Solo el índice de un EN_CURSO por estudiante
+  // quedaba en pie. Estas lecturas son la autorización: ante la duda, no.
+  if (errorIntentos) return falloAlIniciar("intentos_examen", errorIntentos, cursoId);
 
   const previos = intentos ?? [];
 

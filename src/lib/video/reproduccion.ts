@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mux } from "@/lib/mux/client";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 // Vida corta a propósito (CLAUDE.md §3.2/§3.3, docs/technical-spec.md §5,
 // tarea "Reproductor Mux con URL firmada"): un token capturado de la red
@@ -39,6 +40,15 @@ export type TokenReproduccionResultado = { error: string } | { playbackId: strin
  * el video recién subido, y es la misma noción de "administrador" que ya
  * usa el resto del CMS (private.es_administrador() en RLS) — el bypass vive
  * en `obtenerAccesoAlCurso` (src/lib/accesoCurso.ts), no aquí.
+ *
+ * `{ error }` es solo para respuestas DEFINITIVAS (no hay video, no hay
+ * sesión, no hay acceso): VideoPlayer las muestra en lugar del video y no
+ * vuelve a preguntar hasta la próxima renovación. Un fallo de la base LANZA
+ * (AUDIT-2026-09-22.md, seguimiento de P2-3): antes llegaba como `data: null`
+ * y salía como "El video todavía no está disponible" o "No tienes acceso
+ * vigente", y si pasaba al renovar el token, cortaba una reproducción que
+ * seguía siendo válida. Una excepción, en cambio, VideoPlayer la trata como
+ * falla transitoria: conserva el token que tiene y reintenta pronto.
  */
 export async function resolverTokenReproduccion(
   supabase: SupabaseClient,
@@ -53,11 +63,12 @@ export async function resolverTokenReproduccion(
   const { data: claimsData } = await supabase.auth.getClaims();
   const user = claimsData?.claims ? { id: claimsData.claims.sub } : null;
 
-  const { data: leccion } = await supabase
+  const { data: leccion, error: errorLeccion } = await supabase
     .from("lecciones")
     .select("id_video_mux, estado_procesamiento, modulo:modulos(id_curso)")
     .eq("id", leccionId)
     .maybeSingle();
+  lanzarSiFalla(errorLeccion, "resolverTokenReproduccion:lecciones");
 
   if (!leccion || !leccion.id_video_mux || leccion.estado_procesamiento !== "LISTO") {
     return { error: "El video todavía no está disponible." };
@@ -121,11 +132,12 @@ async function esLeccionIntroductoria(
   leccionId: string,
   cursoId: string,
 ): Promise<boolean> {
-  const { data: modulos } = await supabase
+  const { data: modulos, error } = await supabase
     .from("modulos")
     .select("id, orden, lecciones(id, orden)")
     .eq("id_curso", cursoId)
     .order("orden");
+  lanzarSiFalla(error, "esLeccionIntroductoria");
 
   const plano = (modulos ?? [])
     .slice()

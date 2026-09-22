@@ -7,6 +7,7 @@ import { resolverCategoria, buscarCatalogoPublico, getCursosParaBuscador } from 
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 import { esUuid } from "@/lib/slug";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { numeroDePagina, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
 
 export async function generateMetadata({
   params,
@@ -39,10 +40,15 @@ export default async function CategoriaPage({
   searchParams,
 }: {
   params: Promise<{ categoriaSlug: string }>;
-  searchParams: Promise<{ q?: string; page?: string }>;
+  // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
+  searchParams: Promise<{ q?: ParametroUrl; page?: ParametroUrl }>;
 }) {
   const { categoriaSlug } = await params;
-  const { q, page } = await searchParams;
+  const parametros = await searchParams;
+  const q = textoDeBusqueda(parametros.q);
+  const pagina = numeroDePagina(parametros.page);
+  // Solo se lleva `page` al redirect de abajo si la URL la traía.
+  const page = parametros.page === undefined ? undefined : String(pagina);
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
   // cambio de rutas siguen resolviendo. En paralelo con getPerfilActual():
   // son dos consultas independientes que antes iban en cascada.
@@ -60,7 +66,7 @@ export default async function CategoriaPage({
   }
 
   const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogoPublico({ query: q, categoriaId: categoria.id, pagina: page ? Number(page) : 1 }),
+    buscarCatalogoPublico({ query: q, categoriaId: categoria.id, pagina }),
     getCursosParaBuscador(),
   ]);
 

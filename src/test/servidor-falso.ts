@@ -37,7 +37,11 @@ import { vi } from "vitest";
 
 export type RespuestaFalsa = { data?: unknown; error?: unknown; count?: number | null };
 
-export type TipoCliente = "sesion" | "admin";
+/** `publico`: `createPublicClient()` (Anon Key, sin cookies) — el catálogo cacheado. */
+export type TipoCliente = "sesion" | "admin" | "publico";
+
+/** `publico` solo aparece si se creó alguno: las pruebas que afirman `{ sesion: 0, admin: 0 }` exacto siguen valiendo. */
+type ConteoClientes = { sesion: number; admin: number; publico?: number };
 
 export type LlamadaRegistrada = {
   cliente: TipoCliente;
@@ -64,7 +68,7 @@ const estado = {
   /** Respuesta calculada a partir de la consulta; tiene prioridad sobre las demás. */
   resolutores: new Map<string, (llamada: LlamadaRegistrada) => RespuestaFalsa>(),
   llamadas: [] as LlamadaRegistrada[],
-  clientesCreados: { sesion: 0, admin: 0 } as Record<TipoCliente, number>,
+  clientesCreados: { sesion: 0, admin: 0 } as ConteoClientes,
   revalidaciones: [] as string[],
   /** Llamadas a SDK externos (Resend, Mux): `resend.emails.send`, `mux.video.assets.delete`… */
   efectosExternos: [] as string[],
@@ -136,7 +140,7 @@ export const servidorFalso = {
   get llamadas(): readonly LlamadaRegistrada[] {
     return estado.llamadas;
   },
-  get clientesCreados(): Readonly<Record<TipoCliente, number>> {
+  get clientesCreados(): Readonly<ConteoClientes> {
     return estado.clientesCreados;
   },
   get revalidaciones(): readonly string[] {
@@ -242,7 +246,7 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
  * devuelve su propio `supabase`.
  */
 export function crearCliente(tipo: TipoCliente) {
-  estado.clientesCreados[tipo]++;
+  estado.clientesCreados[tipo] = (estado.clientesCreados[tipo] ?? 0) + 1;
   return {
     from: (tabla: string) => consulta(tipo, `from:${tabla}`, [tabla]),
     rpc: (nombre: string, args?: unknown) => consulta(tipo, `rpc:${nombre}`, [args]),
@@ -282,6 +286,10 @@ export function moduloSupabaseAdmin() {
   return { createAdminClient: vi.fn(() => crearCliente("admin")) };
 }
 
+export function moduloSupabasePublic() {
+  return { createPublicClient: vi.fn(() => crearCliente("publico")) };
+}
+
 export function moduloNextCache() {
   const registrar = (ruta: string) => {
     estado.revalidaciones.push(ruta);
@@ -304,6 +312,12 @@ export function moduloNextNavigation() {
     permanentRedirect: vi.fn(redirigir),
     notFound: vi.fn(() => {
       throw new Error("NEXT_NOT_FOUND");
+    }),
+    // Mismo contrato que el real: relanza lo que es de Next (acá, las
+    // redirecciones y el notFound falsos de arriba) y deja pasar el resto.
+    unstable_rethrow: vi.fn((error: unknown) => {
+      if (error instanceof RedireccionFalsa) throw error;
+      if (error instanceof Error && error.message === "NEXT_NOT_FOUND") throw error;
     }),
   };
 }

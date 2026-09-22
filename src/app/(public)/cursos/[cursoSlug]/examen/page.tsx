@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual } from "@/lib/perfil";
 import { esUuid } from "@/lib/slug";
 import { getResultadoIntento, getSituacionExamen, getIntentoEnCurso } from "@/lib/examen";
@@ -43,7 +44,7 @@ export default async function ExamenPage({
   }
 
   const supabase = await createClient();
-  const { data: curso } = await supabase
+  const { data: curso, error } = await supabase
     .from("cursos")
     // `cursoSlug` puede ser slug o UUID (enlaces anteriores al cambio de
     // rutas) — mismo criterio que getCursoPublico.
@@ -51,6 +52,9 @@ export default async function ExamenPage({
     .eq(esUuid(cursoSlug) ? "id" : "slug", cursoSlug)
     .maybeSingle();
 
+  // Un fallo aquí no es "el curso no existe" (AUDIT-2026-09-22.md,
+  // seguimiento de P2-3): sin esto, respondía 404 durante cualquier caída.
+  lanzarSiFalla(error, "ExamenPage:cursos");
   if (!curso) notFound();
 
   // Enlace viejo con UUID: misma pantalla con slug, conservando ?tiempo= (lo
@@ -59,7 +63,10 @@ export default async function ExamenPage({
     redirect(`/cursos/${curso.slug}/examen${tiempo ? `?tiempo=${encodeURIComponent(tiempo)}` : ""}`);
   }
 
-  const situacion = await getSituacionExamen(curso.id, user.id);
+  // `estricto`: esta pantalla ES la situación del examen. Sin él, un fallo de
+  // lectura salía como SIN_EXAMEN y el redirect de abajo mandaba al
+  // estudiante a la ficha como si el curso no tuviera examen.
+  const situacion = await getSituacionExamen(curso.id, user.id, { estricto: true });
 
   // Sin examen publicado (o sin acceso vigente al curso, que RLS traduce a lo
   // mismo): esta URL no tiene sentido — se devuelve a la ficha del curso en

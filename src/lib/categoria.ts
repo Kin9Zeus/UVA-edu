@@ -1,10 +1,14 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
+import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { numeroDePagina, textoDeBusqueda } from "@/lib/parametros-url";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
 import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
@@ -55,9 +59,38 @@ export type ResultadoCatalogo = {
   totalResultados: number;
   pagina: number;
   totalPaginas: number;
+  /**
+   * La consulta falló y esto es un resultado vacío de emergencia, no el
+   * catálogo real. La UI lo usa para decir "no pudimos cargar el catálogo" en
+   * vez de "todavía no hay cursos publicados", que era lo que se veía —y se
+   * quedaba cacheado 5 minutos— ante cualquier fallo de Supabase
+   * (AUDIT-2026-09-22.md, P2-2). Un resultado con `fallo` nunca se cachea:
+   * lo arma `catalogoFallido()` FUERA de `unstable_cache`.
+   */
+  fallo?: true;
 };
 
 export const CURSOS_POR_PAGINA = 12;
+
+// Las consultas de este módulo LANZAN ante un error de la base
+// (`lanzarSiFalla`, lib/supabase/errores.ts) para que un fallo nunca se
+// confunda con "no hay datos" (un catálogo vacío, una categoría que no
+// existe).
+//
+// Dentro de una función cacheada es, además, lo que hace funcionar la caché
+// ante un fallo: `unstable_cache` guarda lo que la función DEVUELVE y
+// descarta lo que LANZA
+// (node_modules/next/dist/server/web/spec-extension/unstable-cache.js: el
+// resultado solo se escribe después del `await` de la función). Devolver un
+// vacío, como se hacía antes, era pedirle que guardara el vacío.
+//
+// Además, si lo que falla es la revalidación de una entrada que ya estaba
+// vencida, Next sigue sirviendo el último valor bueno en vez del error.
+
+/** Resultado de emergencia para cuando la consulta del catálogo falla. Ver `ResultadoCatalogo.fallo`. */
+function catalogoFallido(pagina: number): ResultadoCatalogo {
+  return { cursos: [], totalResultados: 0, pagina, totalPaginas: 1, fallo: true };
+}
 
 /**
  * Categorías activas para el selector de filtro del catálogo.
@@ -70,11 +103,31 @@ export const CURSOS_POR_PAGINA = 12;
  * idéntico para cualquier rol. El selector de edición del panel
  * (`getCategoriasParaEdicion`, src/lib/admin/cursos.ts), que sí necesita
  * ver las inactivas, es una función distinta y no se toca.
+ *
+ * Ante un fallo devuelve `[]` SIN cachearlo (AUDIT-2026-09-22.md, P2-2): el
+ * selector queda vacío mientras dure el fallo, y como el filtro por categoría
+ * se resuelve contra esta lista, un `?categoria=` se ignora en ese lapso. Es
+ * preferible a mostrar un catálogo vacío.
  */
-export const getCategoriasActivas = unstable_cache(
+export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
+  try {
+    return await categoriasActivasCacheadas();
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:categorias", "no se pudieron cargar las categorías activas", error, { area: "catalogo" });
+    return [];
+  }
+}
+
+const categoriasActivasCacheadas = unstable_cache(
   async (): Promise<CategoriaActiva[]> => {
     const supabase = createPublicClient();
-    const { data } = await supabase.from("categorias").select("id, slug, nombre").eq("activo", true).order("nombre");
+    const { data, error } = await supabase
+      .from("categorias")
+      .select("id, slug, nombre")
+      .eq("activo", true)
+      .order("nombre");
+    lanzarSiFalla(error, "categorias activas");
     return (data ?? []) as CategoriaActiva[];
   },
   ["categorias-activas"],
@@ -91,15 +144,26 @@ export const getCategoriasActivas = unstable_cache(
  * arriba de eso, envuelta en `cache()` de React porque hoy se llama dos
  * veces por request en `/catalogo/[categoriaSlug]` (generateMetadata + el
  * componente), igual que ya hace getPerfilActual() (lib/perfil.ts).
+ *
+ * `null` significa "no existe o está inactiva" y nada más: las páginas lo
+ * convierten en `notFound()`. Un ERROR de la consulta LANZA
+ * (AUDIT-2026-09-22.md, P2-3 seguimiento): antes también devolvía `null`, así
+ * que durante una caída de Supabase cada categoría respondía 404. Un
+ * buscador que rastreara el sitio en ese momento leería "esta página ya no
+ * existe" y podría desindexarla; con el error, la página responde con el
+ * `error.tsx` (500, "reintenta"), que un rastreador trata como temporal.
  */
 export const resolverCategoria = cache(async (identificador: string): Promise<CategoriaInfo | null> => {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("categorias")
     .select("id, slug, nombre, descripcion")
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .eq("activo", true)
     .maybeSingle();
+  // `maybeSingle` no marca error cuando no hay fila (eso llega como
+  // `data: null`), así que cualquier `error` acá es un fallo real.
+  lanzarSiFalla(error, "resolverCategoria");
   return data as CategoriaInfo | null;
 });
 
@@ -125,25 +189,28 @@ type OpcionesBuscarCatalogo = {
  * sido una trampa fácil de pisar sin darse cuenta. Con dos funciones, usar
  * el cliente equivocado en la rama equivocada falla en el tipo de la firma,
  * no en producción.
+ *
+ * LANZA si la consulta falla (AUDIT-2026-09-22.md, P2-2) — ver
+ * `lanzarSiFalla`. Quien la llama decide qué mostrar en ese caso.
  */
 async function buscarCatalogoConCliente(
   supabase: SupabaseClient,
   opciones: OpcionesBuscarCatalogo,
   incluirProgreso: boolean,
 ): Promise<ResultadoCatalogo> {
-  const pagina = Math.max(1, Math.floor(opciones.pagina ?? 1) || 1);
+  // Se normaliza también acá, aunque los llamadores ya lo hacen: es lo que
+  // llega a la base, y no debe depender de que cada página se acuerde.
+  const pagina = numeroDePagina(opciones.pagina ?? 1);
   const offset = (pagina - 1) * CURSOS_POR_PAGINA;
 
   const { data, error } = await supabase.rpc("buscar_catalogo", {
-    p_query: opciones.query?.trim() || null,
+    p_query: textoDeBusqueda(opciones.query) ?? null,
     p_categoria_id: opciones.categoriaId || null,
     p_limite: CURSOS_POR_PAGINA,
     p_offset: offset,
   });
 
-  if (error || !data) {
-    return { cursos: [], totalResultados: 0, pagina, totalPaginas: 1 };
-  }
+  lanzarSiFalla(error, "buscar_catalogo");
 
   type FilaBusqueda = {
     curso_id: string;
@@ -157,7 +224,7 @@ async function buscarCatalogoConCliente(
     total_resultados: number;
   };
 
-  const filas = data as FilaBusqueda[];
+  const filas = (data ?? []) as FilaBusqueda[];
   const totalResultados = filas[0]?.total_resultados ?? 0;
 
   const progresoPorCurso = incluirProgreso
@@ -188,11 +255,58 @@ async function buscarCatalogoConCliente(
   };
 }
 
-/** Catálogo público (`/catalogo`) — cliente sin cookies, sin progreso del estudiante. */
-export const buscarCatalogoPublico = unstable_cache(
-  async (opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> => {
-    return buscarCatalogoConCliente(createPublicClient(), opciones, false);
-  },
+/**
+ * Catálogo público (`/catalogo`) — cliente sin cookies, sin progreso del
+ * estudiante.
+ *
+ * Qué se cachea y qué no (AUDIT-2026-09-22.md, P2-2 y P2-3)
+ * ---------------------------------------------------------
+ * - El LISTADO (sin texto de búsqueda, con o sin categoría) sí: es lo que ve
+ *   casi toda visita, y es idéntico para cualquiera. Ver
+ *   `listadoPublicoCacheado`.
+ * - Una BÚSQUEDA con texto no: va directo a la base, como antes de que
+ *   existiera la caché. Cachearla daba una entrada nueva en disco por cada
+ *   texto distinto —ilimitadas, y generables por cualquiera con un bucle de
+ *   `?q=<aleatorio>`— a cambio de acelerar solo la repetición exacta de una
+ *   búsqueda, que casi nunca ocurre.
+ * - Un FALLO nunca: se registra y se devuelve `catalogoFallido()`, que la
+ *   página muestra como "no pudimos cargar el catálogo". Si lo que falla es
+ *   la revalidación de un listado ya cacheado, Next sigue sirviendo ese
+ *   listado (ver `lanzarSiFalla`).
+ */
+export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
+  const query = textoDeBusqueda(opciones.query);
+  const pagina = numeroDePagina(opciones.pagina ?? 1);
+
+  try {
+    return query
+      ? await buscarCatalogoConCliente(createPublicClient(), { query, categoriaId: opciones.categoriaId, pagina }, false)
+      : await listadoPublicoCacheado(opciones.categoriaId ?? null, pagina);
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:publico", "no se pudo cargar el catálogo público", error, {
+      area: "catalogo",
+      conBusqueda: Boolean(query),
+      pagina,
+    });
+    return catalogoFallido(pagina);
+  }
+}
+
+/**
+ * La única parte cacheada del catálogo público: el listado sin búsqueda.
+ *
+ * Recibe argumentos posicionales y YA normalizados a propósito:
+ * `unstable_cache` arma la clave con `JSON.stringify(args)`, así que cualquier
+ * variación de entrada (`page=1.5`, un `categoriaId` como `undefined` en vez
+ * de `null`) sería una entrada distinta para el mismo resultado. Normalizado,
+ * el conjunto de claves posibles es finito: (categorías activas + 1) ×
+ * `PAGINA_MAXIMA`. `categoriaId` sale siempre de la base (la lista de
+ * categorías activas o `resolverCategoria`), nunca del texto de la URL.
+ */
+const listadoPublicoCacheado = unstable_cache(
+  async (categoriaId: string | null, pagina: number): Promise<ResultadoCatalogo> =>
+    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina }, false),
   ["catalogo-publico"],
   { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
 );
@@ -202,10 +316,28 @@ export const buscarCatalogoPublico = unstable_cache(
  * progreso del estudiante. La fuente es `progreso_cursos_estudiante` (033),
  * otorgada nada más a `authenticated`: pedirla desde el cliente público
  * fallaría con un error de permisos, por eso esta rama necesita la sesión.
+ *
+ * No se cachea (depende de quién mira), pero comparte el manejo de fallos del
+ * público: un error de la consulta se muestra como tal, no como "todavía no
+ * hay cursos publicados".
  */
 export async function buscarCatalogoConProgreso(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
+  const pagina = numeroDePagina(opciones.pagina ?? 1);
+  // Fuera del try: `createClient()` lee `cookies()`, y lo que eso pueda lanzar
+  // es de Next, no un fallo del catálogo.
   const supabase = await createClient();
-  return buscarCatalogoConCliente(supabase, opciones, true);
+
+  try {
+    return await buscarCatalogoConCliente(supabase, { ...opciones, pagina }, true);
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:dashboard", "no se pudo cargar el catálogo del dashboard", error, {
+      area: "catalogo",
+      conBusqueda: Boolean(textoDeBusqueda(opciones.query)),
+      pagina,
+    });
+    return catalogoFallido(pagina);
+  }
 }
 
 /**
@@ -267,31 +399,49 @@ export type CursoOpcionBuscador = {
  * SECURITY DEFINER pensada justo para servir esto sin sesión: es "la única
  * puerta pública a los datos de un profesor", no algo que RLS le niegue a
  * un visitante anónimo.
+ *
+ * Ante un fallo devuelve `[]` sin cachearlo (AUDIT-2026-09-22.md, P2-2): el
+ * buscador se queda sin sugerencias mientras dure el fallo, pero la búsqueda
+ * en sí sigue funcionando.
  */
-export const getCursosParaBuscador = unstable_cache(
+export async function getCursosParaBuscador(): Promise<CursoOpcionBuscador[]> {
+  try {
+    return await cursosParaBuscadorCacheados();
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:buscador", "no se pudieron cargar los cursos del buscador", error, { area: "catalogo" });
+    return [];
+  }
+}
+
+const cursosParaBuscadorCacheados = unstable_cache(
   async (): Promise<CursoOpcionBuscador[]> => {
-  const supabase = createPublicClient();
+    const supabase = createPublicClient();
 
-  const { data } = await supabase
-    .from("cursos")
-    .select("id, titulo")
-    .eq("mostrado", true)
-    .order("titulo");
+    const { data, error } = await supabase
+      .from("cursos")
+      .select("id, titulo")
+      .eq("mostrado", true)
+      .order("titulo");
+    lanzarSiFalla(error, "cursos para el buscador");
 
-  const cursos = data ?? [];
-  // Dos consultas fijas, no una por curso: el nombre del profesor vive en
-  // `perfiles`, así que se resuelve vía la vista pública en vez de un embed
-  // directo de PostgREST hacia `perfiles` (ver lib/instructores.ts).
-  const instructoresPorCurso = await getInstructoresDeCursos(
-    supabase,
-    cursos.map((curso) => curso.id as string),
-  );
+    const cursos = data ?? [];
+    // Dos consultas fijas, no una por curso: el nombre del profesor vive en
+    // `perfiles`, así que se resuelve vía la vista pública en vez de un embed
+    // directo de PostgREST hacia `perfiles` (ver lib/instructores.ts).
+    // `estricto`: si esa consulta falla, que lance, en vez de cachear 5
+    // minutos todos los cursos como "Sin instructor".
+    const instructoresPorCurso = await getInstructoresDeCursos(
+      supabase,
+      cursos.map((curso) => curso.id as string),
+      { estricto: true },
+    );
 
-  return cursos.map((curso) => ({
-    id: curso.id,
-    titulo: curso.titulo,
-    instructorNombre: nombresDeInstructores(instructoresPorCurso.get(curso.id) ?? []),
-  }));
+    return cursos.map((curso) => ({
+      id: curso.id,
+      titulo: curso.titulo,
+      instructorNombre: nombresDeInstructores(instructoresPorCurso.get(curso.id) ?? []),
+    }));
   },
   ["cursos-para-buscador"],
   { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },

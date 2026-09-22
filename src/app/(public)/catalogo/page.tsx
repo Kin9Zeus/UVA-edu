@@ -5,6 +5,7 @@ import { getPerfilActual } from "@/lib/perfil";
 import { getCategoriasActivas, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
 import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
@@ -16,9 +17,15 @@ export const metadata: Metadata = metadataPublica({
 export default async function CatalogoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; categoria?: string; page?: string }>;
+  // El tipo real: un parámetro repetido en la URL llega como arreglo. Ver
+  // lib/parametros-url.ts (`?q=a&q=b` era un 500, AUDIT-2026-09-22.md P2-3).
+  searchParams: Promise<{ q?: ParametroUrl; categoria?: ParametroUrl; page?: ParametroUrl }>;
 }) {
-  const { q, categoria, page } = await searchParams;
+  const parametros = await searchParams;
+  const query = textoDeBusqueda(parametros.q);
+  const pagina = numeroDePagina(parametros.page);
+  const categoria = parametroUnico(parametros.categoria);
+
   const [perfilActual, categorias, opcionesBusqueda] = await Promise.all([
     getPerfilActual(),
     getCategoriasActivas(),
@@ -26,7 +33,7 @@ export default async function CatalogoPage({
   ]);
 
   const categoriaId = categoria ? categorias.find((fila) => fila.slug === categoria)?.id : undefined;
-  const resultado = await buscarCatalogoPublico({ query: q, categoriaId, pagina: page ? Number(page) : 1 });
+  const resultado = await buscarCatalogoPublico({ query, categoriaId, pagina });
 
   return (
     <>

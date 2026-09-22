@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { SearchIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
+import { LARGO_MAXIMO_BUSQUEDA } from "@/lib/parametros-url";
 
 export type CursoOpcion = {
   id: string;
@@ -82,6 +83,9 @@ export function BuscadorInput({
         <Autocomplete.Input
           placeholder={placeholder}
           autoFocus={autoFocus}
+          // Mismo tope que aplica el servidor (lib/parametros-url.ts): así
+          // nadie escribe algo que después se recorte en silencio.
+          maxLength={LARGO_MAXIMO_BUSQUEDA}
           className="h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-base text-uva-text caret-uva-accent outline-none placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm"
         />
         {texto && (

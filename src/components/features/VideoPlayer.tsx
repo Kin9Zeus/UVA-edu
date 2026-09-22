@@ -22,6 +22,12 @@ const DURACION_TOKEN_MS = 15 * 60 * 1000;
 // margen) para que una clase más larga que la duración del token no se
 // corte a media reproducción con la sesión ya verificada.
 const INTERVALO_RENOVACION_TOKEN_MS = DURACION_TOKEN_MS - 3 * 60 * 1000;
+// Techo del reintento del token tras fallos seguidos (3s, 6s, 12s… hasta
+// aquí). Un fallo de la base al verificar el acceso llega como excepción
+// —igual que un corte de red, ver obtenerAccesoAlCurso en lib/accesoCurso.ts—
+// y durante una caída cada reproductor abierto reintentaría cada 3 s contra
+// una base que ya está en problemas.
+const REINTENTO_TOKEN_MAXIMO_MS = 60_000;
 // Fracción de la duración total a partir de la cual se considera "vista":
 // casi nadie ve los créditos finales hasta el segundo 100%.
 const UMBRAL_COMPLETADO = 0.9;
@@ -167,13 +173,17 @@ export function VideoPlayer({
   useEffect(() => {
     let cancelado = false;
     let temporizador: ReturnType<typeof setTimeout> | undefined;
+    let fallosSeguidos = 0;
 
     async function cargarYReprogramar() {
       const exito = await cargarToken();
       if (cancelado) return;
+      fallosSeguidos = exito ? 0 : fallosSeguidos + 1;
       temporizador = setTimeout(
         cargarYReprogramar,
-        exito ? INTERVALO_RENOVACION_TOKEN_MS : INTERVALO_REINTENTO_MS,
+        exito
+          ? INTERVALO_RENOVACION_TOKEN_MS
+          : Math.min(INTERVALO_REINTENTO_MS * 2 ** (fallosSeguidos - 1), REINTENTO_TOKEN_MAXIMO_MS),
       );
     }
 
