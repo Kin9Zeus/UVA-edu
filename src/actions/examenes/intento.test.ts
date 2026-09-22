@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { servidorFalso } from "@/test/servidor-falso";
+import { servidorFalso, type RespuestaFalsa } from "@/test/servidor-falso";
 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("@/lib/supabase/admin", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseAdmin()));
@@ -68,6 +68,9 @@ const INTENTO = {
   preguntas_congeladas: [pregunta(P1), pregunta(P2)],
   respuestas: progreso([P1, P2]) as unknown,
   expira_en: null as string | null,
+  // Distinta de 0 a propósito: así se ve que la escritura exige ESTA versión
+  // y guarda la siguiente, no un valor fijo.
+  version: 7,
   examen: { id_curso: "curso-1" },
 };
 
@@ -153,7 +156,9 @@ describe("enviarIntento (cierre por vencimiento del cronómetro)", () => {
       ["id", "intento-1"],
       ["id_usuario", ESTUDIANTE.id],
       ["estado", "EN_CURSO"],
+      ["version", 7],
     ]);
+    expect(filaActualizada()).toMatchObject({ version: 8 });
     expect(servidorFalso.revalidaciones).toEqual(
       expect.arrayContaining(["/dashboard/certificados", "/cursos/revit-basico", "/cursos/revit-basico/examen"]),
     );
@@ -192,7 +197,7 @@ describe("enviarIntento (cierre por vencimiento del cronómetro)", () => {
 });
 
 describe("responderPregunta", () => {
-  function conIntento(intento: Partial<typeof INTENTO> = {}, updates: { count?: number; error?: unknown }[] = [{ count: 1 }]) {
+  function conIntento(intento: Partial<typeof INTENTO> = {}, updates: RespuestaFalsa[] = [{ count: 1 }]) {
     servidorFalso.responderEnOrden("from:intentos_examen", [{ data: { ...INTENTO, ...intento } }, ...updates]);
     servidorFalso.responder("from:cursos", { data: { slug: "revit-basico" } });
   }
@@ -217,7 +222,8 @@ describe("responderPregunta", () => {
       cerrado: false,
       siguientePreguntaId: P2,
     });
-    expect(filaActualizada()).toEqual({ respuestas: progreso([P2], { [P1]: "a" }) });
+    expect(filaActualizada()).toEqual({ respuestas: progreso([P2], { [P1]: "a" }), version: 8 });
+    expect(filtrosDelUpdate()).toContainEqual(["version", 7]);
   });
 
   it("respuesta incorrecta con vidas de sobra: no cierra, la pregunta vuelve al FINAL de la cola", async () => {
@@ -447,7 +453,7 @@ describe("responderPregunta", () => {
 
     function conIntentoEmparejar(
       intento: Partial<typeof INTENTO> = {},
-      updates: { count?: number; error?: unknown }[] = [{ count: 1 }],
+      updates: RespuestaFalsa[] = [{ count: 1 }],
     ) {
       servidorFalso.responderEnOrden("from:intentos_examen", [
         {
@@ -463,15 +469,28 @@ describe("responderPregunta", () => {
       servidorFalso.responder("from:cursos", { data: { slug: "revit-basico" } });
     }
 
-    it("un par correcto con otros pendientes: sigue abierta, sin gastar vida ni escribir nada", async () => {
-      conIntentoEmparejar({}, []);
+    it("un par correcto con otros pendientes: sigue abierta, sin gastar vida ni tocar el progreso", async () => {
+      conIntentoEmparejar();
 
       const resultado = await responderPregunta("intento-1", PE, { i1: "d1" });
 
       expect(resultado).toEqual({ success: true, enProgreso: true });
-      // Solo la lectura inicial: nada de UPDATE mientras la pregunta sigue
-      // abierta — es justo lo que la evita gastar vidas o tocar la cola.
-      expect(servidorFalso.llamadasA("from:intentos_examen")).toHaveLength(1);
+      // Solo sube la versión: ni `respuestas` (vidas y cola intactas) ni
+      // nada más. Sin esa escritura, las sondas en paralelo de P2-1
+      // revelarían el par correcto sin chocar entre sí.
+      expect(filaActualizada()).toEqual({ version: 8 });
+      expect(filtrosDelUpdate()).toContainEqual(["version", 7]);
+    });
+
+    it("sondas en paralelo del mismo par: la que pierde la carrera no revela si el par era correcto", async () => {
+      // La correcta ("sigue") llegó tarde: otra sonda ya escribió.
+      conIntentoEmparejar({}, [{ count: 0 }, { data: { estado: "EN_CURSO" } }]);
+
+      const resultado = await responderPregunta("intento-1", PE, { i1: "d1" });
+
+      expect(resultado).toEqual({
+        error: "Tu respuesta anterior todavía se está procesando. Recarga la página para continuar.",
+      });
     });
 
     it("todos los pares correctos y completos: se resuelve como un acierto normal", async () => {
@@ -505,6 +524,119 @@ describe("responderPregunta", () => {
       });
       expect(progresoGuardado()).toEqual({ resueltas: {}, fallos: 1, cola: [PE] });
     });
+  });
+});
+
+/**
+ * P2-1 (AUDIT-2026-09-22.md): respuestas en paralelo sobre el mismo intento.
+ *
+ * El falso de Supabase no interpreta filtros, así que acá se le pone detrás
+ * una fila en memoria que sí aplica los del UPDATE (`estado` y `version`), y
+ * una barrera que retiene cada lectura inicial hasta que todas las llamadas
+ * leyeron: el peor caso, todas parten del mismo estado.
+ */
+describe("responderPregunta en paralelo (P2-1)", () => {
+  const OPCIONES = ["a", "b", "c", "d"];
+
+  function preguntaCuatroOpciones(id: string): PreguntaCongelada {
+    return {
+      ...pregunta(id),
+      opciones: OPCIONES.map((opcion) => ({ id: opcion, texto: opcion, correcta: opcion === "a" })),
+    };
+  }
+
+  function filaEnMemoria(llamadasEnParalelo: number) {
+    const fila = {
+      ...INTENTO,
+      preguntas_congeladas: [preguntaCuatroOpciones(P1), preguntaCuatroOpciones(P2)],
+      respuestas: progreso([P1, P2]) as unknown,
+    };
+    let lecturas = 0;
+    let soltarBarrera!: () => void;
+    const barrera = new Promise<void>((resolver) => (soltarBarrera = resolver));
+
+    servidorFalso.responderSegun("from:intentos_examen", (llamada) => {
+      const update = llamada.cadena.find((c) => c.metodo === "update");
+      if (!update) {
+        const copia = { data: structuredClone(fila) };
+        // Solo las lecturas iniciales esperan a la barrera; la relectura de
+        // `estado` tras un conflicto pasa directo.
+        if (++lecturas > llamadasEnParalelo) return copia;
+        if (lecturas === llamadasEnParalelo) soltarBarrera();
+        return barrera.then(() => copia) as unknown as { data: unknown };
+      }
+      const filtros = Object.fromEntries(
+        llamada.cadena.filter((c) => c.metodo === "eq").map((c) => c.argumentos as [string, unknown]),
+      );
+      if (filtros.estado !== fila.estado || filtros.version !== fila.version) return { count: 0 };
+      Object.assign(fila, update.argumentos[0]);
+      return { count: 1 };
+    });
+    servidorFalso.responder("from:cursos", { data: { slug: "revit-basico" } });
+    return fila;
+  }
+
+  it("una respuesta por opción a la vez: solo se acepta UNA y las demás no revelan veredicto", async () => {
+    const fila = filaEnMemoria(OPCIONES.length);
+
+    const resultados = await Promise.all(OPCIONES.map((opcion) => responderPregunta("intento-1", P1, opcion)));
+
+    const aceptadas = resultados.filter((r) => "success" in r);
+    const rechazadas = resultados.filter((r) => "error" in r);
+    expect(aceptadas).toHaveLength(1);
+    expect(rechazadas).toEqual(
+      Array(OPCIONES.length - 1).fill({
+        error: "Tu respuesta anterior todavía se está procesando. Recarga la página para continuar.",
+      }),
+    );
+
+    // `fallos` refleja exactamente la respuesta aceptada, ni más ni menos.
+    const aceptada = aceptadas[0] as { acierto: boolean };
+    expect((fila.respuestas as ProgresoIntento).fallos).toBe(aceptada.acierto ? 0 : 1);
+    expect(fila.version).toBe(INTENTO.version + 1);
+  });
+
+  it("dos respuestas incorrectas a la vez gastan UNA vida, no cero", async () => {
+    // Antes del arreglo, ambas escribían `fallos = 1` sobre la misma lectura
+    // y el resultado era correcto por casualidad; con una correcta y una
+    // incorrecta, la última escritura decidía si se perdía vida o no. Acá lo
+    // que importa es que la perdedora no escriba NADA.
+    const fila = filaEnMemoria(2);
+
+    const resultados = await Promise.all([
+      responderPregunta("intento-1", P1, "b"),
+      responderPregunta("intento-1", P1, "c"),
+    ]);
+
+    expect(resultados.filter((r) => "success" in r)).toHaveLength(1);
+    expect(fila.respuestas).toEqual({ resueltas: {}, fallos: 1, cola: [P2, P1] });
+  });
+
+  it("una respuesta que llega con el intento ya cerrado por otra vía sigue diciendo 'ya fue enviado'", async () => {
+    servidorFalso.responderEnOrden("from:intentos_examen", [
+      { data: INTENTO },
+      { count: 0 },
+      { data: { estado: "REPROBADO" } },
+    ]);
+
+    expect(await responderPregunta("intento-1", P1, "a")).toEqual({ error: "Este intento ya fue enviado." });
+  });
+
+  it("el cierre por tiempo que choca con una respuesta relee y cierra con el progreso nuevo", async () => {
+    const expirado = { ...INTENTO, expira_en: EXPIRADO };
+    servidorFalso.responderEnOrden("from:intentos_examen", [
+      { data: expirado },
+      { count: 0 },
+      { data: { estado: "EN_CURSO" } },
+      // Entre medio se aceptó la respuesta a P1.
+      { data: { ...expirado, version: 8, respuestas: progreso([P2], { [P1]: "a" }) } },
+      { count: 1 },
+    ]);
+    servidorFalso.responder("from:cursos", { data: { slug: "revit-basico" } });
+
+    expect(await enviarIntento("intento-1")).toEqual({ success: true, aprobado: false, puntajePct: 50 });
+    const cierre = servidorFalso.llamadasA("from:intentos_examen")[4];
+    expect(cierre.cadena).toContainEqual({ metodo: "eq", argumentos: ["version", 8] });
   });
 });
 

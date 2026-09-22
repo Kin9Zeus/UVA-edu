@@ -1026,6 +1026,12 @@ model IntentosExamen {
   /// congela acá para que cambiar `minutos_limite` no altere intentos en
   /// curso. `null` = examen sin límite de tiempo.
   expira_en            DateTime?           @db.Timestamptz
+  /// Control de concurrencia optimista (P2-1, AUDIT-2026-09-22.md). Cada
+  /// escritura de `responderPregunta`/`enviarIntento` exige la versión que
+  /// leyó y la incrementa: dos respuestas en paralelo sobre la misma lectura
+  /// ya no pueden pisarse (la segunda afecta 0 filas), así que no se pierden
+  /// vidas ni se prueba cada opción a la vez.
+  version              Int                 @default(0)
   creado_en            DateTime            @default(now()) @db.Timestamptz
   actualizado_en       DateTime            @updatedAt @db.Timestamptz
 
