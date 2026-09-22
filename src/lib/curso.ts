@@ -99,7 +99,17 @@ export async function getCursoPublico(
   // curso que RLS sí les permite ver. Si el curso está oculto y este
   // usuario no califica para ninguna excepción, RLS ya no devuelve la fila
   // y `curso` sale null, igual que antes.
-  const { data: curso } = await supabase
+  //
+  // `maybeSingle` y no `single` (AUDIT-2026-09-22.md, seguimiento de P2-3):
+  // `single` reporta "no hay fila" como ERROR (PGRST116), así que "no existe"
+  // y "la base falló" llegaban juntos como `curso: null`, y la página
+  // respondía 404 a los dos. Durante una caída de Supabase cada ficha de
+  // curso —las páginas públicas que más importan para buscadores— decía "no
+  // existe". Con `maybeSingle`, no encontrar la fila es `data: null` sin
+  // error (el slug es @unique: nunca hay más de una), y cualquier `error` es
+  // un fallo real que lanza: la página responde 500 ("reintenta"), que un
+  // rastreador trata como temporal.
+  const { data: curso, error } = await supabase
     .from("cursos")
     .select(
       `id, slug, titulo, descripcion, nivel, imagen_portada, fecha_edicion:actualizado_en, mostrado,
@@ -107,8 +117,11 @@ export async function getCursoPublico(
       modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, estado_procesamiento, id_video_mux))`,
     )
     .eq(columnaCurso, identificadorCurso)
-    .single();
+    .maybeSingle();
 
+  if (error) {
+    throw new Error(`getCursoPublico falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`);
+  }
   if (!curso) return null;
 
   const cursoId = curso.id;
