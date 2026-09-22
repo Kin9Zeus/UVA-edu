@@ -3,6 +3,7 @@ import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type LeccionPublica = {
   id: string;
@@ -119,9 +120,7 @@ export async function getCursoPublico(
     .eq(columnaCurso, identificadorCurso)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(`getCursoPublico falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`);
-  }
+  lanzarSiFalla(error, "getCursoPublico");
   if (!curso) return null;
 
   const cursoId = curso.id;

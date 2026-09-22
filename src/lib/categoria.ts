@@ -7,6 +7,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { getInstructoresDeCursos, nombresDeInstructores, SIN_INSTRUCTOR } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { numeroDePagina, textoDeBusqueda } from "@/lib/parametros-url";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
 
@@ -70,28 +71,20 @@ export type ResultadoCatalogo = {
 
 export const CURSOS_POR_PAGINA = 12;
 
-/**
- * Convierte un error de PostgREST en una excepción, para que un fallo de la
- * base nunca se confunda con "no hay datos" (un catálogo vacío, una categoría
- * que no existe).
- *
- * Dentro de una función cacheada es, además, lo que hace funcionar la caché
- * ante un fallo: `unstable_cache` guarda lo que la función DEVUELVE y
- * descarta lo que LANZA
- * (node_modules/next/dist/server/web/spec-extension/unstable-cache.js: el
- * resultado solo se escribe después del `await` de la función). Devolver un
- * vacío, como se hacía antes, era pedirle que guardara el vacío.
- *
- * Además, si lo que falla es la revalidación de una entrada que ya estaba
- * vencida, Next sigue sirviendo el último valor bueno en vez del error.
- *
- * Misma idea que `lanzarSiFalla` de lib/examen.ts, local para no acoplar el
- * catálogo al módulo de exámenes.
- */
-function fallarSiError(error: { message?: string; code?: string } | null, consulta: string): void {
-  if (!error) return;
-  throw new Error(`${consulta} falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`);
-}
+// Las consultas de este módulo LANZAN ante un error de la base
+// (`lanzarSiFalla`, lib/supabase/errores.ts) para que un fallo nunca se
+// confunda con "no hay datos" (un catálogo vacío, una categoría que no
+// existe).
+//
+// Dentro de una función cacheada es, además, lo que hace funcionar la caché
+// ante un fallo: `unstable_cache` guarda lo que la función DEVUELVE y
+// descarta lo que LANZA
+// (node_modules/next/dist/server/web/spec-extension/unstable-cache.js: el
+// resultado solo se escribe después del `await` de la función). Devolver un
+// vacío, como se hacía antes, era pedirle que guardara el vacío.
+//
+// Además, si lo que falla es la revalidación de una entrada que ya estaba
+// vencida, Next sigue sirviendo el último valor bueno en vez del error.
 
 /** Resultado de emergencia para cuando la consulta del catálogo falla. Ver `ResultadoCatalogo.fallo`. */
 function catalogoFallido(pagina: number): ResultadoCatalogo {
@@ -133,7 +126,7 @@ const categoriasActivasCacheadas = unstable_cache(
       .select("id, slug, nombre")
       .eq("activo", true)
       .order("nombre");
-    fallarSiError(error, "categorias activas");
+    lanzarSiFalla(error, "categorias activas");
     return (data ?? []) as CategoriaActiva[];
   },
   ["categorias-activas"],
@@ -169,7 +162,7 @@ export const resolverCategoria = cache(async (identificador: string): Promise<Ca
     .maybeSingle();
   // `maybeSingle` no marca error cuando no hay fila (eso llega como
   // `data: null`), así que cualquier `error` acá es un fallo real.
-  fallarSiError(error, "resolverCategoria");
+  lanzarSiFalla(error, "resolverCategoria");
   return data as CategoriaInfo | null;
 });
 
@@ -197,7 +190,7 @@ type OpcionesBuscarCatalogo = {
  * no en producción.
  *
  * LANZA si la consulta falla (AUDIT-2026-09-22.md, P2-2) — ver
- * `fallarSiError`. Quien la llama decide qué mostrar en ese caso.
+ * `lanzarSiFalla`. Quien la llama decide qué mostrar en ese caso.
  */
 async function buscarCatalogoConCliente(
   supabase: SupabaseClient,
@@ -216,7 +209,7 @@ async function buscarCatalogoConCliente(
     p_offset: offset,
   });
 
-  fallarSiError(error, "buscar_catalogo");
+  lanzarSiFalla(error, "buscar_catalogo");
 
   type FilaBusqueda = {
     curso_id: string;
@@ -278,7 +271,7 @@ async function buscarCatalogoConCliente(
  * - Un FALLO nunca: se registra y se devuelve `catalogoFallido()`, que la
  *   página muestra como "no pudimos cargar el catálogo". Si lo que falla es
  *   la revalidación de un listado ya cacheado, Next sigue sirviendo ese
- *   listado (ver `fallarSiError`).
+ *   listado (ver `lanzarSiFalla`).
  */
 export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
   const query = textoDeBusqueda(opciones.query);
@@ -428,7 +421,7 @@ const cursosParaBuscadorCacheados = unstable_cache(
       .select("id, titulo")
       .eq("mostrado", true)
       .order("titulo");
-    fallarSiError(error, "cursos para el buscador");
+    lanzarSiFalla(error, "cursos para el buscador");
 
     const cursos = data ?? [];
     // Dos consultas fijas, no una por curso: el nombre del profesor vive en
