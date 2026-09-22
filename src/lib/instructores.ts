@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/log";
 
 /**
  * Quién dicta un curso. Es una cuenta real (`perfiles` con rol PROFESOR), no
@@ -32,10 +33,17 @@ export const SIN_INSTRUCTOR = "Sin instructor";
  *
  * Una sola consulta con `.in()` para N cursos, nunca una por curso — es el
  * problema N+1 que el resto de `lib/` ya evita explícitamente.
+ *
+ * `estricto`: lanza si la consulta falla, en vez de devolver el mapa vacío.
+ * Lo pide quien guarda el resultado en caché (`getCursosParaBuscador`, en
+ * lib/categoria.ts): un mapa vacío ahí quedaría cacheado y mostraría todos
+ * los cursos como "Sin instructor" durante minutos (AUDIT-2026-09-22.md,
+ * P2-2). Sin él, se conserva el comportamiento de siempre para el panel.
  */
 export async function getInstructoresDeCursos(
   supabase: SupabaseClient,
   cursoIds: string[],
+  { estricto = false }: { estricto?: boolean } = {},
 ): Promise<Map<string, InstructorPublico[]>> {
   const porCurso = new Map<string, InstructorPublico[]>();
   if (cursoIds.length === 0) return porCurso;
@@ -45,9 +53,22 @@ export async function getInstructoresDeCursos(
     .select("id_curso, id_instructor, nombre, especialidad, foto_url")
     .in("id_curso", cursoIds);
 
-  // Sin `error` revisado, una consulta rechazada devolvería `data: null` y el
-  // curso aparecería como "Sin instructor" en vez de fallar de forma visible.
-  if (error) return porCurso;
+  // Una consulta rechazada devuelve `data: null`: los cursos saldrían como
+  // "Sin instructor". Antes eso pasaba sin dejar rastro; ahora, o lanza
+  // (`estricto`, y quien llama lo registra) o se registra aquí y degrada igual
+  // que antes.
+  if (error) {
+    if (estricto) {
+      throw new Error(
+        `curso_instructores_publico falló: ${error.message ?? "error desconocido"} (code=${error.code ?? "sin código"})`,
+      );
+    }
+    logError("instructores", "no se pudieron leer los instructores de los cursos", error, {
+      area: "catalogo",
+      cursos: cursoIds.length,
+    });
+    return porCurso;
+  }
 
   for (const fila of data ?? []) {
     const lista = porCurso.get(fila.id_curso as string) ?? [];

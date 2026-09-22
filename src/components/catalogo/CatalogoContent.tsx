@@ -116,9 +116,12 @@ export function CatalogoContent({
         <p className="mt-1.5 max-w-[560px] text-sm text-uva-text-muted">
           {categoriaFija ? (categoriaFija.descripcion ?? "Cursos de esta categoría.") : "Todo el catálogo del gremio: categoría y curso."}
         </p>
-        <p className="mt-3 text-xs text-uva-text-faint">
-          {resultado.totalResultados} {resultado.totalResultados === 1 ? "curso" : "cursos"}
-        </p>
+        {/* Con `fallo` el total no es 0: es desconocido. */}
+        {!resultado.fallo && (
+          <p className="mt-3 text-xs text-uva-text-faint">
+            {resultado.totalResultados} {resultado.totalResultados === 1 ? "curso" : "cursos"}
+          </p>
+        )}
 
         <div className="mt-5 flex flex-wrap gap-2.5">
           {!categoriaFija && (
@@ -150,7 +153,35 @@ export function CatalogoContent({
         </div>
       </div>
 
-      {resultado.cursos.length === 0 ? (
+      {resultado.fallo ? (
+        // La consulta falló (AUDIT-2026-09-22.md, P2-2): antes esto caía en
+        // "Todavía no hay cursos publicados", que es falso, y quedaba
+        // cacheado 5 minutos. Este estado no se cachea: reintentar vuelve a
+        // pedir el catálogo de verdad.
+        <div role="alert" className="flex flex-col items-start gap-3">
+          <p className="text-sm text-uva-text-muted">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</p>
+          <button
+            type="button"
+            onClick={() => startTransition(() => router.refresh())}
+            className="text-[13px] font-semibold text-uva-accent-text hover:underline"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : resultado.cursos.length === 0 && resultado.pagina > 1 ? (
+        // Una página más allá de la última (un enlace viejo, o `?page=` a
+        // mano): hay cursos, solo que no en esta página.
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-sm text-uva-text-muted">No hay cursos en esta página.</p>
+          <button
+            type="button"
+            onClick={() => actualizarUrl({ page: undefined })}
+            className="text-[13px] font-semibold text-uva-accent-text hover:underline"
+          >
+            Ir a la primera página
+          </button>
+        </div>
+      ) : resultado.cursos.length === 0 ? (
         <div className="flex flex-col items-start gap-3">
           <p className="text-sm text-uva-text-muted">
             {texto.trim()
