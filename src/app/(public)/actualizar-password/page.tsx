@@ -4,6 +4,7 @@ import { AuthVisual } from "@/components/auth/AuthVisual";
 import { ActualizarPasswordForm } from "@/components/auth/ActualizarPasswordForm";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { nivelFalloEnlace } from "@/lib/enlace-auth";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Nueva contraseña",
@@ -31,7 +32,9 @@ export default async function ActualizarPasswordPage({
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      logError("actualizar-password", "exchangeCodeForSession falló", error);
+      logError("actualizar-password", "exchangeCodeForSession falló", error, {
+        nivel: nivelFalloEnlace(error),
+      });
       redirect("/login?error=enlace_invalido");
     }
 

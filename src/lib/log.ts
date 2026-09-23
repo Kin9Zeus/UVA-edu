@@ -45,15 +45,21 @@ function redactar(valor: unknown, profundidad = 0): unknown {
   return valor;
 }
 
+/**
+ * `nivel: "warning"` es para lo que conviene poder rastrear pero no es un
+ * fallo del sistema — p. ej. un enlace de correo vencido o abierto en otro
+ * navegador (ver `esEnlaceVencidoOAjeno` en lib/enlace-auth.ts). Sale en
+ * Sentry como warning y no dispara las alertas de error.
+ */
 export function logError(
   scope: string,
   message: string,
   error?: unknown,
-  context?: Record<string, unknown> & { area?: string },
+  context?: Record<string, unknown> & { area?: string; nivel?: "error" | "warning" },
 ): string {
   const err = error instanceof Error ? error : new Error(message);
 
-  const { area, ...extraCrudo } = context ?? {};
+  const { area, nivel = "error", ...extraCrudo } = context ?? {};
   const extra = redactar(extraCrudo) as Record<string, unknown>;
   // `error` casi siempre es un Error (auth de Supabase, Mux, Resend), pero
   // un PostgrestError (`.from().select()`) es un objeto plano — sin esto,
@@ -63,13 +69,14 @@ export function logError(
     error !== undefined && !(error instanceof Error) ? redactar(error) : undefined;
 
   const eventId = Sentry.captureException(err, {
+    level: nivel,
     tags: { scope, ...(area ? { area } : {}) },
     extra: { message, ...(causaOriginal !== undefined ? { causaOriginal } : {}), ...extra },
   });
 
-  console.error(
+  (nivel === "warning" ? console.warn : console.error)(
     JSON.stringify({
-      nivel: "error",
+      nivel,
       timestamp: new Date().toISOString(),
       eventId,
       scope,

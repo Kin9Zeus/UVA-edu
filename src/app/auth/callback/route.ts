@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { nivelFalloEnlace } from "@/lib/enlace-auth";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 export async function GET(request: NextRequest) {
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
       redirect(next);
     }
 
-    logError("auth/callback", "exchangeCodeForSession falló", error);
+    logError("auth/callback", "exchangeCodeForSession falló", error, {
+      nivel: nivelFalloEnlace(error),
+    });
   } else {
     logError("auth/callback", "falta el parámetro code en la URL", null, { url: request.url });
   }

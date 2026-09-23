@@ -59,4 +59,22 @@ describe("logError", () => {
 
     spy.mockRestore();
   });
+
+  it("con nivel warning sale por console.warn y no por console.error", () => {
+    const spyError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const spyWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    logError("auth/callback", "exchangeCodeForSession falló", new Error("x"), {
+      nivel: "warning",
+    });
+
+    expect(spyError).not.toHaveBeenCalled();
+    const logueado = JSON.parse(spyWarn.mock.calls[0][0] as string);
+    expect(logueado.nivel).toBe("warning");
+    // `nivel` no se cuela como dato extra del evento.
+    expect(Object.keys(logueado).filter((k) => k === "nivel")).toHaveLength(1);
+
+    spyError.mockRestore();
+    spyWarn.mockRestore();
+  });
 });

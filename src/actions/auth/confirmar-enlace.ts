@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { nivelFalloEnlace } from "@/lib/enlace-auth";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 /**
@@ -50,7 +51,9 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
       redirect(next);
     }
 
-    logError("auth/confirm", "exchangeCodeForSession falló", error);
+    logError("auth/confirm", "exchangeCodeForSession falló", error, {
+      nivel: nivelFalloEnlace(error),
+    });
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       type,
@@ -64,7 +67,7 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
       redirect(next);
     }
 
-    logError("auth/confirm", "verifyOtp falló", error);
+    logError("auth/confirm", "verifyOtp falló", error, { nivel: nivelFalloEnlace(error) });
   } else {
     logError("auth/confirm", "faltan code o token_hash/type en la URL", null, {
       code,

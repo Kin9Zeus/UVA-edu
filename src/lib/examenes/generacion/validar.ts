@@ -84,6 +84,7 @@ export function validarPreguntasGeneradas(
       descartadas += 1;
       logError(SCOPE_LOG, "se descarta una pregunta: el fragmento no valida", null, {
         area: AREA_LOG,
+        nivel: "warning",
         courseId,
         videoId: pregunta.videoId,
         motivo: resultado.motivo,
@@ -109,7 +110,9 @@ export function validarPreguntasGeneradas(
         SCOPE_LOG,
         "el video quedó sin ninguna pregunta validada; revisar la transcripción a mano",
         null,
-        { area: AREA_LOG, videoId: video.videoId, courseId, totalPreguntas },
+        // Warning, no error: es calidad del contenido, no un fallo del
+        // sistema, y el panel del admin ya lo muestra (GenerarExamenPanel).
+        { area: AREA_LOG, nivel: "warning", videoId: video.videoId, courseId, totalPreguntas },
       );
     }
   }
