@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LARGO_MAXIMO_BUSQUEDA,
   PAGINA_MAXIMA,
+  fechaDeFiltro,
   numeroDePagina,
   parametroUnico,
   textoDeBusqueda,
@@ -85,5 +86,28 @@ describe("numeroDePagina", () => {
 
   it("respeta un tope distinto si se le pasa", () => {
     expect(numeroDePagina("30", 10)).toBe(10);
+  });
+});
+
+describe("fechaDeFiltro", () => {
+  it("devuelve una fecha YYYY-MM-DD válida tal cual", () => {
+    expect(fechaDeFiltro("2026-09-22")).toBe("2026-09-22");
+  });
+
+  it("con el parámetro repetido usa la primera", () => {
+    expect(fechaDeFiltro(["2026-01-05", "2026-02-10"])).toBe("2026-01-05");
+  });
+
+  it.each([
+    ["ausente", undefined],
+    ["vacío", ""],
+    ["texto", "ayer"],
+    ["con hora", "2026-09-22T10:00:00Z"],
+    ["día que no existe", "2026-02-30"],
+    ["mes 13", "2026-13-01"],
+    ["sin ceros", "2026-9-2"],
+    ["repetida con la primera inválida", ["basura", "2026-01-01"]],
+  ])("%s → undefined (antes era un RangeError y un 500 en la bitácora)", (_caso, entrada) => {
+    expect(fechaDeFiltro(entrada)).toBeUndefined();
   });
 });

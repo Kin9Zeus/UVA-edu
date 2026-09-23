@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getBitacora } from "@/lib/admin/bitacora";
 import { BitacoraTable } from "@/components/admin/bitacora/BitacoraTable";
+import { fechaDeFiltro, numeroDePagina, type ParametroUrl } from "@/lib/parametros-url";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Bitácora",
@@ -9,10 +10,17 @@ export const metadata: Metadata = {
 export default async function AdminBitacoraPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; desde?: string; hasta?: string }>;
+  // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
+  searchParams: Promise<{ page?: ParametroUrl; desde?: ParametroUrl; hasta?: ParametroUrl }>;
 }) {
   const { page, desde, hasta } = await searchParams;
-  const resultado = await getBitacora(page ? Number(page) : 1, desde, hasta);
+  // Sin tope de páginas: la bitácora no pasa por unstable_cache, así que no
+  // hay claves de caché que acotar (el motivo de PAGINA_MAXIMA).
+  const resultado = await getBitacora(
+    numeroDePagina(page, Number.MAX_SAFE_INTEGER),
+    fechaDeFiltro(desde),
+    fechaDeFiltro(hasta),
+  );
 
   return (
     <div className="flex flex-col gap-6">

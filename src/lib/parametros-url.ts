@@ -79,3 +79,20 @@ export function numeroDePagina(valor: ParametroUrl | number, maxima = PAGINA_MAX
   if (!Number.isFinite(numero)) return 1;
   return Math.min(maxima, Math.max(1, Math.floor(numero)));
 }
+
+/**
+ * Fecha de un filtro por rango (`?desde=`, `?hasta=`), o `undefined` si no es
+ * un día real en formato "YYYY-MM-DD" — el que produce `<input type="date">`.
+ * Cualquier otra cosa se ignora como si el filtro no estuviera: la bitácora
+ * arma `new Date(`${hasta}T00:00:00Z`).toISOString()`, que con un valor
+ * inválido lanza `RangeError` y tumbaba la página con un 500.
+ */
+export function fechaDeFiltro(valor: ParametroUrl): string | undefined {
+  const texto = parametroUnico(valor);
+  if (!texto || !/^\d{4}-\d{2}-\d{2}$/.test(texto)) return undefined;
+  const fecha = new Date(`${texto}T00:00:00Z`);
+  // `Date` corre los días que no existen (`2026-02-30` → 2 de marzo) en vez
+  // de rechazarlos: si al volver a texto no coincide, no era un día real.
+  if (Number.isNaN(fecha.getTime()) || fecha.toISOString().slice(0, 10) !== texto) return undefined;
+  return texto;
+}

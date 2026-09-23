@@ -5,6 +5,13 @@ import { getMetricasPanel, getAvanceCursos, getAbandonoLecciones } from "@/lib/a
 import { MetricaCard } from "@/components/admin/MetricaCard";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { UsuariosTable } from "@/components/admin/usuarios/UsuariosTable";
+import {
+  fechaDeFiltro,
+  numeroDePagina,
+  parametroUnico,
+  textoDeBusqueda,
+  type ParametroUrl,
+} from "@/lib/parametros-url";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Usuarios",
@@ -13,14 +20,15 @@ export const metadata: Metadata = {
 export default async function AdminUsuariosPage({
   searchParams,
 }: {
+  // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
   searchParams: Promise<{
-    q?: string;
-    desde?: string;
-    hasta?: string;
-    rol?: string;
-    estado?: string;
-    suscripcion?: string;
-    page?: string;
+    q?: ParametroUrl;
+    desde?: ParametroUrl;
+    hasta?: ParametroUrl;
+    rol?: ParametroUrl;
+    estado?: ParametroUrl;
+    suscripcion?: ParametroUrl;
+    page?: ParametroUrl;
   }>;
 }) {
   const filtros = await searchParams;
@@ -30,13 +38,14 @@ export default async function AdminUsuariosPage({
   // acotarlo a un periodo no significa nada.
   const [resultado, metricas, avanceCursos, abandono] = await Promise.all([
     getUsuarios({
-      query: filtros.q,
-      desde: filtros.desde,
-      hasta: filtros.hasta,
-      rol: filtros.rol,
-      estado: filtros.estado,
-      suscripcion: filtros.suscripcion,
-      pagina: filtros.page ? Number(filtros.page) : 1,
+      query: textoDeBusqueda(filtros.q),
+      desde: fechaDeFiltro(filtros.desde),
+      hasta: fechaDeFiltro(filtros.hasta),
+      rol: parametroUnico(filtros.rol),
+      estado: parametroUnico(filtros.estado),
+      suscripcion: parametroUnico(filtros.suscripcion),
+      // Sin tope: esta tabla no pasa por unstable_cache (motivo de PAGINA_MAXIMA).
+      pagina: numeroDePagina(filtros.page, Number.MAX_SAFE_INTEGER),
     }),
     getMetricasPanel(),
     getAvanceCursos(),
