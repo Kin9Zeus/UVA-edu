@@ -50,3 +50,9 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# configuración local de agentes y de Obsidian (no se versiona)
+/.agents/
+/.claude/
+/.obsidian/
+/cerebro/
