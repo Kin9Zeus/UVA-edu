@@ -91,6 +91,14 @@ describe("cambiarPassword", () => {
     expect(servidorFalso.llamadasA("auth:signInWithPassword")).toHaveLength(0);
   });
 
+  it("si la consulta del límite falla, BLOQUEA: no prueba la contraseña (P2-6, falla cerrado)", async () => {
+    servidorFalso.responder("rpc:verificar_intentos_login", { data: null, error: { message: "timeout" } });
+
+    expect((await cambiar())?.error).toMatch(/No pudimos verificar tu acceso/);
+    expect(servidorFalso.llamadasA("auth:signInWithPassword")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("auth:updateUser")).toHaveLength(0);
+  });
+
   it("éxito: limpia intentos, cambia la contraseña y avisa por correo", async () => {
     expect(await cambiar()).toEqual({ success: true });
     expect(servidorFalso.llamadasA("auth:updateUser")[0].argumentos[0]).toEqual({ password: VALIDO.password_nueva });

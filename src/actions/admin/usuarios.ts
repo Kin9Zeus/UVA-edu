@@ -345,18 +345,26 @@ export async function quitarCortesia(
   const motivoLimpio = motivo.trim();
   if (!motivoLimpio) return { error: "Escribe el motivo de la revocación." };
 
-  const { error } = await admin.supabase
+  // `id_usuario` también filtra: la bitácora se escribe a nombre de
+  // `usuarioId`, así que la inscripción tiene que ser suya. Y 0 filas (no
+  // existe, no es cortesía o es de otro) ya no se reporta como éxito.
+  const { error, count } = await admin.supabase
     .from("inscripciones")
-    .update({
-      activo: false,
-      revocado_en: new Date().toISOString(),
-      motivo_revocacion: motivoLimpio,
-      revocado_por: admin.adminId,
-    })
+    .update(
+      {
+        activo: false,
+        revocado_en: new Date().toISOString(),
+        motivo_revocacion: motivoLimpio,
+        revocado_por: admin.adminId,
+      },
+      { count: "exact" },
+    )
     .eq("id", inscripcionId)
+    .eq("id_usuario", usuarioId)
     .eq("tipo_acceso", "CORTESIA");
 
   if (error) return { error: "No pudimos quitar la cortesía." };
+  if (!count) return { error: "No encontramos esa cortesía para este usuario." };
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,

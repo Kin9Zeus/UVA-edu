@@ -4,17 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 
 export type LoginState =
   | { error: string; pendingVerification?: never }
   | { error?: never; pendingVerification: true }
   | null;
-
-function mensajeEspera(segundos: number): string {
-  const minutos = Math.ceil(segundos / 60);
-  return `Demasiados intentos. Espera ${minutos} minuto${minutos === 1 ? "" : "s"} e intenta de nuevo.`;
-}
 
 export async function login(
   _prevState: LoginState,
@@ -31,24 +27,8 @@ export async function login(
 
   const admin = createAdminClient();
 
-  // Se chequea el bloqueo ANTES de gastar la llamada a signInWithPassword:
-  // 022_rate_limit_login_y_recuperacion.sql, máximo 5 intentos fallidos
-  // por correo en 15 minutos.
-  const { data: chequeo, error: errorChequeo } = await admin
-    .rpc("verificar_intentos_login", { p_correo: email })
-    .single();
-
-  if (errorChequeo) {
-    logError("login", "verificar_intentos_login rpc falló", errorChequeo);
-  } else {
-    const { permitido, segundos_espera } = chequeo as {
-      permitido: boolean;
-      segundos_espera: number;
-    };
-    if (!permitido) {
-      return { error: mensajeEspera(segundos_espera) };
-    }
-  }
+  const bloqueo = await comprobarLimiteLogin(admin, email, "login");
+  if (bloqueo) return { error: bloqueo };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({

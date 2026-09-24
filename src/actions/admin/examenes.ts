@@ -558,11 +558,22 @@ export async function otorgarIntentoExtra(
     .maybeSingle();
   if (!examen) return { error: "El examen ya no existe." };
 
-  const { data: intentosPrevios } = await admin.supabase
+  const { data: intentosPrevios, error: errorPrevios } = await admin.supabase
     .from("intentos_examen")
     .select("estado")
     .eq("id_examen", examenId)
     .eq("id_usuario", usuarioId);
+  // Falla cerrado (P2-6, AUDIT-2026-09-22.md): sin esto, una lectura fallida
+  // se leía como "ningún intento previo" y se creaba el intento aunque el
+  // estudiante ya hubiera aprobado.
+  if (errorPrevios) {
+    logError("admin:examenes", "otorgarIntentoExtra: no se pudieron leer los intentos previos", errorPrevios, {
+      area: "examenes",
+      examenId,
+      usuarioId,
+    });
+    return { error: "No pudimos comprobar los intentos del estudiante. Intenta de nuevo." };
+  }
 
   if ((intentosPrevios ?? []).some((intento) => intento.estado === "APROBADO")) {
     return { error: "Este estudiante ya aprobó el examen." };

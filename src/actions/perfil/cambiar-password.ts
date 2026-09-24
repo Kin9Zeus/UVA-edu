@@ -5,16 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
+import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 
 export type CambiarPasswordState =
   | { error: string; success?: never }
   | { error?: never; success: true }
   | null;
-
-function mensajeEspera(segundos: number): string {
-  const minutos = Math.ceil(segundos / 60);
-  return `Demasiados intentos. Espera ${minutos} minuto${minutos === 1 ? "" : "s"} e intenta de nuevo.`;
-}
 
 /**
  * Cambia la contraseña de un usuario YA logueado, desde "Mi perfil".
@@ -66,21 +62,8 @@ export async function cambiarPassword(
 
   // Se chequea el bloqueo ANTES de gastar la llamada a signInWithPassword,
   // mismo criterio que login.ts.
-  const { data: chequeo, error: errorChequeo } = await admin
-    .rpc("verificar_intentos_login", { p_correo: user.email })
-    .single();
-
-  if (errorChequeo) {
-    logError("cambiarPassword", "verificar_intentos_login rpc falló", errorChequeo);
-  } else {
-    const { permitido, segundos_espera } = chequeo as {
-      permitido: boolean;
-      segundos_espera: number;
-    };
-    if (!permitido) {
-      return { error: mensajeEspera(segundos_espera) };
-    }
-  }
+  const bloqueo = await comprobarLimiteLogin(admin, user.email, "cambiarPassword");
+  if (bloqueo) return { error: bloqueo };
 
   // Reautenticación: confirma que quien está en esta sesión conoce la
   // contraseña actual antes de dejarlo ponerle una nueva.

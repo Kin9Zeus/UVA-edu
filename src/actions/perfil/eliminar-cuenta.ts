@@ -5,13 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { borrarFotoPerfil } from "@/lib/perfil/avatar";
 import { logError } from "@/lib/log";
+import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 
 export type EliminarCuentaState = { error: string } | null;
-
-function mensajeEspera(segundos: number): string {
-  const minutos = Math.ceil(segundos / 60);
-  return `Demasiados intentos. Espera ${minutos} minuto${minutos === 1 ? "" : "s"} e intenta de nuevo.`;
-}
 
 /**
  * Autoservicio de supresión de datos personales (P2-11, AUDIT-2026-09-15.md).
@@ -64,21 +60,8 @@ export async function eliminarMiCuenta(
       return { error: "Ingresa tu contraseña actual." };
     }
 
-    const { data: chequeo, error: errorChequeo } = await admin
-      .rpc("verificar_intentos_login", { p_correo: user.email })
-      .single();
-
-    if (errorChequeo) {
-      logError("eliminarMiCuenta", "verificar_intentos_login rpc falló", errorChequeo);
-    } else {
-      const { permitido, segundos_espera } = chequeo as {
-        permitido: boolean;
-        segundos_espera: number;
-      };
-      if (!permitido) {
-        return { error: mensajeEspera(segundos_espera) };
-      }
-    }
+    const bloqueo = await comprobarLimiteLogin(admin, user.email, "eliminarMiCuenta");
+    if (bloqueo) return { error: bloqueo };
 
     const { error: errorReauth } = await supabase.auth.signInWithPassword({
       email: user.email,
