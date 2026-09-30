@@ -14,6 +14,16 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
   3.1. `design-spec-errores/` (carpeta separada, handoff independiente también de Claude Design — solo las pantallas de error: 404, 403 rol incorrecto, 403 cuenta suspendida, 500). Lee `design-spec-errores/README.md` primero: ya documenta el patrón `.error-shell` / `.error-shell--standalone` para que funcione tanto dentro del layout con sidebar (dashboard/admin) como en rutas públicas, y la variante única del 403 parametrizada por `Motivo: 'ROL' | 'SUSPENDIDA'`.
   4. `docs/development-plan.md` (Fases del MVP, tareas y criterios de aceptación).
 
+### 1.1 Ciclo de trabajo (diseño y código)
+Aplica siempre, tanto en tareas de diseño como de código:
+
+1. **Contexto:** la tarea parte de Notion; el usuario pega el objetivo y la definición de terminado.
+2. **Plan antes de código:** primero un plan, sin escribir código, para que el usuario lo revise. Si el plan suena genérico, se rechaza y se rehace.
+3. **Pasos pequeños:** una pantalla o componente a la vez, en una rama propia.
+4. **Verificar con capturas:** en **375 px, 768 px y 1440 px**, en tema claro y oscuro.
+5. **Criticar:** contrastar el resultado contra el piso de calidad y el sistema de diseño (ver 3.3 y 3.4) y reportar las diferencias antes de dar la tarea por terminada.
+6. **Revisión humana:** el usuario prueba en celular real y se abre el pull request para que el compañero lo revise.
+
 ---
 
 ## 2. Stack Tecnológico Estricto
@@ -47,6 +57,16 @@ Este documento contiene las instrucciones permanentes y el contexto de arquitect
 - **Radios de Borde:** Estricto `rounded-md` (6px) para botones, tarjetas e inputs. Evitar redondeados excesivos.
 - **Tipografías:** Headings en `Plus Jakarta Sans`, cuerpo en `Inter`, métricas/duración en `JetBrains Mono`.
 
+### 3.4 Reglas de Diseño Adicionales (UI/UX)
+- **Solo tokens:** Usar **únicamente** los tokens del sistema de diseño (colores, tipografía, espaciado, radios). Prohibido escribir colores o tamaños sueltos.
+- **Móvil primero:** Diseñar primero para móvil (375 px) y luego ampliar.
+- **Táctil y formularios:** Áreas táctiles de mínimo 44×44 px. Campos de formulario con letra de 16 px o más (si es menor, el iPhone hace zoom al tocar).
+- **Accesibilidad de movimiento y foco:** Foco de teclado siempre visible. Respetar `prefers-reduced-motion`.
+- **Imágenes:** Todas con `alt` significativo (o vacío si son decorativas) y con `sizes` correcto en `next/image`.
+- **Sin rasgos genéricos de IA:** No usar los rasgos que describe la skill `frontend-design`: etiquetas en MAYÚSCULAS sobre cada título, separadores con punto medio, tarjetas idénticas con la misma sombra, animaciones de entrada en cada sección.
+- **Textos:** En español claro, en voz activa, y botones que dicen exactamente lo que hacen.
+- **Honestidad del contenido:** Nunca mostrar precios, cifras o funciones que no existen hoy.
+
 ---
 
 ## 4. Notas para Agentes de IA sobre Next.js (AGENTS.md)
@@ -73,3 +93,10 @@ UVA_EDU/
 │   ├── technical-spec.md
 │   └── development-plan.md
 └── design-spec/          # Handoff de diseño (carpeta, ver README.md y NOTA.md)
+```
+
+## 6. Memoria Persistente (Obsidian — Segundo Cerebro)
+
+Este repo se abre como vault de Obsidian. La carpeta `Cerebro/` (ignorada por git, es estado local) guarda decisiones, bugs, sesiones y conceptos del proyecto, enlazados entre sí, vía el servidor MCP `obsidian`.
+
+**Al empezar y al terminar sesiones de trabajo relevantes, sigue el protocolo en `.claude/skills/uva-cerebro/SKILL.md`** — no repitas como hallazgo nuevo algo ya registrado ahí, y deja registrado lo que valga la pena recordar.
