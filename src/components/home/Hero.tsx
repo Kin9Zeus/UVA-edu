@@ -6,7 +6,7 @@ const metrics = [
   { value: "10", label: "escuelas" },
 ];
 
-export function Hero() {
+export function Hero({ hrefCodigo }: { hrefCodigo: string }) {
   return (
     <section className="relative mx-auto max-w-[1180px] overflow-hidden px-[clamp(20px,4vw,56px)] pt-[clamp(72px,12vw,128px)] pb-[clamp(56px,8vw,96px)] text-center">
       <div
@@ -23,12 +23,20 @@ export function Hero() {
           presupuestadores y coordinadores BIM en toda LATAM.
         </p>
 
-        <Link
-          href="/catalogo"
-          className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-text no-underline shadow-[0_10px_30px_rgba(255,0,122,0.28)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-        >
-          Ver catálogo
-        </Link>
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <Link
+            href={hrefCodigo}
+            className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-text no-underline shadow-[0_10px_30px_rgba(255,0,122,0.28)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          >
+            Tengo un código
+          </Link>
+          <Link
+            href="/catalogo"
+            className="inline-flex items-center justify-center rounded-full border border-uva-divider px-[36px] py-[16px] text-[15px] font-semibold text-uva-text no-underline transition-colors duration-[160ms] hover:bg-uva-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          >
+            Ver catálogo
+          </Link>
+        </div>
 
         <div className="mt-9 flex flex-wrap justify-center gap-[clamp(24px,4vw,48px)]">
           {metrics.map((metric) => (

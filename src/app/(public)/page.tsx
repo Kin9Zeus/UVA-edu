@@ -4,10 +4,12 @@ import { Hero } from "@/components/home/Hero";
 import { CursoDestacado } from "@/components/home/CursoDestacado";
 import { ProductBand } from "@/components/home/ProductBand";
 import { Pricing } from "@/components/home/Pricing";
-import { FinalCta } from "@/components/home/FinalCta";
+import { AccesoInvitacion } from "@/components/home/AccesoInvitacion";
 import { Footer } from "@/components/home/Footer";
 import { WhatsAppButton } from "@/components/home/WhatsAppButton";
 import { connection } from "next/server";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { createClient } from "@/lib/supabase/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { organizacionCompleta } from "@/lib/seo/organizacion";
@@ -37,6 +39,18 @@ export default async function Home() {
   // optimización estática; el beneficio es que la CSP puede forzarse en TODO
   // el sitio y no en el 90%.
   await connection();
+
+  // "Tengo un código": con sesión, directo al formulario de canje; sin
+  // sesión, a entrar o crear cuenta (la misma pantalla ofrece ambas) y de ahí
+  // al canje.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const hrefCodigo = user
+    ? "/dashboard/suscripcion"
+    : "/login?redirect=/dashboard/suscripcion";
+
   return (
     <>
       {/* La `Organization` completa se publica UNA vez, aquí, y cada ficha
@@ -46,11 +60,17 @@ export default async function Home() {
       <JsonLd data={organizacionCompleta()} />
       <Header />
       <main>
-        <Hero />
+        <Hero hrefCodigo={hrefCodigo} />
         <CursoDestacado />
         <ProductBand />
-        <FinalCta />
-        <Pricing />
+        {/* El bloque "Más de 400 empresas…" (FinalCta) se retiró de la
+            portada: no hay oferta para empresas y su cifra no está
+            respaldada. El componente se conserva en components/home. */}
+        {PRECIOS_HABILITADOS ? (
+          <Pricing />
+        ) : (
+          <AccesoInvitacion hrefCodigo={hrefCodigo} />
+        )}
       </main>
       <Footer />
       <WhatsAppButton />

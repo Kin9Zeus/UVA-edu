@@ -7,6 +7,7 @@ import { CheckoutContent, type PlanCheckout } from "@/components/dashboard/Check
 import { vigenciaAlComprar, type PlanRow } from "@/lib/planes";
 import { esUuid, slugificar } from "@/lib/slug";
 import { logError } from "@/lib/log";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 export const metadata: Metadata = { title: "U.V.A. — Confirmar suscripción" };
 
@@ -33,6 +34,9 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Sin cobro no hay checkout (ver src/lib/features.ts).
+  if (!PRECIOS_HABILITADOS) redirect("/dashboard/suscripcion");
+
   const { user } = await getPerfilActual();
   const supabase = await createClient();
 

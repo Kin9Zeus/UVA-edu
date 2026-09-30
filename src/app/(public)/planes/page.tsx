@@ -3,6 +3,8 @@ import { Header } from "@/components/home/Header";
 import { Footer } from "@/components/home/Footer";
 import { Pricing } from "@/components/home/Pricing";
 import { connection } from "next/server";
+import { notFound } from "next/navigation";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { metadataPublica } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = metadataPublica({
@@ -23,6 +25,9 @@ export default async function PlanesPage() {
   // de bajo tráfico; el beneficio es que la CSP puede forzarse en TODO el
   // sitio y no en el 90%.
   await connection();
+  // Sin cobro no hay planes que mostrar: la página pública responde 404 en
+  // vez de ofrecer "Suscribirme" (ver src/lib/features.ts).
+  if (!PRECIOS_HABILITADOS) notFound();
   return (
     <>
       <Header />

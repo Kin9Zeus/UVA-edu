@@ -10,6 +10,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
+import { urlWhatsapp } from "@/lib/contacto";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
@@ -34,7 +35,7 @@ const socials = [
   {
     label: "WhatsApp",
     Icon: WhatsappIcon,
-    href: "https://api.whatsapp.com/send/?phone=%2B573234260022&text&type=phone_number&app_absent=0",
+    href: urlWhatsapp(),
   },
   {
     label: "Spotify",

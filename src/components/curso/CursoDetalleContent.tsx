@@ -358,7 +358,7 @@ export function CursoDetalleContent({
               size="uva"
               className="min-h-12"
             >
-              Regístrate para canjear tu código
+              Entra o crea tu cuenta para canjear tu código
             </Button>
           )}
 

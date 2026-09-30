@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 const MOTIVO_COPY: Record<"SIN_SUSCRIPCION" | "VENCIDA" | "CANCELADA", string> = {
   SIN_SUSCRIPCION: "Todavía no tienes una suscripción activa.",
@@ -17,17 +18,19 @@ export function ComunidadPausada({ motivo }: { motivo: keyof typeof MOTIVO_COPY 
         </div>
         <h2 className="text-2xl text-uva-text">Tu acceso a la comunidad está en pausa</h2>
         <p className="max-w-[460px] text-sm text-uva-text-muted">
-          {MOTIVO_COPY[motivo]} Suscríbete o reactiva tu plan para volver a entrar a los canales
-          del gremio.
+          {MOTIVO_COPY[motivo]}{" "}
+          {PRECIOS_HABILITADOS
+            ? "Suscríbete o reactiva tu plan para volver a entrar a los canales del gremio."
+            : "Canjea un código de invitación para volver a entrar a los canales del gremio."}
         </p>
         <Button
-          render={<Link href="/dashboard/planes" />}
+          render={<Link href={PRECIOS_HABILITADOS ? "/dashboard/planes" : "/dashboard/suscripcion"} />}
           nativeButton={false}
           variant="uva-primary"
           size="uva"
           className="mt-2 w-auto px-6"
         >
-          Ver planes
+          {PRECIOS_HABILITADOS ? "Ver planes" : "Canjear un código"}
         </Button>
       </div>
       <p className="text-xs text-uva-text-faint">
