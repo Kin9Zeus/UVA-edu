@@ -8,9 +8,7 @@ import { AccesoInvitacion } from "@/components/home/AccesoInvitacion";
 import { Footer } from "@/components/home/Footer";
 import { WhatsAppButton } from "@/components/home/WhatsAppButton";
 import { connection } from "next/server";
-import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { createClient } from "@/lib/supabase/server";
-import { JsonLd } from "@/components/seo/JsonLd";
+import { PRECIOS_HABILITADOS } from "@/lib/features";import { JsonLd } from "@/components/seo/JsonLd";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { organizacionCompleta } from "@/lib/seo/organizacion";
 
@@ -40,16 +38,12 @@ export default async function Home() {
   // el sitio y no en el 90%.
   await connection();
 
-  // "Tengo un código": con sesión, directo al formulario de canje; sin
-  // sesión, a entrar o crear cuenta (la misma pantalla ofrece ambas) y de ahí
-  // al canje.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const hrefCodigo = user
-    ? "/dashboard/suscripcion"
-    : "/login?redirect=/dashboard/suscripcion";
+  // "Tengo un código" va siempre al formulario de canje: con sesión abre la
+  // pantalla, y sin sesión el proxy (lib/supabase/proxy.ts) manda a /login
+  // con `?redirect=` — la misma pantalla ofrece entrar o crear cuenta y de
+  // ahí vuelve al canje. Así la portada no hace una consulta de sesión por
+  // visita.
+  const hrefCodigo = "/dashboard/suscripcion";
 
   return (
     <>
@@ -72,7 +66,7 @@ export default async function Home() {
           <AccesoInvitacion hrefCodigo={hrefCodigo} />
         )}
       </main>
-      <Footer />
+      <Footer conBotonWhatsApp />
       <WhatsAppButton />
     </>
   );

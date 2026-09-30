@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 const metrics = [
   { value: "12.400", label: "alumnos del gremio" },
@@ -23,19 +24,25 @@ export function Hero({ hrefCodigo }: { hrefCodigo: string }) {
           presupuestadores y coordinadores BIM en toda LATAM.
         </p>
 
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-          <Link
-            href={hrefCodigo}
-            className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-text no-underline shadow-[0_10px_30px_rgba(255,0,122,0.28)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <Button
+            render={<Link href={hrefCodigo} />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-12 px-8 sm:w-auto"
           >
             Tengo un código
-          </Link>
-          <Link
-            href="/catalogo"
-            className="inline-flex items-center justify-center rounded-full border border-uva-divider px-[36px] py-[16px] text-[15px] font-semibold text-uva-text no-underline transition-colors duration-[160ms] hover:bg-uva-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          </Button>
+          <Button
+            render={<Link href="/catalogo" />}
+            nativeButton={false}
+            variant="uva-secondary"
+            size="uva"
+            className="min-h-12 border-uva-text-faint px-8 sm:w-auto"
           >
             Ver catálogo
-          </Link>
+          </Button>
         </div>
 
         <div className="mt-9 flex flex-wrap justify-center gap-[clamp(24px,4vw,48px)]">
