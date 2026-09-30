@@ -45,6 +45,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# obsidian (vault = este repo, usado como segundo cerebro/memoria persistente — personal, no se versiona)
+.obsidian/
+/Cerebro/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

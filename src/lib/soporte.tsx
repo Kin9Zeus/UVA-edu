@@ -19,14 +19,14 @@ export type TemaSoporte =
 // eso es la única que ya se puede publicar tal cual.
 const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
   {
-    pregunta: "¿Qué es UVA?",
+    pregunta: "¿Qué es U.V.A.?",
     respuesta:
-      "UVA es una plataforma de cursos en línea enfocada en arquitectura, diseño y construcción. Incluye clases en video, materiales descargables, exámenes finales por curso y certificado de finalización.",
+      "U.V.A. es una plataforma de cursos en línea enfocada en arquitectura, diseño y construcción. Incluye clases en video, materiales descargables, exámenes finales por curso y certificado de finalización.",
   },
   {
     pregunta: "¿Cómo accedo a los cursos?",
     respuesta:
-      "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de UVA",
+      "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A.",
   },
   {
     pregunta:
@@ -66,12 +66,13 @@ const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
     pregunta: "¿Cómo obtengo mi certificado?",
     respuesta: (
       <>
-        Al completar el 100&nbsp;% de las clases de un curso — y aprobar su
-        examen final con la nota mínima, si el curso lo exige — tu certificado
-        se emite automáticamente. Descárgalo en PDF desde{" "}
-        <span className="font-medium text-uva-text">Mis certificados</span>;
-        cualquier persona puede verificar su autenticidad con el código único
-        que trae impreso, sin necesidad de iniciar sesión.
+        Se emite automáticamente, sin que tengas que solicitarlo. Si el curso
+        tiene examen final, basta con aprobarlo con la nota mínima — no
+        necesitas haber terminado todas las clases. Si no tiene examen, se
+        emite al completar el 100&nbsp;% de las clases. Descárgalo en PDF desde{" "}
+        <span className="font-medium text-uva-text">Certificados</span>, en tu
+        panel; cualquier persona puede verificar su autenticidad con el código
+        único o el código QR que trae impreso, sin necesidad de iniciar sesión.
       </>
     ),
   },

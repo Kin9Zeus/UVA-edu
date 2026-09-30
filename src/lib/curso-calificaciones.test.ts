@@ -113,7 +113,7 @@ describe("getTandaCalificacionesCurso", () => {
       meGusta: true,
     });
     // Autor que la vista no devuelve (p. ej. anonimizado): nombre genérico.
-    expect(reseñas[1]).toMatchObject({ autorNombre: "Estudiante UVA", totalMeGusta: 1, meGusta: false });
+    expect(reseñas[1]).toMatchObject({ autorNombre: "Estudiante U.V.A.", totalMeGusta: 1, meGusta: false });
   });
 });
 

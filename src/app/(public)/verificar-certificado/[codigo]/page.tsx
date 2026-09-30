@@ -107,7 +107,7 @@ export default async function VerificarCertificadoPage({
             U
           </div>
           <span className="text-[11px] tracking-[.14em] text-uva-text-faint uppercase">
-            Verificación de certificado UVA
+            Verificación de certificado U.V.A.
           </span>
         </div>
 
@@ -115,7 +115,7 @@ export default async function VerificarCertificadoPage({
           <>
             <ShieldCheck className="mx-auto mb-3 size-10 text-uva-accent-2-text" strokeWidth={1.6} />
             <h1 className="mb-1 text-xl text-uva-text">Certificado válido</h1>
-            <p className="mb-5 text-sm text-uva-text-muted">Este código corresponde a un certificado real emitido por UVA.</p>
+            <p className="mb-5 text-sm text-uva-text-muted">Este código corresponde a un certificado real emitido por U.V.A.</p>
             <div className="flex flex-col gap-2 rounded-uva-md border border-uva-divider bg-uva-divider/40 p-4 text-left">
               <div>
                 <p className="text-[11px] text-uva-text-faint uppercase">Estudiante</p>

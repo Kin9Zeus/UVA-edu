@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getGuardiaSesion } from "@/lib/supabase/guardia-sesion";
+import { DESTINO_POR_DEFECTO } from "@/lib/redirect-seguro";
 
 // Los route groups entre paréntesis no aparecen en la URL, así que el muro
 // de acceso debe matchear por el path público (ej. "/dashboard", "/admin"),
@@ -93,6 +94,19 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
   const claims = claimsData?.claims ?? null;
 
   const { pathname } = request.nextUrl;
+
+  // El home es la landing para visitantes: con sesión no se muestra (su
+  // header es fijo y ofrecería "Acceder" a quien ya entró). Se manda al mismo
+  // destino que usa el login por defecto. Las cookies que `getClaims()` pudo
+  // refrescar arriba viven en `supabaseResponse`: se copian al redirect para
+  // no perder el token renovado. Correo sin verificar o cuenta suspendida los
+  // resuelve el bloque de /dashboard de abajo en la siguiente petición.
+  if (pathname === "/" && claims) {
+    const response = NextResponse.redirect(new URL(DESTINO_POR_DEFECTO, request.url));
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    return response;
+  }
+
   const requiresAuth = matchesPrefix(pathname, [
     ...STUDENT_PATH_PREFIXES,
     ...ADMIN_PATH_PREFIXES,

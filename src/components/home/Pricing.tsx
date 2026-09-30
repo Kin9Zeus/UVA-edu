@@ -13,7 +13,7 @@ import {
 import { logError } from "@/lib/log";
 
 const solidCta =
-  "inline-flex h-10 w-full items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
+  "inline-flex h-11 w-full items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 const outlineCta =
   "inline-flex h-11 w-full items-center justify-center rounded-uva-md border border-uva-divider bg-transparent px-6 text-sm font-semibold text-uva-text no-underline hover:bg-[#1c1c20] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 
@@ -109,23 +109,28 @@ export async function Pricing({
                     : "border-uva-divider bg-uva-surface"
                 }`}
               >
-                {badge && (
-                  <span className="mb-2 self-start rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-uva-accent-2-text uppercase sm:mb-3.5">
-                    {badge}
-                  </span>
-                )}
-                {/* min-h + line-clamp reservan el mismo espacio en toda tarjeta
-                    sin importar cuánto ocupe el nombre+descripción de CADA
-                    plan — sin esto, una descripción corta empujaba el precio
-                    y el botón más arriba que una larga, y la fila de
-                    tarjetas quedaba desalineada. */}
-                <div className="mb-3 min-h-[64px] sm:mb-5">
+                {/* El badge solo existe en los planes con ahorro, pero su
+                    renglón se reserva en todas (invisible si no aplica): sin
+                    él, el nombre del plan sin badge quedaba más arriba que el
+                    de sus vecinos. */}
+                <span
+                  aria-hidden={!badge}
+                  className={`mb-2 self-start rounded-uva-xs bg-uva-accent-2-soft px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-uva-accent-2-text uppercase sm:mb-3.5 ${
+                    badge ? "" : "invisible"
+                  }`}
+                >
+                  {badge ?? " "}
+                </span>
+                {/* La descripción reserva siempre dos renglones (`2lh`) y corta
+                    en dos: así el precio arranca a la misma altura tenga el
+                    plan una descripción de uno o de dos renglones. */}
+                <div className="mb-3 sm:mb-5">
                   <h3 className="mb-1 font-heading text-xl font-bold text-uva-text">
                     {plan.nombre}
                   </h3>
-                  <p className="line-clamp-2 text-[12.5px] text-uva-text-faint">{meta(plan)}</p>
+                  <p className="line-clamp-2 min-h-[2lh] text-[12.5px] text-uva-text-faint">{meta(plan)}</p>
                 </div>
-                <div className="mb-3 min-h-[58px] sm:mb-7">
+                <div className="mb-3 sm:mb-7">
                   <p className="mb-0.5 font-mono text-[28px] tabular-nums text-uva-text">
                     {formatearPrecio(plan.precio_centavos, plan.moneda)}{" "}
                     <span className="font-sans text-[13px] text-uva-text-muted">
@@ -133,10 +138,9 @@ export async function Pricing({
                     </span>
                   </p>
                   {/* Mismo criterio: la línea de "4 cuotas" solo existe en los
-                      planes anuales — se reserva igual (espacio en blanco si
-                      no aplica) para que el botón no quede un renglón más
-                      arriba en los planes que no la tienen. */}
-                  <p className="text-xs text-uva-text-faint">{cuotas || " "}</p>
+                      planes anuales — se reserva igual en los demás. Con
+                      espacio duro: un " " normal colapsa y el renglón medía 0. */}
+                  <p className="text-xs text-uva-text-faint">{cuotas ?? " "}</p>
                 </div>
 
                 <ul className="mb-4 flex flex-1 flex-col gap-1.5 sm:mb-9 sm:gap-2.5">

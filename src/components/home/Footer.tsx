@@ -140,7 +140,7 @@ export async function Footer() {
           <div>
             <p className={headingClass}>Verificar certificado</p>
             <p className="mb-2.5 text-[13px] text-uva-text-muted">
-              ¿Tienes el código de un certificado UVA? Confirma su validez.
+              ¿Tienes el código de un certificado U.V.A.? Confirma su validez.
             </p>
             <VerificarCertificadoForm />
           </div>
