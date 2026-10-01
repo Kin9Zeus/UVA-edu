@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   // cabecera.
   poweredByHeader: false,
 
+  // Probar desde el celular contra `next dev` por la IP de la red local
+  // (http://192.168.x.x:3000): Next bloquea por defecto los recursos de
+  // desarrollo (/_next/*, HMR) pedidos desde un origen que no sea localhost,
+  // así que la página se ve pero nunca se hidrata — el HTML llega y ningún
+  // botón, selector ni buscador responde. Solo aplica en `next dev`; no
+  // afecta a producción.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
+
   images: {
     remotePatterns: [
       ...(supabaseHostname

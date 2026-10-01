@@ -16,6 +16,8 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+# capturas, snapshots y logs de consola del servidor MCP de Playwright
+/.playwright-mcp/
 
 # auditorías de performance/responsive (scripts/audit) — locales, bajo demanda
 /lighthouse-baseline/
@@ -41,9 +43,14 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+.playwright
 
 # vercel
 .vercel
+
+# obsidian (vault = este repo, usado como segundo cerebro/memoria persistente — personal, no se versiona)
+.obsidian/
+/Cerebro/
 
 # typescript
 *.tsbuildinfo

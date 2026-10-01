@@ -1,7 +1,8 @@
 import { WhatsappIcon } from "@/components/home/icons";
 
-const WHATSAPP_URL =
-  "https://api.whatsapp.com/send/?phone=%2B573234260022&text&type=phone_number&app_absent=0";
+import { urlWhatsapp } from "@/lib/contacto";
+
+const WHATSAPP_URL = urlWhatsapp();
 
 export function WhatsAppButton() {
   return (

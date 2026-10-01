@@ -45,11 +45,12 @@ catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de
 forma individual (cortesía) por el equipo de U.V.A.
 
 **¿Cómo obtengo mi certificado?**
-Al completar el 100 % de las clases de un curso — y aprobar su examen final
-con la nota mínima, si el curso lo exige — se emite tu certificado
-automáticamente. Puedes descargarlo en PDF desde "Mis certificados" y
-cualquier persona puede verificar su autenticidad con el código único que
-trae impreso, en `/verificar-certificado/[código]`.
+Se emite automáticamente, sin que tengas que solicitarlo. Si el curso tiene
+examen final, basta con aprobarlo con la nota mínima — no necesitas haber
+terminado todas las clases. Si no tiene examen, se emite al completar el
+100 % de las clases. Puedes descargarlo en PDF desde "Certificados", en tu
+panel, y cualquier persona puede verificar su autenticidad con el código
+único o el código QR que trae impreso, en `/verificar-certificado/[código]`.
 
 **¿Qué pasa si no apruebo el examen final?**
 Tienes varios intentos por curso, con un tiempo de espera corto entre uno y
@@ -215,9 +216,10 @@ total o parcialmente, sin autorización escrita de U.V.A.
 
 ### 3.8. Certificados
 
-- El certificado de un curso se emite automáticamente cuando completas el
-  100 % de sus clases y, si el curso lo exige, apruebas su examen final con
-  la nota mínima establecida por U.V.A. para ese curso.
+- El certificado de un curso se emite automáticamente. Si el curso exige
+  examen final, se emite al aprobarlo con la nota mínima establecida por
+  U.V.A. para ese curso, aunque no hayas completado todas sus clases. Si no
+  lo exige, se emite al completar el 100 % de sus clases.
 - Cada certificado incluye un código único, verificable públicamente en
   `/verificar-certificado/[código]`, que muestra el nombre del estudiante,
   el curso y la fecha de emisión a quien tenga el código — no requiere

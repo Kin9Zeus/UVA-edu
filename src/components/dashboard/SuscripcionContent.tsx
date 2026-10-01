@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CanjearCodigoForm } from "@/components/dashboard/CanjearCodigoForm";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { formatFecha, formatMoneda } from "@/lib/admin/format";
 import { calcularDiasVigencia, suscripcionDaAcceso } from "@/lib/estadoAcceso";
 import type { PagoItem, SuscripcionActual } from "@/lib/suscripcion";
@@ -101,19 +102,28 @@ export function SuscripcionContent({
       <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-16">
         <div className="flex flex-col items-center gap-4 text-center">
           <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
-          <p className="text-sm text-uva-text-muted">
-            Todavía no tienes una suscripción activa. Elige un plan para acceder a todo el
-            catálogo.
-          </p>
-          <Button
-            render={<Link href="/dashboard/planes" />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="w-auto px-6"
-          >
-            Ver planes
-          </Button>
+          {PRECIOS_HABILITADOS ? (
+            <>
+              <p className="text-sm text-uva-text-muted">
+                Todavía no tienes una suscripción activa. Elige un plan para acceder a todo el
+                catálogo.
+              </p>
+              <Button
+                render={<Link href="/dashboard/planes" />}
+                nativeButton={false}
+                variant="uva-primary"
+                size="uva"
+                className="w-auto px-6"
+              >
+                Ver planes
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-uva-text-muted">
+              Todavía no tienes acceso activo. Canjea tu código de invitación para entrar a todo
+              el catálogo.
+            </p>
+          )}
         </div>
 
         {/* Quien llega con un código es justo quien no tiene suscripción,
@@ -263,33 +273,38 @@ export function SuscripcionContent({
       {!accesoVigente && (
         <section className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
           <h2 className="mb-5 text-base text-uva-text">
-            ¿Cómo quieres recuperar el acceso?
+            {PRECIOS_HABILITADOS
+              ? "¿Cómo quieres recuperar el acceso?"
+              : "Recupera tu acceso con un código"}
           </h2>
 
-          <div>
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-uva-text">
-              <CreditCard className="size-4 text-uva-accent" aria-hidden />
-              Elige un plan
-            </h3>
-            <p className="mt-1 text-[13px] text-uva-text-muted">
-              Recupera el acceso a los 180+ cursos, las plantillas descargables
-              y los certificados.
-            </p>
-            <Button
-              render={<Link href="/dashboard/planes" />}
-              nativeButton={false}
-              variant="uva-primary"
-              size="uva"
-              className="mt-3 w-auto px-6"
-            >
-              Ver planes
-            </Button>
-          </div>
+          {PRECIOS_HABILITADOS && (
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-uva-text">
+                <CreditCard className="size-4 text-uva-accent" aria-hidden />
+                Elige un plan
+              </h3>
+              <p className="mt-1 text-[13px] text-uva-text-muted">
+                Recupera el acceso a los 180+ cursos, las plantillas descargables
+                y los certificados.
+              </p>
+              <Button
+                render={<Link href="/dashboard/planes" />}
+                nativeButton={false}
+                variant="uva-primary"
+                size="uva"
+                className="mt-3 w-auto px-6"
+              >
+                Ver planes
+              </Button>
+            </div>
+          )}
 
           {/* Una línea basta para separar las dos opciones. Un marco completo
               alrededor de cada una decía "son cosas aparte", que es justo lo
-              que no son. */}
-          <div className="mt-6 border-t border-uva-divider pt-6">
+              que no son. Sin planes (bandera apagada) el código es la única
+              salida y va sin línea. */}
+          <div className={PRECIOS_HABILITADOS ? "mt-6 border-t border-uva-divider pt-6" : undefined}>
             <CanjearCodigoForm tieneSuscripcion embebido />
           </div>
         </section>

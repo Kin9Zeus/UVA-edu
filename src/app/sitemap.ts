@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { siteUrl } from "@/lib/site-url";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 /**
  * P2-5 (AUDIT-2026-09-04.md): no existía ningún sitemap -- Google tenía que
@@ -41,7 +42,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const rutasEstaticas: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/catalogo`, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${base}/planes`, changeFrequency: "monthly", priority: 0.7 },
+    ...(PRECIOS_HABILITADOS
+      ? [{ url: `${base}/planes`, changeFrequency: "monthly" as const, priority: 0.7 }]
+      : []),
     { url: `${base}/registro`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/login`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/soporte`, changeFrequency: "monthly", priority: 0.3 },

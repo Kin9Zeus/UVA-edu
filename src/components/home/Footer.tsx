@@ -10,6 +10,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
+import { urlWhatsapp } from "@/lib/contacto";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
@@ -34,7 +35,7 @@ const socials = [
   {
     label: "WhatsApp",
     Icon: WhatsappIcon,
-    href: "https://api.whatsapp.com/send/?phone=%2B573234260022&text&type=phone_number&app_absent=0",
+    href: urlWhatsapp(),
   },
   {
     label: "Spotify",
@@ -53,7 +54,15 @@ const headingClass =
 const linkClass =
   "text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline";
 
-export async function Footer() {
+/**
+ * `conBotonWhatsApp`: la página también monta el botón flotante de WhatsApp
+ * (fixed, abajo a la derecha, 56 px + 24 px de margen). Sin espacio extra al
+ * final, el botón queda encima de la última fila del pie (redes y
+ * copyright) y las tapa aunque el usuario haya llegado al fondo de la página.
+ */
+export async function Footer({
+  conBotonWhatsApp = false,
+}: { conBotonWhatsApp?: boolean } = {}) {
   const supabase = createPublicClient();
 
   // No hay filtro explícito acá porque lo aplica RLS: la policy
@@ -75,7 +84,11 @@ export async function Footer() {
   const escuelas = data ?? [];
 
   return (
-    <footer className="border-t border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] pb-9">
+    <footer
+      className={`border-t border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
+        conBotonWhatsApp ? "pb-24" : "pb-9"
+      }`}
+    >
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-11 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-9">
           <div>
@@ -140,7 +153,7 @@ export async function Footer() {
           <div>
             <p className={headingClass}>Verificar certificado</p>
             <p className="mb-2.5 text-[13px] text-uva-text-muted">
-              ¿Tienes el código de un certificado UVA? Confirma su validez.
+              ¿Tienes el código de un certificado U.V.A.? Confirma su validez.
             </p>
             <VerificarCertificadoForm />
           </div>

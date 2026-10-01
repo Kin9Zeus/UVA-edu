@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { guardarSidebarColapsado } from "@/lib/sidebar-preferencia";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -86,8 +87,8 @@ function NavLink({
   );
 }
 
-export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({ colapsadoInicial = false }: { colapsadoInicial?: boolean }) {
+  const [collapsed, setCollapsed] = useState(colapsadoInicial);
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -124,7 +125,11 @@ export function Sidebar() {
         )}
         <button
           type="button"
-          onClick={() => setCollapsed((current) => !current)}
+          onClick={() => {
+            const siguiente = !collapsed;
+            setCollapsed(siguiente);
+            guardarSidebarColapsado(siguiente);
+          }}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
           className={cn(
             "flex shrink-0 items-center justify-center rounded-uva-md p-1.5 text-uva-muted-2 hover:bg-uva-hover",

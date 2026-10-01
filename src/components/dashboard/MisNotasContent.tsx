@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, ChevronDown, Lock, NotebookPen, PlayCircle } from "lucide-react";
 import { NotaItem, ordenarNotas } from "@/components/notas/NotaItem";
 import type { CursoDeNotas, LeccionDeNota, MisNotas, NotaLeccion } from "@/lib/notas";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 type GrupoLeccion = { leccionId: string; leccion: LeccionDeNota | null; notas: NotaLeccion[] };
 type GrupoCurso = { cursoId: string | null; curso: CursoDeNotas | null; lecciones: GrupoLeccion[] };
@@ -164,10 +165,15 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
                     <div className="flex flex-wrap items-center gap-2 rounded-uva-md bg-[#27272A] px-3.5 py-2.5 text-[13px] text-uva-muted">
                       <Lock className="size-3.5 shrink-0" strokeWidth={2.2} aria-hidden />
                       <span className="flex-1">
-                        Tu acceso a este curso terminó. Renueva para volver a ver las clases.
+                        {PRECIOS_HABILITADOS
+                          ? "Tu acceso a este curso terminó. Renueva para volver a ver las clases."
+                          : "Tu acceso a este curso terminó. Canjea un código para volver a ver las clases."}
                       </span>
-                      <Link href="/dashboard/planes" className="font-semibold text-uva-accent-text">
-                        Ver planes
+                      <Link
+                        href={PRECIOS_HABILITADOS ? "/dashboard/planes" : "/dashboard/suscripcion"}
+                        className="font-semibold text-uva-accent-text"
+                      >
+                        {PRECIOS_HABILITADOS ? "Ver planes" : "Canjear un código"}
                       </Link>
                     </div>
                   )}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 /**
  * Contenido del aviso de período de gracia, compartido entre la tarjeta fija
@@ -29,17 +30,19 @@ export function GraciaCard({ diasGracia }: { diasGracia: number }) {
       </span>
       <p className="text-[13px] text-uva-muted">
         {vencido
-          ? "Tu período de gracia terminó y tu plan venció. Renuévalo para seguir viendo el contenido."
+          ? PRECIOS_HABILITADOS
+            ? "Tu período de gracia terminó y tu plan venció. Renuévalo para seguir viendo el contenido."
+            : "Tu período de gracia terminó y tu acceso venció. Canjea un código para seguir viendo el contenido."
           : `Quedan ${diasGracia} ${diasGracia === 1 ? "día" : "días"} de acceso.`}
       </p>
       <Button
-        render={<Link href="/dashboard/planes" />}
+        render={<Link href={PRECIOS_HABILITADOS ? "/dashboard/planes" : "/dashboard/suscripcion"} />}
         nativeButton={false}
         variant="uva-primary"
         size="sm"
         className="text-[13.5px]"
       >
-        Ver planes
+        {PRECIOS_HABILITADOS ? "Ver planes" : "Canjear un código"}
       </Button>
     </div>
   );

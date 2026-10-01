@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
 import { NavMovilDialog } from "@/components/home/NavMovilDialog";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
@@ -48,12 +49,14 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
           >
             Cursos
           </Link>
-          <Link
-            href="/#planes"
-            className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
-          >
-            Precios
-          </Link>
+          {PRECIOS_HABILITADOS && (
+            <Link
+              href="/#planes"
+              className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
+            >
+              Precios
+            </Link>
+          )}
         </div>
         <Link
           href="/login"

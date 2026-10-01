@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { guardarSidebarColapsado } from "@/lib/sidebar-preferencia";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -90,11 +91,14 @@ function NavLink({
 export function Sidebar({
   certificadosCount,
   diasGracia,
+  colapsadoInicial = false,
 }: {
   certificadosCount: number;
   diasGracia: number | null;
+  /** Preferencia guardada (cookie), leída en el servidor para no parpadear. */
+  colapsadoInicial?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(colapsadoInicial);
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -127,7 +131,11 @@ export function Sidebar({
         )}
         <button
           type="button"
-          onClick={() => setCollapsed((current) => !current)}
+          onClick={() => {
+            const siguiente = !collapsed;
+            setCollapsed(siguiente);
+            guardarSidebarColapsado(siguiente);
+          }}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
           className="flex size-8 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-[#1C1C20] hover:text-uva-text-muted"
         >

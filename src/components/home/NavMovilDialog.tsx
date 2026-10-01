@@ -6,10 +6,11 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { MenuIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 const ENLACES = [
   { href: "/catalogo", label: "Cursos" },
-  { href: "/#planes", label: "Precios" },
+  ...(PRECIOS_HABILITADOS ? [{ href: "/#planes", label: "Precios" }] : []),
 ];
 
 /**

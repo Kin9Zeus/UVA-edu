@@ -5,6 +5,7 @@ import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
 import { Header } from "@/components/admin/Header";
 import { AdminToastProvider } from "@/components/admin/Toast";
 import { AdminSearchProvider } from "@/components/admin/SearchContext";
+import { leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
 
 export default async function AdminLayout({
   children,
@@ -55,7 +56,7 @@ export default async function AdminLayout({
     <AdminToastProvider>
       <AdminSearchProvider>
         <div className="flex min-h-screen">
-          <Sidebar />
+          <Sidebar colapsadoInicial={await leerSidebarColapsado()} />
           <div className="flex min-w-0 flex-1 flex-col">
             <Header nombre={nombre} fotoUrl={fotoUrl} />
             {/* `main` del mockup: padding 28px / clamp / 60px y ancho maximo

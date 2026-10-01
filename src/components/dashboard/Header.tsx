@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -94,15 +95,17 @@ export function Header({
           noLeidas={notificacionesNoLeidas}
           diasGracia={diasGracia}
         />
-        <Link
-          href="/dashboard/planes"
-          className={cn(
-            "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
-            ocultarAccionesEnMobile && "hidden md:inline-block",
-          )}
-        >
-          Planes
-        </Link>
+        {PRECIOS_HABILITADOS && (
+          <Link
+            href="/dashboard/planes"
+            className={cn(
+              "shrink-0 rounded-full px-4 py-2 text-[13.5px] font-semibold text-uva-text no-underline hover:bg-uva-hover",
+              ocultarAccionesEnMobile && "hidden md:inline-block",
+            )}
+          >
+            Planes
+          </Link>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
