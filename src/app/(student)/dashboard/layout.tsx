@@ -4,6 +4,7 @@ import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
+import { leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
 
 export default async function DashboardLayout({
   children,
@@ -28,7 +29,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar certificadosCount={certificadosCount} diasGracia={diasGracia} />
+      <Sidebar
+        certificadosCount={certificadosCount}
+        diasGracia={diasGracia}
+        colapsadoInicial={await leerSidebarColapsado()}
+      />
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           nombre={nombre}
