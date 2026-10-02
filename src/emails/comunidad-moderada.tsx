@@ -64,7 +64,7 @@ export function ComunidadModeradaEmail({
 
           <Section>
             <Text style={footer}>
-              U.V.A — Unidad Vectorial de Arquitectura
+              U.V.A. — Unidad Vectorial de Arquitectura
             </Text>
             <Text style={footer}>
               ¿Necesitas ayuda? Escríbenos a soporte@uva.edu

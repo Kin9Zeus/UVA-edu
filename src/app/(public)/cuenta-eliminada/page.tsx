@@ -27,8 +27,8 @@ export default function CuentaEliminadaPage() {
           <p className="mb-6 text-sm text-uva-text-muted">
             Suprimimos tus datos personales (nombre, correo, celular, foto y
             el contenido que escribiste) y cerramos tu sesión en todas
-            partes. El registro de pagos se conserva por obligación legal/
-            contable, ya sin tu nombre asociado. Los certificados que hayas
+            partes. El registro de pagos se conserva por obligación
+            legal/contable, ya sin tu nombre asociado. Los certificados que hayas
             obtenido siguen siendo válidos y conservan el nombre con el que
             se emitieron, para que cualquiera pueda seguir verificándolos
             con su código. No podrás volver a iniciar sesión con esta

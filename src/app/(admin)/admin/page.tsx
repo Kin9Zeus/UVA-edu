@@ -60,7 +60,7 @@ export default async function AdminDashboardPage() {
     {
       label: "Usuarios registrados",
       valor: metricas.usuariosRegistrados,
-      detalle: `${metricas.usuariosActivos7d} vieron contenido esta semana`,
+      detalle: `${metricas.usuariosActivos7d} ${metricas.usuariosActivos7d === 1 ? "vio" : "vieron"} contenido esta semana`,
       icon: Users,
       href: "/admin/usuarios",
     },

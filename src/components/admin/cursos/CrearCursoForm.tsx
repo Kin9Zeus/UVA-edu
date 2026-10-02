@@ -219,11 +219,11 @@ export function CrearCursoForm({
             )}
           </button>
           {previewPortada && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">Click en la imagen para reemplazarla.</p>
+            <p className="mt-1.5 text-xs text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
           )}
           <p className="mt-1 text-xs text-uva-text-faint">
             {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
-            recortada a 1280×720px (16:9), igual que la vista previa.
+            recortada a 1280 × 720 px (16:9), igual que la vista previa.
           </p>
           <input
             ref={inputPortadaRef}

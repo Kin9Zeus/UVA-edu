@@ -37,7 +37,7 @@ export function RecuperarForm() {
           id="recuperar-email"
           name="email"
           type="email"
-          placeholder="Ingresa tu correo electronico"
+          placeholder="Ingresa tu correo electrónico"
           autoComplete="email"
           value={email}
           onChange={handleChange}

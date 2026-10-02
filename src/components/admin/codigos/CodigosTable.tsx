@@ -203,7 +203,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       checked={codigo.activo}
                       onCheckedChange={(checked) => handleToggle(codigo, checked)}
                       etiquetas={["", ""]}
-                      acciones={["Activar código", "Desactivar código "]}
+                      acciones={["Activar código", "Desactivar código"]}
                     />
                     <Button
                       type="button"
@@ -304,7 +304,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       checked={codigo.activo}
                       onCheckedChange={(checked) => handleToggle(codigo, checked)}
                       etiquetas={["", ""]}
-                      acciones={["Activar código", "Desactivar código "]}
+                      acciones={["Activar código", "Desactivar código"]}
                     />
                     <Button
                       type="button"

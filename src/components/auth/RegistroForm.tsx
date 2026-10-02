@@ -137,11 +137,11 @@ export function RegistroForm({
           className="mt-0.5 size-3.5 shrink-0 accent-uva-accent"
         />
         Acepto los{" "}
-        <Link href="/terminos" className="underline" target="_blank">
+        <Link href="/soporte?tema=terminos" className="underline" target="_blank">
           Términos
         </Link>{" "}
         y la{" "}
-        <Link href="/privacidad" className="underline" target="_blank">
+        <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
           Política de privacidad
         </Link>
       </label>

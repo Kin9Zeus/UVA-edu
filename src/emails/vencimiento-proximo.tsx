@@ -51,7 +51,7 @@ export function VencimientoProximoEmail({
   return (
     <Html>
       <Head />
-      <Preview>Tu acceso a U.V.A {cuando}</Preview>
+      <Preview>Tu acceso a U.V.A. {cuando}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -78,7 +78,7 @@ export function VencimientoProximoEmail({
           <Hr style={hr} />
 
           <Section>
-            <Text style={footer}>U.V.A — Unidad Vectorial de Arquitectura</Text>
+            <Text style={footer}>U.V.A. — Unidad Vectorial de Arquitectura</Text>
             <Text style={footer}>¿Necesitas ayuda? Escríbenos a soporte@uva.edu</Text>
           </Section>
         </Container>
