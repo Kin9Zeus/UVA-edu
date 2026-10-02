@@ -14,7 +14,7 @@ export function ContrasenaActualizadaEmail() {
   return (
     <Html>
       <Head />
-      <Preview>Tu contraseña de U.V.A fue actualizada</Preview>
+      <Preview>Tu contraseña de U.V.A. fue actualizada</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -24,7 +24,7 @@ export function ContrasenaActualizadaEmail() {
           <Section style={content}>
             <Text style={heading}>Tu contraseña fue actualizada</Text>
             <Text style={paragraph}>
-              Confirmamos que la contraseña de tu cuenta en U.V.A se cambió
+              Confirmamos que la contraseña de tu cuenta en U.V.A. se cambió
               correctamente. Ya puedes iniciar sesión con tu contraseña
               nueva.
             </Text>
@@ -41,7 +41,7 @@ export function ContrasenaActualizadaEmail() {
 
           <Section>
             <Text style={footer}>
-              U.V.A — Unidad Vectorial de Arquitectura
+              U.V.A. — Unidad Vectorial de Arquitectura
             </Text>
             <Text style={footer}>
               ¿Necesitas ayuda? Escríbenos a soporte@uva.edu

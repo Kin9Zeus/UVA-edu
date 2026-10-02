@@ -169,7 +169,7 @@ export async function Footer({
 
         <div className="flex flex-col flex-wrap items-start justify-between gap-5 border-t border-uva-divider pt-7 min-[640px]:flex-row min-[640px]:items-center">
           <p className="text-[12.5px] text-uva-text-faint">
-            Hecho en obra, para LATAM · © 2026 U.V.A.
+            © 2026 U.V.A. Hecho en obra, para LATAM.
           </p>
           <div className="flex gap-2.5">
             {socials.map(({ label, Icon, href }) => (

@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   // absoluta -- cae a "http://localhost:3000" incluso en producción, y las
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
-  title: "U.V.A — Unidad Vectorial de Arquitectura",
-  description: "Plataforma de cursos U.V.A",
+  title: "U.V.A. — Unidad Vectorial de Arquitectura",
+  description: "Plataforma de cursos de U.V.A.",
 };
 
 // Sin esto, el navegador móvil pinta de blanco por defecto la barra de

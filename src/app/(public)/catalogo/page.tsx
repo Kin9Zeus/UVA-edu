@@ -10,7 +10,7 @@ import { numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } fr
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
   descripcion:
-    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A por categoría.",
+    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A. por categoría.",
   ruta: "/catalogo",
 });
 

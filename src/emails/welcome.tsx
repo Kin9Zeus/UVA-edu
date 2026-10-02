@@ -19,7 +19,7 @@ export function WelcomeEmail({ nombre, urlAcceso }: WelcomeEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>Bienvenido a U.V.A, {nombre}</Preview>
+      <Preview>Bienvenido a U.V.A., {nombre}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -44,7 +44,7 @@ export function WelcomeEmail({ nombre, urlAcceso }: WelcomeEmailProps) {
 
           <Section>
             <Text style={footer}>
-              U.V.A — Unidad Vectorial de Arquitectura
+              U.V.A. — Unidad Vectorial de Arquitectura
             </Text>
             <Text style={footer}>
               ¿Necesitas ayuda? Escríbenos a soporte@uva.edu

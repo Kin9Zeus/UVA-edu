@@ -96,7 +96,7 @@ export default async function AdminUsuariosPage({
         <MetricaCard
           label="Con acceso hoy"
           valor={metricas.usuariosAccesoVigente}
-          detalle={`de ${metricas.usuariosRegistrados} registrados · ${metricas.usuariosAccesoVencido} se les venció`}
+          detalle={`de ${metricas.usuariosRegistrados} registrados · a ${metricas.usuariosAccesoVencido} ${metricas.usuariosAccesoVencido === 1 ? "se le venció" : "se les venció"}`}
           icon={UserCheck}
         />
         <MetricaCard
@@ -119,7 +119,7 @@ export default async function AdminUsuariosPage({
           apagara. */}
       <p className="-mt-2 text-[12.5px] text-uva-muted-2">
         {metricas.cuposTotales} invitaciones emitidas en total:{" "}
-        <span className="font-mono tabular-nums">{metricas.cuposCanjeados}</span> usadas,{" "}
+        <span className="font-mono tabular-nums">{metricas.cuposCanjeados}</span> {metricas.cuposCanjeados === 1 ? "usada" : "usadas"},{" "}
         <span className="font-mono tabular-nums">{metricas.cuposDisponibles}</span> sin usar,{" "}
         <span className="font-mono font-semibold text-uva-accent-text tabular-nums">
           {metricas.cuposCaducados}

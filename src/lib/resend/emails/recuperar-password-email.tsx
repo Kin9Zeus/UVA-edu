@@ -22,7 +22,7 @@ export function RecuperarPasswordEmail({
   return (
     <Html>
       <Head />
-      <Preview>Recupera tu contraseña en U.V.A</Preview>
+      <Preview>Recupera tu contraseña en U.V.A.</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -51,7 +51,7 @@ export function RecuperarPasswordEmail({
 
           <Section>
             <Text style={footer}>
-              U.V.A — Unidad Vectorial de Arquitectura
+              U.V.A. — Unidad Vectorial de Arquitectura
             </Text>
             <Text style={footer}>
               ¿Necesitas ayuda? Escríbenos a soporte@uva.edu

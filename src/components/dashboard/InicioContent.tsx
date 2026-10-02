@@ -199,7 +199,7 @@ export function InicioContent({
             Webinar: actualización NSR-10 y su impacto en presupuestos
           </h3>
           <p className="max-w-[440px] text-[13.5px] text-uva-text-muted">
-            Con el equipo técnico de Uva. Incluye plantilla de reajuste de precios.
+            Con el equipo técnico de U.V.A. Incluye plantilla de reajuste de precios.
           </p>
           <Button variant="uva-primary" size="uva" className="mt-4 w-auto px-5" disabled>
             Próximamente

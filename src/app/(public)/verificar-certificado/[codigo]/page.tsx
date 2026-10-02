@@ -30,7 +30,7 @@ import { formatFecha } from "@/lib/admin/format";
 export const metadata: Metadata = {
   title: "U.V.A. — Verificar certificado",
   description:
-    "Comprueba la autenticidad de un certificado emitido por U.V.A a partir de su código.",
+    "Comprueba la autenticidad de un certificado emitido por U.V.A. a partir de su código.",
   robots: { index: false, follow: false },
 };
 
