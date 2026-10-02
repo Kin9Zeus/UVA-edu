@@ -5,10 +5,12 @@
  *
  * Este script BORRA y RECREA datos. Nunca debe correr contra Producción.
  *
- * No hay forma fiable de distinguir un proyecto de Supabase de producción por
- * su URL (todos son https://<ref>.supabase.co, el `ref` es opaco), así que la
- * protección es explícita y de doble llave:
+ * El `ref` de Supabase es opaco (https://<ref>.supabase.co), así que la
+ * protección combina el ref conocido de Producción con llaves explícitas:
  *
+ *   0. Si la URL de Supabase o DATABASE_URL apuntan al ref de Producción
+ *      (REF_PRODUCCION, más abajo), aborta SIEMPRE, aunque ALLOW_SEED esté
+ *      puesto: cuentas, códigos y reseñas de prueba solo van a local/staging.
  *   1. La variable de entorno ALLOW_SEED debe valer exactamente "true".
  *      Si falta, el script aborta sin tocar nada. Deliberadamente NO se
  *      define en .env.local: tiene que escribirse a mano en cada ejecución,
@@ -472,6 +474,14 @@ const supabaseAdmin = createClient(
 // Salvaguarda
 // ---------------------------------------------------------------------------
 
+/**
+ * Ref del proyecto Supabase de Producción. No es secreto (es el subdominio
+ * público de NEXT_PUBLIC_SUPABASE_URL). Va fijo en el código, no en una
+ * variable de entorno, para que olvidarse de configurarla no apague la
+ * protección. Si Producción cambia de proyecto, se actualiza aquí.
+ */
+const REF_PRODUCCION = "eoewtxnheblzsspnubvt";
+
 function verificarEntorno(): void {
   const faltantes = [
     "DATABASE_URL",
@@ -494,6 +504,14 @@ function verificarEntorno(): void {
   }
 
   const pistasProd = `${process.env.NEXT_PUBLIC_SUPABASE_URL} ${process.env.DATABASE_URL}`;
+  // DATABASE_URL también lo delata: el usuario del pooler es `postgres.<ref>`.
+  if (pistasProd.includes(REF_PRODUCCION)) {
+    console.error(
+      `\n❌ Este destino es el proyecto de Producción (${REF_PRODUCCION}). ` +
+        "Los datos de prueba solo se siembran en local o staging.\n"
+    );
+    process.exit(1);
+  }
   if (/prod/i.test(pistasProd)) {
     console.error(
       "\n❌ La URL de Supabase o DATABASE_URL contienen 'prod'. Abortado por precaución.\n"

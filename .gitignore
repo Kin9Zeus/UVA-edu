@@ -63,3 +63,6 @@ next-env.d.ts
 /.claude/
 /.obsidian/
 /cerebro/
+
+# Respaldos locales de datos borrados con scripts (llevan ids de usuario)
+respaldos/
