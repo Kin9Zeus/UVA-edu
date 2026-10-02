@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MenuIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { SelectorTemaFila } from "@/components/tema/SelectorTema";
+import { SelectorTemaFila, SelectorTemaSistemaFila } from "@/components/tema/SelectorTema";
 
 const ENLACES = [
   { href: "/catalogo", label: "Cursos" },
@@ -63,6 +63,7 @@ export function NavMovilDialog({ className }: { className?: string }) {
             ))}
           </nav>
           <SelectorTemaFila className="border-t border-uva-divider" />
+          <SelectorTemaSistemaFila className="border-t border-uva-divider" />
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

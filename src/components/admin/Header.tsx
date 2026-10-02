@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
-import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
+import { SelectorTemaBoton, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
 
 /**
  * Mapa `titles` del mockup: el titulo de cada pantalla vive en el header, no
@@ -124,6 +124,7 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
               <User className="size-4" />
               Ver perfil
             </DropdownMenuLinkItem>
+            <SelectorTemaSistemaMenuItem className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text" />
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}

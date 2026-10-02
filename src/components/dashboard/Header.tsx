@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
+import { SelectorTemaBoton, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -176,6 +176,7 @@ export function Header({
                 </DropdownMenuLinkItem>
               </>
             )}
+            <SelectorTemaSistemaMenuItem className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text" />
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}
