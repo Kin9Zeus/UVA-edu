@@ -28,7 +28,7 @@ export function AuthVisual() {
 
         <div className="mt-[30px] flex flex-wrap gap-x-[26px] gap-y-3.5">
           <div>
-            <div className="font-heading text-[26px] text-uva-accent">
+            <div className="font-heading text-[26px] text-uva-accent-ink">
               180+
             </div>
             <div className="text-xs text-uva-text-faint">
@@ -36,7 +36,7 @@ export function AuthVisual() {
             </div>
           </div>
           <div>
-            <div className="font-heading text-[26px] text-uva-accent">
+            <div className="font-heading text-[26px] text-uva-accent-ink">
               340
             </div>
             <div className="text-xs text-uva-text-faint">
@@ -44,7 +44,7 @@ export function AuthVisual() {
             </div>
           </div>
           <div>
-            <div className="font-heading text-[26px] text-uva-accent">12</div>
+            <div className="font-heading text-[26px] text-uva-accent-ink">12</div>
             <div className="text-xs text-uva-text-faint">rutas curadas</div>
           </div>
         </div>
@@ -56,11 +56,11 @@ export function AuthVisual() {
 
       <div
         aria-hidden="true"
-        className="absolute -right-[140px] -bottom-[120px] hidden h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_35%_30%,rgba(255,0,122,0.26),transparent_70%)] min-[900px]:block"
+        className="absolute -right-[140px] -bottom-[120px] hidden h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--uva-accent)_26%,transparent),transparent_70%)] min-[900px]:block"
       />
       <div
         aria-hidden="true"
-        className="absolute top-[96px] right-[52px] hidden h-[188px] w-[188px] rounded-full opacity-50 bg-[radial-gradient(circle_at_60%_40%,rgba(242,192,18,0.3),rgba(24,24,27,0.6)_75%)] min-[900px]:block"
+        className="absolute top-[96px] right-[52px] hidden h-[188px] w-[188px] rounded-full opacity-50 bg-[radial-gradient(circle_at_60%_40%,color-mix(in_srgb,var(--uva-accent-2)_30%,transparent),color-mix(in_srgb,var(--uva-surface)_60%,transparent)_75%)] min-[900px]:block"
       />
     </section>
   );

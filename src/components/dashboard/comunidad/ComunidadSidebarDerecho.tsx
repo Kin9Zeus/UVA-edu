@@ -27,7 +27,7 @@ export async function ComunidadSidebarDerecho() {
           <ul className="flex flex-col gap-2.5">
             {destacados.map((post) => (
               <li key={post.id}>
-                <Link href={`/dashboard/comunidad/${post.slug}`} className="block truncate text-sm text-uva-text hover:text-uva-accent">
+                <Link href={`/dashboard/comunidad/${post.slug}`} className="block truncate text-sm text-uva-text hover:text-uva-accent-ink">
                   {post.titulo}
                 </Link>
                 <span className="text-xs text-uva-text-faint">

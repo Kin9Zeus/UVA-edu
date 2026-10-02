@@ -15,7 +15,7 @@ export function FinalCta() {
       </p>
       <Link
         href="/login"
-        className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-text no-underline shadow-[0_10px_30px_rgba(255,0,122,0.28)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="inline-flex items-center justify-center rounded-full bg-uva-accent px-[46px] py-[17px] text-[15px] font-bold text-uva-on-accent no-underline shadow-[0_10px_30px_color-mix(in_srgb,var(--uva-accent)_28%,transparent)] transition-[filter] duration-[160ms] [transition-timing-function:ease] hover:brightness-[1.08] hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       >
         Iniciar sesión
       </Link>

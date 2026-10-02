@@ -103,7 +103,7 @@ export default async function VerificarCertificadoPage({
     <div className="grid min-h-screen place-items-center bg-uva-bg p-6">
       <div className="w-full max-w-[440px] rounded-uva-md border border-uva-divider bg-uva-surface p-8 text-center">
         <div className="mb-4 flex items-center justify-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-full bg-uva-accent font-heading text-xs text-[#09090B]">
+          <div className="flex size-7 items-center justify-center rounded-full bg-uva-accent font-heading text-xs text-uva-on-bright">
             U
           </div>
           <span className="text-[11px] tracking-[.14em] text-uva-text-faint uppercase">

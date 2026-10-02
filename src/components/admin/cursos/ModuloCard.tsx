@@ -300,7 +300,7 @@ export function ModuloCard({
               size="icon-sm"
               aria-label={`Renombrar el modulo ${modulo.titulo}`}
               title="Renombrar módulo"
-              className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+              className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
               onClick={() => {
                 setTituloEditado(modulo.titulo);
                 setEditandoTitulo(true);
@@ -315,7 +315,7 @@ export function ModuloCard({
             size="icon-sm"
             aria-label={`Eliminar el modulo ${modulo.titulo}`}
             title="Eliminar modulo"
-            className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+            className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
             onClick={async () => {
               if (await confirmarSalirSinGuardar()) setBorrandoModulo(true);
             }}
@@ -552,7 +552,7 @@ function LeccionRow({
         size="icon-sm"
         aria-label={`Eliminar la lección ${leccion.titulo}`}
         title="Eliminar lección"
-        className="shrink-0 text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+        className="shrink-0 text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
         onClick={onEliminar}
       >
         <Trash2 className="size-4" />

@@ -170,7 +170,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                     size="icon-sm"
                     aria-label="Editar categoría"
                     title="Editar categoría"
-                    className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                    className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                     onClick={() => abrirEditar(categoria)}
                   >
                     <Pencil className="size-4" />
@@ -181,7 +181,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                     size="icon-sm"
                     aria-label="Eliminar categoría"
                     title="Eliminar categoría"
-                    className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                    className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                     onClick={() => pedirEliminar(categoria)}
                   >
                     <Trash2 className="size-4" />
@@ -248,7 +248,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                       size="icon-sm"
                       aria-label="Editar categoría"
                       title="Editar categoría"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => abrirEditar(categoria)}
                     >
                       <Pencil className="size-4" />
@@ -259,7 +259,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                       size="icon-sm"
                       aria-label="Eliminar categoría"
                       title="Eliminar categoría"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => pedirEliminar(categoria)}
                     >
                       <Trash2 className="size-4" />

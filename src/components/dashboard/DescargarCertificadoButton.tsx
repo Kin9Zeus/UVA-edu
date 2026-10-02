@@ -28,7 +28,7 @@ export function DescargarCertificadoButton({ certificadoId }: { certificadoId: s
         type="button"
         variant="ghost"
         size="sm"
-        className="w-auto gap-1.5 text-uva-accent-text hover:text-uva-accent"
+        className="w-auto gap-1.5 text-uva-accent-text hover:text-uva-accent-ink"
         onClick={descargar}
         disabled={cargando}
       >

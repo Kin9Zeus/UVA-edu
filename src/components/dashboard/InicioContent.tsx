@@ -11,9 +11,9 @@ import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
 import type { CursoDestacado } from "@/lib/cursoDestacado";
 
 const PORTADA_TRAMA = {
-  backgroundColor: "#141417",
+  backgroundColor: "var(--uva-surface-2)",
   backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
+    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -124,7 +124,7 @@ export function InicioContent({
 
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-start justify-between gap-2.5">
-                    <h3 className="line-clamp-2 text-sm leading-snug text-uva-text transition-colors group-hover:text-uva-accent">
+                    <h3 className="line-clamp-2 text-sm leading-snug text-uva-text transition-colors group-hover:text-uva-accent-ink">
                       {clase.cursoTitulo}
                     </h3>
                     <AnilloProgreso
@@ -167,7 +167,7 @@ export function InicioContent({
                   className="object-cover"
                 />
               )}
-              <span className="absolute top-2 left-2 rounded-full bg-uva-accent-soft px-2 py-0.5 text-[10px] text-uva-accent-text">
+              <span className="absolute top-2 left-2 rounded-full bg-uva-accent px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
                 Destacado
               </span>
             </div>
@@ -228,7 +228,7 @@ export function InicioContent({
                   }}
                 >
                   <Icon
-                    className={`size-5 ${esFucsia ? "text-uva-accent" : "text-uva-accent-2"}`}
+                    className={`size-5 ${esFucsia ? "text-uva-accent-ink" : "text-uva-accent-2"}`}
                     strokeWidth={1.9}
                   />
                   <div className="mt-6">

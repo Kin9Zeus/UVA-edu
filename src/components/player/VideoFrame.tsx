@@ -42,7 +42,7 @@ export function VideoFrame({
 }) {
   if (videoListo) {
     return (
-      <div className={cn("overflow-hidden rounded-uva-md bg-black", className)}>
+      <div className={cn("dark overflow-hidden rounded-uva-md bg-black", className)}>
         <VideoPlayer
           key={leccionId}
           leccionId={leccionId}
@@ -56,7 +56,7 @@ export function VideoFrame({
   }
 
   return (
-    <div className={cn("relative h-[452px] overflow-hidden rounded-uva-md bg-black", className)}>
+    <div className={cn("dark relative h-[452px] overflow-hidden rounded-uva-md bg-black", className)}>
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div className="grid size-[74px] place-items-center rounded-full bg-uva-accent/90">
           <Play className="size-[26px] fill-uva-bg text-uva-bg" strokeWidth={0} />

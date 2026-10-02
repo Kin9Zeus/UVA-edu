@@ -67,8 +67,8 @@ function BotonToolbar({
       onClick={onClick}
       className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 disabled:cursor-not-allowed disabled:opacity-40 ${
         activo
-          ? "bg-uva-accent text-white"
-          : "bg-transparent text-uva-muted hover:bg-[#27272A] hover:text-uva-text"
+          ? "bg-uva-accent text-uva-on-accent"
+          : "bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text"
       }`}
     >
       <Icono className="size-[15px]" strokeWidth={2.2} />
@@ -160,7 +160,7 @@ export function RichTextToolbar({ editor }: { editor: Editor }) {
         <span className="mx-1 h-5 w-px shrink-0 bg-uva-divider" aria-hidden="true" />
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="mr-0.5 inline-flex h-7 shrink-0 items-center gap-1 rounded-uva-xs px-2 text-xs font-medium text-uva-muted hover:bg-[#27272A] hover:text-uva-text aria-expanded:bg-[#27272A] aria-expanded:text-uva-text">
+          <DropdownMenuTrigger className="mr-0.5 inline-flex h-7 shrink-0 items-center gap-1 rounded-uva-xs px-2 text-xs font-medium text-uva-muted hover:bg-uva-chip hover:text-uva-text aria-expanded:bg-uva-chip aria-expanded:text-uva-text">
             {tituloBloque}
             <ChevronDown className="size-3.5" strokeWidth={2.2} />
           </DropdownMenuTrigger>

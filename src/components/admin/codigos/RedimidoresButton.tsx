@@ -57,7 +57,7 @@ export function RedimidoresButton({
         type="button"
         variant="ghost"
         size="sm"
-        className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent"
+        className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent-ink"
         onClick={abrir}
       >
         <Users className="size-3.5" />

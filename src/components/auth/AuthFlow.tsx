@@ -195,7 +195,7 @@ export function AuthFlow({
             <button
               type="button"
               onClick={handleCrearCuenta}
-              className="text-uva-accent hover:underline"
+              className="text-uva-accent-ink hover:underline"
             >
               Crear cuenta
             </button>
@@ -222,7 +222,7 @@ export function AuthFlow({
               <button
                 type="button"
                 onClick={handleCambiar}
-                className="shrink-0 text-xs text-uva-accent hover:underline"
+                className="shrink-0 text-xs text-uva-accent-ink hover:underline"
               >
                 Cambiar
               </button>
@@ -249,7 +249,7 @@ export function AuthFlow({
                 <button
                   type="button"
                   onClick={handleCambiar}
-                  className="text-uva-accent hover:underline"
+                  className="text-uva-accent-ink hover:underline"
                 >
                   Inicia sesión
                 </button>

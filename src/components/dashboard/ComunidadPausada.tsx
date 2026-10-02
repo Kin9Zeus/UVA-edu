@@ -13,7 +13,7 @@ export function ComunidadPausada({ motivo }: { motivo: keyof typeof MOTIVO_COPY 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col items-center gap-4 px-[clamp(20px,3vw,44px)] py-16 text-center">
       <div className="flex flex-col items-center gap-4 rounded-uva-md border border-uva-divider bg-uva-surface px-9 py-11">
-        <div className="flex size-[84px] items-center justify-center rounded-full bg-uva-accent-soft text-uva-accent">
+        <div className="flex size-[84px] items-center justify-center rounded-full bg-uva-accent-soft text-uva-accent-ink">
           <Users className="size-8" strokeWidth={2} />
         </div>
         <h2 className="text-2xl text-uva-text">Tu acceso a la comunidad está en pausa</h2>

@@ -25,7 +25,7 @@ export function ProductBand() {
   return (
     <section
       id="producto"
-      className="border-y border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] py-[clamp(56px,8vw,96px)]"
+      className="border-y border-uva-divider bg-uva-band-bg px-[clamp(20px,4vw,56px)] py-[clamp(56px,8vw,96px)]"
     >
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-11 flex flex-col items-center gap-5 text-center">
@@ -39,7 +39,7 @@ export function ProductBand() {
             {benefits.map((benefit) => (
               <li className="flex gap-2.5" key={benefit.title}>
                 <span
-                  className="shrink-0 font-bold text-uva-accent"
+                  className="shrink-0 font-bold text-uva-accent-ink"
                   aria-hidden="true"
                 >
                   ▸
@@ -59,7 +59,7 @@ export function ProductBand() {
           <div
             role="img"
             aria-label="Vista previa de la plataforma U.V.A."
-            className="order-[-1] h-[240px] rounded-uva-lg border border-uva-divider bg-[#141417] bg-[repeating-linear-gradient(135deg,rgba(250,250,250,0.045)_0_2px,transparent_2px_9px)] min-[900px]:order-none min-[900px]:h-[340px]"
+            className="order-[-1] h-[240px] rounded-uva-lg border border-uva-divider bg-uva-surface-2 bg-[repeating-linear-gradient(135deg,var(--uva-stripe)_0_2px,transparent_2px_9px)] min-[900px]:order-none min-[900px]:h-[340px]"
           />
         </div>
       </div>

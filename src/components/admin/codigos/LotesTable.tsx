@@ -169,7 +169,7 @@ export function LotesTable({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent"
+                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => setLoteAbierto(lote)}
                     >
                       <ListChecks className="size-4" />
@@ -181,7 +181,7 @@ export function LotesTable({
                       size="icon-sm"
                       aria-label="Exportar CSV de este lote"
                       title="Exportar CSV de este lote"
-                      className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                       onClick={() => handleExportarLote(lote.id)}
                       disabled={exportandoLote === lote.id}
                     >
@@ -239,7 +239,7 @@ export function LotesTable({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent"
+                      className="w-auto gap-1.5 text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => setLoteAbierto(lote)}
                     >
                       <ListChecks className="size-4" />
@@ -251,7 +251,7 @@ export function LotesTable({
                       size="icon-sm"
                       aria-label="Exportar CSV de este lote"
                       title="Exportar CSV de este lote"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => handleExportarLote(lote.id)}
                       disabled={exportandoLote === lote.id}
                     >
@@ -296,7 +296,7 @@ export function LotesTable({
                     >
                       {codigo.codigo}
                       {copiado === codigo.codigo ? (
-                        <Check className="size-3.5 text-uva-accent" />
+                        <Check className="size-3.5 text-uva-accent-ink" />
                       ) : (
                         <Copy className="size-3.5 text-uva-muted-2" />
                       )}
@@ -325,7 +325,7 @@ export function LotesTable({
                           size="icon-sm"
                           aria-label="Eliminar código"
                           title="Eliminar código"
-                          className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                          className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                           onClick={() => setBorrando(codigo)}
                         >
                           <Trash2 className="size-4" />
@@ -360,7 +360,7 @@ export function LotesTable({
                       >
                         {codigo.codigo}
                         {copiado === codigo.codigo ? (
-                          <Check className="size-3.5 text-uva-accent" />
+                          <Check className="size-3.5 text-uva-accent-ink" />
                         ) : (
                           <Copy className="size-3.5 text-uva-muted-2" />
                         )}
@@ -393,7 +393,7 @@ export function LotesTable({
                             size="icon-sm"
                             aria-label="Eliminar código"
                             title="Eliminar código"
-                            className="text-uva-muted-2 hover:text-uva-accent"
+                            className="text-uva-muted-2 hover:text-uva-accent-ink"
                             onClick={() => setBorrando(codigo)}
                           >
                             <Trash2 className="size-4" />

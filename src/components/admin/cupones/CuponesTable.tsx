@@ -136,7 +136,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                   >
                     <span className="truncate">{cupon.codigo}</span>
                     {copiado === cupon.codigo ? (
-                      <Check className="size-3.5 shrink-0 text-uva-accent" />
+                      <Check className="size-3.5 shrink-0 text-uva-accent-ink" />
                     ) : (
                       <Copy className="size-3.5 shrink-0 text-uva-muted-2" />
                     )}
@@ -190,7 +190,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                     >
                       {cupon.codigo}
                       {copiado === cupon.codigo ? (
-                        <Check className="size-3.5 text-uva-accent" />
+                        <Check className="size-3.5 text-uva-accent-ink" />
                       ) : (
                         <Copy className="size-3.5 text-uva-muted-2" />
                       )}
@@ -278,7 +278,7 @@ function Acciones({
   /** Área de toque ampliada para la tarjeta de móvil. */
   tactil?: boolean;
 }) {
-  const clase = `text-uva-muted-2 hover:text-uva-accent${tactil ? " pointer-coarse:p-3" : ""}`;
+  const clase = `text-uva-muted-2 hover:text-uva-accent-ink${tactil ? " pointer-coarse:p-3" : ""}`;
 
   return (
     <div className="grid grid-cols-[28px_28px_28px] items-center justify-end gap-1.5">

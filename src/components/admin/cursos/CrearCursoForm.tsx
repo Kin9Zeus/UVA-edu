@@ -214,7 +214,7 @@ export function CrearCursoForm({
               <img src={previewPortada} alt="" className="size-full object-cover" />
             ) : (
               <div className="flex size-full items-center justify-center px-4">
-                Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
+                Arrastra una imagen aquí o <span className="text-uva-accent-ink">selecciona un archivo</span>
               </div>
             )}
           </button>

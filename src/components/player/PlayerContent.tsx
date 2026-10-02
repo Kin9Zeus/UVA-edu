@@ -47,7 +47,7 @@ function ProgresoCard({
             completado · {completadas} de {totalClases} clases
           </span>
         </div>
-        <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
+        <div className="h-[7px] overflow-hidden rounded-full bg-uva-chip">
           <div
             className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
             style={{ width: `${porcentaje}%` }}
@@ -202,7 +202,7 @@ export function PlayerContent({
             type="button"
             onClick={() => irALeccion(data.siguienteId!)}
             aria-label="Siguiente clase"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
           >
             <ChevronRight className="size-5" strokeWidth={2.5} />
           </button>
@@ -213,7 +213,7 @@ export function PlayerContent({
           <Link
             href={`/cursos/${data.cursoSlug}/examen`}
             aria-label="Hacer examen"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
           >
             <FileCheck className="size-4" strokeWidth={2.5} />
           </Link>
@@ -239,7 +239,7 @@ export function PlayerContent({
               type="button"
               onClick={() => irALeccion(data.anteriorId!)}
               aria-label="Clase anterior"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-uva-chip"
             >
               <ChevronLeft className="size-4" strokeWidth={2.5} />
             </button>
@@ -248,7 +248,7 @@ export function PlayerContent({
             type="button"
             onClick={() => setTemarioOpen(true)}
             aria-label="Temario"
-            className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+            className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-uva-chip"
           >
             <List className="size-4" strokeWidth={2} />
             Temario
@@ -258,7 +258,7 @@ export function PlayerContent({
               type="button"
               onClick={() => irALeccion(data.siguienteId!)}
               aria-label="Siguiente clase"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover"
             >
               Siguiente clase
               <ChevronRight className="size-4" strokeWidth={2.5} />
@@ -267,7 +267,7 @@ export function PlayerContent({
             <Link
               href={`/cursos/${data.cursoSlug}/examen`}
               aria-label="Hacer examen"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
             >
               Hacer examen
               <FileCheck className="size-4" strokeWidth={2.5} />

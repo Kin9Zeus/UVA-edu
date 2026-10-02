@@ -241,7 +241,7 @@ export function CursoDetalleView({
               className="aspect-video h-11 shrink-0 rounded-lg bg-uva-surface-2"
               style={{
                 backgroundImage:
-                  "repeating-linear-gradient(135deg, rgba(250,250,250,.05) 0 2px, transparent 2px 9px)",
+                  "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
               }}
             />
           )}

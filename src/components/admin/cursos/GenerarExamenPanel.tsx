@@ -210,7 +210,7 @@ export function GenerarExamenPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
-            <Sparkles className="size-4 text-uva-accent" />
+            <Sparkles className="size-4 text-uva-accent-ink" />
             Generar preguntas desde los videos
           </h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-uva-muted">

@@ -227,7 +227,7 @@ export function EnlacesVistaPrevia({
                 size="icon-sm"
                 aria-label="Anular enlace"
                 title="Anular enlace: dejará de abrir, pero queda el registro"
-                className="text-uva-muted-2 hover:text-uva-accent"
+                className="text-uva-muted-2 hover:text-uva-accent-ink"
                 onClick={() => handleRevocar(enlace.id)}
               >
                 <Ban className="size-4" />

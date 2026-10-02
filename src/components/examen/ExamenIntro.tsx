@@ -74,10 +74,10 @@ export function ExamenIntro({
   // Resplandor de fondo del panel: magenta al aprobar, rojo apagado al
   // perder, un magenta leve antes de empezar.
   const resplandor = aprobado
-    ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(255,0,122,0.22),transparent_70%)]"
+    ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-accent)_22%,transparent),transparent_70%)]"
     : reprobado
-      ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(239,68,68,0.14),transparent_70%)]"
-      : "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,rgba(255,0,122,0.10),transparent_70%)]";
+      ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-error)_14%,transparent),transparent_70%)]"
+      : "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-accent)_10%,transparent),transparent_70%)]";
 
   return (
     <div className="relative isolate">
@@ -93,7 +93,7 @@ export function ExamenIntro({
         </Link>
 
         <section
-          className={`relative overflow-hidden rounded-uva-md border bg-uva-surface/90 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur ${
+          className={`relative overflow-hidden rounded-uva-md border bg-uva-surface/90 shadow-[0_24px_60px_-30px_color-mix(in_srgb,var(--uva-shadow)_80%,transparent)] backdrop-blur ${
             aprobado ? "border-uva-accent/45" : "border-uva-divider"
           }`}
           aria-live={resultado ? "polite" : undefined}
@@ -117,7 +117,7 @@ export function ExamenIntro({
             {aprobado && (
               <div
                 aria-hidden
-                className="absolute right-5 top-7 animate-uva-sello rounded-[6px] border-[3px] border-double border-uva-accent px-2.5 py-1 font-mono text-[13px] font-bold tracking-[0.22em] text-uva-accent sm:right-8 sm:top-9 sm:text-[17px]"
+                className="absolute right-5 top-7 animate-uva-sello rounded-[6px] border-[3px] border-double border-uva-accent px-2.5 py-1 font-mono text-[13px] font-bold tracking-[0.22em] text-uva-accent-ink sm:right-8 sm:top-9 sm:text-[17px]"
               >
                 APROBADO
               </div>

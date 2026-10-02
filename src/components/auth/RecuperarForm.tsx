@@ -58,7 +58,7 @@ export function RecuperarForm() {
           <>
             <span
               aria-hidden="true"
-              className="size-4 animate-[uva-btn-spinner-spin_0.7s_linear_infinite] rounded-full border-2 border-[rgba(250,250,250,0.35)] border-t-uva-text"
+              className="size-4 animate-[uva-btn-spinner-spin_0.7s_linear_infinite] rounded-full border-2 border-uva-text/35 border-t-uva-text"
             />
             Enviando…
           </>

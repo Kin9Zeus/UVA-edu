@@ -12,7 +12,7 @@ export function Hero({ hrefCodigo }: { hrefCodigo: string }) {
     <section className="relative mx-auto max-w-[1180px] overflow-hidden px-[clamp(20px,4vw,56px)] pt-[clamp(72px,12vw,128px)] pb-[clamp(56px,8vw,96px)] text-center">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-[-140px] left-1/2 z-0 h-[560px] w-[900px] -translate-x-1/2 bg-[radial-gradient(circle,rgba(255,0,122,0.3)_0%,transparent_68%)]"
+        className="pointer-events-none absolute top-[-140px] left-1/2 z-0 h-[560px] w-[900px] -translate-x-1/2 bg-[radial-gradient(circle,color-mix(in_srgb,var(--uva-accent)_30%,transparent)_0%,transparent_68%)]"
       />
       <div className="relative z-[1] flex flex-col items-center">
         <h1 className="mb-5 text-[clamp(44px,6vw,72px)] leading-[1.08] font-bold tracking-[-0.03em] text-uva-text">

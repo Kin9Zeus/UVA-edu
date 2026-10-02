@@ -57,7 +57,7 @@ const socials = [
 ];
 
 const headingClass =
-  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent uppercase";
+  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent-ink uppercase";
 const linkClass =
   "text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline";
 
@@ -92,7 +92,7 @@ export async function Footer({
 
   return (
     <footer
-      className={`border-t border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
+      className={`border-t border-uva-divider bg-uva-band-bg px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
         conBotonWhatsApp ? "pb-24" : "pb-9"
       }`}
     >
@@ -179,7 +179,7 @@ export async function Footer({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-bg even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-bg hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-on-bright even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-on-bright hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
               >
                 <Icon />
               </a>

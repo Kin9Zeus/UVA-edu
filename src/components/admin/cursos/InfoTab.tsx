@@ -205,7 +205,7 @@ export function InfoTab({
             type="button"
             variant="ghost"
             size="auto"
-            className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent"
+            className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent-ink"
             onClick={handleGenerarDescripcion}
             disabled={generandoDescripcion}
             title="Escribe la descripción a partir del temario y el contenido de las lecciones"
@@ -265,7 +265,7 @@ export function InfoTab({
           ) : (
             <div className="flex size-full items-center justify-center px-4">
               Arrastra una imagen aquí o{" "}
-              <span className="text-uva-accent">selecciona un archivo</span>
+              <span className="text-uva-accent-ink">selecciona un archivo</span>
             </div>
           )}
         </button>

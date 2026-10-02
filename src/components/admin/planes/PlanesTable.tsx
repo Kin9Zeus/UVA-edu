@@ -148,7 +148,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                       size="icon-sm"
                       aria-label="Editar plan"
                       title="Editar plan"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => abrirEditar(plan)}
                     >
                       <Pencil className="size-4" />

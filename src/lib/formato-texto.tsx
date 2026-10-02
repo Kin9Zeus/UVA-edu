@@ -348,7 +348,7 @@ function analizarLinea(linea: string): ReactNode[] {
     if (match.index > ultimo) partes.push(linea.slice(ultimo, match.index));
     if (match[1] !== undefined) {
       partes.push(
-        <code key={clave++} className="rounded-uva-xs bg-[#27272A] px-1.5 py-0.5 font-mono text-[12px]">
+        <code key={clave++} className="rounded-uva-xs bg-uva-chip px-1.5 py-0.5 font-mono text-[12px]">
           {match[1]}
         </code>,
       );
@@ -365,7 +365,7 @@ function analizarLinea(linea: string): ReactNode[] {
           href={match[5]}
           target="_blank"
           rel="noopener noreferrer"
-          className="break-all text-uva-accent underline decoration-uva-accent/40 underline-offset-2 hover:decoration-uva-accent"
+          className="break-all text-uva-accent-ink underline decoration-uva-accent/40 underline-offset-2 hover:decoration-uva-accent"
         >
           {match[5]}
         </a>,
@@ -398,7 +398,7 @@ export function renderizarTextoFormateado(texto: string, resolverAdjunto?: (toke
       bloques.push(
         <pre
           key={`c${indiceSegmento}`}
-          className="my-1.5 overflow-x-auto rounded-uva-md bg-[#27272A] p-2.5 font-mono text-[12px] text-uva-text"
+          className="my-1.5 overflow-x-auto rounded-uva-md bg-uva-chip p-2.5 font-mono text-[12px] text-uva-text"
         >
           <code>{segmento.trim()}</code>
         </pre>,

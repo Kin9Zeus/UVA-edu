@@ -38,7 +38,7 @@ export function AdminToastProvider({ children }: { children: React.ReactNode }) 
             key={toast.id}
             role="status"
             className={cn(
-              "rounded-uva-md border border-uva-divider border-l-[3px] bg-uva-surface px-[18px] py-[13px] text-[13.5px] text-uva-text shadow-[0_12px_30px_rgba(0,0,0,.4)] animate-in fade-in slide-in-from-bottom-2",
+              "rounded-uva-md border border-uva-divider border-l-[3px] bg-uva-surface px-[18px] py-[13px] text-[13.5px] text-uva-text shadow-[0_12px_30px_color-mix(in_srgb,var(--uva-shadow)_40%,transparent)] animate-in fade-in slide-in-from-bottom-2",
               FRANJA[toast.variant],
             )}
           >

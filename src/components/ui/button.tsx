@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
         /* `.btn-primary` — magenta, reservado al CTA de cada pantalla */
         primary:
-          "border-uva-accent bg-uva-accent text-white hover:bg-uva-accent-hover",
+          "border-uva-accent bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover",
         /* El mockup no distingue un `outline` del `.btn` base */
         outline:
           "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
@@ -30,17 +30,17 @@ const buttonVariants = cva(
         /* `.btn-danger` — borde neutro y texto rojo, nunca relleno rojo */
         destructive:
           "border-uva-divider bg-transparent text-uva-error hover:bg-[color-mix(in_srgb,var(--uva-error)_12%,transparent)]",
-        link: "border-transparent text-uva-accent underline-offset-4 hover:underline",
+        link: "border-transparent text-uva-accent-ink underline-offset-4 hover:underline",
         /* U.V.A — variantes del sitio público (auth.css / home.css migrados).
            El original no define `transition` en .btn, así que se cancela la
            transition-all heredada de la base para no animar lo que antes
            cambiaba de forma instantánea. */
         "uva-primary":
-          "w-full rounded-uva-md border border-transparent text-uva-text bg-uva-accent transition-none hover:bg-uva-accent-hover active:not-aria-[haspopup]:bg-uva-accent-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-transparent text-uva-on-accent bg-uva-accent transition-none hover:bg-uva-accent-hover active:not-aria-[haspopup]:bg-uva-accent-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-secondary":
-          "w-full rounded-uva-md border border-uva-divider bg-transparent text-uva-text transition-none hover:bg-[#27272a] active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-uva-divider bg-transparent text-uva-text transition-none hover:bg-uva-chip active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-ghost":
-          "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent-ink transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-icon":
           "rounded-uva-sm border-0 bg-transparent text-uva-text-faint !transition-none hover:text-uva-text-muted hover:bg-uva-text/8 active:not-aria-[haspopup]:!translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none",
       },

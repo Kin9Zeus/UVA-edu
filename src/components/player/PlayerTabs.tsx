@@ -44,7 +44,7 @@ export function TabsHeader({
   totalNotas?: number;
 }) {
   const clase = (activo: boolean) =>
-    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
+    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-uva-divider pb-3.5">
@@ -102,7 +102,7 @@ export function PanelLateralHeader({
   totalNotas?: number;
 }) {
   const clase = (activo: boolean) =>
-    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-text" : "bg-transparent text-uva-muted"}`;
+    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-uva-divider pb-3.5">
@@ -153,7 +153,7 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
   return (
     <div className="flex flex-col gap-3">
       {recursos.length === 0 ? (
-        <div className="rounded-uva-md bg-[#27272A] px-[13px] py-[11px] text-[13px] text-uva-muted">
+        <div className="rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-[13px] text-uva-muted">
           Esta clase todavía no tiene recursos descargables.
         </div>
       ) : (
@@ -164,9 +164,9 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
               type="button"
               onClick={() => descargar(recurso)}
               disabled={descargando === recurso.id}
-              className="flex w-full cursor-pointer items-center gap-[11px] rounded-uva-md border-0 bg-[#27272A] px-[13px] py-[11px] text-left disabled:cursor-wait disabled:opacity-70"
+              className="flex w-full cursor-pointer items-center gap-[11px] rounded-uva-md border-0 bg-uva-chip px-[13px] py-[11px] text-left disabled:cursor-wait disabled:opacity-70"
             >
-              <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
+              <span className="inline-flex items-center rounded-uva-xs bg-uva-chip px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
                 {extensionArchivo(recurso.nombre)}
               </span>
               <div className="min-w-0 flex-1">
@@ -488,8 +488,8 @@ function NuevoComentarioForm({
                 }}
                 className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 ${
                   activos[tipo]
-                    ? "bg-uva-accent text-white"
-                    : "bg-transparent text-uva-muted hover:bg-[#27272A] hover:text-uva-text"
+                    ? "bg-uva-accent text-uva-on-accent"
+                    : "bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text"
                 }`}
               >
                 <Icono className="size-[15px]" strokeWidth={2.2} />
@@ -499,7 +499,7 @@ function NuevoComentarioForm({
         )}
         <div className={`flex items-end gap-2 ${expandido ? "px-2.5 py-2" : "px-4 py-2.5"}`}>
           {expandido && (
-            <div className="mb-0.5 grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#27272A] text-uva-muted">
+            <div className="mb-0.5 grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-uva-chip text-uva-muted">
               <User className="size-3.5" strokeWidth={2} />
             </div>
           )}
@@ -549,7 +549,7 @@ function NuevoComentarioForm({
               type="button"
               disabled={pendiente || vacio}
               onClick={enviar}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent px-4 py-1.5 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent px-4 py-1.5 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
             >
               {pendiente ? "Publicando…" : idComentarioPadre ? "Responder" : "Publicar"}
               {pendiente ? (
@@ -624,7 +624,7 @@ function ComentarioItem({
 
   return (
     <div className="flex gap-[11px]">
-      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#27272A] text-uva-muted">
+      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-uva-chip text-uva-muted">
         {comentario.autorFotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
           <img src={comentario.autorFotoUrl} alt="" className="size-full object-cover" />
@@ -656,7 +656,7 @@ function ComentarioItem({
                 Profesor
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-uva-xs bg-[#27272A] px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
+              <span className="inline-flex items-center rounded-uva-xs bg-uva-chip px-2.5 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
                 Alumno
               </span>
             )}
@@ -675,7 +675,7 @@ function ComentarioItem({
             type="button"
             disabled={comentario.eliminado || !usuarioActualId || pendienteLike}
             onClick={toggleLike}
-            className={`inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 disabled:cursor-not-allowed ${meGusta ? "text-uva-accent opacity-100" : ""}`}
+            className={`inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 disabled:cursor-not-allowed ${meGusta ? "text-uva-accent-ink opacity-100" : ""}`}
           >
             <Heart className="size-3.5" strokeWidth={2.4} fill={meGusta ? "currentColor" : "none"} />
             {likes}

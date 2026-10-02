@@ -29,7 +29,7 @@ export function BottomTabBar() {
       aria-label="Navegación principal"
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] md:hidden"
     >
-      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-[#18181B]/95 p-1.5 shadow-lg shadow-black/40 backdrop-blur">
+      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-lg shadow-uva-shadow/40 backdrop-blur">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
@@ -39,7 +39,7 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors",
-                active && "bg-uva-accent/15 text-uva-accent",
+                active && "bg-uva-accent/15 text-uva-accent-ink",
               )}
             >
               <Icon className="size-5" strokeWidth={active ? 2.2 : 1.9} />
