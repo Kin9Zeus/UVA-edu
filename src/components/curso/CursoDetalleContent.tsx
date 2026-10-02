@@ -15,6 +15,9 @@ import type { SituacionExamen } from "@/lib/examen";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
+/** "4,7": coma decimal y siempre un decimal, como se lee en español. */
+const formatPromedio = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format;
+
 const PORTADA_TRAMA = {
   backgroundColor: "#141417",
   backgroundImage:
@@ -158,7 +161,7 @@ export function CursoDetalleContent({
               {curso.titulo}
             </h1>
             {cursoCompletado && (
-              <span className="flex items-center gap-1.5 rounded-uva-xs bg-uva-accent-soft px-2.5 py-1 font-mono text-[10.5px] font-semibold tracking-[.1em] text-uva-accent-text uppercase">
+              <span className="flex items-center gap-1.5 rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 font-mono text-[11px] font-semibold tracking-[.06em] text-uva-accent-text uppercase">
                 <CircleCheck className="size-3.5" strokeWidth={2} />
                 Completado
               </span>
@@ -167,16 +170,25 @@ export function CursoDetalleContent({
 
           {/* Promedio + total de reseñas — mismo lugar que la calificación
               con estrellas en la imagen de referencia del catálogo de
-              Platzi. Solo si ya hay al menos una reseña: un "0.0 · 0
-              opiniones" no aporta nada y se ve como un error. */}
-          {calificaciones.total > 0 && (
+              Platzi. `promedio` llega null por debajo de
+              MINIMO_RESENAS_PROMEDIO: con pocas opiniones la cifra no dice
+              nada. El lector de pantalla oye la frase del aria-label en vez
+              de los fragmentos ("4,7", "de 5", "5 opiniones"). `min-h-11`
+              da el área táctil de 44 px; `-mt-3` (en vez del `mb-3` de
+              antes) compensa esa altura para que el espaciado no cambie. */}
+          {calificaciones.promedio !== null && (
             <a
               href="#reseñas"
-              className="mb-3 flex w-fit items-center gap-1.5 text-sm text-uva-text-muted hover:text-uva-text"
+              aria-label={`Calificación ${formatPromedio(calificaciones.promedio)} de 5, basada en ${calificaciones.total} opiniones`}
+              className="-mt-3 flex min-h-11 w-fit items-center gap-1.5 text-sm text-uva-text-muted hover:text-uva-text"
             >
-              <EstrellasCalificacion puntuacion={calificaciones.promedio ?? 0} />
-              <span className="text-uva-text">{calificaciones.promedio?.toFixed(1)}</span>
-              {calificaciones.total} opinion{calificaciones.total === 1 ? "" : "es"}
+              <span aria-hidden="true" className="contents">
+                <EstrellasCalificacion puntuacion={calificaciones.promedio} />
+                <span>
+                  <span className="text-uva-text">{formatPromedio(calificaciones.promedio)}</span> de 5 ·{" "}
+                  {calificaciones.total} opiniones
+                </span>
+              </span>
             </a>
           )}
 
@@ -186,20 +198,20 @@ export function CursoDetalleContent({
               sin inventar datos que el curso no trae (ej. "horas de
               práctica": no existe esa métrica en el modelo). */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
               <BarChart2 className="size-3.5 text-uva-text-faint" strokeWidth={2} />
               Nivel {NIVEL_LABEL[curso.nivel]}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
               <PlayCircle className="size-3.5 text-uva-text-faint" strokeWidth={2} />
               {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
               <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
               {formatHoras(curso.duracionTotalSegundos)} de contenido
             </span>
             {curso.totalRecursos > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
                 <Download className="size-3.5 text-uva-text-faint" strokeWidth={2} />
                 {curso.totalRecursos} {curso.totalRecursos === 1 ? "recurso" : "recursos"} descargable
                 {curso.totalRecursos === 1 ? "" : "s"}
@@ -242,12 +254,16 @@ export function CursoDetalleContent({
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
                         <MiniaturaClase url={leccion.miniaturaUrl} completado={leccion.completado} bloqueada={false} />
-                        <span className="min-w-0 flex-1 line-clamp-2">{leccion.titulo}</span>
-                        {esIntroduccion && (
-                          <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-accent-text uppercase">
-                            Introducción
-                          </span>
-                        )}
+                        {/* En celular la etiqueta va debajo del título: al lado
+                            le quitaba casi todo el ancho ("Bienve e…" en 375 px). */}
+                        <span className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                          <span className="min-w-0 line-clamp-2 sm:flex-1">{leccion.titulo}</span>
+                          {esIntroduccion && (
+                            <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-2 py-0.5 font-mono text-[11px] font-semibold tracking-[.06em] text-uva-accent-text uppercase">
+                              Introducción
+                            </span>
+                          )}
+                        </span>
                         <span className="font-mono text-xs text-uva-text-faint tabular-nums">
                           {formatDuracion(leccion.duracion)}
                         </span>

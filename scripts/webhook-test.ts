@@ -23,7 +23,7 @@
  * gate de CI.
  */
 
-process.loadEnvFile(".env.local");
+process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";

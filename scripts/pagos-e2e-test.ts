@@ -23,7 +23,7 @@
  * Limpia todo lo que crea, pase o falle. Sale con código 1 si algo falló.
  */
 
-process.loadEnvFile(".env.local");
+process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 
 // ANTES de cualquier import que pueda leerla: esta prueba aprueba pagos
 // ficticios sobre perfiles reales de la base, así que el recibo NO debe

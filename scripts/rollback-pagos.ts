@@ -58,7 +58,7 @@
 import { Client } from "pg";
 
 try {
-  process.loadEnvFile(".env.local");
+  process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 } catch {
   // Sin archivo: se usan las variables ya presentes en process.env.
 }

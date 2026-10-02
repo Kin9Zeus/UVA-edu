@@ -31,7 +31,7 @@
 // puestas en process.env por la plataforma. Mismo patrón que
 // certificados-enviar-notificaciones.ts / apply-rls.ts.
 try {
-  process.loadEnvFile(".env.local");
+  process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 } catch {
   // Sin archivo: se usan las variables ya presentes en process.env.
 }
