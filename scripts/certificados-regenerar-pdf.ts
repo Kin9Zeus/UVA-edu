@@ -29,7 +29,7 @@
  */
 
 try {
-  process.loadEnvFile(".env.local");
+  process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 } catch {
   // Sin archivo (Railway/CI): se usan las variables ya presentes en process.env.
 }

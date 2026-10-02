@@ -30,7 +30,7 @@
  * clientes después de loadEnvFile() en vez de importar los compartidos.
  */
 
-process.loadEnvFile(".env.local");
+process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 
 import { createClient } from "@supabase/supabase-js";
 import Mux, { NotFoundError } from "@mux/mux-node";
