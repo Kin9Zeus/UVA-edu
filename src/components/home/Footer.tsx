@@ -14,6 +14,13 @@ import { urlWhatsapp } from "@/lib/contacto";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
+//
+// Oculta mientras sus páginas no existan: los cuatro enlaces apuntaban a `#`
+// y un enlace que no lleva a ningún lado incumple "cada llamado a la acción
+// lleva a donde dice". Se conserva el contenido para reactivarla (poner
+// `MOSTRAR_COLUMNA_COMUNIDAD` en true) cuando cada enlace tenga destino real.
+const MOSTRAR_COLUMNA_COMUNIDAD = false;
+
 const columns = [
   {
     heading: "U.V.A. y comunidad",
@@ -23,27 +30,27 @@ const columns = [
 
 const socials = [
   {
-    label: "YouTube",
+    label: "Canal de U.V.A. en YouTube",
     Icon: YoutubeIcon,
     href: "https://www.youtube.com/@uvarq",
   },
   {
-    label: "Instagram",
+    label: "U.V.A. en Instagram",
     Icon: InstagramIcon,
     href: "https://www.instagram.com/uvarq",
   },
   {
-    label: "WhatsApp",
+    label: "Escríbenos por WhatsApp",
     Icon: WhatsappIcon,
     href: urlWhatsapp(),
   },
   {
-    label: "Spotify",
+    label: "U.V.A. en Spotify",
     Icon: SpotifyIcon,
     href: "https://open.spotify.com/",
   },
   {
-    label: "TikTok",
+    label: "U.V.A. en TikTok",
     Icon: TiktokIcon,
     href: "https://www.tiktok.com/@uvarq",
   },
@@ -120,20 +127,21 @@ export async function Footer({
             </div>
           )}
 
-          {columns.map((column) => (
-            <div key={column.heading}>
-              <p className={headingClass}>{column.heading}</p>
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {column.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className={linkClass}>
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {MOSTRAR_COLUMNA_COMUNIDAD &&
+            columns.map((column) => (
+              <div key={column.heading}>
+                <p className={headingClass}>{column.heading}</p>
+                <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                  {column.links.map((link) => (
+                    <li key={link}>
+                      <a href="#" className={linkClass}>
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
 
           {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
