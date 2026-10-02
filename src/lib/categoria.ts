@@ -122,16 +122,22 @@ export async function getCategoriasActivas(): Promise<CategoriaActiva[]> {
 const categoriasActivasCacheadas = unstable_cache(
   async (): Promise<CategoriaActiva[]> => {
     const supabase = createPublicClient();
+    // Solo las que tienen al menos un curso publicado (`!inner`): ofrecer en
+    // el filtro una escuela vacía lleva a un catálogo sin resultados. Mismo
+    // criterio que el pie de página y el sitemap.
     const { data, error } = await supabase
       .from("categorias")
-      .select("id, slug, nombre")
+      .select("id, slug, nombre, curso_categorias!inner(curso:cursos!inner(id))")
       .eq("activo", true)
+      .eq("curso_categorias.curso.mostrado", true)
       .order("nombre");
     lanzarSiFalla(error, "categorias activas");
-    return (data ?? []) as CategoriaActiva[];
+    return (data ?? []).map(({ id, slug, nombre }) => ({ id, slug, nombre })) as CategoriaActiva[];
   },
   ["categorias-activas"],
-  { tags: [TAG_CATEGORIAS], revalidate: REVALIDAR_SEGUNDOS },
+  // TAG_CATALOGO también: publicar u ocultar un curso cambia qué escuelas
+  // tienen cursos.
+  { tags: [TAG_CATEGORIAS, TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
 );
 
 /**

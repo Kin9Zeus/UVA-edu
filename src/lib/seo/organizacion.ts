@@ -22,7 +22,7 @@ import { siteUrl } from "@/lib/site-url";
  * (ver el encabezado de lib/site-url.ts) y en local, en CI y en producción
  * son distintos. Un `@id` con el dominio equivocado es peor que ninguno.
  */
-export const NOMBRE_ORGANIZACION = "U.V.A — Unidad Vectorial de Arquitectura";
+export const NOMBRE_ORGANIZACION = "U.V.A. — Unidad Vectorial de Arquitectura";
 
 /** El `@id` estable de la organización. Úsalo para referenciarla desde otros nodos. */
 export function idOrganizacion(): string {

@@ -194,10 +194,13 @@ export function CursoDetalleContent({
               <PlayCircle className="size-3.5 text-uva-text-faint" strokeWidth={2} />
               {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
-              <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
-              {formatHoras(curso.duracionTotalSegundos)} de contenido
-            </span>
+            {/* Sin videos listos no hay duración real: antes decía "— de contenido". */}
+            {curso.duracionTotalSegundos > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+                <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+                {formatHoras(curso.duracionTotalSegundos)} de contenido
+              </span>
+            )}
             {curso.totalRecursos > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
                 <Download className="size-3.5 text-uva-text-faint" strokeWidth={2} />

@@ -148,7 +148,9 @@ export function InicioContent({
 
       {sigueAprendiendo.length === 0 && cursoDestacado && (
         <section>
-          <h2 className="mb-4 text-base text-uva-text">Curso recomendado para ti</h2>
+          {/* No es una recomendación personalizada: es el curso destacado,
+              el mismo para todos. Solo aparece si aún no hay cursos empezados. */}
+          <h2 className="mb-4 text-base text-uva-text">Para empezar</h2>
           <Link
             href={`/cursos/${cursoDestacado.slug}`}
             className="group flex max-w-[380px] flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
@@ -179,8 +181,12 @@ export function InicioContent({
               <span>
                 {cursoDestacado.totalClases} {cursoDestacado.totalClases === 1 ? "clase" : "clases"}
               </span>
-              <span aria-hidden>·</span>
-              <span>{formatHoras(cursoDestacado.duracionTotalSegundos)}</span>
+              {cursoDestacado.duracionTotalSegundos > 0 && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{formatHoras(cursoDestacado.duracionTotalSegundos)}</span>
+                </>
+              )}
             </div>
           </Link>
         </section>

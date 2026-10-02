@@ -74,8 +74,13 @@ export async function CursoDestacado() {
             <span>
               {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
             </span>
-            <span aria-hidden="true">·</span>
-            <span>{formatHoras(curso.duracionTotalSegundos)}</span>
+            {/* Sin videos listos no hay duración real: se omite en vez de "—". */}
+            {curso.duracionTotalSegundos > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{formatHoras(curso.duracionTotalSegundos)}</span>
+              </>
+            )}
           </div>
 
           <Button

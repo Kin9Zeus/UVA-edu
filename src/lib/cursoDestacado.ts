@@ -19,11 +19,17 @@ export type CursoDestacado = {
  * (supabase/sql/034_busqueda_catalogo.sql). Sin ninguno marcado, `null`: la
  * landing y el dashboard ocultan la sección en vez de mostrar algo vacío.
  *
- * `totalClases`/`duracionTotalSegundos` cuentan TODAS las lecciones del
- * curso, sin filtrar por `estado_procesamiento`, a propósito: es el mismo
- * criterio que ya usa `buscar_catalogo` para `total_clases` (034) — si
- * filtráramos acá por "LISTO" el número mostrado en esta sección no
- * coincidiría con el que ya ve el mismo curso en la tarjeta del catálogo.
+ * `totalClases` cuenta TODAS las lecciones del curso, sin filtrar por
+ * `estado_procesamiento`, a propósito: es el mismo criterio que ya usa
+ * `buscar_catalogo` para `total_clases` (034) — si filtráramos acá por
+ * "LISTO" el número mostrado en esta sección no coincidiría con el que ya ve
+ * el mismo curso en la tarjeta del catálogo.
+ *
+ * `duracionTotalSegundos`, en cambio, suma solo las lecciones con video
+ * LISTO: es la regla de la ficha del curso (lib/curso.ts) y del certificado
+ * (actions/certificados/descargar.ts). Sin video listo, `duracion` no sale
+ * de ningún video real, y la portada decía "2 h 7 min" para un curso cuya
+ * ficha decía "— de contenido".
  */
 export async function getCursoDestacado(): Promise<CursoDestacado | null> {
   // P2-4 (AUDIT-2026-09-15): cliente público (Anon Key, sin cookies) en vez
@@ -48,7 +54,7 @@ export async function getCursoDestacado(): Promise<CursoDestacado | null> {
 
   const { data: moduloRows } = await supabase
     .from("modulos")
-    .select("lecciones(duracion)")
+    .select("lecciones(duracion, estado_procesamiento)")
     .eq("id_curso", curso.id);
 
   const lecciones = (moduloRows ?? []).flatMap((modulo) => modulo.lecciones ?? []);
@@ -61,6 +67,8 @@ export async function getCursoDestacado(): Promise<CursoDestacado | null> {
     imagenPortada: curso.imagen_portada as string,
     nivel: curso.nivel as CursoDestacado["nivel"],
     totalClases: lecciones.length,
-    duracionTotalSegundos: lecciones.reduce((total, leccion) => total + ((leccion.duracion as number | null) ?? 0), 0),
+    duracionTotalSegundos: lecciones
+      .filter((leccion) => leccion.estado_procesamiento === "LISTO")
+      .reduce((total, leccion) => total + ((leccion.duracion as number | null) ?? 0), 0),
   };
 }
