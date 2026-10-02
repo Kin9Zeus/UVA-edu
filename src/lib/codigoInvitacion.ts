@@ -1,5 +1,3 @@
-import { randomInt } from "node:crypto";
-
 /**
  * Alfabeto de los códigos de invitación.
  *
@@ -17,7 +15,7 @@ const LARGO = 8;
 /**
  * Genera un código legible del tipo `UVA-K7M2-QP4X`.
  *
- * Usa `randomInt` (CSPRNG) y no `Math.random()`: aunque el canje esté
+ * Usa Web Crypto (CSPRNG) y no `Math.random()`: aunque el canje esté
  * limitado por intentos (023_rate_limit_check_email_y_canje.sql), un
  * generador predecible dejaría deducir códigos ajenos a partir de uno
  * propio.
@@ -26,14 +24,31 @@ const LARGO = 8;
  * de vista previa (43 caracteres): aquí el equilibrio es entre que sea
  * imposible de adivinar por fuerza bruta y que un humano pueda teclearlo.
  * El rate limit por usuario es lo que cubre la diferencia.
+ *
+ * Web Crypto y no `node:crypto`: este archivo lo importan componentes
+ * cliente (CanjearCodigoForm), y `node:crypto` metía en su bundle un
+ * polyfill de ~420 KB que llama a `Function()` al cargar — el reporte de
+ * CSP `Blocked 'script' from 'eval:'` (Sentry UVA-EDU-1S).
  */
 export function generarCodigoInvitacion(prefijo = "UVA"): string {
   let cuerpo = "";
   for (let i = 0; i < LARGO; i += 1) {
-    cuerpo += ALFABETO[randomInt(ALFABETO.length)];
+    cuerpo += ALFABETO[indiceAleatorio(ALFABETO.length)];
   }
   // Se parte en bloques de 4 para que sea más fácil de leer y de dictar.
   return `${prefijo}-${cuerpo.slice(0, 4)}-${cuerpo.slice(4)}`;
+}
+
+/**
+ * Entero uniforme en [0, n), n ≤ 256. Descarta los bytes del tramo final
+ * (≥ 248 con n = 31) para que `% n` no favorezca a las primeras letras.
+ */
+function indiceAleatorio(n: number): number {
+  const limite = 256 - (256 % n);
+  const byte = new Uint8Array(1);
+  do crypto.getRandomValues(byte);
+  while (byte[0] >= limite);
+  return byte[0] % n;
 }
 
 /**

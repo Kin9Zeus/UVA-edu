@@ -21,6 +21,8 @@ configurarZod({ jitless: true });
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   tracesSampleRate: 0.1,
+  // `next dev` no reporta (ver src/instrumentation.ts).
+  enabled: process.env.NODE_ENV === "production",
 });
 
 // Requerido por el SDK para instrumentar navegaciones del App Router; sin

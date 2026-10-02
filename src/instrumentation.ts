@@ -14,8 +14,9 @@ export async function register() {
       // 10%: suficiente para ver latencia real sin pagar por cada request.
       // Los webhooks y Server Actions de auth son de bajo volumen hoy.
       tracesSampleRate: 0.1,
-      // Sin DSN (entorno local sin configurar), el SDK no envía nada — no
-      // hace falta apagarlo condicionalmente.
+      // `next dev` no reporta: los errores a mitad de una edición (hot
+      // reload) llenaban el panel de ruido. Sin DSN tampoco envía nada.
+      enabled: process.env.NODE_ENV === "production",
     });
   }
 }
