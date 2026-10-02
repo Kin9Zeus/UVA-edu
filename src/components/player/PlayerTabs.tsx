@@ -188,9 +188,6 @@ export function RecursosTab({ recursos }: { recursos: RecursoLeccion[] }) {
           ))}
         </div>
       )}
-      <p className="m-0 text-[11.5px] text-uva-muted">
-        Incluidos en tu plan. Se actualizan cuando el instructor revisa precios.
-      </p>
     </div>
   );
 }

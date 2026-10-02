@@ -79,9 +79,15 @@ export async function Footer({
   // sin sesión), la rama de administrador nunca se cumple y el footer lista
   // solo las categorías activas. Solo se pide un orden estable por nombre —
   // `categorias` no tiene columna `orden` en el esquema.
+  //
+  // Y solo las que tienen al menos un curso publicado (`!inner`): una escuela
+  // vacía en el pie lleva a una página sin cursos y anuncia una oferta que
+  // todavía no existe. `mostrado` explícito, aunque RLS ya lo aplica al
+  // cliente anónimo, para que no dependa de eso.
   const { data, error } = await supabase
     .from("categorias")
-    .select("id, slug, nombre")
+    .select("id, slug, nombre, curso_categorias!inner(curso:cursos!inner(id))")
+    .eq("curso_categorias.curso.mostrado", true)
     .order("nombre", { ascending: true });
 
   if (error) {

@@ -7,12 +7,18 @@ import { notFound } from "next/navigation";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { metadataPublica } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = metadataPublica({
-  titulo: "Un plan, todo el gremio",
-  descripcion:
-    "Un solo plan da acceso a todo el catálogo de U.V.A.: cursos, materiales descargables y certificado al terminar.",
-  ruta: "/planes",
-});
+// `generateMetadata` y no `metadata` estática: con los precios apagados la
+// página responde 404, pero la pestaña seguía diciendo "Un plan, todo el
+// gremio". `notFound()` aquí corta también los metadatos.
+export function generateMetadata(): Metadata {
+  if (!PRECIOS_HABILITADOS) notFound();
+  return metadataPublica({
+    titulo: "Un plan, todo el gremio",
+    descripcion:
+      "Un solo plan da acceso a todo el catálogo de U.V.A.: cursos, materiales descargables y certificado al terminar.",
+    ruta: "/planes",
+  });
+}
 
 export default async function PlanesPage() {
   // P2-2 (AUDIT-2026-09-08): fuerza el render dinámico. Esta era una de las

@@ -13,7 +13,7 @@ export async function AuthVisual() {
     >
       <Link
         href="/"
-        className="relative z-[2] flex w-fit items-center gap-[11px] font-heading text-2xl font-bold tracking-[0.1em] text-uva-text no-underline hover:text-uva-text hover:no-underline"
+        className="relative z-[2] flex w-fit items-center font-heading text-2xl font-bold tracking-[0.1em] text-uva-text no-underline hover:text-uva-text hover:no-underline"
       >
         U.V.A<span className="text-uva-accent">.</span>
       </Link>

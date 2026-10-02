@@ -197,6 +197,15 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   }));
 
   const leccionIds = modulosSinProgreso.flatMap((modulo) => modulo.lecciones.map((leccion) => leccion.id));
+  // El avance cuenta solo las clases con video listo, igual que lo que ve el
+  // estudiante (`progreso_cursos_estudiante`) y que la regla del certificado
+  // (`private.lecciones_completas_curso`). Contar todas hacía que el admin
+  // viera un % distinto del que ve el propio estudiante.
+  const leccionesConVideo = new Set(
+    modulosSinProgreso.flatMap((modulo) =>
+      modulo.lecciones.filter((leccion) => leccion.estadoProcesamiento === "LISTO").map((leccion) => leccion.id),
+    ),
+  );
 
   const { data: inscripciones } = await supabase
     .from("inscripciones")
@@ -227,7 +236,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   for (const registro of progreso ?? []) {
     const actual = progresoPorUsuario.get(registro.id_usuario) ?? { total: 0, completados: 0 };
     actual.total += 1;
-    if (registro.completado) actual.completados += 1;
+    if (registro.completado && leccionesConVideo.has(registro.id_leccion)) actual.completados += 1;
     progresoPorUsuario.set(registro.id_usuario, actual);
 
     const usuarios = usuariosPorLeccion.get(registro.id_leccion) ?? new Set<string>();
@@ -286,8 +295,8 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     // terminó 5 de 10 clases y nunca tocó las otras 5 le salía 100%
     // ("Completado") en vez de 50%.
     const porcentaje =
-      leccionIds.length > 0 && agregados
-        ? porcentajeLecciones(agregados.completados, leccionIds.length)
+      leccionesConVideo.size > 0 && agregados
+        ? porcentajeLecciones(agregados.completados, leccionesConVideo.size)
         : 0;
 
     return {
@@ -329,7 +338,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     for (const usuarioId of usuarioIdsSinInscripcion) {
       const agregados = progresoPorUsuario.get(usuarioId)!;
       const porcentaje =
-        leccionIds.length > 0 ? porcentajeLecciones(agregados.completados, leccionIds.length) : 0;
+        leccionesConVideo.size > 0 ? porcentajeLecciones(agregados.completados, leccionesConVideo.size) : 0;
 
       estudiantes.push({
         inscripcionId: null,

@@ -71,6 +71,41 @@ describe("getLeccionPlayer", () => {
     expect(obtenerAccesoAlCurso).toHaveBeenCalledOnce();
   });
 
+  it("el avance cuenta solo las clases con video listo, igual que Progreso y el certificado", async () => {
+    servidorFalso.responder("from:cursos", {
+      data: { id: "k1", slug: "revit-desde-cero", titulo: "Revit desde cero", mostrado: true },
+      error: null,
+    });
+    servidorFalso.responder("from:modulos", {
+      data: [
+        {
+          id: "m1",
+          titulo: "Módulo 1",
+          orden: 10,
+          lecciones: [
+            leccion("l1", "intro", 10),
+            leccion("l2", "clase-2", 20),
+            { ...leccion("l3", "clase-3", 30), estado_procesamiento: "ERROR" },
+          ],
+        },
+      ],
+      error: null,
+    });
+    // l3 está marcada como completada pero su video falló: no suma.
+    servidorFalso.responder("from:progreso", {
+      data: [
+        { id_leccion: "l1", completado: true, segundo_actual: 0 },
+        { id_leccion: "l3", completado: true, segundo_actual: 0 },
+      ],
+      error: null,
+    });
+
+    const data = await getLeccionPlayer("revit-desde-cero", "clase-2", "u1");
+
+    // "Clase 2 de 3" sigue numerando todas; el avance es 1 de 2.
+    expect(data).toMatchObject({ totalClases: 3, clasesConVideo: 2, completadas: 1, porcentaje: 50 });
+  });
+
   it("ya no consulta la categoría del curso: el campo no lo leía nadie", async () => {
     cursoConDosClases();
 

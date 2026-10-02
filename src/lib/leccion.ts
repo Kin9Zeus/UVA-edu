@@ -27,6 +27,10 @@ export type LeccionPlayerItem = {
   titulo: string;
   duracion: number | null;
   completado: boolean;
+  /** Solo las clases con video listo cuentan para el avance: es la regla de
+   * `progreso_cursos_estudiante` y de `private.lecciones_completas_curso`,
+   * la que decide el certificado. Opcional por la vista previa de admin. */
+  videoListo?: boolean;
   moduloId: string;
   moduloTitulo: string;
   /** Frame real del video ya procesado, para el cuadro del Temario
@@ -45,7 +49,11 @@ export type LeccionPlayer = {
   leccionSlug: string;
   leccionTitulo: string;
   numero: number;
+  /** Todas las clases del curso: numera "Clase 3 de 7". */
   totalClases: number;
+  /** Las que cuentan para el avance (video listo). Puede ser menor que
+   * `totalClases` si un video falló o sigue procesándose. */
+  clasesConVideo: number;
   contenido: DocumentoContenido | null;
   duracion: number | null;
   /** Si el video ya terminó de procesarse en Mux; VideoPlayer pide su propio token firmado. */
@@ -201,6 +209,7 @@ export async function getLeccionPlayer(
       titulo: leccion.titulo,
       duracion: leccion.duracion,
       completado: !!progresoPorLeccion.get(leccion.id)?.completado,
+      videoListo: leccion.videoListo,
       moduloId: leccion.moduloId,
       moduloTitulo: leccion.moduloTitulo,
       miniaturaUrl:
@@ -224,8 +233,12 @@ export async function getLeccionPlayer(
     });
   }
 
-  const completadas = lecciones.filter((leccion) => leccion.completado).length;
+  // Mismo denominador que la pantalla de Progreso y que el certificado: antes
+  // el reproductor decía "0 de 7 clases" mientras Progreso decía "0/0" para
+  // el mismo curso, porque aquí se contaban también las clases sin video.
+  const completadas = lecciones.filter((leccion) => leccion.completado && leccion.videoListo).length;
   const totalClases = lecciones.length;
+  const clasesConVideo = lecciones.filter((leccion) => leccion.videoListo).length;
   const esUltimaLeccion = indice === plano.length - 1;
 
   // Solo se consulta en la última clase: es la única donde el botón de cierre
@@ -245,6 +258,7 @@ export async function getLeccionPlayer(
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases,
+    clasesConVideo,
     contenido: resolverContenidoLeccion(actual.contenido, actual.resumen),
     duracion: actual.duracion,
     videoListo: actual.videoListo,
@@ -256,7 +270,7 @@ export async function getLeccionPlayer(
     })),
     lecciones,
     completadas,
-    porcentaje: porcentajeLecciones(completadas, totalClases),
+    porcentaje: porcentajeLecciones(completadas, clasesConVideo),
     completada: !!progresoPorLeccion.get(actual.id)?.completado,
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
     anteriorSlug: indice > 0 ? plano[indice - 1].slug : null,

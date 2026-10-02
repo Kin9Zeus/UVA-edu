@@ -234,15 +234,17 @@ export async function getInicioData() {
     }
   }
 
-  // Se listan todas las categorías activas, tengan o no cursos publicados
-  // todavía: es la vitrina del catálogo completo, no solo de lo que ya tiene
-  // contenido.
-  const categorias: CategoriaConConteo[] = (categoriasRows ?? []).map((categoria) => ({
-    id: categoria.id as string,
-    slug: categoria.slug as string,
-    nombre: categoria.nombre as string,
-    cursos: conteoPorCategoria.get(categoria.id) ?? 0,
-  }));
+  // Solo las categorías con al menos un curso publicado: una tarjeta con
+  // "0 cursos" invita a entrar a una página vacía. Mismo criterio que la
+  // columna "Escuelas" del pie de página (components/home/Footer.tsx).
+  const categorias: CategoriaConConteo[] = (categoriasRows ?? [])
+    .map((categoria) => ({
+      id: categoria.id as string,
+      slug: categoria.slug as string,
+      nombre: categoria.nombre as string,
+      cursos: conteoPorCategoria.get(categoria.id) ?? 0,
+    }))
+    .filter((categoria) => categoria.cursos > 0);
 
   // Solo se consulta cuando hace falta: si ya hay cursos en progreso, "Curso
   // recomendado para ti" no se muestra (ver InicioContent.tsx), así que no

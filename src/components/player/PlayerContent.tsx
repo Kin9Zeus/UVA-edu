@@ -88,6 +88,9 @@ export function PlayerContent({
   const [completadoPorLeccion, setCompletadoPorLeccion] = useState(() =>
     new Map(data.lecciones.map((leccion) => [leccion.id, leccion.completado])),
   );
+  // Solo las clases con video listo cuentan para el avance (ver
+  // `clasesConVideo` en lib/leccion.ts).
+  const conVideo = new Set(data.lecciones.filter((leccion) => leccion.videoListo).map((leccion) => leccion.id));
   const [, startTransition] = useTransition();
   const controlRef = useRef<ControlReproductor | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
@@ -131,8 +134,8 @@ export function PlayerContent({
   const irALeccion = (leccionId: string) =>
     router.push(`/cursos/${data.cursoSlug}/${slugPorLeccionId.get(leccionId) ?? leccionId}`);
 
-  const completadas = [...completadoPorLeccion.values()].filter(Boolean).length;
-  const porcentaje = porcentajeLecciones(completadas, data.totalClases);
+  const completadas = [...completadoPorLeccion].filter(([id, completado]) => completado && conVideo.has(id)).length;
+  const porcentaje = porcentajeLecciones(completadas, data.clasesConVideo);
 
   function toggleCompletada() {
     const siguiente = !completada;
@@ -303,7 +306,7 @@ export function PlayerContent({
           {/* Mobile: la tarjeta de progreso vive acá, en la columna única;
               en desktop se muestra en el sidebar (ver más abajo). */}
           <div className="mt-4 lg:hidden">
-            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.clasesConVideo} />
           </div>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
@@ -359,7 +362,7 @@ export function PlayerContent({
             vive en flujo normal, igual que la columna del video, sin ese
             salto. */}
         <div className="hidden flex-col gap-[clamp(14px,2vw,24px)] lg:flex">
-          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.clasesConVideo} />
 
           <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
             <PanelLateralHeader
@@ -404,7 +407,7 @@ export function PlayerContent({
         }))}
         leccionActualId={data.leccionId}
         completadas={completadas}
-        total={data.totalClases}
+        total={data.clasesConVideo}
         porcentaje={porcentaje}
         onIrALeccion={(leccionId) => {
           setTemarioOpen(false);
