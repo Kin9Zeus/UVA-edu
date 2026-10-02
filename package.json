@@ -17,7 +17,7 @@
     "db:seed": "prisma db seed",
     "db:seed:clean": "tsx prisma/seed.ts --clean",
     "db:reset": "tsx scripts/db-reset.ts",
-    "db:limpiar-resenas-prueba": "tsx scripts/limpiar-resenas-prueba.ts",
+    "db:limpiar-datos-prueba": "tsx scripts/limpiar-datos-prueba.ts",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
     "db:check-fk-indexes": "tsx scripts/check-fk-indexes.ts",

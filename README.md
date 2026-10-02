@@ -164,8 +164,8 @@ producción en `.env.produccion.local` (git lo ignora) y elígelo con
 `ENV_FILE`:
 
 ```bash
-ENV_FILE=.env.produccion.local npm run db:limpiar-resenas-prueba      # bash
-$env:ENV_FILE=".env.produccion.local"; npm run db:limpiar-resenas-prueba  # PowerShell
+ENV_FILE=.env.produccion.local npm run db:limpiar-datos-prueba         # bash
+$env:ENV_FILE=".env.produccion.local"; npm run db:limpiar-datos-prueba  # PowerShell
 ```
 
 En PowerShell la variable queda puesta en esa terminal: ciérrala o corre
