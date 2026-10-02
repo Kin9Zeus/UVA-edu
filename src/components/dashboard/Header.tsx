@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -90,6 +91,9 @@ export function Header({
       </div>
 
       <div className="ml-auto flex items-center gap-1">
+        {/* Visible siempre, no escondido en el menú de usuario. -my-0.5: área
+            táctil de 44px sin crecer el header (lo fija el avatar, 40px). */}
+        <SelectorTemaBoton className="-my-0.5 text-uva-text hover:bg-uva-hover hover:text-uva-text" />
         <NotificacionesBell
           notificaciones={notificaciones}
           noLeidas={notificacionesNoLeidas}
@@ -108,7 +112,7 @@ export function Header({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]"
+            className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-uva-hover"
           >
             <Avatar className="bg-uva-divider">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
