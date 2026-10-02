@@ -22,7 +22,7 @@ type Step =
 const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   email: {
     title: "Inicia sesión o crea tu cuenta",
-    subtitle: "Retoma tu ruta donde la dejaste.",
+    subtitle: "Retoma tus cursos donde los dejaste.",
   },
   login: {
     title: "Ingresa a tu cuenta",

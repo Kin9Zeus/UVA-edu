@@ -59,7 +59,7 @@ export default async function Home() {
         <ProductBand />
         {/* El bloque "Más de 400 empresas…" (FinalCta) se retiró de la
             portada: no hay oferta para empresas y su cifra no está
-            respaldada. El componente se conserva en components/home. */}
+            respaldada. Lo que la portada anuncia vive en content/marketing.ts. */}
         {PRECIOS_HABILITADOS ? (
           <Pricing />
         ) : (

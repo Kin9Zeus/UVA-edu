@@ -1,8 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
-import { Building2, Ruler, Calculator, HardHat, Layers, Radio } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Building2, Ruler, Calculator, HardHat, Layers } from "lucide-react";
 import { formatHoras } from "@/lib/admin/format";
 import { AnilloProgreso } from "@/components/dashboard/AnilloProgreso";
 import { formatDuracion } from "@/lib/admin/format";
@@ -186,26 +185,6 @@ export function InicioContent({
           </Link>
         </section>
       )}
-
-      {/* Webinars en vivo: sin tabla en el esquema todavía. Se deja con
-          contenido de ejemplo a propósito hasta que exista el módulo real. */}
-      <section>
-        <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-[linear-gradient(110deg,color-mix(in_srgb,var(--uva-accent)_22%,transparent),color-mix(in_srgb,var(--uva-accent-2)_12%,transparent))] px-7 py-6">
-          <span className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text">
-            <Radio className="size-3" />
-            Evento en vivo
-          </span>
-          <h3 className="mt-1.5 mb-1.5 text-lg text-uva-text">
-            Webinar: actualización NSR-10 y su impacto en presupuestos
-          </h3>
-          <p className="max-w-[440px] text-[13.5px] text-uva-text-muted">
-            Con el equipo técnico de U.V.A. Incluye plantilla de reajuste de precios.
-          </p>
-          <Button variant="uva-primary" size="uva" className="mt-4 w-auto px-5" disabled>
-            Próximamente
-          </Button>
-        </div>
-      </section>
 
       {categorias.length > 0 && (
         <section>

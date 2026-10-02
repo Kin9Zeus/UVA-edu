@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { getCifrasPublicas } from "@/lib/cifrasPublicas";
 
-export function AuthVisual() {
+export async function AuthVisual() {
+  // Mismas cifras que la portada y con la misma regla: sin cifras que pasen
+  // su mínimo, el bloque no se renderiza (antes la primera salía sin número).
+  const cifras = await getCifrasPublicas();
+
   return (
     <section
       aria-label="Presentación"
@@ -23,35 +28,25 @@ export function AuthVisual() {
         </h1>
         <p className="max-w-[450px] text-base text-uva-text-muted">
           Formación para arquitectos, residentes de obra y presupuestadores.
-          Rutas, plantillas de APU y planos que puedes usar mañana en la obra.
+          Cursos en video y plantillas que puedes usar mañana en la obra.
         </p>
 
-        <div className="mt-[30px] flex flex-wrap gap-x-[26px] gap-y-3.5">
-          <div>
-            <div className="font-heading text-[26px] text-uva-accent-ink">
-              180+
-            </div>
-            <div className="text-xs text-uva-text-faint">
-              cursos del gremio
-            </div>
+        {cifras.length > 0 && (
+          <div className="mt-[30px] flex flex-wrap gap-x-[26px] gap-y-3.5">
+            {cifras.map((cifra) => (
+              <div key={cifra.etiqueta}>
+                <div className="font-heading text-[26px] text-uva-accent-ink">
+                  {cifra.valor}
+                </div>
+                <div className="text-xs text-uva-text-faint">{cifra.etiqueta}</div>
+              </div>
+            ))}
           </div>
-          <div>
-            <div className="font-heading text-[26px] text-uva-accent-ink">
-              340
-            </div>
-            <div className="text-xs text-uva-text-faint">
-              plantillas y planos
-            </div>
-          </div>
-          <div>
-            <div className="font-heading text-[26px] text-uva-accent-ink">12</div>
-            <div className="text-xs text-uva-text-faint">rutas curadas</div>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="relative z-[2] hidden text-xs text-uva-text-faint min-[900px]:block">
-        Arquitectura · Construcción · Presupuestos
+        Arquitectura, construcción y presupuestos
       </div>
 
       <div

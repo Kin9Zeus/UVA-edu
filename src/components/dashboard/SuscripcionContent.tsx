@@ -285,7 +285,7 @@ export function SuscripcionContent({
                 Elige un plan
               </h3>
               <p className="mt-1 text-[13px] text-uva-text-muted">
-                Recupera el acceso a los 180+ cursos, las plantillas descargables
+                Recupera el acceso a todo el catálogo, las plantillas descargables
                 y los certificados.
               </p>
               <Button
