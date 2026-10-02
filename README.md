@@ -172,6 +172,20 @@ En PowerShell la variable queda puesta en esa terminal: ciérrala o corre
 `Remove-Item Env:ENV_FILE` al terminar. El seed nunca corre contra
 producción, aunque se elija con `ENV_FILE`.
 
+Los comandos de Prisma (`prisma.config.ts`) también leen `ENV_FILE`. Un
+cambio de base llega a producción así, **antes** de fusionar el código que
+lo usa:
+
+```bash
+ENV_FILE=.env.produccion.local npx prisma migrate status   # solo mira qué falta
+ENV_FILE=.env.produccion.local npm run prisma:deploy       # aplica las migraciones pendientes
+ENV_FILE=.env.produccion.local npm run db:rls:check        # prueba los scripts SQL y revierte
+ENV_FILE=.env.produccion.local npm run db:rls              # los aplica
+```
+
+`npm run prisma:migrate` (`migrate dev`) es solo para staging: puede
+ofrecer borrar la base si detecta diferencias.
+
 **Base de datos y RLS**
 
 | Script | Qué hace |
