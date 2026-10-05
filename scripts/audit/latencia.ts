@@ -51,10 +51,11 @@ import { readFileSync } from "node:fs";
 
 const BASE_URL_DEFECTO = "https://uva-edu-production.up.railway.app";
 const EMAIL_DEFECTO = "estudiante-activo@uva.test";
-/** La misma de prisma/seed.ts (PASSWORD_PRUEBA). Solo sirve contra datos de
- *  prueba; si el entorno no tiene el seed cargado, el script avisa y sigue en
- *  modo anónimo en vez de fallar. */
-const PASSWORD_SEED = "UvaSeed2026!";
+/** La contraseña que fijó el seed (SEED_PASSWORD en .env.local, ver
+ *  prisma/seed.ts). Solo sirve contra datos de prueba; si no está definida o el
+ *  entorno no tiene el seed cargado, el script avisa y sigue en modo anónimo
+ *  en vez de fallar. */
+const PASSWORD_SEED = process.env.SEED_PASSWORD;
 
 const RUTAS_PUBLICAS = ["/login", "/", "/catalogo", "/planes", "/api/health"];
 const RUTAS_PRIVADAS = [
@@ -93,6 +94,11 @@ async function iniciarSesion(email: string): Promise<string | null> {
   const anonKey = leerEnvLocal("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!supabaseUrl || !anonKey) {
     console.warn("⚠  Sin credenciales de Supabase en .env.local — solo rutas públicas.");
+    return null;
+  }
+
+  if (!PASSWORD_SEED) {
+    console.warn("⚠  Sin SEED_PASSWORD en el entorno — solo rutas públicas.");
     return null;
   }
 
