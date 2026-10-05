@@ -228,7 +228,7 @@ export function CursosTable({
                       size="icon-sm"
                       aria-label="Editar curso"
                       title="Editar curso"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       render={<Link href={`/admin/cursos/${curso.slug}`} />}
                       nativeButton={false}
                     >
@@ -240,7 +240,7 @@ export function CursosTable({
                       size="icon-sm"
                       aria-label="Eliminar curso"
                       title="Eliminar curso"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => setBorrando(curso)}
                     >
                       <Trash2 className="size-4" />
@@ -331,7 +331,7 @@ export function CursosTable({
                         size="icon-sm"
                         aria-label="Editar curso"
                         title="Editar curso"
-                        className="text-uva-muted-2 hover:text-uva-accent"
+                        className="text-uva-muted-2 hover:text-uva-accent-ink"
                         render={<Link href={`/admin/cursos/${curso.slug}`} />}
                         nativeButton={false}
                       >
@@ -343,7 +343,7 @@ export function CursosTable({
                         size="icon-sm"
                         aria-label="Eliminar curso"
                         title="Eliminar curso"
-                        className="text-uva-muted-2 hover:text-uva-accent"
+                        className="text-uva-muted-2 hover:text-uva-accent-ink"
                         onClick={() => setBorrando(curso)}
                       >
                         <Trash2 className="size-4" />

@@ -56,7 +56,7 @@ function NavLink({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3.5 py-2.5 text-sm text-uva-text-muted transition-colors hover:bg-[#1C1C20] hover:text-uva-text",
+        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3.5 py-2.5 text-sm text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
         active && "border-uva-accent bg-uva-surface text-uva-text",
         collapsed && "justify-center px-0",
       )}
@@ -107,7 +107,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150 md:flex",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-uva-sidebar-bg transition-[width] duration-150 md:flex",
         collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
@@ -137,7 +137,7 @@ export function Sidebar({
             guardarSidebarColapsado(siguiente);
           }}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="flex size-8 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-[#1C1C20] hover:text-uva-text-muted"
+          className="flex size-8 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-uva-hover hover:text-uva-text-muted"
         >
           {collapsed ? (
             <PanelLeft className="size-[18px]" strokeWidth={1.9} />
@@ -159,7 +159,7 @@ export function Sidebar({
           ))}
 
           {!collapsed && (
-            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-[#52525B] uppercase">
+            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-uva-dim uppercase">
               Tu progreso
             </p>
           )}

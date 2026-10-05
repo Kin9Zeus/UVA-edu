@@ -162,7 +162,7 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
               {!cursoColapsado && (
                 <div id={`notas-curso-contenido-${idCurso}`} className="flex flex-col gap-4">
                   {grupo.curso && !grupo.curso.tieneAcceso && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-uva-md bg-[#27272A] px-3.5 py-2.5 text-[13px] text-uva-muted">
+                    <div className="flex flex-wrap items-center gap-2 rounded-uva-md bg-uva-chip px-3.5 py-2.5 text-[13px] text-uva-muted">
                       <Lock className="size-3.5 shrink-0" strokeWidth={2.2} aria-hidden />
                       <span className="flex-1">
                         {PRECIOS_HABILITADOS
@@ -197,7 +197,7 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
                             onClick={() => alternar(leccionId)}
                             aria-expanded={!leccionColapsada}
                             aria-controls={`notas-leccion-contenido-${leccionId}`}
-                            className="flex cursor-pointer items-start gap-2 rounded-uva-md border-0 bg-[#27272A] px-3 py-2 text-left"
+                            className="flex cursor-pointer items-start gap-2 rounded-uva-md border-0 bg-uva-chip px-3 py-2 text-left"
                           >
                             <PlayCircle
                               className="mt-0.5 size-3.5 shrink-0 text-uva-muted"

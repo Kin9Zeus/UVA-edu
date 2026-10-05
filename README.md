@@ -35,7 +35,14 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    SEND_EMAIL_HOOK_SECRET=
    GEMINI_API_KEY=
    NEXT_PUBLIC_SITE_URL=
+   NEXT_PUBLIC_PRICING_ENABLED=
    ```
+
+   **`NEXT_PUBLIC_PRICING_ENABLED`** (opcional) activa la sección de precios,
+   el enlace "Precios" del menú y la página `/planes`. Vacía o distinta de
+   `true`, quedan ocultas: el MVP es gratuito y por invitación. Al ser
+   `NEXT_PUBLIC_`, Next la incrusta en el build, así que cambiarla exige un
+   nuevo deploy. Ver la sección "Contenido público y precios".
 
    `DATABASE_URL` y las claves de Supabase salen del panel del proyecto
    (Project Settings → API / Database). **En local van las del proyecto de
@@ -125,8 +132,9 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    ```
 
    Abrir [http://localhost:3000](http://localhost:3000). Credenciales de
-   prueba: cualquier correo `@uva.test` sembrado, contraseña `UvaSeed2026!`
-   (ver la tabla completa en `prisma/README.md`).
+   prueba: cualquier correo `@uva.test` sembrado, la contraseña la imprime el seed al
+   terminar (o la fijas con `SEED_PASSWORD` en `.env.local`). Tabla completa en
+   `prisma/README.md`.
 
 ## Por qué dos sistemas de migraciones
 
@@ -142,6 +150,33 @@ El CRUD de la aplicación en tiempo de ejecución pasa siempre por
 `@supabase/supabase-js` (para que apliquen las políticas de RLS), nunca por
 Prisma Client — Prisma es solo para definir el esquema y sembrar datos de
 prueba (`CLAUDE.md` §2).
+
+## Contenido público y precios
+
+Las cifras, funciones y beneficios que la plataforma anuncia en público
+(portada, login, planes) se editan **en un solo lugar**:
+`src/content/marketing.ts`. No escribas cifras ni funciones a mano en las
+páginas.
+
+- **Cifras que se cuentan solas.** `getCifrasPublicas()`
+  (`src/lib/cifrasPublicas.ts`) cuenta en la base los cursos publicados y
+  las escuelas con al menos un curso publicado. Cada cifra aparece solo
+  desde su mínimo (`MINIMOS_CIFRAS`: hoy 10 cursos y 5 escuelas); si
+  ninguna llega o la base falla, el bloque de cifras no se muestra.
+- **Cifras verificables escritas a mano** (por ejemplo, la trayectoria de
+  U.V.A. en redes): van en `CIFRAS_VERIFICABLES`, cada una con su fuente
+  anotada en un comentario.
+- **Funciones** (`FUNCIONES_PLATAFORMA`): solo lo que el estudiante puede
+  usar hoy al entrar. Una función sin fecha no se anuncia; con fecha, se
+  marca "Próximamente".
+- **Beneficios de los planes** (`BENEFICIOS_PLAN`): solo se ven con los
+  precios activos. El orden importa: `BENEFICIOS_POR_NIVEL`
+  (`src/lib/planes.ts`) marca como incluidos los primeros N.
+
+Mientras `NEXT_PUBLIC_PRICING_ENABLED` no sea `true`, la portada muestra el
+bloque "Entra con una invitación" en lugar de los planes, `/planes` responde
+404 y el centro de ayuda (`src/lib/soporte.tsx`) explica el acceso por
+código de invitación.
 
 ## Otros comandos útiles
 
@@ -164,8 +199,8 @@ producción en `.env.produccion.local` (git lo ignora) y elígelo con
 `ENV_FILE`:
 
 ```bash
-ENV_FILE=.env.produccion.local npm run db:limpiar-resenas-prueba      # bash
-$env:ENV_FILE=".env.produccion.local"; npm run db:limpiar-resenas-prueba  # PowerShell
+ENV_FILE=.env.produccion.local npm run db:limpiar-datos-prueba         # bash
+$env:ENV_FILE=".env.produccion.local"; npm run db:limpiar-datos-prueba  # PowerShell
 ```
 
 En PowerShell la variable queda puesta en esa terminal: ciérrala o corre
@@ -232,8 +267,8 @@ ofrecer borrar la base si detecta diferencias.
 |---|---|
 | `npm run audit:lighthouse` | Corre Lighthouse (mobile y desktop) contra cada ruta pública y guarda los reportes en `/lighthouse-baseline/{fecha}/`. |
 | `npm run audit:lighthouse:compare` | Igual, pero comparando contra el baseline anterior. |
-| `npm run audit:screenshots` | Captura screenshots de página completa de cada ruta pública en 5 anchos de viewport. |
-| `npm run audit:overflow` | Detecta overflow horizontal en cada ruta pública, en los mismos 5 breakpoints. |
+| `npm run audit:screenshots` | Captura screenshots de página completa de cada ruta pública en 6 anchos de viewport (320 a 2560 px). |
+| `npm run audit:overflow` | Detecta overflow horizontal en cada ruta pública, en los mismos 6 anchos (320 a 2560 px). |
 
 ## Errores a evitar
 

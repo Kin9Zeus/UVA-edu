@@ -73,14 +73,14 @@ la fila en `perfiles` como `ESTUDIANTE`/`ACTIVO` → el seed espera a que aparez
 y **luego** corrige rol y estado con Prisma (única forma de obtener un
 `ADMINISTRADOR`, porque el trigger nunca lo crea así).
 
-| Correo | Contraseña | Rol | Estado | Suscripción |
+| Correo | Contraseña (la imprime el seed; o `SEED_PASSWORD` en `.env.local`) | Rol | Estado | Suscripción |
 | :-- | :-- | :-- | :-- | :-- |
-| `admin@uva.test` | `UvaSeed2026!` | ADMINISTRADOR | ACTIVO | — |
-| `estudiante-activo@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ACTIVA (+ una CANCELADA de historial) |
-| `estudiante-sin-plan@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ninguna (acceso manual vía cortesía) |
-| `estudiante-suspendido@uva.test` | `UvaSeed2026!` | ESTUDIANTE | SUSPENDIDO | VENCIDA (sin acceso) |
-| `estudiante-pastdue@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | PAST_DUE |
-| `estudiante-por-codigo@uva.test` | `UvaSeed2026!` | ESTUDIANTE | ACTIVO | ACTIVA, vía código de invitación |
+| `admin@uva.test` | la del seed | ADMINISTRADOR | ACTIVO | — |
+| `estudiante-activo@uva.test` | la del seed | ESTUDIANTE | ACTIVO | ACTIVA (+ una CANCELADA de historial) |
+| `estudiante-sin-plan@uva.test` | la del seed | ESTUDIANTE | ACTIVO | ninguna (acceso manual vía cortesía) |
+| `estudiante-suspendido@uva.test` | la del seed | ESTUDIANTE | SUSPENDIDO | VENCIDA (sin acceso) |
+| `estudiante-pastdue@uva.test` | la del seed | ESTUDIANTE | ACTIVO | PAST_DUE |
+| `estudiante-por-codigo@uva.test` | la del seed | ESTUDIANTE | ACTIVO | ACTIVA, vía código de invitación |
 
 Las 3 variantes de acceso de estudiante que pide el checklist de seed quedan
 cubiertas así: **sin acceso** → `estudiante-suspendido` (cuenta suspendida, sin

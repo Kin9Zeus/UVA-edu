@@ -128,7 +128,7 @@ export function NotaItem<T extends NotaLeccion>({
             {contenidoMinuto}
           </Link>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#27272A] px-2.5 py-1 font-mono text-[12px] text-uva-muted">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-uva-chip px-2.5 py-1 font-mono text-[12px] text-uva-muted">
             <time dateTime={duracionIsoNota(nota.segundo)}>{tiempo}</time>
           </span>
         )}
@@ -145,7 +145,7 @@ export function NotaItem<T extends NotaLeccion>({
               }}
               disabled={pendiente}
               aria-label={`Editar la nota del minuto ${tiempo}`}
-              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-[#27272A] hover:text-uva-text disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
             >
               <Pencil className="size-3.5" strokeWidth={2.2} />
             </button>
@@ -154,7 +154,7 @@ export function NotaItem<T extends NotaLeccion>({
               onClick={() => setConfirmandoBorrado(true)}
               disabled={pendiente}
               aria-label={`Eliminar la nota del minuto ${tiempo}`}
-              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-[#27272A] hover:text-uva-text disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
             >
               <Trash2 className="size-3.5" strokeWidth={2.2} />
             </button>
@@ -201,7 +201,7 @@ export function NotaItem<T extends NotaLeccion>({
                 type="button"
                 disabled={vacia}
                 onClick={guardarEdicion}
-                className="inline-flex cursor-pointer items-center rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+                className="inline-flex cursor-pointer items-center rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
               >
                 Guardar
               </button>

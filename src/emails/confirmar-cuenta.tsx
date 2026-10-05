@@ -18,7 +18,7 @@ export function ConfirmarCuentaEmail({ actionLink }: ConfirmarCuentaEmailProps) 
   return (
     <Html>
       <Head />
-      <Preview>Confirma tu cuenta en U.V.A</Preview>
+      <Preview>Confirma tu cuenta en U.V.A.</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section>
@@ -46,7 +46,7 @@ export function ConfirmarCuentaEmail({ actionLink }: ConfirmarCuentaEmailProps) 
 
           <Section>
             <Text style={footer}>
-              U.V.A — Unidad Vectorial de Arquitectura
+              U.V.A. — Unidad Vectorial de Arquitectura
             </Text>
             <Text style={footer}>
               ¿Necesitas ayuda? Escríbenos a soporte@uva.edu

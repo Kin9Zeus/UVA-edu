@@ -1,6 +1,6 @@
 /**
  * Detecta overflow horizontal (scrollWidth > clientWidth) en cada ruta
- * pública, en los mismos 5 breakpoints que viewport-screenshots.js, e
+ * pública, en los mismos 6 breakpoints que viewport-screenshots.js, e
  * identifica qué elemento concreto se sale del viewport.
  *
  * Uso:
@@ -21,7 +21,7 @@ import { chromium } from "@playwright/test";
 import { crawlRoutes, assertBaseUrlReachable } from "./lib/route-crawler";
 
 const DEFAULT_BASE_URL = "https://uva-edu-production.up.railway.app";
-const ANCHOS = [320, 375, 768, 1024, 1440];
+const ANCHOS = [320, 375, 768, 1024, 1440, 2560];
 const ALTO = 900;
 const TIMEOUT_MS = 10_000;
 

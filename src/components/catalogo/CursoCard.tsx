@@ -6,9 +6,9 @@ import { esPortadaReal } from "@/lib/media";
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
 const PORTADA_TRAMA = {
-  backgroundColor: "#141417",
+  backgroundColor: "var(--uva-surface-2)",
   backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
+    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
 export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
@@ -30,7 +30,14 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
         {esPortadaReal(curso.imagenPortada) && (
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
         )}
-        <div className="absolute inset-x-3.5 bottom-3 flex items-center justify-end gap-1">
+        {/* Con portada real los badges van sobre la franja negra de arriba,
+            oscura en los dos temas: `dark` local para que usen los tokens
+            oscuros también en tema claro. Sobre la trama sin foto siguen el tema. */}
+        <div
+          className={`absolute inset-x-3.5 bottom-3 flex items-center justify-end gap-1 ${
+            esPortadaReal(curso.imagenPortada) ? "dark" : ""
+          }`}
+        >
           {curso.completado && (
             <span className="rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.12em] text-uva-valid uppercase">
               Completado

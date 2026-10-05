@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MenuIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { SelectorTemaFila, SelectorTemaSistemaFila } from "@/components/tema/SelectorTema";
 
 const ENLACES = [
   { href: "/catalogo", label: "Cursos" },
@@ -31,7 +32,7 @@ export function NavMovilDialog({ className }: { className?: string }) {
       </DialogPrimitive.Trigger>
 
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-uva-overlay/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <DialogPrimitive.Popup
           className={cn(
             "fixed inset-x-0 top-0 z-50 border-b border-uva-divider bg-uva-bg p-4 outline-none",
@@ -55,12 +56,14 @@ export function NavMovilDialog({ className }: { className?: string }) {
                 key={enlace.href}
                 href={enlace.href}
                 onClick={() => setOpen(false)}
-                className="border-b border-uva-divider py-3 text-[15px] text-uva-text no-underline last:border-b-0 hover:text-uva-accent hover:no-underline"
+                className="border-b border-uva-divider py-3 text-[15px] text-uva-text no-underline last:border-b-0 hover:text-uva-accent-ink hover:no-underline"
               >
                 {enlace.label}
               </Link>
             ))}
           </nav>
+          <SelectorTemaFila className="border-t border-uva-divider" />
+          <SelectorTemaSistemaFila className="border-t border-uva-divider" />
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

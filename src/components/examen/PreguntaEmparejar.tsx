@@ -142,7 +142,7 @@ export function PreguntaEmparejar({
   ) {
     const colorSolido = numero !== undefined ? colorDePareja(numero).solido : null;
     const colorVeredicto =
-      resultado === "bien" ? "bg-uva-valid text-uva-bg" : esUltimoIntento && resultado === "mal" ? "bg-uva-error text-white" : null;
+      resultado === "bien" ? "bg-uva-valid text-uva-bg" : esUltimoIntento && resultado === "mal" ? "bg-uva-error text-uva-on-accent" : null;
     return (
       <span
         className={`grid size-6 shrink-0 place-items-center rounded-[5px] font-mono text-[11.5px] font-semibold ${
@@ -151,8 +151,8 @@ export function PreguntaEmparejar({
             : estado === "neutral"
               ? "border border-uva-divider text-uva-text-faint"
               : estado === "activa"
-                ? "bg-uva-accent text-white"
-                : (colorVeredicto ?? `${colorSolido} text-white`)
+                ? "bg-uva-accent text-uva-on-accent"
+                : (colorVeredicto ?? `${colorSolido} text-uva-on-accent`)
         }`}
         aria-hidden
       >

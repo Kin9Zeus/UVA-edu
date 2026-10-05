@@ -199,6 +199,17 @@ describe("getCategoriasActivas", () => {
     expect(llamadasA("categorias-activas")[0].resultado).toBe("resolvio");
   });
 
+  it("solo ofrece escuelas con al menos un curso publicado, sin filtrar el embed hacia la página", async () => {
+    servidorFalso.responder("from:categorias", {
+      data: [{ id: "c1", slug: "bim", nombre: "BIM", curso_categorias: [{ curso: { id: "k1" } }] }],
+      error: null,
+    });
+
+    expect(await getCategoriasActivas()).toEqual([{ id: "c1", slug: "bim", nombre: "BIM" }]);
+    const filtros = servidorFalso.encadenado("from:categorias", "eq").map((args) => args[0]);
+    expect(filtros).toContain("curso_categorias.curso.mostrado");
+  });
+
   it("si la consulta falla: rechaza dentro de la caché y la página recibe [] sin que se guarde", async () => {
     servidorFalso.responder("from:categorias", { data: null, error: ERROR_PG });
 

@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Restablece tu contraseña U.V.A",
+          subject: "Restablece tu contraseña de U.V.A.",
           react: RecuperarPasswordEmail({ actionLink }),
         });
         break;
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Confirma tu cuenta U.V.A",
+          subject: "Confirma tu cuenta de U.V.A.",
           react: ConfirmarCuentaEmail({ actionLink }),
         });
         break;
@@ -126,8 +126,8 @@ export async function POST(request: NextRequest) {
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Confirma tu acción en U.V.A",
-          text: `Confirma tu acción en U.V.A visitando este enlace: ${actionLink}`,
+          subject: "Confirma tu acción en U.V.A.",
+          text: `Confirma tu acción en U.V.A. visitando este enlace: ${actionLink}`,
         });
     }
     const { error } = sendResult;

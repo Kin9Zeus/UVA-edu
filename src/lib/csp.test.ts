@@ -174,6 +174,10 @@ describe("endpointInformesCsp", () => {
     expect(csp()).toContain("report-uri https://o4511972325588992.ingest.us.sentry.io/api/");
   });
 
+  it("pero no en desarrollo", () => {
+    expect(csp({ desarrollo: true })).not.toContain("report-uri");
+  });
+
   it.each([undefined, "", "no-es-un-dsn", "https://sin-clave.sentry.io/123", "https://clave@host/"])(
     "devuelve null con un DSN inservible (%s)",
     (dsn) => {

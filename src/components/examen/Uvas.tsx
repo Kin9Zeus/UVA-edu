@@ -21,7 +21,7 @@ export function Uvas({
       {Array.from({ length: total }, (_, i) => (
         <Grape
           key={i}
-          className={`${className} ${i < vidas ? "fill-uva-accent text-uva-accent" : "text-uva-divider"}`}
+          className={`${className} ${i < vidas ? "fill-uva-accent text-uva-accent-ink" : "text-uva-divider"}`}
           aria-hidden
         />
       ))}

@@ -47,7 +47,7 @@
  *   | estudiante-pastdue@uva.test     | ESTUDIANTE    | ACTIVO     | PAST_DUE            |
  *   | estudiante-por-codigo@uva.test  | ESTUDIANTE    | ACTIVO     | ACTIVA vía código   |
  *
- *   Contraseña de todos: ver la constante PASSWORD_PRUEBA más abajo.
+ *   Contraseña de todos: la imprime el seed al terminar (o la fija SEED_PASSWORD en .env.local).
  *
  *   Las 3 variantes de acceso de estudiante pedidas en el checklist de
  *   seed quedan cubiertas así: sin acceso -> estudiante-suspendido (cuenta
@@ -109,6 +109,7 @@
  * El criterio de "dato sembrado" es el dominio @uva.test para usuarios, y los
  * UUID/códigos fijos para el resto. Nada fuera de eso se toca jamás.
  */
+import { randomBytes } from "node:crypto";
 import { config } from "dotenv";
 config({ path: process.env.ENV_FILE ?? ".env.local" });
 
@@ -129,13 +130,15 @@ import { slugificar } from "../src/lib/slug";
 const DOMINIO_SEED = "@uva.test";
 
 /**
- * Contraseña compartida por los 5 usuarios de prueba. Es deliberadamente
- * simple y está en texto plano porque solo aplica a cuentas ficticias en un
- * entorno de desarrollo. Si alguna vez este valor se usara fuera de un entorno
- * desechable, sería un incidente de seguridad — de ahí la salvaguarda de
- * ALLOW_SEED al inicio del archivo.
+ * Contraseña compartida por los usuarios de prueba. NO va escrita en el
+ * repositorio: la anterior estuvo escrita aquí, quedó en el historial de git y la
+ * cuenta admin que la usaba llegó a funcionar en producción (2026-10-05).
+ *
+ * Sale de `SEED_PASSWORD` (en `.env.local`, que git ignora) si se quiere una
+ * estable; si no está, se genera al azar en cada corrida y se imprime al final
+ * del seed. Cada corrida reescribe la contraseña de las cuentas ya existentes.
  */
-const PASSWORD_PRUEBA = "UvaSeed2026!";
+const PASSWORD_PRUEBA = process.env.SEED_PASSWORD ?? `${randomBytes(9).toString("base64url")}Aa1!`;
 
 const USUARIOS = [
   {

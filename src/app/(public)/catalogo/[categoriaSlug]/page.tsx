@@ -30,7 +30,7 @@ export async function generateMetadata({
   // curso, que ya lo hacía.
   return metadataPublica({
     titulo: categoria.nombre,
-    descripcion: `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A: formación técnica para el oficio de la construcción.`,
+    descripcion: `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A.: formación técnica para el oficio de la construcción.`,
     ruta: `/catalogo/${categoria.slug}`,
   });
 }

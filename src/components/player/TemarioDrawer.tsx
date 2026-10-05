@@ -40,7 +40,7 @@ export function TemarioDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-60 flex justify-end bg-black/55"
+      className="fixed inset-0 z-60 flex justify-end bg-uva-overlay/55"
       role="dialog"
       aria-modal="true"
       aria-label="Progreso del curso"
@@ -121,7 +121,7 @@ export function TemarioDrawer({
                       </div>
                     </div>
                     {completadaSinAbrir ? (
-                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-uva-accent-2 text-uva-bg">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-uva-accent-2 text-uva-on-bright">
                         <Check className="size-3.5" strokeWidth={3} />
                       </span>
                     ) : null}

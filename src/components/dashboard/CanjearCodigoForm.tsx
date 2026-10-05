@@ -118,7 +118,7 @@ export function CanjearCodigoForm({
   const contenido = (
     <>
       <Titulo className={cn("flex items-center gap-2 text-uva-text", embebido ? "text-sm font-semibold" : "text-base")}>
-        <Ticket className="size-4 text-uva-accent" aria-hidden />
+        <Ticket className="size-4 text-uva-accent-ink" aria-hidden />
         {tieneSuscripcion ? "¿Tienes un código?" : "¿Tienes un código de invitación?"}
       </Titulo>
       <p className="mt-1 text-[13px] text-uva-text-muted">

@@ -47,7 +47,7 @@ function ProgresoCard({
             completado · {completadas} de {totalClases} clases
           </span>
         </div>
-        <div className="h-[7px] overflow-hidden rounded-full bg-[#27272A]">
+        <div className="h-[7px] overflow-hidden rounded-full bg-uva-chip">
           <div
             className="h-full rounded-full bg-uva-accent transition-[width] duration-200 ease-out"
             style={{ width: `${porcentaje}%` }}
@@ -88,6 +88,9 @@ export function PlayerContent({
   const [completadoPorLeccion, setCompletadoPorLeccion] = useState(() =>
     new Map(data.lecciones.map((leccion) => [leccion.id, leccion.completado])),
   );
+  // Solo las clases con video listo cuentan para el avance (ver
+  // `clasesConVideo` en lib/leccion.ts).
+  const conVideo = new Set(data.lecciones.filter((leccion) => leccion.videoListo).map((leccion) => leccion.id));
   const [, startTransition] = useTransition();
   const controlRef = useRef<ControlReproductor | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
@@ -131,8 +134,8 @@ export function PlayerContent({
   const irALeccion = (leccionId: string) =>
     router.push(`/cursos/${data.cursoSlug}/${slugPorLeccionId.get(leccionId) ?? leccionId}`);
 
-  const completadas = [...completadoPorLeccion.values()].filter(Boolean).length;
-  const porcentaje = porcentajeLecciones(completadas, data.totalClases);
+  const completadas = [...completadoPorLeccion].filter(([id, completado]) => completado && conVideo.has(id)).length;
+  const porcentaje = porcentajeLecciones(completadas, data.clasesConVideo);
 
   function toggleCompletada() {
     const siguiente = !completada;
@@ -202,7 +205,7 @@ export function PlayerContent({
             type="button"
             onClick={() => irALeccion(data.siguienteId!)}
             aria-label="Siguiente clase"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
           >
             <ChevronRight className="size-5" strokeWidth={2.5} />
           </button>
@@ -213,7 +216,7 @@ export function PlayerContent({
           <Link
             href={`/cursos/${data.cursoSlug}/examen`}
             aria-label="Hacer examen"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-white hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
           >
             <FileCheck className="size-4" strokeWidth={2.5} />
           </Link>
@@ -239,7 +242,7 @@ export function PlayerContent({
               type="button"
               onClick={() => irALeccion(data.anteriorId!)}
               aria-label="Clase anterior"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-3 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-uva-chip"
             >
               <ChevronLeft className="size-4" strokeWidth={2.5} />
             </button>
@@ -248,7 +251,7 @@ export function PlayerContent({
             type="button"
             onClick={() => setTemarioOpen(true)}
             aria-label="Temario"
-            className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+            className="inline-flex items-center gap-1.5 rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-uva-chip"
           >
             <List className="size-4" strokeWidth={2} />
             Temario
@@ -258,7 +261,7 @@ export function PlayerContent({
               type="button"
               onClick={() => irALeccion(data.siguienteId!)}
               aria-label="Siguiente clase"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover"
             >
               Siguiente clase
               <ChevronRight className="size-4" strokeWidth={2.5} />
@@ -267,7 +270,7 @@ export function PlayerContent({
             <Link
               href={`/cursos/${data.cursoSlug}/examen`}
               aria-label="Hacer examen"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
             >
               Hacer examen
               <FileCheck className="size-4" strokeWidth={2.5} />
@@ -303,7 +306,7 @@ export function PlayerContent({
           {/* Mobile: la tarjeta de progreso vive acá, en la columna única;
               en desktop se muestra en el sidebar (ver más abajo). */}
           <div className="mt-4 lg:hidden">
-            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+            <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.clasesConVideo} />
           </div>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
@@ -359,7 +362,7 @@ export function PlayerContent({
             vive en flujo normal, igual que la columna del video, sin ese
             salto. */}
         <div className="hidden flex-col gap-[clamp(14px,2vw,24px)] lg:flex">
-          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.totalClases} />
+          <ProgresoCard porcentaje={porcentaje} completadas={completadas} totalClases={data.clasesConVideo} />
 
           <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
             <PanelLateralHeader
@@ -404,7 +407,7 @@ export function PlayerContent({
         }))}
         leccionActualId={data.leccionId}
         completadas={completadas}
-        total={data.totalClases}
+        total={data.clasesConVideo}
         porcentaje={porcentaje}
         onIrALeccion={(leccionId) => {
           setTemarioOpen(false);

@@ -1,3 +1,5 @@
+import { BENEFICIOS_PLAN } from "@/content/marketing";
+
 export type PlanRow = {
   id: string;
   nombre: string;
@@ -8,13 +10,8 @@ export type PlanRow = {
   nivel_acceso: string | null;
 };
 
-export const sharedBenefits = [
-  "Catálogo completo",
-  "Certificados digitales",
-  "Plantillas y planos descargables",
-  "Certificado físico de rutas",
-  "Eventos y webinars en vivo",
-];
+/** La lista vive en content/marketing.ts, junto al resto de lo que se anuncia. */
+export const sharedBenefits = BENEFICIOS_PLAN;
 
 /**
  * Cuántos de los `sharedBenefits` cubre cada nivel de acceso. El esquema no

@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { siteUrl } from "@/lib/site-url";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { getCategoriasActivas } from "@/lib/categoria";
 
 /**
  * P2-5 (AUDIT-2026-09-04.md): no existía ningún sitemap -- Google tenía que
@@ -34,9 +35,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // (a diferencia de la home, ver `(public)/page.tsx`).
   const supabase = createPublicClient();
 
-  const [{ data: cursos }, { data: categorias }] = await Promise.all([
+  // Las escuelas salen de `getCategoriasActivas()`: solo las que tienen al
+  // menos un curso publicado, igual que el filtro del catálogo y el pie de
+  // página. Una escuela vacía no se le ofrece a Google.
+  const [{ data: cursos }, categorias] = await Promise.all([
     supabase.from("cursos").select("slug, actualizado_en").eq("mostrado", true),
-    supabase.from("categorias").select("slug").eq("activo", true),
+    getCategoriasActivas(),
   ]);
 
   const rutasEstaticas: MetadataRoute.Sitemap = [
@@ -45,12 +49,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(PRECIOS_HABILITADOS
       ? [{ url: `${base}/planes`, changeFrequency: "monthly" as const, priority: 0.7 }]
       : []),
-    { url: `${base}/registro`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/login`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/soporte`, changeFrequency: "monthly", priority: 0.3 },
   ];
 
-  const rutasCategorias: MetadataRoute.Sitemap = (categorias ?? []).map((categoria) => ({
+  const rutasCategorias: MetadataRoute.Sitemap = categorias.map((categoria) => ({
     url: `${base}/catalogo/${categoria.slug}`,
     changeFrequency: "weekly",
     priority: 0.7,

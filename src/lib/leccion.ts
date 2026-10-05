@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
@@ -27,6 +28,10 @@ export type LeccionPlayerItem = {
   titulo: string;
   duracion: number | null;
   completado: boolean;
+  /** Solo las clases con video listo cuentan para el avance: es la regla de
+   * `progreso_cursos_estudiante` y de `private.lecciones_completas_curso`,
+   * la que decide el certificado. Opcional por la vista previa de admin. */
+  videoListo?: boolean;
   moduloId: string;
   moduloTitulo: string;
   /** Frame real del video ya procesado, para el cuadro del Temario
@@ -45,7 +50,11 @@ export type LeccionPlayer = {
   leccionSlug: string;
   leccionTitulo: string;
   numero: number;
+  /** Todas las clases del curso: numera "Clase 3 de 7". */
   totalClases: number;
+  /** Las que cuentan para el avance (video listo). Puede ser menor que
+   * `totalClases` si un video falló o sigue procesándose. */
+  clasesConVideo: number;
   contenido: DocumentoContenido | null;
   duracion: number | null;
   /** Si el video ya terminó de procesarse en Mux; VideoPlayer pide su propio token firmado. */
@@ -77,8 +86,12 @@ export type LeccionPlayer = {
  * Resuelve curso y lección por slug o UUID (enlaces anteriores al cambio de
  * rutas siguen resolviendo por UUID) — mismo patrón que `resolverCategoria`
  * (lib/categoria.ts) y `getCursoPublico` (lib/curso.ts).
+ *
+ * Envuelta en `cache()` de React al final del archivo: la página y su
+ * `generateMetadata` la piden con los mismos argumentos, y sin esto el bloque
+ * entero corría dos veces por petición.
  */
-export async function getLeccionPlayer(
+async function cargarLeccionPlayer(
   identificadorCurso: string,
   identificadorLeccion: string,
   usuarioId: string | null,
@@ -103,9 +116,18 @@ export async function getLeccionPlayer(
   //
   // `maybeSingle` y no `single`: con `single`, "no existe" también llega
   // como error (PGRST116) y lanzaría en vez de responder 404.
+  //
+  // Curso y temario en una sola consulta (embed de PostgREST, igual que
+  // getCursoPublico): antes eran dos viajes en serie. El embed no trae
+  // `contenido` ni `resumen` —el documento del editor de CADA clase— porque
+  // solo hace falta el de la clase que se está viendo; ese se pide aparte,
+  // abajo, junto con el resto de lecturas que ya no dependen unas de otras.
   const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
-    .select("id, slug, titulo, mostrado")
+    .select(
+      `id, slug, titulo, mostrado,
+      modulos(id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, id_video_mux, estado_procesamiento))`,
+    )
     .eq(esUuid(identificadorCurso) ? "id" : "slug", identificadorCurso)
     .maybeSingle();
   lanzarSiFalla(errorCurso, "getLeccionPlayer:cursos");
@@ -113,18 +135,10 @@ export async function getLeccionPlayer(
   if (!curso) return null;
   const cursoId = curso.id;
 
-  const { data: modulos, error: errorModulos } = await supabase
-    .from("modulos")
-    .select(
-      "id, titulo, orden, lecciones(id, slug, titulo, orden, duracion, resumen, contenido, id_video_mux, estado_procesamiento)",
-    )
-    .eq("id_curso", cursoId)
-    .order("orden");
-  lanzarSiFalla(errorModulos, "getLeccionPlayer:modulos");
-
   // La lista lateral y el temario numeran las clases de corrido (1..N) a lo
   // largo de todo el curso, no por módulo: el encabezado dice "Clase 7 de 18".
-  const plano = (modulos ?? [])
+  // El embed no garantiza el orden de las filas anidadas: se aplica acá.
+  const plano = (curso.modulos ?? [])
     .slice()
     .sort((a, b) => a.orden - b.orden)
     .flatMap((modulo) =>
@@ -141,8 +155,6 @@ export async function getLeccionPlayer(
             // (ver la misma regla en lib/curso.ts) — se oculta para no
             // mostrar minutos que no salen de ningún video.
             duracion: (videoListo ? (leccion.duracion ?? null) : null) as number | null,
-            resumen: (leccion.resumen ?? null) as string | null,
-            contenido: leccion.contenido as unknown | null,
             videoListo,
             idVideoMux: leccion.id_video_mux as string | null,
             moduloId: modulo.id as string,
@@ -167,27 +179,59 @@ export async function getLeccionPlayer(
   // `plano.length > 1`: un curso de una sola lección no tiene introducción
   // separada del contenido pagado — esa única lección ES el curso completo.
   const esIntroduccion = indice === 0 && plano.length > 1;
-  if (!esIntroduccion) {
-    if (!(await obtenerAccesoAlCurso(supabase, usuarioId, cursoId)).tieneAcceso) return null;
-  }
+  const esUltimaLeccion = indice === plano.length - 1;
+
+  // Acceso, progreso, recursos, documento de la clase y examen no dependen
+  // unos de otros —todos parten de ids que ya tenemos—, así que salen juntos
+  // en vez de en serie. A cambio, a quien no tiene acceso se le hacen unas
+  // lecturas de más antes de devolver `null`: es el caso raro (alguien con un
+  // enlace guardado y la suscripción vencida), y RLS decide igual qué filas
+  // vuelven.
+  const [acceso, progreso, recursosRespuesta, contenidoRespuesta, situacionExamen] = await Promise.all([
+    esIntroduccion ? Promise.resolve(null) : obtenerAccesoAlCurso(supabase, usuarioId, cursoId),
+    usuarioId
+      ? supabase
+          .from("progreso")
+          .select("id_leccion, completado, segundo_actual")
+          .eq("id_usuario", usuarioId)
+          .in(
+            "id_leccion",
+            plano.map((leccion) => leccion.id),
+          )
+      : Promise.resolve({ data: null, error: null }),
+    // Sin url_archivo: es la ruta cruda del bucket privado, no una URL
+    // usable, y no debe llegar al cliente. La descarga pasa por
+    // obtenerUrlRecurso() (src/actions/cursos/recurso.ts), que la vuelve a
+    // leer server-side justo antes de firmarla (P1-1, AUDIT-2026-08-26.md).
+    supabase
+      .from("recursos_descargables")
+      .select("id, nombre, tipo_archivo, tamano_bytes")
+      .eq("id_leccion", leccionId)
+      .order("creado_en"),
+    // Solo el documento de la clase que se ve (ver el comentario del embed).
+    supabase.from("lecciones").select("contenido, resumen").eq("id", leccionId).maybeSingle(),
+    // Solo se consulta en la última clase: es la única donde el botón de
+    // cierre del reproductor puede necesitar cambiar de "Siguiente clase" a
+    // "Hacer examen" — en cualquier otra, siguienteId ya no es null y el
+    // botón sigue siendo el de siempre.
+    esUltimaLeccion
+      ? getSituacionExamen(curso.id, usuarioId)
+      : Promise.resolve({ situacion: "SIN_EXAMEN" as const }),
+  ]);
+
+  // Antes que cualquier `lanzarSiFalla`: sin acceso se responde `null`, y un
+  // fallo de lectura de las demás no debe convertir eso en un 500.
+  if (acceso && !acceso.tieneAcceso) return null;
+
+  lanzarSiFalla(progreso.error, "getLeccionPlayer:progreso");
+  lanzarSiFalla(contenidoRespuesta.error, "getLeccionPlayer:contenido");
 
   const progresoPorLeccion = new Map<
     string,
     { id_leccion: string; completado: boolean; segundo_actual: number }
   >();
-  if (usuarioId) {
-    const { data: progresoRows, error: errorProgreso } = await supabase
-      .from("progreso")
-      .select("id_leccion, completado, segundo_actual")
-      .eq("id_usuario", usuarioId)
-      .in(
-        "id_leccion",
-        plano.map((leccion) => leccion.id),
-      );
-    lanzarSiFalla(errorProgreso, "getLeccionPlayer:progreso");
-    for (const fila of progresoRows ?? []) {
-      progresoPorLeccion.set(fila.id_leccion as string, fila);
-    }
+  for (const fila of progreso.data ?? []) {
+    progresoPorLeccion.set(fila.id_leccion as string, fila);
   }
 
   // Un signPlaybackId() por lección, en paralelo: es una firma JWT local
@@ -201,6 +245,7 @@ export async function getLeccionPlayer(
       titulo: leccion.titulo,
       duracion: leccion.duracion,
       completado: !!progresoPorLeccion.get(leccion.id)?.completado,
+      videoListo: leccion.videoListo,
       moduloId: leccion.moduloId,
       moduloTitulo: leccion.moduloTitulo,
       miniaturaUrl:
@@ -208,15 +253,7 @@ export async function getLeccionPlayer(
     })),
   );
 
-  // Sin url_archivo: es la ruta cruda del bucket privado, no una URL
-  // usable, y no debe llegar al cliente. La descarga pasa por
-  // obtenerUrlRecurso() (src/actions/cursos/recurso.ts), que la vuelve a
-  // leer server-side justo antes de firmarla (P1-1, AUDIT-2026-08-26.md).
-  const { data: recursos, error: errorRecursos } = await supabase
-    .from("recursos_descargables")
-    .select("id, nombre, tipo_archivo, tamano_bytes")
-    .eq("id_leccion", leccionId)
-    .order("creado_en");
+  const { data: recursos, error: errorRecursos } = recursosRespuesta;
   if (errorRecursos) {
     logError("leccion:recursos", "no se pudieron leer los recursos de la clase", errorRecursos, {
       area: "reproductor",
@@ -224,17 +261,12 @@ export async function getLeccionPlayer(
     });
   }
 
-  const completadas = lecciones.filter((leccion) => leccion.completado).length;
+  // Mismo denominador que la pantalla de Progreso y que el certificado: antes
+  // el reproductor decía "0 de 7 clases" mientras Progreso decía "0/0" para
+  // el mismo curso, porque aquí se contaban también las clases sin video.
+  const completadas = lecciones.filter((leccion) => leccion.completado && leccion.videoListo).length;
   const totalClases = lecciones.length;
-  const esUltimaLeccion = indice === plano.length - 1;
-
-  // Solo se consulta en la última clase: es la única donde el botón de cierre
-  // del reproductor puede necesitar cambiar de "Siguiente clase" a
-  // "Hacer examen" — en cualquier otra, siguienteId ya no es null y el botón
-  // sigue siendo el de siempre.
-  const situacionExamen = esUltimaLeccion
-    ? await getSituacionExamen(curso.id, usuarioId)
-    : { situacion: "SIN_EXAMEN" as const };
+  const clasesConVideo = lecciones.filter((leccion) => leccion.videoListo).length;
 
   return {
     cursoId: curso.id,
@@ -245,7 +277,11 @@ export async function getLeccionPlayer(
     leccionTitulo: actual.titulo,
     numero: indice + 1,
     totalClases,
-    contenido: resolverContenidoLeccion(actual.contenido, actual.resumen),
+    clasesConVideo,
+    contenido: resolverContenidoLeccion(
+      contenidoRespuesta.data?.contenido ?? null,
+      (contenidoRespuesta.data?.resumen as string | null | undefined) ?? null,
+    ),
     duracion: actual.duracion,
     videoListo: actual.videoListo,
     recursos: (recursos ?? []).map((recurso) => ({
@@ -256,7 +292,7 @@ export async function getLeccionPlayer(
     })),
     lecciones,
     completadas,
-    porcentaje: porcentajeLecciones(completadas, totalClases),
+    porcentaje: porcentajeLecciones(completadas, clasesConVideo),
     completada: !!progresoPorLeccion.get(actual.id)?.completado,
     anteriorId: indice > 0 ? plano[indice - 1].id : null,
     anteriorSlug: indice > 0 ? plano[indice - 1].slug : null,
@@ -267,3 +303,5 @@ export async function getLeccionPlayer(
     puedeComentar: !!usuarioId,
   };
 }
+
+export const getLeccionPlayer = cache(cargarLeccionPlayer);

@@ -23,7 +23,7 @@ function TooltipContent({
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 rounded-uva-sm border border-uva-divider bg-[#18181B] px-2.5 py-1.5 text-xs font-medium text-uva-text shadow-lg",
+            "z-50 rounded-uva-sm border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-xs font-medium text-uva-text shadow-lg",
             "data-[transition-status=starting]:opacity-0 data-[transition-status=ending]:opacity-0 transition-opacity",
             className,
           )}

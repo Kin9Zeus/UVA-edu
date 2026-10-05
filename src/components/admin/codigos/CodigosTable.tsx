@@ -174,7 +174,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (
-                      <Check className="size-3.5 text-uva-accent" />
+                      <Check className="size-3.5 text-uva-accent-ink" />
                     ) : (
                       <Copy className="size-3.5 text-uva-muted-2" />
                     )}
@@ -203,7 +203,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       checked={codigo.activo}
                       onCheckedChange={(checked) => handleToggle(codigo, checked)}
                       etiquetas={["", ""]}
-                      acciones={["Activar código", "Desactivar código "]}
+                      acciones={["Activar código", "Desactivar código"]}
                     />
                     <Button
                       type="button"
@@ -211,7 +211,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       size="icon-sm"
                       aria-label="Editar código"
                       title="Editar vencimiento y límite de usos"
-                      className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                       onClick={() => abrirEditar(codigo)}
                     >
                       <Pencil className="size-4" />
@@ -223,7 +223,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                         size="icon-sm"
                         aria-label="Eliminar código"
                         title="Eliminar código"
-                        className="text-uva-muted-2 hover:text-uva-accent pointer-coarse:p-3"
+                        className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
                         onClick={() => setBorrando(codigo)}
                       >
                         <Trash2 className="size-4" />
@@ -264,7 +264,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (
-                      <Check className="size-3.5 text-uva-accent" />
+                      <Check className="size-3.5 text-uva-accent-ink" />
                     ) : (
                       <Copy className="size-3.5 text-uva-muted-2" />
                     )}
@@ -304,7 +304,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       checked={codigo.activo}
                       onCheckedChange={(checked) => handleToggle(codigo, checked)}
                       etiquetas={["", ""]}
-                      acciones={["Activar código", "Desactivar código "]}
+                      acciones={["Activar código", "Desactivar código"]}
                     />
                     <Button
                       type="button"
@@ -312,7 +312,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                       size="icon-sm"
                       aria-label="Editar código"
                       title="Editar vencimiento y límite de usos"
-                      className="text-uva-muted-2 hover:text-uva-accent"
+                      className="text-uva-muted-2 hover:text-uva-accent-ink"
                       onClick={() => abrirEditar(codigo)}
                     >
                       <Pencil className="size-4" />
@@ -328,7 +328,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                         size="icon-sm"
                         aria-label="Eliminar código"
                         title="Eliminar código"
-                        className="text-uva-muted-2 hover:text-uva-accent"
+                        className="text-uva-muted-2 hover:text-uva-accent-ink"
                         onClick={() => setBorrando(codigo)}
                       >
                         <Trash2 className="size-4" />

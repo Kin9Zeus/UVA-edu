@@ -17,9 +17,9 @@ import { formatDuracion } from "@/lib/admin/format";
 import type { ProgresoData } from "@/lib/progreso";
 
 const PORTADA_TRAMA = {
-  backgroundColor: "#141417",
+  backgroundColor: "var(--uva-surface-2)",
   backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
+    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
 type Filtro = "todos" | "en_progreso" | "completados";
@@ -77,7 +77,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   onClick={() => setFiltro(opcion.valor)}
                   className={`rounded-full px-3 py-1 text-[12.5px] transition-colors ${
                     filtro === opcion.valor
-                      ? "bg-uva-accent text-white"
+                      ? "bg-uva-accent text-uva-on-accent"
                       : "text-uva-text-muted hover:text-uva-text"
                   }`}
                 >
@@ -104,7 +104,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
             </p>
             <Link
               href="/dashboard/catalogo"
-              className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-white no-underline hover:bg-uva-accent-hover hover:no-underline"
+              className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover hover:no-underline"
             >
               Ver catálogo
             </Link>
@@ -164,9 +164,11 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   {/* Franja negra de siempre abajo de la portada (mismo
                       recurso que CursoCard.tsx del catálogo): "Completado" en
                       una esquina sin fondo se perdía sobre una portada clara
-                      — acá el badge tiene garantizado el contraste debajo. */}
+                      — acá el badge tiene garantizado el contraste debajo. La
+                      franja es oscura en los dos temas, así que el badge usa
+                      los tokens oscuros (`dark` local) también en tema claro. */}
                   {curso.completado && (
-                    <div className="absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
+                    <div className="dark absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
                       <span className="rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-valid uppercase">
                         Completado
                       </span>
@@ -177,7 +179,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                     // terminó las clases pero le falta aprobar el examen. Sin
                     // esto la tarjeta se veía igual que un curso a medias, sin
                     // pista de qué le falta para el certificado.
-                    <div className="absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
+                    <div className="dark absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
                       <span className="rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
                         Examen pendiente
                       </span>
@@ -231,7 +233,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                     tres únicos usos que CLAUDE.md §3.3 le permite al acento. */}
                 <div className="flex flex-1 flex-col gap-1.5">
                   <div className="flex items-start justify-between gap-2.5">
-                    <p className="line-clamp-2 text-[13.5px] leading-snug font-bold text-uva-text transition-colors group-hover:text-uva-accent">
+                    <p className="line-clamp-2 text-[13.5px] leading-snug font-bold text-uva-text transition-colors group-hover:text-uva-accent-ink">
                       {curso.titulo}
                     </p>
                     {/* Sin anillo en los completados: el badge COMPLETADO de

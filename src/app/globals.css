@@ -61,6 +61,14 @@
   --color-uva-muted-2: var(--uva-muted-2);
   --color-uva-dim: var(--uva-dim);
   --color-uva-hover: var(--uva-hover);
+  --color-uva-chip: var(--uva-chip);
+  --color-uva-sidebar-bg: var(--uva-sidebar-bg);
+  --color-uva-band-bg: var(--uva-band-bg);
+  --color-uva-stripe: var(--uva-stripe);
+  --color-uva-overlay: var(--uva-overlay);
+  --color-uva-shadow: var(--uva-shadow);
+  --color-uva-on-accent: var(--uva-on-accent);
+  --color-uva-on-bright: var(--uva-on-bright);
   --color-uva-badge-success-bg: var(--uva-badge-success-bg);
   --color-uva-badge-success-fg: var(--uva-badge-success-fg);
   --color-uva-badge-warn-bg: var(--uva-badge-warn-bg);
@@ -74,6 +82,7 @@
   --color-uva-accent-active: var(--uva-accent-active);
   --color-uva-accent-soft: var(--uva-accent-soft);
   --color-uva-accent-text: var(--uva-accent-text);
+  --color-uva-accent-ink: var(--uva-accent-ink);
   --color-uva-accent-warm: var(--uva-accent-warm);
   --color-uva-accent-2: var(--uva-accent-2);
   --color-uva-accent-2-soft: var(--uva-accent-2-soft);
@@ -110,42 +119,198 @@
   --radius-uva-lg: 16px;
 }
 
+/*
+ * Temas. `:root` es el tema CLARO y `.dark` (en <html>, puesta por el layout
+ * raíz según la cookie `uva-tema`, ver src/lib/tema.ts) el OSCURO, que es el
+ * de siempre y el que se ve sin cookie. Regla para tokens nuevos: si el valor
+ * es igual en los dos temas va solo en `:root`; si cambia, va en los dos.
+ *
+ * Paleta clara: misma escala Zinc del oscuro, invertida. Nunca blanco puro de
+ * fondo de página (#FAFAFA) ni negro puro de texto (#18181B). Los colores que
+ * se usan COMO TEXTO bajan de tono para pasar AA sobre blanco: el magenta
+ * #FF007A da 3,9:1 sobre blanco (sirve de fondo de CTA, no de texto), así que
+ * enlaces y textos de acento usan #C2005B (≈6:1); igual el amarillo y los
+ * avisos de estado.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #ff007a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #ff007a;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #ff007a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #ff007a;
 
-  /* U.V.A — tokens de marca (sitio público, siempre modo oscuro; ver CLAUDE.md 3.3) */
+  /* U.V.A — tokens de marca, tema claro (ver CLAUDE.md 3.3) */
+  --uva-bg: #fafafa;
+  /* Arranque del degradado del <body>: un punto más luminoso que --uva-bg */
+  --uva-bg-gradient-start: #ffffff;
+  --uva-surface: #ffffff;
+  --uva-surface-2: #f4f4f5;
+  --uva-text: #18181b;
+  --uva-text-muted: rgba(24, 24, 27, 0.7);
+  --uva-text-faint: rgba(24, 24, 27, 0.6);
+  --uva-text-disabled: rgba(24, 24, 27, 0.38);
+  --uva-divider: #e4e4e7;
+  --uva-muted: #52525b;
+  --uva-muted-2: #71717a;
+  --uva-dim: #a1a1aa;
+  --uva-hover: #f4f4f5;
+  /* Fondo de chips, burbujas y bloques de código (antes `#27272A` suelto) */
+  --uva-chip: #efeff1;
+  /* Menú lateral (estudiante y admin) y bandas a sangre del home/pie */
+  --uva-sidebar-bg: #ffffff;
+  --uva-band-bg: #f4f4f5;
+  /* Rayas diagonales de las portadas sin imagen, sobre --uva-surface-2 */
+  --uva-stripe: rgba(24, 24, 27, 0.05);
+  /* Líneas de la retícula de plano del examen */
+  --uva-reticula: #d4d4d8;
+  --uva-scrollbar: #d4d4d8;
+  /* Color base del velo de los diálogos y de las sombras: se usa con
+     opacidad (`bg-uva-overlay/60`), y en claro ya trae su propia
+     transparencia para que el mismo /60 no ensucie la página blanca. */
+  --uva-overlay: rgba(24, 24, 27, 0.7);
+  --uva-shadow: rgba(24, 24, 27, 0.3);
+  /* Magenta usado COMO TEXTO (rótulos, enlaces, cifras): en oscuro es el
+     mismo #FF007A del acento; en claro baja a #C2005B para pasar AA. El
+     relleno de los CTA sigue siendo --uva-accent en los dos temas. */
+  --uva-accent-ink: #c2005b;
+  --uva-link: var(--uva-accent-ink);
+  --uva-link-hover: #9e004a;
+  --uva-accent: #ff007a;
+  --uva-accent-hover: #e00069;
+  --uva-accent-active: #c2005b;
+  --uva-accent-soft: rgba(255, 0, 122, 0.1);
+  --uva-accent-text: #c2005b;
+  --uva-accent-warm: #ff6a3d;
+  --uva-accent-2: #f2c012;
+  --uva-accent-2-soft: rgba(242, 192, 18, 0.2);
+  --uva-accent-2-text: #8a6500;
+  --uva-gradient-cta: linear-gradient(
+    96deg,
+    var(--uva-accent) 0%,
+    var(--uva-accent-warm) 52%,
+    var(--uva-accent-2) 100%
+  );
+  /* Texto sobre un relleno de color fuerte (magenta, error, parejas): blanco
+     en los dos temas. `--uva-on-bright` es lo contrario, para rellenos
+     claros (verde de WhatsApp, sello magenta del certificado): casi negro
+     en los dos temas. */
+  --uva-on-accent: #ffffff;
+  --uva-on-bright: #09090b;
+  --uva-whatsapp: #25d366;
+  --uva-danger: #ff007a;
+  --uva-danger-soft: rgba(255, 0, 122, 0.1);
+  --uva-danger-text: #c2005b;
+  --uva-success-soft: rgba(242, 192, 18, 0.2);
+  --uva-success-text: #8a6500;
+  /* Verde más oscuro que en el tema oscuro: se usa de relleno con
+     `text-uva-bg` encima (#FAFAFA sobre #15803D ≈ 5:1) y como texto. */
+  --uva-valid: #15803d;
+  --uva-valid-soft: rgba(22, 163, 74, 0.12);
+
+  /* U.V.A — semáforo de estado del panel admin */
+  --uva-warning: #d97706;
+  --uva-warning-soft: rgba(245, 158, 11, 0.14);
+  --uva-warning-text: #b45309;
+  --uva-error: #dc2626;
+  --uva-error-soft: rgba(239, 68, 68, 0.1);
+  --uva-error-text: #b91c1c;
+
+  /* Las cuatro clases `.badge-*` del panel admin (ver el bloque .dark). */
+  --uva-badge-success-bg: rgba(16, 185, 129, 0.14);
+  --uva-badge-success-fg: #047857;
+  --uva-badge-warn-bg: rgba(245, 158, 11, 0.16);
+  --uva-badge-warn-fg: #b45309;
+  --uva-badge-danger-bg: rgba(239, 68, 68, 0.12);
+  --uva-badge-danger-fg: #b91c1c;
+  --uva-badge-neutral-bg: #f4f4f5;
+  --uva-badge-neutral-fg: #52525b;
+
+  /* Paleta de PAREJAS para la pregunta EMPAREJAR (src/components/examen/PreguntaEmparejar.tsx).
+     Excepción puntual a CLAUDE.md §3.3 ("el acento es exclusivo de CTAs,
+     estados activos y progreso"): acá el color no es un CTA ni un estado de
+     acierto, es la única forma de identificar QUÉ va con QUÉ sin depender de
+     leer un número. Por eso son tonos nuevos, ninguno reciclado de
+     --uva-accent/--uva-valid/--uva-warning/--uva-error: reutilizar el verde o
+     el rojo de "bien"/"mal" haría que una pareja sin calificar se leyera como
+     un acierto o un fallo antes de que el examen se corrija. Seis tonos:
+     alcanza para MAXIMO_PARES_EMPAREJAR_GENERADOS (6); en una pregunta armada
+     a mano con más pares (hasta MAXIMO_PARES_EMPAREJAR, 8) el componente los
+     repite por índice — dos parejas comparten color, siguen siendo
+     distinguibles por el número que las acompaña. El tono sólido es el mismo
+     en los dos temas; el suave baja de 16 % a 12 % sobre blanco. */
+  --uva-pair-1: #3b82f6; /* azul */
+  --uva-pair-1-soft: rgba(59, 130, 246, 0.12);
+  --uva-pair-2: #f97316; /* naranja */
+  --uva-pair-2-soft: rgba(249, 115, 22, 0.12);
+  --uva-pair-3: #a855f7; /* violeta */
+  --uva-pair-3-soft: rgba(168, 85, 247, 0.12);
+  --uva-pair-4: #06b6d4; /* cian */
+  --uva-pair-4-soft: rgba(6, 182, 212, 0.12);
+  --uva-pair-5: #f2c012; /* dorado, mismo tono de --uva-accent-2 */
+  --uva-pair-5-soft: rgba(242, 192, 18, 0.16);
+  --uva-pair-6: #6366f1; /* índigo */
+  --uva-pair-6-soft: rgba(99, 102, 241, 0.12);
+}
+
+.dark {
+  /* Modo Oscuro Ergonómico U.V.A: ver CLAUDE.md sección 3.3. Nunca negro puro. */
+  --background: #09090b; /* Zinc 950 */
+  --foreground: oklch(0.985 0 0);
+  --card: #18181b; /* Zinc 900 */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: #18181b;
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #ff007a; /* Magenta Neón: uso exclusivo CTAs, estados activos, progreso */
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: #27272a; /* Zinc 800 */
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa; /* Zinc 400 */
+  --accent: #27272a;
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #27272a; /* Zinc 800 */
+  --input: #27272a;
+  --ring: #ff007a;
+  --sidebar: #18181b;
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #ff007a;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: #27272a;
+  --sidebar-ring: #ff007a;
+
+  /* U.V.A — tokens de marca, tema oscuro (ver CLAUDE.md 3.3) */
   --uva-bg: #09090b;
+  --uva-bg-gradient-start: #101013;
   --uva-surface: #18181b;
   /* `--surface-2` del mockup del panel admin: mas OSCURO que --surface,
      no mas claro (antes se llamaba --uva-surface-soft y valia #1f1f23) */
@@ -161,23 +326,20 @@
   --uva-muted-2: #71717a;
   --uva-dim: #52525b;
   --uva-hover: #1c1c20;
-  --uva-accent: #ff007a;
-  --uva-accent-hover: #e00069;
-  --uva-accent-active: #c2005b;
+  --uva-chip: #27272a;
+  --uva-sidebar-bg: #0b0b0d;
+  --uva-band-bg: #0d0d10;
+  --uva-stripe: rgba(250, 250, 250, 0.045);
+  --uva-reticula: #27272a;
+  --uva-scrollbar: #27272a;
+  --uva-overlay: #000000;
+  --uva-shadow: #000000;
+  --uva-accent-ink: #ff007a;
+  --uva-link-hover: #ff4d9e;
   --uva-accent-soft: rgba(255, 0, 122, 0.16);
   --uva-accent-text: #ff7ab8;
-  --uva-accent-warm: #ff6a3d;
-  --uva-accent-2: #f2c012;
   --uva-accent-2-soft: rgba(242, 192, 18, 0.18);
   --uva-accent-2-text: #ffdd55;
-  --uva-gradient-cta: linear-gradient(
-    96deg,
-    var(--uva-accent) 0%,
-    var(--uva-accent-warm) 52%,
-    var(--uva-accent-2) 100%
-  );
-  --uva-whatsapp: #25d366;
-  --uva-danger: #ff007a;
   --uva-danger-soft: rgba(255, 0, 122, 0.16);
   --uva-danger-text: #ff7ab8;
   --uva-success-soft: rgba(242, 192, 18, 0.16);
@@ -207,65 +369,12 @@
   --uva-badge-neutral-bg: #27272a;
   --uva-badge-neutral-fg: #a1a1aa;
 
-  /* Paleta de PAREJAS para la pregunta EMPAREJAR (src/components/examen/PreguntaEmparejar.tsx).
-     Excepción puntual a CLAUDE.md §3.3 ("el acento es exclusivo de CTAs,
-     estados activos y progreso"): acá el color no es un CTA ni un estado de
-     acierto, es la única forma de identificar QUÉ va con QUÉ sin depender de
-     leer un número. Por eso son tonos nuevos, ninguno reciclado de
-     --uva-accent/--uva-valid/--uva-warning/--uva-error: reutilizar el verde o
-     el rojo de "bien"/"mal" haría que una pareja sin calificar se leyera como
-     un acierto o un fallo antes de que el examen se corrija. Seis tonos:
-     alcanza para MAXIMO_PARES_EMPAREJAR_GENERADOS (6); en una pregunta armada
-     a mano con más pares (hasta MAXIMO_PARES_EMPAREJAR, 8) el componente los
-     repite por índice — dos parejas comparten color, siguen siendo
-     distinguibles por el número que las acompaña. */
-  --uva-pair-1: #3b82f6; /* azul */
   --uva-pair-1-soft: rgba(59, 130, 246, 0.16);
-  --uva-pair-2: #f97316; /* naranja */
   --uva-pair-2-soft: rgba(249, 115, 22, 0.16);
-  --uva-pair-3: #a855f7; /* violeta */
   --uva-pair-3-soft: rgba(168, 85, 247, 0.16);
-  --uva-pair-4: #06b6d4; /* cian */
   --uva-pair-4-soft: rgba(6, 182, 212, 0.16);
-  --uva-pair-5: #f2c012; /* dorado, mismo tono de --uva-accent-2 */
   --uva-pair-5-soft: rgba(242, 192, 18, 0.16);
-  --uva-pair-6: #6366f1; /* índigo */
   --uva-pair-6-soft: rgba(99, 102, 241, 0.16);
-}
-
-.dark {
-  /* Modo Oscuro Ergonómico U.V.A: ver CLAUDE.md sección 3.3. Nunca negro puro. */
-  --background: #09090b; /* Zinc 950 */
-  --foreground: oklch(0.985 0 0);
-  --card: #18181b; /* Zinc 900 */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: #18181b;
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #ff007a; /* Magenta Neón: uso exclusivo CTAs, estados activos, progreso */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: #27272a; /* Zinc 800 */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa; /* Zinc 400 */
-  --accent: #27272a;
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #27272a; /* Zinc 800 */
-  --input: #27272a;
-  --ring: #ff007a;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: #18181b;
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #ff007a;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: #27272a;
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: #27272a;
-  --sidebar-ring: #ff007a;
 }
 
 /* Examen final — animaciones de la pantalla de rendir y del resultado. La
@@ -306,10 +415,10 @@
    adentro. */
 .uva-reticula {
   background-image:
-    linear-gradient(to right, rgb(39 39 42 / 0.55) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(39 39 42 / 0.55) 1px, transparent 1px),
-    linear-gradient(to right, rgb(39 39 42 / 0.25) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(39 39 42 / 0.25) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in srgb, var(--uva-reticula) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--uva-reticula) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--uva-reticula) 25%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--uva-reticula) 25%, transparent) 1px, transparent 1px);
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
 }
@@ -329,7 +438,7 @@
     cursor: pointer;
   }
   body {
-    background: linear-gradient(168deg, #101013 0%, var(--uva-bg) 52%, var(--uva-bg) 100%);
+    background: linear-gradient(168deg, var(--uva-bg-gradient-start) 0%, var(--uva-bg) 52%, var(--uva-bg) 100%);
     background-attachment: fixed;
     color: var(--uva-text);
     font-size: 15px;
@@ -341,7 +450,7 @@
      pseudo-elementos `::-webkit-scrollbar-*`. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--uva-divider) transparent;
+    scrollbar-color: var(--uva-scrollbar) transparent;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -351,7 +460,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: var(--uva-divider);
+    background-color: var(--uva-scrollbar);
     background-clip: padding-box;
     border: 2px solid transparent;
     border-radius: 999px;
@@ -385,12 +494,12 @@
     margin: 0 0 14px;
   }
   a {
-    color: var(--uva-accent);
+    color: var(--uva-link);
     text-decoration: none;
     text-underline-offset: 3px;
   }
   a:hover {
-    color: #ff4d9e;
+    color: var(--uva-link-hover);
   }
   :focus-visible {
     outline: 2px solid var(--uva-accent);

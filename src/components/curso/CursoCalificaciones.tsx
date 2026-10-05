@@ -73,7 +73,7 @@ function BotonMeGusta({
       type="button"
       disabled={!puedeReaccionar || pending}
       onClick={alternar}
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 text-xs font-medium text-uva-text-faint transition-colors hover:bg-white/5 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:hover:bg-transparent ${meGusta ? "text-uva-accent hover:text-uva-accent" : ""}`}
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 text-xs font-medium text-uva-text-faint transition-colors hover:bg-uva-text/5 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:hover:bg-transparent ${meGusta ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
     >
       <Heart className="size-3.5" strokeWidth={2.4} fill={meGusta ? "currentColor" : "none"} />
       {total > 0 ? total : "Me gusta"}
@@ -129,7 +129,7 @@ function FormularioCalificacion({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-uva-md bg-white/[0.03] p-4">
+    <div className="flex flex-col gap-3 rounded-uva-md bg-uva-text/[0.03] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-uva-text">
           {miCalificacion ? "Tu reseña" : "¿Qué te pareció este curso?"}
@@ -228,7 +228,7 @@ function CeldaResena({
               type="button"
               disabled={pendienteModerar}
               onClick={() => onModerar(reseña.id)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 text-xs font-medium text-uva-text-faint transition-colors hover:bg-white/5 hover:text-uva-error-text disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 text-xs font-medium text-uva-text-faint transition-colors hover:bg-uva-text/5 hover:text-uva-error-text disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
               <ShieldAlert className="size-3.5" strokeWidth={2.2} />
               Eliminar

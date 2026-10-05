@@ -43,7 +43,7 @@ export function CambiarPasswordForm() {
   return (
     <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
       <h2 className="flex items-center gap-2 text-base text-uva-text">
-        <KeyRound className="size-4 text-uva-accent" aria-hidden />
+        <KeyRound className="size-4 text-uva-accent-ink" aria-hidden />
         Contraseña
       </h2>
 

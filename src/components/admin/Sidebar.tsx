@@ -97,7 +97,7 @@ export function Sidebar({ colapsadoInicial = false }: { colapsadoInicial?: boole
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-uva-divider bg-[#0B0B0D] transition-[width] duration-150 md:flex",
+        "sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-uva-divider bg-uva-sidebar-bg transition-[width] duration-150 md:flex",
         collapsed ? "w-[76px]" : "w-[236px]",
       )}
     >

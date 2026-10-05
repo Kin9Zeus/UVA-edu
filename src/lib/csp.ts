@@ -225,7 +225,9 @@ export function construirCsp(opciones: OpcionesCsp): string {
   // http://localhost:3000 con el que corren `next dev` y Playwright.
   if (!desarrollo) partes.push("upgrade-insecure-requests");
 
-  if (informes) partes.push(`report-uri ${informes}`);
+  // Sin informes en desarrollo: igual que el SDK de Sentry (ver
+  // src/instrumentation.ts), `next dev` no manda ruido al panel.
+  if (informes && !desarrollo) partes.push(`report-uri ${informes}`);
 
   return partes.join("; ");
 }

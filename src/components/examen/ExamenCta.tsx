@@ -60,7 +60,7 @@ export function ExamenCta({
             };
       default:
         return {
-          icono: <FileText className="size-4 text-uva-accent" aria-hidden />,
+          icono: <FileText className="size-4 text-uva-accent-ink" aria-hidden />,
           titulo: "Examen final disponible",
           detalle:
             "Responde bien todas las preguntas sin quedarte sin vidas para completar el curso y recibir tu certificado.",

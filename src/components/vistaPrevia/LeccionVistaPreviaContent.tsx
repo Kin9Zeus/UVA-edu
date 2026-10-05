@@ -58,14 +58,14 @@ export function LeccionVistaPreviaContent({
           <button
             type="button"
             onClick={() => setTemarioOpen(true)}
-            className="inline-flex items-center rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-[#27272A]"
+            className="inline-flex items-center rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2 text-[12.5px] font-semibold text-uva-text hover:bg-uva-chip"
           >
             Temario
           </button>
           {data.siguienteSlug ? (
             <Link
               href={hrefLeccion(data.siguienteSlug)}
-              className="inline-flex items-center rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+              className="inline-flex items-center rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
             >
               Siguiente clase →
             </Link>
@@ -75,7 +75,7 @@ export function LeccionVistaPreviaContent({
 
       <div className="grid grid-cols-1 items-start gap-[clamp(14px,2vw,24px)] lg:grid-cols-[minmax(0,1fr)_clamp(272px,25vw,352px)]">
         <div>
-          <div className="relative flex h-[452px] flex-col items-center justify-center gap-3 overflow-hidden rounded-uva-md bg-black text-center">
+          <div className="dark relative flex h-[452px] flex-col items-center justify-center gap-3 overflow-hidden rounded-uva-md bg-black text-center">
             <div className="grid size-[60px] place-items-center rounded-full bg-uva-text/10">
               <Eye className="size-6 text-uva-muted" strokeWidth={1.8} />
             </div>
@@ -90,7 +90,7 @@ export function LeccionVistaPreviaContent({
             {tab === "recursos" && (
               <div className="flex flex-col gap-3">
                 {data.recursos.length === 0 ? (
-                  <div className="rounded-uva-md bg-[#27272A] px-[13px] py-[11px] text-[13px] text-uva-muted">
+                  <div className="rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-[13px] text-uva-muted">
                     Esta clase todavía no tiene recursos descargables.
                   </div>
                 ) : (
@@ -98,7 +98,7 @@ export function LeccionVistaPreviaContent({
                     {data.recursos.map((recurso) => (
                       <div
                         key={recurso.id}
-                        className="flex items-center gap-[11px] rounded-uva-md bg-[#27272A] px-[13px] py-[11px]"
+                        className="flex items-center gap-[11px] rounded-uva-md bg-uva-chip px-[13px] py-[11px]"
                       >
                         <span className="inline-flex items-center rounded-uva-xs bg-uva-surface px-2.5 py-[3px] font-mono text-[11px] font-semibold tracking-[0.02em] text-uva-muted">
                           {extensionArchivo(recurso.nombre)}
@@ -141,7 +141,7 @@ export function LeccionVistaPreviaContent({
                     esActual ? "bg-uva-accent/14" : "bg-transparent hover:bg-uva-text/5"
                   }`}
                 >
-                  <div className="grid size-5 shrink-0 place-items-center rounded-full border-[1.5px] border-[#3F3F46] text-[11px] font-bold" />
+                  <div className="grid size-5 shrink-0 place-items-center rounded-full border-[1.5px] border-uva-dim text-[11px] font-bold" />
                   <div className="min-w-0 flex-1 text-[12.5px] leading-[1.3] text-uva-text">
                     {leccion.numero} · {leccion.titulo}
                   </div>

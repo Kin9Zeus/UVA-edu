@@ -38,7 +38,7 @@ export function ErrorBlock({
   return (
     <main
       className={cn(
-        "flex items-center justify-center bg-[linear-gradient(168deg,#101013_0%,var(--uva-bg)_52%,var(--uva-bg)_100%)] px-[clamp(20px,5vw,48px)] py-[clamp(40px,8vh,88px)]",
+        "flex items-center justify-center bg-[linear-gradient(168deg,var(--uva-bg-gradient-start)_0%,var(--uva-bg)_52%,var(--uva-bg)_100%)] px-[clamp(20px,5vw,48px)] py-[clamp(40px,8vh,88px)]",
         standalone ? "min-h-screen" : "min-h-full",
       )}
     >
@@ -73,7 +73,7 @@ export function ErrorBlock({
           {accionPrimaria.href ? (
             <Link
               href={accionPrimaria.href}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text transition-colors hover:bg-uva-accent-hover"
+              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
             >
               {accionPrimaria.label}
             </Link>
@@ -81,7 +81,7 @@ export function ErrorBlock({
             <button
               type="button"
               onClick={accionPrimaria.onClick}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-text transition-colors hover:bg-uva-accent-hover"
+              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
             >
               {accionPrimaria.label}
             </button>

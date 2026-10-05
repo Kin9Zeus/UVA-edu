@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { servidorFalso, type LlamadaRegistrada } from "@/test/servidor-falso";
 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
+vi.mock("@/lib/supabase/public", () => import("@/test/servidor-falso").then((m) => m.moduloSupabasePublic()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
+vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
+vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.moduloNextNavigation()));
 
 import { getCalificacionesCurso, getTandaCalificacionesCurso, MINIMO_RESENAS_PROMEDIO, RESENAS_POR_TANDA } from "@/lib/curso-calificaciones";
 import { logError } from "@/lib/log";
@@ -126,6 +129,29 @@ describe("getCalificacionesCurso", () => {
 
     expect(datos).toMatchObject({ promedio: 4.5, total: 40, hayMas: true, miCalificacion: null });
     expect(datos.reseñas).toHaveLength(RESENAS_POR_TANDA);
+  });
+
+  it("sin sesión lee con el cliente público (cacheable); con sesión, con el de sesión", async () => {
+    await getCalificacionesCurso(CURSO, null);
+    expect(servidorFalso.clientesCreados).toMatchObject({ sesion: 0 });
+    expect(servidorFalso.clientesCreados.publico).toBeGreaterThan(0);
+    expect(servidorFalso.llamadas.every((llamada) => llamada.cliente === "publico")).toBe(true);
+
+    servidorFalso.reiniciar();
+    await getCalificacionesCurso(CURSO, ESTUDIANTE);
+    expect(servidorFalso.llamadas.every((llamada) => llamada.cliente === "sesion")).toBe(true);
+  });
+
+  it("sin sesión, si una consulta falla la ficha sigue mostrando lo que haya y queda registrado", async () => {
+    // Que esa lectura degradada NO se guarde en la caché lo hace `unstable_cache`
+    // al recibir un lanzamiento (ver CalificacionesDegradadas); el doble de
+    // vitest no guarda nada, así que aquí solo se prueba lo que ve el visitante.
+    servidorFalso.responder("from:curso_calificaciones_resumen", { data: null, error: { message: "boom" } });
+
+    const datos = await getCalificacionesCurso(CURSO, null);
+
+    expect(datos).toMatchObject({ promedio: null, total: 0 });
+    expect(logError).toHaveBeenCalled();
   });
 
   it("por debajo del mínimo no hay promedio, pero sí total y reseñas", async () => {

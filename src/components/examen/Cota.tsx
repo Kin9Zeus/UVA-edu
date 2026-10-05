@@ -20,7 +20,7 @@ export function Cota({ correctas, total }: { correctas: number; total: number })
           <span
             key={i}
             className={`h-[3px] flex-1 rounded-full transition-colors duration-300 ${
-              i < correctas ? "bg-uva-accent shadow-[0_0_8px_rgba(255,0,122,0.55)]" : "bg-uva-divider"
+              i < correctas ? "bg-uva-accent shadow-[0_0_8px_color-mix(in_srgb,var(--uva-accent)_55%,transparent)]" : "bg-uva-divider"
             }`}
           />
         ))}

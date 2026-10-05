@@ -261,6 +261,21 @@ describe("revalidación", () => {
     expect(vi.mocked(revalidatePath).mock.calls).toEqual(Array(5).fill(["/cursos/[cursoSlug]", "page"]));
   });
 
+  it("y vacían también la caché de reseñas públicas, que ve el visitante sin sesión", async () => {
+    servidorFalso.conUsuario(ADMIN);
+    servidorFalso.responder("from:perfiles", { data: { rol: "ADMINISTRADOR" } });
+    servidorFalso.responder("from:curso_calificaciones", { data: [{ id: "cal-1" }] });
+
+    await eliminarCalificacionPropia("cal-1");
+    await moderarCalificacion("cal-1");
+    await reaccionarCalificacion("cal-1");
+    await quitarReaccionCalificacion("cal-1");
+    servidorFalso.responder("from:curso_calificaciones", { data: null });
+    await calificarCurso("curso-1", 5, "");
+
+    expect(servidorFalso.revalidaciones.filter((r) => r === "resenas-publicas")).toHaveLength(5);
+  });
+
   it("ninguna acción acepta una ruta del cliente", () => {
     // `Function.length` cuenta los parámetros declarados: si alguien vuelve
     // a agregar `ruta`, esto lo nota antes que una revisión.

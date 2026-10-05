@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
+import { SelectorTemaBoton, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
 
 /**
  * Mapa `titles` del mockup: el titulo de cada pantalla vive en el header, no
@@ -90,8 +91,11 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
 
       <div className="ml-auto flex items-center gap-3.5">
         {placeholder && <BuscadorMovilDialog placeholder={placeholder} className="md:hidden" />}
+        {/* Visible siempre, no escondido en el menú de usuario. -my-0.5: área
+            táctil de 44px sin crecer el header (lo fija el avatar). */}
+        <SelectorTemaBoton className="-my-0.5 text-uva-muted hover:bg-uva-hover hover:text-uva-text" />
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-[#1C1C20]">
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-uva-hover">
             {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}
             <Avatar className="size-[34px] bg-uva-divider after:hidden">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
@@ -120,6 +124,7 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
               <User className="size-4" />
               Ver perfil
             </DropdownMenuLinkItem>
+            <SelectorTemaSistemaMenuItem className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text" />
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => logout()}

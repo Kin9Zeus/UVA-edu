@@ -22,7 +22,7 @@ export function PerfilAdminForm({
     <form action={formAction} className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
         <EditorFotoPerfil nombre={nombre} fotoUrl={fotoUrl} />
-        <p className="text-xs text-uva-muted-2">Clic en la foto para cambiarla.</p>
+        <p className="text-xs text-uva-muted-2">Haz clic en la foto para cambiarla.</p>
       </div>
 
       {state?.error && (

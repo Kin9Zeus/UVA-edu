@@ -26,7 +26,7 @@ export default async function VerificarCorreoPage() {
     <div className="grid min-h-screen grid-cols-1 min-[900px]:grid-cols-2">
       <AuthVisual />
 
-      <section className="grid place-items-center bg-[rgba(250,250,250,0.04)] p-7 min-[900px]:p-11">
+      <section className="grid place-items-center bg-uva-text/4 p-7 min-[900px]:p-11">
         <div className="w-full max-w-[396px] text-center">
           <h2 className="mb-1.5 text-[30px] text-uva-text">
             Verifica tu correo

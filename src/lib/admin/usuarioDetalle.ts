@@ -88,6 +88,18 @@ export async function resolverUsuarioAdmin(
   return data as { id: string; slug: string } | null;
 }
 
+/**
+ * Solo las clases con video listo cuentan para el avance: es la regla de lo
+ * que ve el estudiante (`progreso_cursos_estudiante`) y del certificado
+ * (`private.lecciones_completas_curso`). El embed llega como objeto o arreglo.
+ */
+function conVideoListo(
+  leccion: { estado_procesamiento: string } | { estado_procesamiento: string }[] | null | undefined,
+): boolean {
+  const fila = Array.isArray(leccion) ? leccion[0] : leccion;
+  return fila?.estado_procesamiento === "LISTO";
+}
+
 export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetalle | null> {
   const supabase = await createClient();
 
@@ -149,16 +161,20 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     const { count: totalLecciones } = await supabase
       .from("lecciones")
       .select("id, modulo:modulos!inner(id_curso)", { count: "exact", head: true })
-      .eq("modulo.id_curso", inscripcion.id_curso);
+      .eq("modulo.id_curso", inscripcion.id_curso)
+      .eq("estado_procesamiento", "LISTO");
 
     const { data: progreso } = await supabase
       .from("progreso")
-      .select("completado, fecha_actualizacion:actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso))")
+      .select(
+        "completado, fecha_actualizacion:actualizado_en, leccion:lecciones!inner(estado_procesamiento, modulo:modulos!inner(id_curso))",
+      )
       .eq("id_usuario", usuarioId)
       .eq("leccion.modulo.id_curso", inscripcion.id_curso);
 
     const total = totalLecciones ?? 0;
-    const completados = progreso?.filter((registro) => registro.completado).length ?? 0;
+    const completados =
+      progreso?.filter((registro) => registro.completado && conVideoListo(registro.leccion)).length ?? 0;
     const porcentaje = porcentajeLecciones(completados, total);
     const ultimaActividad = (progreso ?? []).reduce<string | null>((max, registro) => {
       if (!registro.fecha_actualizacion) return max;
@@ -193,7 +209,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   const { data: progresoUsuario } = await supabase
     .from("progreso")
     .select(
-      "completado, actualizado_en, leccion:lecciones!inner(modulo:modulos!inner(id_curso, curso:cursos(titulo, slug)))",
+      "completado, actualizado_en, leccion:lecciones!inner(estado_procesamiento, modulo:modulos!inner(id_curso, curso:cursos(titulo, slug)))",
     )
     .eq("id_usuario", usuarioId);
 
@@ -224,7 +240,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       ultimaActividad: null,
     };
     actual.total += 1;
-    if (fila.completado) actual.completados += 1;
+    if (fila.completado && conVideoListo(leccion)) actual.completados += 1;
     if (fila.actualizado_en && (!actual.ultimaActividad || fila.actualizado_en > actual.ultimaActividad)) {
       actual.ultimaActividad = fila.actualizado_en;
     }
@@ -238,7 +254,8 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     const { count: totalLecciones } = await supabase
       .from("lecciones")
       .select("id, modulo:modulos!inner(id_curso)", { count: "exact", head: true })
-      .eq("modulo.id_curso", cursoId);
+      .eq("modulo.id_curso", cursoId)
+      .eq("estado_procesamiento", "LISTO");
 
     const total = totalLecciones ?? 0;
     const porcentaje = porcentajeLecciones(datos.completados, total);

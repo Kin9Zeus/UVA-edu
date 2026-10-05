@@ -155,7 +155,7 @@ export function NotasTab({
       </p>
 
       {!videoListo ? (
-        <p className="m-0 rounded-uva-md bg-[#27272A] px-[13px] py-[11px] text-[13px] text-uva-muted">
+        <p className="m-0 rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-[13px] text-uva-muted">
           Podrás agregar notas cuando el video de esta clase esté disponible.
         </p>
       ) : segundoNueva === null ? (
@@ -164,7 +164,7 @@ export function NotasTab({
           type="button"
           onClick={abrirEditor}
           disabled={enTope}
-          className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-uva-md border border-uva-divider bg-uva-surface px-3.5 py-2.5 text-[13px] font-semibold text-uva-text hover:bg-[#27272A] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-uva-md border border-uva-divider bg-uva-surface px-3.5 py-2.5 text-[13px] font-semibold text-uva-text hover:bg-uva-chip disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="size-4" strokeWidth={2.5} />
           Agregar nota en
@@ -197,7 +197,7 @@ export function NotasTab({
               type="button"
               disabled={guardando || vacia}
               onClick={guardar}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
             >
               {guardando && <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />}
               {guardando ? "Guardando…" : "Guardar nota"}
@@ -219,7 +219,7 @@ export function NotasTab({
 
       <div className="h-px bg-uva-divider" />
 
-      <div role="group" aria-label="Qué notas ver" className="flex gap-1 self-start rounded-full bg-[#27272A] p-1">
+      <div role="group" aria-label="Qué notas ver" className="flex gap-1 self-start rounded-full bg-uva-chip p-1">
         {(
           [
             ["clase", "Esta clase"],
@@ -344,12 +344,12 @@ function NotasDelCurso({
           <div
             id={`notas-clase-${leccion.id}`}
             className={`flex items-start gap-2 rounded-uva-md px-3 py-2 ${
-              esActual ? "bg-uva-accent-soft" : "bg-[#27272A]"
+              esActual ? "bg-uva-accent-soft" : "bg-uva-chip"
             }`}
           >
             <span
               className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-semibold ${
-                esActual ? "bg-uva-accent text-white" : "bg-uva-surface text-uva-muted"
+                esActual ? "bg-uva-accent text-uva-on-accent" : "bg-uva-surface text-uva-muted"
               }`}
             >
               {leccion.numero}
@@ -362,7 +362,7 @@ function NotasDelCurso({
             </span>
             <span className="mt-0.5 shrink-0 font-mono text-[10px] text-uva-muted">{notas.length}</span>
             {esActual && (
-              <span className="mt-0.5 shrink-0 rounded-full bg-uva-accent px-2 py-0.5 text-[10px] font-semibold text-white">
+              <span className="mt-0.5 shrink-0 rounded-full bg-uva-accent px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
                 Esta clase
               </span>
             )}

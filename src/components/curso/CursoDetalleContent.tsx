@@ -19,9 +19,9 @@ const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Av
 const formatPromedio = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format;
 
 const PORTADA_TRAMA = {
-  backgroundColor: "#141417",
+  backgroundColor: "var(--uva-surface-2)",
   backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
+    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
 /**
@@ -206,10 +206,13 @@ export function CursoDetalleContent({
               <PlayCircle className="size-3.5 text-uva-text-faint" strokeWidth={2} />
               {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
-              <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
-              {formatHoras(curso.duracionTotalSegundos)} de contenido
-            </span>
+            {/* Sin videos listos no hay duración real: antes decía "— de contenido". */}
+            {curso.duracionTotalSegundos > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
+                <Clock className="size-3.5 text-uva-text-faint" strokeWidth={2} />
+                {formatHoras(curso.duracionTotalSegundos)} de contenido
+              </span>
+            )}
             {curso.totalRecursos > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-uva-divider px-3 py-1.5 text-[12.5px] text-uva-text-muted">
                 <Download className="size-3.5 text-uva-text-faint" strokeWidth={2} />
@@ -238,7 +241,7 @@ export function CursoDetalleContent({
                     {modulo.lecciones.length === 1 ? "clase" : "clases"}
                   </span>
                 </div>
-                <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-white/5">
+                <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-uva-text/5">
                   {modulo.lecciones.map((leccion, index) => {
                     // La primera clase del curso es la vista previa pública
                     // (Revcurso: "que la primera lección sea visible"):
@@ -250,7 +253,7 @@ export function CursoDetalleContent({
                       <Link
                         key={leccion.id}
                         href={`/cursos/${curso.slug}/${leccion.slug}`}
-                        className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-uva-text hover:bg-white/5"
+                        className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] text-uva-text hover:bg-uva-text/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
                         <MiniaturaClase url={leccion.miniaturaUrl} completado={leccion.completado} bloqueada={false} />
@@ -395,7 +398,7 @@ export function CursoDetalleContent({
             : [{ id: "sin-instructor", nombre: SIN_INSTRUCTOR, especialidad: null, fotoUrl: null }]
           ).map((instructor) => (
             <div key={instructor.id} className="flex items-center gap-3">
-              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-uva-chip font-heading text-[15px] text-uva-text">
                 {instructor.fotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
                   <img src={instructor.fotoUrl} alt="" className="size-full object-cover" />

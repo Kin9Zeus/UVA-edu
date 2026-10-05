@@ -61,7 +61,7 @@ function Burbuja({
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors",
-        active && "bg-uva-accent/15 text-uva-accent",
+        active && "bg-uva-accent/15 text-uva-accent-ink",
       )}
     >
       <Icon className="size-5" strokeWidth={active ? 2.2 : 1.9} />
@@ -84,7 +84,7 @@ export function AdminBottomTabBar() {
       aria-label="Navegación del panel admin"
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] md:hidden"
     >
-      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-[#18181B]/95 p-1.5 shadow-lg shadow-black/40 backdrop-blur">
+      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-lg shadow-uva-shadow/40 backdrop-blur">
         {principales.map((item) => (
           <Burbuja key={item.href} {...item} active={isActive(item.href)} />
         ))}
@@ -94,7 +94,7 @@ export function AdminBottomTabBar() {
             aria-label="Más opciones"
             className={cn(
               "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors outline-none",
-              enSecundario && "bg-uva-accent/15 text-uva-accent",
+              enSecundario && "bg-uva-accent/15 text-uva-accent-ink",
             )}
           >
             <Menu className="size-5" strokeWidth={enSecundario ? 2.2 : 1.9} />
@@ -102,7 +102,7 @@ export function AdminBottomTabBar() {
           </DialogPrimitive.Trigger>
 
           <DialogPrimitive.Portal>
-            <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+            <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-uva-overlay/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
             <DialogPrimitive.Popup
               className={cn(
                 "fixed inset-x-0 bottom-0 z-50 rounded-t-[20px] border-t border-uva-divider bg-uva-bg p-4 outline-none",
@@ -123,7 +123,7 @@ export function AdminBottomTabBar() {
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 border-b border-uva-divider py-3 text-[15px] text-uva-text no-underline last:border-b-0 hover:no-underline",
-                      isActive(item.href) && "text-uva-accent",
+                      isActive(item.href) && "text-uva-accent-ink",
                     )}
                   >
                     <item.icon className="size-[18px] shrink-0" strokeWidth={1.9} />

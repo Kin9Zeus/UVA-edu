@@ -124,7 +124,7 @@ function renderizarBloque(
       return (
         <pre
           key={key}
-          className="my-0 overflow-x-auto rounded-uva-md bg-[#27272A] p-3 font-mono text-[12px] text-uva-text"
+          className="my-0 overflow-x-auto rounded-uva-md bg-uva-chip p-3 font-mono text-[12px] text-uva-text"
         >
           <code>{(nodo.content ?? []).map((t) => t.text ?? "").join("")}</code>
         </pre>
@@ -163,7 +163,7 @@ function aplicarMarcas(nodo: NodoContenido): ReactNode {
         break;
       case "code":
         contenido = (
-          <code className="rounded-uva-xs bg-[#27272A] px-1.5 py-0.5 font-mono text-[12px] text-uva-text">
+          <code className="rounded-uva-xs bg-uva-chip px-1.5 py-0.5 font-mono text-[12px] text-uva-text">
             {contenido}
           </code>
         );
@@ -176,7 +176,7 @@ function aplicarMarcas(nodo: NodoContenido): ReactNode {
               href={href}
               target="_blank"
               rel="noopener noreferrer nofollow ugc"
-              className="text-uva-accent underline underline-offset-2 hover:text-uva-accent-hover"
+              className="text-uva-accent-ink underline underline-offset-2 hover:text-uva-accent-hover"
             >
               {contenido}
             </a>

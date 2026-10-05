@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
 import { NavMovilDialog } from "@/components/home/NavMovilDialog";
+import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean }) {
@@ -23,8 +24,8 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
     <header
       className={`sticky top-0 z-50 flex items-center justify-between gap-5 border-b px-[clamp(20px,4vw,56px)] py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
         scrolled
-          ? "border-uva-divider bg-[rgba(9,9,11,0.86)]"
-          : "border-transparent bg-[rgba(9,9,11,0.4)]"
+          ? "border-uva-divider bg-uva-bg/86"
+          : "border-transparent bg-uva-bg/40"
       }`}
     >
       <Link
@@ -58,9 +59,14 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
             </Link>
           )}
         </div>
+        {/* Por debajo de 861px no cabe junto a "Acceder", la lupa y la
+            hamburguesa: ahí vive dentro del menú móvil (NavMovilDialog). El
+            -my-0.5 deja el área táctil en 44px sin crecer el header, que
+            mide lo que el botón "Acceder" (40px). */}
+        <SelectorTemaBoton className="-my-0.5 hidden min-[861px]:inline-flex" />
         <Link
           href="/login"
-          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-3.5 text-sm font-semibold text-uva-text no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
+          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-3.5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
         >
           Acceder
         </Link>

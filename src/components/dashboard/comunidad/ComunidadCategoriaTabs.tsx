@@ -14,7 +14,7 @@ function CategoriaTab({ href, label, active }: { href: string; label: string; ac
         // Móvil: pestaña subrayada, como las del panel admin. Desde `lg`: ítem
         // del riel vertical, marcado con el borde izquierdo — ese borde en
         // chips sueltos que bajaban de línea se veía como un error.
-        "shrink-0 border-b-2 border-transparent px-1 py-2.5 text-sm whitespace-nowrap text-uva-text-muted transition-colors hover:text-uva-text lg:rounded-uva-md lg:border-b-0 lg:border-l-[3px] lg:px-3.5 lg:py-2 lg:hover:bg-[#1C1C20]",
+        "shrink-0 border-b-2 border-transparent px-1 py-2.5 text-sm whitespace-nowrap text-uva-text-muted transition-colors hover:text-uva-text lg:rounded-uva-md lg:border-b-0 lg:border-l-[3px] lg:px-3.5 lg:py-2 lg:hover:bg-uva-hover",
         active && "border-uva-accent text-uva-text lg:bg-uva-surface",
       )}
     >

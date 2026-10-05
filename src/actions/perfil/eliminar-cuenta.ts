@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { borrarFotoPerfil } from "@/lib/perfil/avatar";
+import { revalidarResenasPublicas } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 
@@ -104,6 +105,11 @@ export async function eliminarMiCuenta(
     });
     return { error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." };
   }
+
+  // Las reseñas que ve un visitante sin sesión se sirven cacheadas: sin esto,
+  // el nombre de quien acaba de borrar su cuenta seguiría en las fichas de
+  // curso hasta `REVALIDAR_SEGUNDOS`.
+  revalidarResenasPublicas();
 
   // Igual que suspenderActivarUsuario/anonimizarUsuario: las sesiones ya se
   // borraron dentro de la transacción de la RPC (auth.sessions), pero el

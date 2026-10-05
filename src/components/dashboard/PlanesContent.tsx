@@ -37,7 +37,7 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
       <div className="mb-[30px] text-center">
         <h1 className="mb-2 text-[38px] text-uva-text">Un plan, todo el gremio</h1>
         <p className="mx-auto mb-5 max-w-[520px] text-uva-text-muted">
-          Acceso a los 180+ cursos, las plantillas descargables y los
+          Acceso a todo el catálogo, las plantillas descargables y los
           certificados. Precios en pesos colombianos, con IVA incluido.
         </p>
       </div>

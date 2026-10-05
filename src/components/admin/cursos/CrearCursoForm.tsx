@@ -214,16 +214,16 @@ export function CrearCursoForm({
               <img src={previewPortada} alt="" className="size-full object-cover" />
             ) : (
               <div className="flex size-full items-center justify-center px-4">
-                Arrastra una imagen aquí o <span className="text-uva-accent">selecciona un archivo</span>
+                Arrastra una imagen aquí o <span className="text-uva-accent-ink">selecciona un archivo</span>
               </div>
             )}
           </button>
           {previewPortada && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">Click en la imagen para reemplazarla.</p>
+            <p className="mt-1.5 text-xs text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
           )}
           <p className="mt-1 text-xs text-uva-text-faint">
             {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
-            recortada a 1280×720px (16:9), igual que la vista previa.
+            recortada a 1280 × 720 px (16:9), igual que la vista previa.
           </p>
           <input
             ref={inputPortadaRef}

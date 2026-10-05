@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { urlWhatsapp } from "@/lib/contacto";
 
 // Fuente única de los temas de soporte: la consume tanto la página /soporte
 // (pública y dentro del dashboard) como la columna "Soporte" del footer del
@@ -11,12 +13,16 @@ import type { ReactNode } from "react";
 // componente servidor (`SoporteContent`) y se pasa como `children` al
 // `Accordion` cliente, patrón normal de RSC.
 export type TemaSoporte =
-  "centro-de-ayuda" | "contacto" | "terminos y condiciones" | "privacidad";
+  "centro-de-ayuda" | "contacto" | "terminos" | "privacidad";
 
 // Contenido redactado a partir de docs/legal/contenido-soporte.md (borrador
 // revisado). A diferencia de Contacto/Términos/Privacidad, esta sección no
 // depende de datos legales de la empresa ([RAZÓN SOCIAL], NIT, etc.) — por
 // eso es la única que ya se puede publicar tal cual.
+//
+// Mientras los precios estén apagados (`PRECIOS_HABILITADOS`) se entra solo
+// con código de invitación: las respuestas sobre suscripciones pagadas y
+// cambio de plan quedan fuera, porque describirían algo que hoy no existe.
 const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
   {
     pregunta: "¿Qué es U.V.A.?",
@@ -25,15 +31,19 @@ const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
   },
   {
     pregunta: "¿Cómo accedo a los cursos?",
-    respuesta:
-      "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A.",
+    respuesta: PRECIOS_HABILITADOS
+      ? "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A."
+      : "Por ahora el acceso es por invitación y sin costo: canjea tu código de invitación y tienes todo el catálogo por los días que traiga asignados. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A.",
   },
   {
-    pregunta:
-      "¿Cuál es la diferencia entre una suscripción y un curso de cortesía?",
+    pregunta: PRECIOS_HABILITADOS
+      ? "¿Cuál es la diferencia entre una suscripción y un curso de cortesía?"
+      : "¿Cuál es la diferencia entre un código de invitación y un curso de cortesía?",
     respuesta: (
       <>
-        Una suscripción (pagada, o gratuita por código de invitación) te da
+        {PRECIOS_HABILITADOS
+          ? "Una suscripción (pagada, o gratuita por código de invitación) te da"
+          : "Un código de invitación te da"}{" "}
         acceso a{" "}
         <span className="font-medium text-uva-text">todo el catálogo</span>{" "}
         mientras esté vigente. Un curso de cortesía es distinto: el equipo de
@@ -56,9 +66,8 @@ const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
         dentro de{" "}
         <span className="font-medium text-uva-text">Mi suscripción</span>. Un
         código válido te da acceso a todo el catálogo, sin ningún cobro, por los
-        días que traiga asignados — no reemplaza una suscripción de pago ya
-        activa: si ya tienes una vigente, guarda el código para canjearlo cuando
-        termine.
+        días que traiga asignados. Si ya tienes un acceso vigente, guarda el
+        código para canjearlo cuando termine.
       </>
     ),
   },
@@ -81,18 +90,22 @@ const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
     respuesta:
       "Tienes varios intentos por curso, con un tiempo de espera corto entre uno y otro. Si agotas los intentos de una tanda sin aprobar, se habilita automáticamente otra tanda después de un tiempo de espera más largo — no necesitas escribirle a soporte para seguir intentando.",
   },
-  {
-    pregunta: "¿Puedo cambiar o cancelar mi plan?",
-    respuesta: (
-      <>
-        Sí, desde{" "}
-        <span className="font-medium text-uva-text">Mi suscripción</span> puedes
-        cambiar de plan o cancelar cuando quieras. La cancelación aplica al
-        final del periodo ya pagado: conservas el acceso hasta esa fecha y no se
-        generan más cobros después.
-      </>
-    ),
-  },
+  ...(PRECIOS_HABILITADOS
+    ? [
+        {
+          pregunta: "¿Puedo cambiar o cancelar mi plan?",
+          respuesta: (
+            <>
+              Sí, desde{" "}
+              <span className="font-medium text-uva-text">Mi suscripción</span> puedes
+              cambiar de plan o cancelar cuando quieras. La cancelación aplica al
+              final del periodo ya pagado: conservas el acceso hasta esa fecha y no se
+              generan más cobros después.
+            </>
+          ),
+        },
+      ]
+    : []),
   {
     pregunta: "¿Cómo cambio mi contraseña o mis datos?",
     respuesta: (
@@ -143,11 +156,25 @@ export const TEMAS_SOPORTE: {
   {
     id: "contacto",
     titulo: "Contacto",
-    contenido:
-      "Contenido en preparación. Pronto encontrarás aquí las formas de comunicarte con nosotros.",
+    contenido: (
+      <>
+        Escríbenos por{" "}
+        <a
+          href={urlWhatsapp()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-uva-accent-text underline-offset-2 hover:underline"
+        >
+          WhatsApp
+          <span className="sr-only"> (abre en otra pestaña)</span>
+        </a>{" "}
+        y te respondemos por ahí. Si encontraste un error en la plataforma, usa
+        «Reportar un problema», más abajo.
+      </>
+    ),
   },
   {
-    id: "terminos y condiciones",
+    id: "terminos",
     titulo: "Términos y condiciones",
     contenido:
       "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de U.V.A.",

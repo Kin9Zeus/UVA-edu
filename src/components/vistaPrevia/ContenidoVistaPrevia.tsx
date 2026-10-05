@@ -10,9 +10,9 @@ import type { CursoVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
 const PORTADA_TRAMA = {
-  backgroundColor: "#141417",
+  backgroundColor: "var(--uva-surface-2)",
   backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(250,250,250,.045) 0 2px, transparent 2px 9px)",
+    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
 /**
@@ -61,7 +61,7 @@ export function ContenidoVistaPrevia({
                 {categoria.nombre}
               </span>
             ))}
-            <span className="rounded-uva-xs bg-[#27272A] px-2.5 py-1 text-xs text-uva-text-muted">
+            <span className="rounded-uva-xs bg-uva-chip px-2.5 py-1 text-xs text-uva-text-muted">
               {NIVEL_LABEL[curso.nivel]}
             </span>
           </div>
@@ -70,7 +70,7 @@ export function ContenidoVistaPrevia({
           </h1>
           <p className="max-w-[620px] text-[15px] text-uva-text-muted">{curso.descripcion}</p>
 
-          <div className="mt-6 flex flex-wrap gap-6 rounded-uva-md bg-white/5 px-5 py-4">
+          <div className="mt-6 flex flex-wrap gap-6 rounded-uva-md bg-uva-text/5 px-5 py-4">
             <div>
               <p className="font-heading text-xl text-uva-text">{curso.totalClases}</p>
               <p className="text-[11.5px] text-uva-text-faint">clases</p>
@@ -113,12 +113,12 @@ export function ContenidoVistaPrevia({
                 {modulo.lecciones.length === 0 ? (
                   <p className="mt-1 text-xs text-uva-text-faint">Módulo sin lecciones.</p>
                 ) : (
-                  <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-white/5">
+                  <div className="flex flex-col gap-px overflow-hidden rounded-uva-md bg-uva-text/5">
                     {modulo.lecciones.map((leccion, index) => (
                       <Link
                         key={leccion.id}
                         href={`/vista-previa/${token}/${leccion.slug}`}
-                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-white/5"
+                        className="flex items-center gap-3 px-4 py-3 text-[13.5px] text-uva-text hover:bg-uva-text/5"
                       >
                         <span className="w-4 text-uva-text-faint">{index + 1}</span>
                         <PlayCircle className="size-4 shrink-0 text-uva-text-faint" strokeWidth={1.8} />
@@ -157,12 +157,12 @@ export function ContenidoVistaPrevia({
           {primeraLeccion ? (
             <Link
               href={`/vista-previa/${token}/${primeraLeccion.slug}`}
-              className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent px-4 text-[14px] font-semibold text-white no-underline hover:bg-uva-accent-hover"
+              className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent px-4 text-[14px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
             >
               Comenzar curso
             </Link>
           ) : (
-            <div className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent/40 px-4 text-center text-[14px] font-semibold text-white/70">
+            <div className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent/40 px-4 text-center text-[14px] font-semibold text-uva-on-accent/70">
               El curso todavía no tiene clases
             </div>
           )}
@@ -176,7 +176,7 @@ export function ContenidoVistaPrevia({
             : [{ id: "sin-instructor", nombre: SIN_INSTRUCTOR, especialidad: null, fotoUrl: null }]
           ).map((instructor) => (
             <div key={instructor.id} className="flex items-center gap-3">
-              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#27272A] font-heading text-[15px] text-uva-text">
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-uva-chip font-heading text-[15px] text-uva-text">
                 {instructor.fotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
                   <img src={instructor.fotoUrl} alt="" className="size-full object-cover" />

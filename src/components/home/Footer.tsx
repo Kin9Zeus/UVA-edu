@@ -6,14 +6,20 @@ import {
   SpotifyIcon,
   TiktokIcon,
 } from "@/components/home/icons";
-import { createPublicClient } from "@/lib/supabase/public";
-import { logError } from "@/lib/log";
+import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
 import { urlWhatsapp } from "@/lib/contacto";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
+//
+// Oculta mientras sus páginas no existan: los cuatro enlaces apuntaban a `#`
+// y un enlace que no lleva a ningún lado incumple "cada llamado a la acción
+// lleva a donde dice". Se conserva el contenido para reactivarla (poner
+// `MOSTRAR_COLUMNA_COMUNIDAD` en true) cuando cada enlace tenga destino real.
+const MOSTRAR_COLUMNA_COMUNIDAD = false;
+
 const columns = [
   {
     heading: "U.V.A. y comunidad",
@@ -23,34 +29,34 @@ const columns = [
 
 const socials = [
   {
-    label: "YouTube",
+    label: "Canal de U.V.A. en YouTube",
     Icon: YoutubeIcon,
     href: "https://www.youtube.com/@uvarq",
   },
   {
-    label: "Instagram",
+    label: "U.V.A. en Instagram",
     Icon: InstagramIcon,
     href: "https://www.instagram.com/uvarq",
   },
   {
-    label: "WhatsApp",
+    label: "Escríbenos por WhatsApp",
     Icon: WhatsappIcon,
     href: urlWhatsapp(),
   },
   {
-    label: "Spotify",
+    label: "U.V.A. en Spotify",
     Icon: SpotifyIcon,
     href: "https://open.spotify.com/",
   },
   {
-    label: "TikTok",
+    label: "U.V.A. en TikTok",
     Icon: TiktokIcon,
     href: "https://www.tiktok.com/@uvarq",
   },
 ];
 
 const headingClass =
-  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent uppercase";
+  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent-ink uppercase";
 const linkClass =
   "text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline";
 
@@ -63,29 +69,19 @@ const linkClass =
 export async function Footer({
   conBotonWhatsApp = false,
 }: { conBotonWhatsApp?: boolean } = {}) {
-  const supabase = createPublicClient();
-
-  // No hay filtro explícito acá porque lo aplica RLS: la policy
-  // `categorias_select_publico` vigente es la de supabase/sql/005
-  // (`activo = true or private.es_administrador()`), que reemplaza al
-  // `using (true)` original de 004. Como este cliente es anónimo (Anon Key,
-  // sin sesión), la rama de administrador nunca se cumple y el footer lista
-  // solo las categorías activas. Solo se pide un orden estable por nombre —
-  // `categorias` no tiene columna `orden` en el esquema.
-  const { data, error } = await supabase
-    .from("categorias")
-    .select("id, slug, nombre")
-    .order("nombre", { ascending: true });
-
-  if (error) {
-    logError("Home/Footer", "No se pudieron cargar las categorías", error);
-  }
-
-  const escuelas = data ?? [];
+  // Las escuelas del pie son exactamente las del filtro del catálogo:
+  // categorías activas con al menos un curso publicado (una escuela vacía lleva
+  // a una página sin cursos y anuncia una oferta que todavía no existe),
+  // ordenadas por nombre. Salen de la misma lectura cacheada y con su misma
+  // invalidación (lib/categoria.ts, lib/cache-catalogo.ts) en vez de una
+  // consulta propia en cada página que monta el pie — que son todas las
+  // públicas. Ante un fallo `getCategoriasActivas` ya lo registra y devuelve
+  // `[]`, sin cachearlo: la columna se omite.
+  const escuelas = await getCategoriasActivas();
 
   return (
     <footer
-      className={`border-t border-uva-divider bg-[#0d0d10] px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
+      className={`border-t border-uva-divider bg-uva-band-bg px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
         conBotonWhatsApp ? "pb-24" : "pb-9"
       }`}
     >
@@ -120,20 +116,21 @@ export async function Footer({
             </div>
           )}
 
-          {columns.map((column) => (
-            <div key={column.heading}>
-              <p className={headingClass}>{column.heading}</p>
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {column.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className={linkClass}>
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {MOSTRAR_COLUMNA_COMUNIDAD &&
+            columns.map((column) => (
+              <div key={column.heading}>
+                <p className={headingClass}>{column.heading}</p>
+                <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                  {column.links.map((link) => (
+                    <li key={link}>
+                      <a href="#" className={linkClass}>
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
 
           {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
@@ -161,7 +158,7 @@ export async function Footer({
 
         <div className="flex flex-col flex-wrap items-start justify-between gap-5 border-t border-uva-divider pt-7 min-[640px]:flex-row min-[640px]:items-center">
           <p className="text-[12.5px] text-uva-text-faint">
-            Hecho en obra, para LATAM · © 2026 U.V.A.
+            © 2026 U.V.A. Hecho en obra, para LATAM.
           </p>
           <div className="flex gap-2.5">
             {socials.map(({ label, Icon, href }) => (
@@ -171,7 +168,7 @@ export async function Footer({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-bg even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-bg hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-on-bright even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-on-bright hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
               >
                 <Icon />
               </a>

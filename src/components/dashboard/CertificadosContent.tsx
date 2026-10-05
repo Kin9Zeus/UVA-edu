@@ -37,7 +37,7 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
                 className="pointer-events-none absolute inset-1.5 rounded-[3px] border border-uva-divider"
               />
 
-              <div className="flex size-8 items-center justify-center rounded-full bg-uva-accent font-heading text-sm text-[#09090B]">
+              <div className="flex size-8 items-center justify-center rounded-full bg-uva-accent font-heading text-sm text-uva-on-bright">
                 U
               </div>
               <span className="mt-2 text-[10px] tracking-[.18em] text-uva-accent-2-text uppercase">

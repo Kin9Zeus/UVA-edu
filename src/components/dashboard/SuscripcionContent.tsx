@@ -198,13 +198,13 @@ export function SuscripcionContent({
               tarjeta. */}
           {accesoVigente && dias !== null && (
             <div className="ml-auto text-right">
-              <p className="font-heading text-2xl text-uva-accent">{dias}</p>
+              <p className="font-heading text-2xl text-uva-accent-ink">{dias}</p>
               <p className="text-[11.5px] text-uva-text-muted">días restantes</p>
             </div>
           )}
         </div>
         {accesoVigente && suscripcion.fechaRenovacion && (
-          <div className="h-[7px] rounded-full bg-black/25">
+          <div className="h-[7px] rounded-full bg-uva-shadow/25">
             <div
               className="h-full rounded-full bg-uva-accent"
               style={{ width: `${avance}%` }}
@@ -281,11 +281,11 @@ export function SuscripcionContent({
           {PRECIOS_HABILITADOS && (
             <div>
               <h3 className="flex items-center gap-2 text-sm font-semibold text-uva-text">
-                <CreditCard className="size-4 text-uva-accent" aria-hidden />
+                <CreditCard className="size-4 text-uva-accent-ink" aria-hidden />
                 Elige un plan
               </h3>
               <p className="mt-1 text-[13px] text-uva-text-muted">
-                Recupera el acceso a los 180+ cursos, las plantillas descargables
+                Recupera el acceso a todo el catálogo, las plantillas descargables
                 y los certificados.
               </p>
               <Button

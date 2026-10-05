@@ -98,7 +98,7 @@ export function ReciboPagoEmail({
           <Hr style={hr} />
 
           <Section>
-            <Text style={footer}>U.V.A — Unidad Vectorial de Arquitectura</Text>
+            <Text style={footer}>U.V.A. — Unidad Vectorial de Arquitectura</Text>
             <Text style={footer}>¿Algo no cuadra? Escríbenos a soporte@uva.edu</Text>
           </Section>
         </Container>

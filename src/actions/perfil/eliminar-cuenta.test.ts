@@ -4,6 +4,7 @@ import { RedireccionFalsa, servidorFalso } from "@/test/servidor-falso";
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("@/lib/supabase/admin", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseAdmin()));
 vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.moduloNextNavigation()));
+vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
 import { eliminarMiCuenta } from "@/actions/perfil/eliminar-cuenta";
@@ -145,6 +146,16 @@ describe("eliminarMiCuenta — la supresión", () => {
     expect(orden.indexOf("rpc:solicitar_supresion_propia")).toBeLessThan(orden.indexOf("auth:signOut"));
     // La supresión corre con la SESIÓN: la RPC decide por auth.uid(), no por un id que mande la acción.
     expect(servidorFalso.llamadasA("rpc:solicitar_supresion_propia")[0].cliente).toBe("sesion");
+    // Las reseñas públicas están cacheadas: el nombre de quien se va no debe quedarse en ellas.
+    expect(servidorFalso.revalidaciones).toEqual(["resenas-publicas"]);
+  });
+
+  it("si la supresión falla, no se vacía la caché de reseñas", async () => {
+    servidorFalso.responder("rpc:solicitar_supresion_propia", { error: { code: "XX000", message: "boom" } });
+
+    await eliminar();
+
+    expect(servidorFalso.revalidaciones).toEqual([]);
   });
 
   it("una cuenta ADMINISTRADOR (42501 de la RPC) recibe el mensaje de la base y no se cierra su sesión", async () => {
