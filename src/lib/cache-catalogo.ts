@@ -49,6 +49,12 @@ export const TAG_CATALOGO = "catalogo-publico";
  *  tirar la búsqueda entera. */
 export const TAG_CATEGORIAS = "categorias-publicas";
 
+/** Reseñas de la ficha pública del curso (lib/curso-calificaciones.ts). Tienen
+ *  etiqueta propia porque las mutan los estudiantes —crear, editar, borrar,
+ *  reaccionar—, no el panel de administración, y no tienen por qué vaciar el
+ *  catálogo. */
+export const TAG_RESENAS = "resenas-publicas";
+
 /** Red de seguridad por si una mutación nueva olvida invalidar (ver arriba). */
 export const REVALIDAR_SEGUNDOS = 300;
 
@@ -65,6 +71,12 @@ export const REVALIDAR_SEGUNDOS = 300;
  */
 export function revalidarCatalogoPublico() {
   revalidateTag(TAG_CATALOGO, { expire: 0 });
+}
+
+/** Vacía las reseñas cacheadas de las fichas públicas. Se llama desde las
+ *  acciones de reseñas (src/actions/cursos/calificaciones.ts). */
+export function revalidarResenasPublicas() {
+  revalidateTag(TAG_RESENAS, { expire: 0 });
 }
 
 /** Igual que la anterior, para el selector de categorías. Una categoría

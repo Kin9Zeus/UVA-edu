@@ -1,4 +1,10 @@
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { REVALIDAR_SEGUNDOS, TAG_CATALOGO } from "@/lib/cache-catalogo";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
@@ -80,12 +86,24 @@ export type CursoPublico = {
  * Resuelve un curso por slug o UUID (enlaces anteriores al cambio de rutas
  * siguen resolviendo por UUID) — mismo patrón que `resolverCategoria`
  * (lib/categoria.ts).
+ *
+ * Dos capas de reutilización, ambas al final del archivo:
+ *
+ * - `cache()` de React: la ficha y su `generateMetadata` la piden con los
+ *   mismos argumentos, y sin esto el bloque entero corría dos veces por
+ *   petición.
+ * - Sin sesión (`usuarioId === null`), además, el resultado se cachea entre
+ *   peticiones por la etiqueta del catálogo. Es la ficha que ven los
+ *   buscadores y todo visitante nuevo, y es idéntica para todos: sin usuario
+ *   no hay acceso, progreso ni "Seguir viendo" que la diferencien. Con
+ *   sesión NO se cachea nunca: depende de `auth.uid()` (RLS deja ver un curso
+ *   despublicado a quien tiene cortesía) y lleva el avance del estudiante.
  */
-export async function getCursoPublico(
+async function armarCursoPublico(
+  supabase: SupabaseClient,
   identificadorCurso: string,
   usuarioId: string | null,
 ): Promise<CursoPublico | null> {
-  const supabase = await createClient();
   const columnaCurso = esUuid(identificadorCurso) ? "id" : "slug";
 
   // Curso + categorías + módulos + lecciones en una sola consulta (embedding
@@ -199,7 +217,14 @@ export async function getCursoPublico(
   // lib/instructores.ts. Lanzar también por esto convertiría un permiso roto
   // en una sola vista —una migración, no una caída— en un 500 de todas las
   // fichas públicas hasta que alguien lo arregle.
-  const [{ count: totalRecursos, error: errorRecursos }, acceso, instructores] = await Promise.all([
+  //
+  // El progreso guardado en las clases del curso va en la misma ráfaga: solo
+  // necesita `leccionIds` y `usuarioId`, no el resultado del acceso. Sirve
+  // para el check ✓ del temario y para "Seguir viendo" (Revcurso). Sin
+  // `tieneAcceso` en la condición: el progreso es del estudiante y sobrevive
+  // al vencimiento — los ✓ y "Seguir viendo" tienen que seguir ahí cuando
+  // renueve, en la clase donde se quedó.
+  const [{ count: totalRecursos, error: errorRecursos }, acceso, instructores, progreso] = await Promise.all([
     leccionIds.length > 0
       ? supabase
           .from("recursos_descargables")
@@ -208,38 +233,32 @@ export async function getCursoPublico(
       : Promise.resolve({ count: 0, error: null }),
     obtenerAccesoAlCurso(supabase, usuarioId, cursoId),
     getInstructoresDeCurso(supabase, cursoId),
+    usuarioId && leccionIds.length > 0
+      ? supabase
+          .from("progreso")
+          .select("id_leccion, completado")
+          .eq("id_usuario", usuarioId)
+          .in("id_leccion", leccionIds)
+      : Promise.resolve({ data: null, error: null }),
   ]);
   if (errorRecursos) {
     logError("curso:ficha", "no se pudo contar los recursos del curso", errorRecursos, { area: "catalogo", cursoId });
   }
+  lanzarSiFalla(progreso.error, "getCursoPublico:progreso");
 
   const tieneAcceso = acceso.tieneAcceso;
   // Tuvo una suscripción y ya no le sirve: el temario se sigue viendo, pero
   // con candado, y el CTA invita a renovar en vez de a canjear por primera vez.
   const accesoVencido = !tieneAcceso && acceso.suscripcion !== null;
 
-  // Progreso guardado en las clases del curso: qué está completada (para el
-  // check ✓ del temario) y cuál es la primera sin completar (para "Seguir
-  // viendo" — Revcurso). Se usa el orden del temario, no "la última clase
-  // que se abrió": esa pudo haberse completado ya, y retomar ahí mandaría
-  // de vuelta a una clase terminada en vez de a la siguiente pendiente.
-  let progresoIniciado = false;
+  // Se usa el orden del temario, no "la última clase que se abrió": esa pudo
+  // haberse completado ya, y retomar ahí mandaría de vuelta a una clase
+  // terminada en vez de a la siguiente pendiente.
+  const progresoRows = progreso.data ?? [];
+  const progresoIniciado = progresoRows.length > 0;
   const completadoIds = new Set<string>();
-  // Sin `tieneAcceso` en la condición: el progreso es del estudiante y
-  // sobrevive al vencimiento — los ✓ del temario y "Seguir viendo" tienen
-  // que seguir ahí cuando renueve, en la clase donde se quedó.
-  if (usuarioId && leccionIds.length > 0) {
-    const { data: progresoRows, error: errorProgreso } = await supabase
-      .from("progreso")
-      .select("id_leccion, completado")
-      .eq("id_usuario", usuarioId)
-      .in("id_leccion", leccionIds);
-    lanzarSiFalla(errorProgreso, "getCursoPublico:progreso");
-
-    progresoIniciado = (progresoRows ?? []).length > 0;
-    for (const fila of progresoRows ?? []) {
-      if (fila.completado) completadoIds.add(fila.id_leccion as string);
-    }
+  for (const fila of progresoRows) {
+    if (fila.completado) completadoIds.add(fila.id_leccion as string);
   }
 
   // Un signPlaybackId() por clase, en paralelo: es una firma JWT local, no una
@@ -295,3 +314,45 @@ export async function getCursoPublico(
     leccionContinuarNumero,
   };
 }
+
+/**
+ * "No existe" no se cachea: `unstable_cache` guarda lo que la función
+ * DEVUELVE y descarta lo que LANZA, y la clave sale del texto de la URL.
+ * Devolver `null` ahí daría una entrada por cada slug inventado (el mismo
+ * problema que ya se evitó con el texto de búsqueda en lib/categoria.ts:
+ * entradas ilimitadas, generables con un bucle). Con este centinela, un slug
+ * que no existe cuesta una consulta, como antes, y no deja nada guardado.
+ */
+class CursoNoEncontrado extends Error {}
+
+const cursoPublicoAnonimoCacheado = unstable_cache(
+  async (identificadorCurso: string): Promise<CursoPublico> => {
+    // Cliente público (Anon Key, sin cookies): sin sesión el cliente de
+    // sesión también es el rol `anon`, así que RLS devuelve lo mismo.
+    const curso = await armarCursoPublico(createPublicClient(), identificadorCurso, null);
+    if (!curso) throw new CursoNoEncontrado();
+    return curso;
+  },
+  ["curso-publico-anonimo"],
+  { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
+);
+
+async function cargarCursoPublico(
+  identificadorCurso: string,
+  usuarioId: string | null,
+): Promise<CursoPublico | null> {
+  if (usuarioId !== null) return armarCursoPublico(await createClient(), identificadorCurso, usuarioId);
+
+  try {
+    return await cursoPublicoAnonimoCacheado(identificadorCurso);
+  } catch (error) {
+    if (error instanceof CursoNoEncontrado) return null;
+    // Lo que sea de Next (redirecciones, render dinámico) sube tal cual; un
+    // fallo real de la base también: la ficha responde 500 ("reintenta") y no
+    // 404, y nada se guardó (ver `lanzarSiFalla`).
+    unstable_rethrow(error);
+    throw error;
+  }
+}
+
+export const getCursoPublico = cache(cargarCursoPublico);

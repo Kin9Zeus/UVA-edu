@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { revalidarResenasPublicas } from "@/lib/cache-catalogo";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-calificaciones-validacion";
 import { DESDE_MAXIMO_RESENAS, getTandaCalificacionesCurso, type TandaCalificaciones } from "@/lib/curso-calificaciones";
@@ -26,6 +27,10 @@ export type CalificacionCursoResultado = { error: string } | { success: true };
  */
 function revalidarFichasDeCurso() {
   revalidatePath("/cursos/[cursoSlug]", "page");
+  // Las reseñas que ve un visitante sin sesión se sirven cacheadas
+  // (lib/curso-calificaciones.ts): sin esto, la reseña nueva tardaría hasta
+  // `REVALIDAR_SEGUNDOS` en aparecer para los demás.
+  revalidarResenasPublicas();
 }
 
 /**

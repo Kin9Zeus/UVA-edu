@@ -34,16 +34,23 @@ const leccion = (id: string, slug: string, orden: number) => ({
   estado_procesamiento: "LISTO",
 });
 
+/** Curso con sus módulos embebidos: es una sola consulta a `cursos`. */
+function respuestaCurso(lecciones: ReturnType<typeof leccion>[]) {
+  return {
+    data: {
+      id: "k1",
+      slug: "revit-desde-cero",
+      titulo: "Revit desde cero",
+      mostrado: true,
+      modulos: [{ id: "m1", titulo: "Módulo 1", orden: 10, lecciones }],
+    },
+    error: null,
+  };
+}
+
 /** `clase-2` no es la introducción pública: pasa por el muro de acceso. */
 function cursoConDosClases() {
-  servidorFalso.responder("from:cursos", {
-    data: { id: "k1", slug: "revit-desde-cero", titulo: "Revit desde cero", mostrado: true },
-    error: null,
-  });
-  servidorFalso.responder("from:modulos", {
-    data: [{ id: "m1", titulo: "Módulo 1", orden: 10, lecciones: [leccion("l1", "intro", 10), leccion("l2", "clase-2", 20)] }],
-    error: null,
-  });
+  servidorFalso.responder("from:cursos", respuestaCurso([leccion("l1", "intro", 10), leccion("l2", "clase-2", 20)]));
 }
 
 beforeEach(() => {
@@ -72,25 +79,14 @@ describe("getLeccionPlayer", () => {
   });
 
   it("el avance cuenta solo las clases con video listo, igual que Progreso y el certificado", async () => {
-    servidorFalso.responder("from:cursos", {
-      data: { id: "k1", slug: "revit-desde-cero", titulo: "Revit desde cero", mostrado: true },
-      error: null,
-    });
-    servidorFalso.responder("from:modulos", {
-      data: [
-        {
-          id: "m1",
-          titulo: "Módulo 1",
-          orden: 10,
-          lecciones: [
-            leccion("l1", "intro", 10),
-            leccion("l2", "clase-2", 20),
-            { ...leccion("l3", "clase-3", 30), estado_procesamiento: "ERROR" },
-          ],
-        },
-      ],
-      error: null,
-    });
+    servidorFalso.responder(
+      "from:cursos",
+      respuestaCurso([
+        leccion("l1", "intro", 10),
+        leccion("l2", "clase-2", 20),
+        { ...leccion("l3", "clase-3", 30), estado_procesamiento: "ERROR" },
+      ]),
+    );
     // l3 está marcada como completada pero su video falló: no suma.
     servidorFalso.responder("from:progreso", {
       data: [
@@ -130,10 +126,53 @@ describe("getLeccionPlayer", () => {
     expect(await getLeccionPlayer("revit-desde-cero", "clase-2", "u1")).toBeNull();
   });
 
+  it("una sola consulta trae curso y temario, y el embed no carga el documento de cada clase", async () => {
+    cursoConDosClases();
+
+    await getLeccionPlayer("revit-desde-cero", "clase-2", "u1");
+
+    expect(servidorFalso.llamadasA("from:cursos")).toHaveLength(1);
+    expect(servidorFalso.llamadasA("from:modulos")).toHaveLength(0);
+    const [seleccion] = servidorFalso.encadenado("from:cursos", "select")[0] as [string];
+    expect(seleccion).toContain("modulos(");
+    expect(seleccion).not.toMatch(/contenido|resumen/);
+  });
+
+  it("el documento sale de la clase que se ve, pedido por su id", async () => {
+    cursoConDosClases();
+    const documento = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hola" }] }] };
+    servidorFalso.responder("from:lecciones", { data: { contenido: documento, resumen: null }, error: null });
+
+    const data = await getLeccionPlayer("revit-desde-cero", "clase-2", "u1");
+
+    expect(servidorFalso.encadenado("from:lecciones", "eq")[0]).toEqual(["id", "l2"]);
+    expect(data?.contenido).toEqual(documento);
+  });
+
+  it("acceso, progreso, recursos y documento se piden juntos, no uno tras otro", async () => {
+    cursoConDosClases();
+    const orden: string[] = [];
+    vi.mocked(obtenerAccesoAlCurso).mockImplementationOnce(async () => {
+      orden.push("acceso:inicio");
+      await new Promise((resolver) => setTimeout(resolver, 5));
+      orden.push("acceso:fin");
+      return { tieneAcceso: true, tieneCortesia: false, suscripcion: null };
+    });
+    servidorFalso.responderSegun("from:progreso", () => {
+      orden.push("progreso");
+      return { data: [], error: null };
+    });
+
+    await getLeccionPlayer("revit-desde-cero", "clase-2", "u1");
+
+    // Si el progreso esperara al acceso, "progreso" saldría después de "acceso:fin".
+    expect(orden.indexOf("progreso")).toBeLessThan(orden.indexOf("acceso:fin"));
+  });
+
   it.each([
     ["cursos", "getLeccionPlayer:cursos"],
-    ["modulos", "getLeccionPlayer:modulos"],
     ["progreso", "getLeccionPlayer:progreso"],
+    ["lecciones", "getLeccionPlayer:contenido"],
   ])("si falla la consulta de %s: LANZA en vez de devolver null o un avance vacío", async (tabla, consulta) => {
     cursoConDosClases();
     servidorFalso.responder(`from:${tabla}`, { data: null, error: ERROR_PG });
