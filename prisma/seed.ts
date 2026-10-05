@@ -5,10 +5,12 @@
  *
  * Este script BORRA y RECREA datos. Nunca debe correr contra Producción.
  *
- * No hay forma fiable de distinguir un proyecto de Supabase de producción por
- * su URL (todos son https://<ref>.supabase.co, el `ref` es opaco), así que la
- * protección es explícita y de doble llave:
+ * El `ref` de Supabase es opaco (https://<ref>.supabase.co), así que la
+ * protección combina el ref conocido de Producción con llaves explícitas:
  *
+ *   0. Si la URL de Supabase o DATABASE_URL apuntan al ref de Producción
+ *      (REF_PRODUCCION, más abajo), aborta SIEMPRE, aunque ALLOW_SEED esté
+ *      puesto: cuentas, códigos y reseñas de prueba solo van a local/staging.
  *   1. La variable de entorno ALLOW_SEED debe valer exactamente "true".
  *      Si falta, el script aborta sin tocar nada. Deliberadamente NO se
  *      define en .env.local: tiene que escribirse a mano en cada ejecución,
@@ -80,6 +82,8 @@
  *   - 2 filas de progreso (una completada, una a mitad de video).
  *   - 1 certificado con código de verificación único.
  *   - 2 recursos descargables.
+ *   - 7 reseñas: 5 en Revit (llega al mínimo y muestra el promedio) y 2 en
+ *     V-Ray (por debajo del mínimo: solo comentarios).
  *
  * NO siembra:
  *   - `pagos` ni `cupones`: son artefactos de Stripe/Wompi, y el MVP del 12
@@ -106,7 +110,7 @@
  * UUID/códigos fijos para el resto. Nada fuera de eso se toca jamás.
  */
 import { config } from "dotenv";
-config({ path: ".env.local" });
+config({ path: process.env.ENV_FILE ?? ".env.local" });
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createClient } from "@supabase/supabase-js";
@@ -199,6 +203,7 @@ const B = {
   certificado: "1e000000",
   recurso: "1f000000",
   codigoInvitacion: "20000000",
+  calificacion: "21000000",
 };
 
 // ---------------------------------------------------------------------------
@@ -472,6 +477,14 @@ const supabaseAdmin = createClient(
 // Salvaguarda
 // ---------------------------------------------------------------------------
 
+/**
+ * Ref del proyecto Supabase de Producción. No es secreto (es el subdominio
+ * público de NEXT_PUBLIC_SUPABASE_URL). Va fijo en el código, no en una
+ * variable de entorno, para que olvidarse de configurarla no apague la
+ * protección. Si Producción cambia de proyecto, se actualiza aquí.
+ */
+const REF_PRODUCCION = "eoewtxnheblzsspnubvt";
+
 function verificarEntorno(): void {
   const faltantes = [
     "DATABASE_URL",
@@ -494,6 +507,14 @@ function verificarEntorno(): void {
   }
 
   const pistasProd = `${process.env.NEXT_PUBLIC_SUPABASE_URL} ${process.env.DATABASE_URL}`;
+  // DATABASE_URL también lo delata: el usuario del pooler es `postgres.<ref>`.
+  if (pistasProd.includes(REF_PRODUCCION)) {
+    console.error(
+      `\n❌ Este destino es el proyecto de Producción (${REF_PRODUCCION}). ` +
+        "Los datos de prueba solo se siembran en local o staging.\n"
+    );
+    process.exit(1);
+  }
   if (/prod/i.test(pistasProd)) {
     console.error(
       "\n❌ La URL de Supabase o DATABASE_URL contienen 'prod'. Abortado por precaución.\n"
@@ -614,9 +635,10 @@ const ID_CODIGO_CANJEADO = uuid(B.codigoInvitacion, 1);
 
 /**
  * Borra todo lo que este seed puede haber creado, en orden inverso a las
- * Foreign Keys. `cursos` cascadea a `modulos` y `lecciones` (y `lecciones` a
- * `progreso`), pero `recursos_descargables`, `certificados` e `inscripciones`
- * NO cascadean — hay que borrarlos antes a mano o el DELETE de cursos falla.
+ * Foreign Keys. `modulos` cascadea a `lecciones` (y `lecciones` a
+ * `progreso`), pero `modulos` (RESTRICT hacia cursos), `recursos_descargables`,
+ * `certificados` e `inscripciones` NO cascadean — hay que borrarlos antes a
+ * mano o el DELETE de cursos falla.
  */
 async function limpiar(): Promise<void> {
   console.log("🧹 Limpiando datos de seed previos…");
@@ -632,6 +654,22 @@ async function limpiar(): Promise<void> {
   await prisma.progreso.deleteMany({
     where: {
       OR: [{ id_usuario: { in: idsUsuarios } }, { leccion: enCursosSeed }],
+    },
+  });
+  // Reseñas antes que cursos y perfiles: `curso_calificaciones.id_usuario` no
+  // cascadea, y un usuario de prueba pudo calificar desde la app un curso que
+  // no es del seed. Sus "me gusta" caen en cascada con cada reseña, pero los
+  // que dio un usuario de prueba a reseñas ajenas no, y también bloquean.
+  await prisma.cursoCalificacionReacciones.deleteMany({
+    where: { id_usuario: { in: idsUsuarios } },
+  });
+  await prisma.cursoCalificaciones.updateMany({
+    where: { id_eliminado_por: { in: idsUsuarios } },
+    data: { id_eliminado_por: null },
+  });
+  await prisma.cursoCalificaciones.deleteMany({
+    where: {
+      OR: [{ id_usuario: { in: idsUsuarios } }, { id_curso: { in: IDS_CURSOS } }],
     },
   });
   await prisma.certificados.deleteMany({
@@ -685,6 +723,10 @@ async function limpiar(): Promise<void> {
   await prisma.bitacoraAdministrativa.deleteMany({
     where: { id_admin: { in: idsUsuarios } },
   });
+  // `modulos.id_curso` es ON DELETE RESTRICT desde 83a9a06 (un curso con
+  // contenido no se borra por accidente desde el CMS), así que los módulos
+  // van antes que el curso. Ellos sí cascadean a `lecciones`.
+  await prisma.modulos.deleteMany({ where: { id_curso: { in: IDS_CURSOS } } });
   await prisma.cursos.deleteMany({ where: { id: { in: IDS_CURSOS } } });
   // Después de cursos, nunca antes: `cursos.id_instructor` es una FK con
   // ON DELETE RESTRICT, así que Postgres bloquea el borrado de un instructor
@@ -1195,7 +1237,31 @@ async function sembrar(): Promise<void> {
   });
   console.log("📎 2 recursos descargables");
 
-  void idSuspendido; // referenciado arriba en la suscripción VENCIDA
+  // --- Reseñas -------------------------------------------------------------
+  // Revit llega justo al mínimo (MINIMO_RESENAS_PROMEDIO = 5) y muestra el
+  // promedio; V-Ray se queda por debajo y solo lista los comentarios. Así se
+  // ven los dos estados de la ficha. Solo existen porque el seed nunca corre
+  // contra Producción (ver verificarEntorno()).
+  const resenas = [
+    { curso: 0, usuario: idActivo, puntuacion: 5, comentario: "Por fin entendí cómo armar las planchas para licencia sin pelear con el cajetín." },
+    { curso: 0, usuario: idSinPlan, puntuacion: 4, comentario: "Muy claro en muros compuestos. Le faltó un poco más de escaleras." },
+    { curso: 0, usuario: idPastDue, puntuacion: 5, comentario: null },
+    { curso: 0, usuario: idPorCodigo, puntuacion: 4, comentario: "Buen ritmo, aunque el módulo de documentación va rápido." },
+    { curso: 0, usuario: idSuspendido, puntuacion: 5, comentario: null },
+    { curso: 2, usuario: idActivo, puntuacion: 4, comentario: "La parte de HDRI me sirvió de inmediato en un proyecto." },
+    { curso: 2, usuario: idSinPlan, puntuacion: 3, comentario: null },
+  ];
+  await prisma.cursoCalificaciones.createMany({
+    data: resenas.map((r, i) => ({
+      id: uuid(B.calificacion, i + 1),
+      id_curso: IDS_CURSOS[r.curso],
+      id_usuario: r.usuario,
+      puntuacion: r.puntuacion,
+      comentario: r.comentario,
+      creado_en: enDias(-(i + 1) * 3),
+    })),
+  });
+  console.log("⭐ 7 reseñas (5 en Revit: muestra promedio · 2 en V-Ray: por debajo del mínimo)");
 }
 
 // ---------------------------------------------------------------------------
@@ -1234,6 +1300,9 @@ async function resumen(): Promise<void> {
     }),
     recursos: await prisma.recursosDescargables.count({
       where: { leccion: { modulo: { id_curso: { in: IDS_CURSOS } } } },
+    }),
+    resenas: await prisma.cursoCalificaciones.count({
+      where: { id_curso: { in: IDS_CURSOS } },
     }),
   };
 
