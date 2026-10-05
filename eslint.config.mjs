@@ -18,6 +18,10 @@ const eslintConfig = defineConfig([
     // el equipo escriba o mantenga.
     "design-spec/**",
     "design-spec-errores/**",
+    // El repo se abre como vault de Obsidian (CLAUDE.md §6): `.obsidian/`
+    // trae los plugins empaquetados de terceros y está en .gitignore. Sin
+    // esto, `npm run lint` reportaba 169 errores que no son del proyecto.
+    ".obsidian/**",
     "src/generated/**",
   ]),
 ]);

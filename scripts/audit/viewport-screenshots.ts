@@ -1,5 +1,5 @@
 /**
- * Captura full-page screenshots de cada ruta pública en 5 anchos de
+ * Captura full-page screenshots de cada ruta pública en 6 anchos de
  * viewport, para revisar visualmente el responsive sin abrir cada pantalla
  * a mano en devtools.
  *
@@ -21,7 +21,7 @@ import { chromium } from "@playwright/test";
 import { crawlRoutes, assertBaseUrlReachable, sanitizeRouteForFilename } from "./lib/route-crawler";
 
 const DEFAULT_BASE_URL = "https://uva-edu-production.up.railway.app";
-const ANCHOS = [320, 375, 768, 1024, 1440];
+const ANCHOS = [320, 375, 768, 1024, 1440, 2560];
 const ALTO = 900;
 const TIMEOUT_MS = 10_000;
 
