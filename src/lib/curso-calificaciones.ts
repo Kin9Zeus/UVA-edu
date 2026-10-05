@@ -23,6 +23,11 @@ export const RESENAS_POR_TANDA = 9;
  * no es un uso real, solo una consulta cara a pedido de cualquiera. */
 export const DESDE_MAXIMO_RESENAS = 5_000;
 
+/** Por debajo de esto el promedio no se muestra (ni en la ficha ni en el
+ * JSON-LD): con 2 o 3 opiniones es ruido, y si son del propio equipo, una
+ * cifra que resta credibilidad. Las reseñas sí se listan. */
+export const MINIMO_RESENAS_PROMEDIO = 5;
+
 export type CalificacionesCurso = {
   promedio: number | null;
   total: number;
@@ -185,9 +190,10 @@ export async function getCalificacionesCurso(
     propiaEnLaTanda ??
     (filaPropia ? (await completarReseñas(supabase, [filaPropia as FilaCalificacion], usuarioId))[0] : null);
 
+  const total = resumen?.total ?? 0;
   return {
-    promedio: resumen?.promedio ?? null,
-    total: resumen?.total ?? 0,
+    promedio: total >= MINIMO_RESENAS_PROMEDIO ? (resumen?.promedio ?? null) : null,
+    total,
     reseñas: primeraTanda.reseñas,
     hayMas: primeraTanda.hayMas,
     miCalificacion,

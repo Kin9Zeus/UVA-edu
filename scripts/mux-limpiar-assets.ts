@@ -40,7 +40,7 @@
  * de monitoreo (¿la cola se está vaciando o se está acumulando?).
  */
 
-process.loadEnvFile(".env.local");
+process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 
 import { createClient } from "@supabase/supabase-js";
 import Mux, { NotFoundError } from "@mux/mux-node";

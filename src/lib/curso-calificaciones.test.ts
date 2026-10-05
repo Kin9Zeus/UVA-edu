@@ -4,7 +4,7 @@ import { servidorFalso, type LlamadaRegistrada } from "@/test/servidor-falso";
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
-import { getCalificacionesCurso, getTandaCalificacionesCurso, RESENAS_POR_TANDA } from "@/lib/curso-calificaciones";
+import { getCalificacionesCurso, getTandaCalificacionesCurso, MINIMO_RESENAS_PROMEDIO, RESENAS_POR_TANDA } from "@/lib/curso-calificaciones";
 import { logError } from "@/lib/log";
 
 /**
@@ -126,6 +126,26 @@ describe("getCalificacionesCurso", () => {
 
     expect(datos).toMatchObject({ promedio: 4.5, total: 40, hayMas: true, miCalificacion: null });
     expect(datos.reseñas).toHaveLength(RESENAS_POR_TANDA);
+  });
+
+  it("por debajo del mínimo no hay promedio, pero sí total y reseñas", async () => {
+    servidorFalso.responder("from:curso_calificaciones_resumen", {
+      data: { promedio: 4.67, total: MINIMO_RESENAS_PROMEDIO - 1 },
+    });
+    servidorFalso.responder("from:curso_calificaciones", { data: filas(0, 3) });
+
+    const datos = await getCalificacionesCurso(CURSO, null);
+
+    expect(datos).toMatchObject({ promedio: null, total: MINIMO_RESENAS_PROMEDIO - 1 });
+    expect(datos.reseñas).toHaveLength(3);
+  });
+
+  it("con exactamente el mínimo ya muestra el promedio", async () => {
+    servidorFalso.responder("from:curso_calificaciones_resumen", {
+      data: { promedio: 4.2, total: MINIMO_RESENAS_PROMEDIO },
+    });
+
+    expect(await getCalificacionesCurso(CURSO, null)).toMatchObject({ promedio: 4.2 });
   });
 
   it("sin sesión no busca reseña propia", async () => {

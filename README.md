@@ -45,7 +45,9 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    nuevo deploy. Ver la sección "Contenido público y precios".
 
    `DATABASE_URL` y las claves de Supabase salen del panel del proyecto
-   (Project Settings → API / Database). Las de Mux, Stripe, Wompi y Resend
+   (Project Settings → API / Database). **En local van las del proyecto de
+   staging** (`tmvmthdwapegypveaosd`), nunca las de producción: la app
+   desplegada toma las suyas del panel de Railway. Las de Mux, Stripe, Wompi y Resend
    solo son necesarias para probar esos flujos puntuales — el resto de la
    app funciona sin ellas.
 
@@ -189,7 +191,34 @@ npm run lint
 Todos los scripts (`scripts/*.ts`) tienen su propio comentario de cabecera
 con el detalle completo — esto es solo el mapa para saber cuál buscar. La
 mayoría corre contra `DATABASE_URL`/las claves de Supabase de `.env.local`,
-así que apunta al mismo proyecto que tengas configurado.
+así que apunta al mismo proyecto que tengas configurado (staging).
+
+Para correr uno contra producción a propósito, guarda las variables de
+producción en `.env.produccion.local` (git lo ignora) y elígelo con
+`ENV_FILE`:
+
+```bash
+ENV_FILE=.env.produccion.local npm run db:limpiar-resenas-prueba      # bash
+$env:ENV_FILE=".env.produccion.local"; npm run db:limpiar-resenas-prueba  # PowerShell
+```
+
+En PowerShell la variable queda puesta en esa terminal: ciérrala o corre
+`Remove-Item Env:ENV_FILE` al terminar. El seed nunca corre contra
+producción, aunque se elija con `ENV_FILE`.
+
+Los comandos de Prisma (`prisma.config.ts`) también leen `ENV_FILE`. Un
+cambio de base llega a producción así, **antes** de fusionar el código que
+lo usa:
+
+```bash
+ENV_FILE=.env.produccion.local npx prisma migrate status   # solo mira qué falta
+ENV_FILE=.env.produccion.local npm run prisma:deploy       # aplica las migraciones pendientes
+ENV_FILE=.env.produccion.local npm run db:rls:check        # prueba los scripts SQL y revierte
+ENV_FILE=.env.produccion.local npm run db:rls              # los aplica
+```
+
+`npm run prisma:migrate` (`migrate dev`) es solo para staging: puede
+ofrecer borrar la base si detecta diferencias.
 
 **Base de datos y RLS**
 
