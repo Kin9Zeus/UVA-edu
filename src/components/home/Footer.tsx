@@ -6,8 +6,7 @@ import {
   SpotifyIcon,
   TiktokIcon,
 } from "@/components/home/icons";
-import { createPublicClient } from "@/lib/supabase/public";
-import { logError } from "@/lib/log";
+import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
 import { urlWhatsapp } from "@/lib/contacto";
@@ -70,31 +69,15 @@ const linkClass =
 export async function Footer({
   conBotonWhatsApp = false,
 }: { conBotonWhatsApp?: boolean } = {}) {
-  const supabase = createPublicClient();
-
-  // No hay filtro explícito acá porque lo aplica RLS: la policy
-  // `categorias_select_publico` vigente es la de supabase/sql/005
-  // (`activo = true or private.es_administrador()`), que reemplaza al
-  // `using (true)` original de 004. Como este cliente es anónimo (Anon Key,
-  // sin sesión), la rama de administrador nunca se cumple y el footer lista
-  // solo las categorías activas. Solo se pide un orden estable por nombre —
-  // `categorias` no tiene columna `orden` en el esquema.
-  //
-  // Y solo las que tienen al menos un curso publicado (`!inner`): una escuela
-  // vacía en el pie lleva a una página sin cursos y anuncia una oferta que
-  // todavía no existe. `mostrado` explícito, aunque RLS ya lo aplica al
-  // cliente anónimo, para que no dependa de eso.
-  const { data, error } = await supabase
-    .from("categorias")
-    .select("id, slug, nombre, curso_categorias!inner(curso:cursos!inner(id))")
-    .eq("curso_categorias.curso.mostrado", true)
-    .order("nombre", { ascending: true });
-
-  if (error) {
-    logError("Home/Footer", "No se pudieron cargar las categorías", error);
-  }
-
-  const escuelas = data ?? [];
+  // Las escuelas del pie son exactamente las del filtro del catálogo:
+  // categorías activas con al menos un curso publicado (una escuela vacía lleva
+  // a una página sin cursos y anuncia una oferta que todavía no existe),
+  // ordenadas por nombre. Salen de la misma lectura cacheada y con su misma
+  // invalidación (lib/categoria.ts, lib/cache-catalogo.ts) en vez de una
+  // consulta propia en cada página que monta el pie — que son todas las
+  // públicas. Ante un fallo `getCategoriasActivas` ya lo registra y devuelve
+  // `[]`, sin cachearlo: la columna se omite.
+  const escuelas = await getCategoriasActivas();
 
   return (
     <footer

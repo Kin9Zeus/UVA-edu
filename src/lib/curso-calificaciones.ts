@@ -1,4 +1,9 @@
+import { unstable_cache } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_RESENAS } from "@/lib/cache-catalogo";
 import { tiempoRelativo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
 
@@ -60,18 +65,26 @@ const COLUMNAS_CALIFICACION = "id, id_usuario, puntuacion, comentario, creado_en
  * (AUDIT-2026-09-22.md, seguimiento de P2-3): antes el fallo no dejaba
  * rastro, y un permiso roto en una de las vistas públicas podía pasar
  * semanas como "este curso todavía no tiene reseñas".
+ *
+ * `estado.fallo` queda en `true` si alguna consulta falló: quien cachea el
+ * resultado lo usa para no guardar una versión degradada (ver
+ * `calificacionesAnonimasCacheadas`).
  */
-function registrarFallo(consulta: string, error: unknown): void {
+type EstadoLectura = { fallo: boolean };
+
+function registrarFallo(consulta: string, error: unknown, estado?: EstadoLectura): void {
   if (!error) return;
+  if (estado) estado.fallo = true;
   logError("curso:calificaciones", `falló la consulta de reseñas (${consulta})`, error, { area: "catalogo", consulta });
 }
 
 /** Autor (vista pública) y "me gusta" SOLO de las filas recibidas: una
  * tanda, no todas las reseñas del curso. */
 async function completarReseñas(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   filas: FilaCalificacion[],
   usuarioId: string | null,
+  estado?: EstadoLectura,
 ): Promise<CalificacionCurso[]> {
   if (filas.length === 0) return [];
 
@@ -82,8 +95,8 @@ async function completarReseñas(
     supabase.from("curso_calificacion_autor_publico").select("id, nombre, foto_url").in("id", idsAutores),
     supabase.from("curso_calificacion_reacciones").select("id_calificacion, id_usuario").in("id_calificacion", idsCalificaciones),
   ]);
-  registrarFallo("autores", errorAutores);
-  registrarFallo("reacciones", errorReacciones);
+  registrarFallo("autores", errorAutores, estado);
+  registrarFallo("reacciones", errorReacciones, estado);
 
   const nombrePorAutorId = new Map((autores ?? []).map((a) => [a.id, a.nombre]));
   const fotoPorAutorId = new Map((autores ?? []).map((a) => [a.id, a.foto_url]));
@@ -128,8 +141,11 @@ export async function getTandaCalificacionesCurso(
   cursoId: string,
   usuarioId: string | null,
   desde: number,
+  /** Solo para la lectura cacheada sin sesión (cliente público) — ver `getCalificacionesCurso`. */
+  lectura?: { supabase: SupabaseClient; estado: EstadoLectura },
 ): Promise<TandaCalificaciones> {
-  const supabase = await createClient();
+  const supabase = lectura?.supabase ?? (await createClient());
+  const estado = lectura?.estado;
   const { data, error } = await supabase
     .from("curso_calificaciones")
     .select(COLUMNAS_CALIFICACION)
@@ -138,11 +154,11 @@ export async function getTandaCalificacionesCurso(
     .order("creado_en", { ascending: false })
     .order("id", { ascending: false })
     .range(desde, desde + RESENAS_POR_TANDA);
-  registrarFallo("tanda", error);
+  registrarFallo("tanda", error, estado);
 
   const filas = (data ?? []) as FilaCalificacion[];
   return {
-    reseñas: await completarReseñas(supabase, filas.slice(0, RESENAS_POR_TANDA), usuarioId),
+    reseñas: await completarReseñas(supabase, filas.slice(0, RESENAS_POR_TANDA), usuarioId, estado),
     hayMas: filas.length > RESENAS_POR_TANDA,
   };
 }
@@ -157,16 +173,19 @@ export async function getTandaCalificacionesCurso(
  * Trae solo la primera tanda (P2-10): antes traía todas las reseñas del curso
  * con todas sus reacciones, en cada visita a una ficha pública. El promedio
  * y el total siguen saliendo del resumen, así que el JSON-LD no cambia.
+ *
+ * Sin sesión se sirve cacheada entre peticiones (ver más abajo); con sesión
+ * no, porque lleva la reseña propia y los "me gusta" de quien mira.
  */
-export async function getCalificacionesCurso(
+async function armarCalificaciones(
+  supabase: SupabaseClient,
   cursoId: string,
   usuarioId: string | null,
+  estado: EstadoLectura,
 ): Promise<CalificacionesCurso> {
-  const supabase = await createClient();
-
   const [{ data: resumen, error: errorResumen }, primeraTanda, { data: filaPropia, error: errorPropia }] = await Promise.all([
     supabase.from("curso_calificaciones_resumen").select("promedio, total").eq("id_curso", cursoId).maybeSingle(),
-    getTandaCalificacionesCurso(cursoId, usuarioId, 0),
+    getTandaCalificacionesCurso(cursoId, usuarioId, 0, { supabase, estado }),
     usuarioId
       ? supabase
           .from("curso_calificaciones")
@@ -177,13 +196,13 @@ export async function getCalificacionesCurso(
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-  registrarFallo("resumen", errorResumen);
-  registrarFallo("propia", errorPropia);
+  registrarFallo("resumen", errorResumen, estado);
+  registrarFallo("propia", errorPropia, estado);
 
   const propiaEnLaTanda = filaPropia ? primeraTanda.reseñas.find((reseña) => reseña.id === filaPropia.id) : undefined;
   const miCalificacion =
     propiaEnLaTanda ??
-    (filaPropia ? (await completarReseñas(supabase, [filaPropia as FilaCalificacion], usuarioId))[0] : null);
+    (filaPropia ? (await completarReseñas(supabase, [filaPropia as FilaCalificacion], usuarioId, estado))[0] : null);
 
   return {
     promedio: resumen?.promedio ?? null,
@@ -192,4 +211,53 @@ export async function getCalificacionesCurso(
     hayMas: primeraTanda.hayMas,
     miCalificacion,
   };
+}
+
+/**
+ * Una lectura DEGRADADA (alguna consulta falló, así que faltan promedio,
+ * autores o "me gusta") no se guarda: `unstable_cache` guarda lo que la
+ * función devuelve y descarta lo que lanza, así que la degradada se lanza
+ * dentro y se recoge afuera. La ficha sigue mostrándola, como siempre, pero
+ * la siguiente visita vuelve a intentar en vez de servir el hueco cinco
+ * minutos.
+ */
+class CalificacionesDegradadas extends Error {
+  constructor(readonly resultado: CalificacionesCurso) {
+    super("lectura de reseñas degradada");
+  }
+}
+
+/**
+ * Sin sesión, cacheada por curso y con dos etiquetas: `TAG_RESENAS` (la
+ * vacían las acciones de reseñas y el borrado de cuenta) y `TAG_CATALOGO`
+ * (publicar u ocultar un curso cambia qué reseñas se ven). La clave es el id
+ * de un curso que ya se encontró, no texto de la URL: el conjunto de claves
+ * es el de los cursos publicados.
+ */
+const calificacionesAnonimasCacheadas = unstable_cache(
+  async (cursoId: string): Promise<CalificacionesCurso> => {
+    const estado: EstadoLectura = { fallo: false };
+    const resultado = await armarCalificaciones(createPublicClient(), cursoId, null, estado);
+    if (estado.fallo) throw new CalificacionesDegradadas(resultado);
+    return resultado;
+  },
+  ["calificaciones-curso-anonimas"],
+  { tags: [TAG_RESENAS, TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
+);
+
+export async function getCalificacionesCurso(
+  cursoId: string,
+  usuarioId: string | null,
+): Promise<CalificacionesCurso> {
+  if (usuarioId !== null) {
+    return armarCalificaciones(await createClient(), cursoId, usuarioId, { fallo: false });
+  }
+
+  try {
+    return await calificacionesAnonimasCacheadas(cursoId);
+  } catch (error) {
+    if (error instanceof CalificacionesDegradadas) return error.resultado;
+    unstable_rethrow(error);
+    throw error;
+  }
 }

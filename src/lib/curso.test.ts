@@ -7,7 +7,10 @@ import { servidorFalso } from "@/test/servidor-falso";
  * `null` y la página respondía 404, también durante una caída de Supabase.
  */
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
+vi.mock("@/lib/supabase/public", () => import("@/test/servidor-falso").then((m) => m.moduloSupabasePublic()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
+vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
+vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.moduloNextNavigation()));
 vi.mock("@/lib/accesoCurso", () => ({
   obtenerAccesoAlCurso: vi.fn(async () => ({ tieneAcceso: false, tieneCortesia: false, suscripcion: null })),
 }));
@@ -61,6 +64,25 @@ describe("getCursoPublico", () => {
       categorias: [{ id: "c1", slug: "bim", nombre: "BIM" }],
     });
     expect(curso?.modulos[0].lecciones[0].miniaturaUrl).toBe("https://image.mux.com/miniatura.jpg");
+  });
+
+  it("sin sesión lee con el cliente público (cacheable); con sesión, con el de sesión", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+
+    await getCursoPublico("revit-desde-cero", null);
+    expect(servidorFalso.clientesCreados).toMatchObject({ sesion: 0, publico: 1 });
+
+    await getCursoPublico("revit-desde-cero", "u1");
+    expect(servidorFalso.clientesCreados).toMatchObject({ sesion: 1, publico: 1 });
+  });
+
+  it("sin sesión no se consulta el progreso ni se usa nada del usuario", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+
+    const curso = await getCursoPublico("revit-desde-cero", null);
+
+    expect(servidorFalso.llamadasA("from:progreso")).toHaveLength(0);
+    expect(curso).toMatchObject({ tieneAcceso: false, progresoIniciado: false, leccionContinuarId: null });
   });
 
   it("no existe (o RLS no deja verlo): null, y la página hará notFound() (404)", async () => {
