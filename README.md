@@ -132,8 +132,9 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    ```
 
    Abrir [http://localhost:3000](http://localhost:3000). Credenciales de
-   prueba: cualquier correo `@uva.test` sembrado, contraseña `UvaSeed2026!`
-   (ver la tabla completa en `prisma/README.md`).
+   prueba: cualquier correo `@uva.test` sembrado, la contraseña la imprime el seed al
+   terminar (o la fijas con `SEED_PASSWORD` en `.env.local`). Tabla completa en
+   `prisma/README.md`.
 
 ## Por qué dos sistemas de migraciones
 
