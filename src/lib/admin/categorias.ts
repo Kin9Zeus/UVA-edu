@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CursoDeCategoria = { id: string; slug: string; titulo: string; mostrado: boolean };
 
@@ -33,13 +34,15 @@ type FilaCurso = {
 export async function getCategorias(): Promise<Categoria[]> {
   const supabase = await createClient();
 
-  const [{ data: categorias }, { data: cursosPorCategoriaRows }] = await Promise.all([
+  const [{ data: categorias, error: errorCategorias }, { data: cursosPorCategoriaRows, error: errorCursosPorCategoriaRows }] = await Promise.all([
     supabase
       .from("categorias")
       .select("id, slug, nombre, descripcion, activo, admin_creador:perfiles(nombre)")
       .order("nombre", { ascending: true }),
     supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, slug, titulo, mostrado)"),
   ]);
+  lanzarSiFalla(errorCategorias, "categorias:categorias+curso_categorias");
+  lanzarSiFalla(errorCursosPorCategoriaRows, "categorias:categorias+curso_categorias");
 
   const cursosPorCategoria = new Map<string, FilaCurso[]>();
   for (const fila of cursosPorCategoriaRows ?? []) {

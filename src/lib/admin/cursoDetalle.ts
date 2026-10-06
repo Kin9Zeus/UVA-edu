@@ -4,6 +4,7 @@ import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/
 import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado, type EstadoCursoConExamen } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type RecursoDetalle = {
   id: string;
@@ -117,31 +118,34 @@ export async function resolverCursoAdmin(
   identificador: string,
 ): Promise<{ id: string; slug: string } | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("cursos")
     .select("id, slug")
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .maybeSingle();
+  lanzarSiFalla(errorData, "cursoDetalle:cursos");
   return data as { id: string; slug: string } | null;
 }
 
 export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | null> {
   const supabase = await createClient();
 
-  const { data: curso } = await supabase
+  const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
     .select(
       "id, titulo, descripcion, imagen_portada, nivel, mostrado, destacado, orden_visualizacion",
     )
     .eq("id", cursoId)
-    .single();
+    .maybeSingle();
+  lanzarSiFalla(errorCurso, "cursoDetalle:cursos");
 
   if (!curso) return null;
 
-  const { data: categoriasCurso } = await supabase
+  const { data: categoriasCurso, error: errorCategoriasCurso } = await supabase
     .from("curso_categorias")
     .select("id_categoria")
     .eq("id_curso", cursoId);
+  lanzarSiFalla(errorCategoriasCurso, "cursoDetalle:curso_categorias");
 
   // Consulta aparte, no un embed: los datos del profesor viven en `perfiles` y
   // se leen por `curso_instructores_publico` — ver lib/instructores.ts.
@@ -150,21 +154,23 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   // Solo los vigentes: los revocados y los caducados se filtran en la
   // consulta para que el panel no liste enlaces que ya no abren nada. Las
   // filas siguen en la base como rastro (ver 025_rls_tokens_vista_previa).
-  const { data: enlaces } = await supabase
+  const { data: enlaces, error: errorEnlaces } = await supabase
     .from("tokens_vista_previa")
     .select("id, expira_en, veces_usado, creado_en")
     .eq("id_curso", cursoId)
     .is("revocado_en", null)
     .gt("expira_en", new Date().toISOString())
     .order("creado_en", { ascending: false });
+  lanzarSiFalla(errorEnlaces, "cursoDetalle:tokens_vista_previa");
 
-  const { data: modulos } = await supabase
+  const { data: modulos, error: errorModulos } = await supabase
     .from("modulos")
     .select(
       "id, titulo, orden, lecciones(id, titulo, orden, duracion, resumen, contenido, estado_procesamiento, error_procesamiento, id_mux_upload_id, id_video_mux, recursos_descargables(id, nombre, tipo_archivo, tamano_bytes))",
     )
     .eq("id_curso", cursoId)
     .order("orden");
+  lanzarSiFalla(errorModulos, "cursoDetalle:modulos");
 
   const modulosSinProgreso = (modulos ?? []).map((modulo) => ({
     id: modulo.id,
@@ -207,20 +213,22 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     ),
   );
 
-  const { data: inscripciones } = await supabase
+  const { data: inscripciones, error: errorInscripciones } = await supabase
     .from("inscripciones")
     // Hint de FK explícito: inscripciones tiene dos relaciones hacia perfiles
     // (id_usuario y otorgado_por), así que `perfiles(nombre)` sin desambiguar
     // es un embed ambiguo para PostgREST y la query falla en silencio.
     .select("id, id_usuario, tipo_acceso, activo, usuario:perfiles!inscripciones_id_usuario_fkey(nombre, slug)")
     .eq("id_curso", cursoId);
+  lanzarSiFalla(errorInscripciones, "cursoDetalle:inscripciones");
 
-  const [{ data: progreso }, { data: notasPorNivel, error: errorNotas }] = await Promise.all([
+  const [{ data: progreso, error: errorProgreso }, { data: notasPorNivel, error: errorNotas }] = await Promise.all([
     leccionIds.length > 0
       ? supabase.from("progreso").select("id_usuario, id_leccion, completado").in("id_leccion", leccionIds)
-      : Promise.resolve({ data: [] as { id_usuario: string; id_leccion: string; completado: boolean }[] }),
+      : Promise.resolve({ data: [] as { id_usuario: string; id_leccion: string; completado: boolean }[], error: null }),
     supabase.rpc("admin_notas_por_leccion", { p_id_curso: cursoId }),
   ]);
+  lanzarSiFalla(errorProgreso, "cursoDetalle:progreso+admin_notas_por_leccion");
   // Si el conteo falla, el aviso sale sin la línea de notas: el borrado no
   // depende de esto, pero conviene enterarse.
   if (errorNotas) {
@@ -267,20 +275,22 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   // getEstadoExamenPorCurso está pensada para varios cursos y un usuario, así
   // que acá se invierte —un curso, varios usuarios— con una sola lectura de
   // los intentos aprobados.
-  const { data: examenDelCurso } = await supabase
+  const { data: examenDelCurso, error: errorExamenDelCurso } = await supabase
     .from("examenes")
     .select("id")
     .eq("id_curso", cursoId)
     .eq("publicado", true)
     .maybeSingle();
+  lanzarSiFalla(errorExamenDelCurso, "cursoDetalle:examenes");
 
-  const { data: intentosAprobados } = examenDelCurso
+  const { data: intentosAprobados, error: errorIntentosAprobados } = examenDelCurso
     ? await supabase
         .from("intentos_examen")
         .select("id_usuario")
         .eq("id_examen", examenDelCurso.id)
         .eq("estado", "APROBADO")
-    : { data: [] };
+    : { data: [], error: null };
+  lanzarSiFalla(errorIntentosAprobados, "cursoDetalle:intentos_examen");
 
   const aproboExamen = new Set((intentosAprobados ?? []).map((fila) => fila.id_usuario as string));
   const examenDe = (usuarioId: string) =>
@@ -330,10 +340,11 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   );
 
   if (usuarioIdsSinInscripcion.length > 0) {
-    const { data: perfilesSinInscripcion } = await supabase
+    const { data: perfilesSinInscripcion, error: errorPerfilesSinInscripcion } = await supabase
       .from("perfiles")
       .select("id, nombre, slug")
       .in("id", usuarioIdsSinInscripcion);
+    lanzarSiFalla(errorPerfilesSinInscripcion, "cursoDetalle:perfiles");
 
     for (const usuarioId of usuarioIdsSinInscripcion) {
       const agregados = progresoPorUsuario.get(usuarioId)!;

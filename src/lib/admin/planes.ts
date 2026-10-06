@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type PlanAdmin = {
   id: string;
@@ -19,13 +20,15 @@ export type PlanAdmin = {
 export async function getPlanesAdmin(): Promise<PlanAdmin[]> {
   const supabase = await createClient();
 
-  const [{ data: planes }, { data: suscripciones }] = await Promise.all([
+  const [{ data: planes, error: errorPlanes }, { data: suscripciones, error: errorSuscripciones }] = await Promise.all([
     supabase
       .from("planes")
       .select("id, nombre, descripcion, precio_centavos, moneda, duracion_dias, nivel_acceso, activo, orden")
       .order("orden", { ascending: true }),
     supabase.from("suscripciones").select("id_plan, estado").in("estado", ["ACTIVA", "PAST_DUE"]),
   ]);
+  lanzarSiFalla(errorPlanes, "planes:planes+suscripciones");
+  lanzarSiFalla(errorSuscripciones, "planes:planes+suscripciones");
 
   const vigentesPorPlan = new Map<string, number>();
   for (const fila of suscripciones ?? []) {

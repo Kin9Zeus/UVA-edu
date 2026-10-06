@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Registra una acción administrativa en bitacora_administrativa
@@ -158,17 +159,20 @@ export async function getBitacora(
   const idsCurso = idsDe(ENTIDADES_CON_FICHA_DE_CURSO);
   const idsPost = idsDe(ENTIDADES_CON_FICHA_DE_POST);
 
-  const [{ data: perfiles }, { data: cursos }, { data: posts }] = await Promise.all([
+  const [{ data: perfiles, error: errorPerfiles }, { data: cursos, error: errorCursos }, { data: posts, error: errorPosts }] = await Promise.all([
     idsUsuario.length
       ? supabase.from("perfiles").select("id, nombre, slug").in("id", idsUsuario)
-      : Promise.resolve({ data: [] as { id: string; nombre: string; slug: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; nombre: string; slug: string }[], error: null }),
     idsCurso.length
       ? supabase.from("cursos").select("id, slug").in("id", idsCurso)
-      : Promise.resolve({ data: [] as { id: string; slug: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; slug: string }[], error: null }),
     idsPost.length
       ? supabase.from("comunidad_posts").select("id, slug").in("id", idsPost)
-      : Promise.resolve({ data: [] as { id: string; slug: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; slug: string }[], error: null }),
   ]);
+  lanzarSiFalla(errorPerfiles, "bitacora:perfiles+cursos+comunidad_posts");
+  lanzarSiFalla(errorCursos, "bitacora:perfiles+cursos+comunidad_posts");
+  lanzarSiFalla(errorPosts, "bitacora:perfiles+cursos+comunidad_posts");
 
   const nombresPorId = new Map<string, string>();
   const slugPorId = new Map<string, string>();

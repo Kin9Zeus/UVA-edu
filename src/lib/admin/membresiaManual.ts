@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * La suscripción que ya ocupa el cupo único ACTIVA/PAST_DUE del usuario
@@ -62,13 +63,14 @@ export async function buscarMembresiaVigente(
   // `.limit(1)` no es una elección arbitraria: el índice parcial garantiza
   // como máximo UNA fila ACTIVA/PAST_DUE por usuario, así que si hay más de
   // una la base ya está corrupta y no es este el sitio donde detectarlo.
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("suscripciones")
     .select("estado, fecha_renovacion, acceso_manual, plan:planes(nombre)")
     .eq("id_usuario", usuarioId)
     .in("estado", ["ACTIVA", "PAST_DUE"])
     .limit(1)
     .maybeSingle();
+  lanzarSiFalla(errorData, "membresiaManual:suscripciones");
 
   if (!data) return null;
 

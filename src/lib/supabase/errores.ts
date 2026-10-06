@@ -31,7 +31,7 @@
  * producción Next solo manda el `digest` al cliente.
  */
 export function lanzarSiFalla(
-  error: { message?: string; code?: string } | null,
+  error: { message?: string; code?: string } | null | undefined,
   consulta: string,
 ): void {
   if (!error) return;

@@ -6,6 +6,7 @@ import {
   type OpcionPregunta,
   type PreguntaCompleta,
 } from "@/lib/examenes/tipos";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Lectura del examen de un curso para el panel de administración.
@@ -105,7 +106,7 @@ function parsearOpciones(valor: unknown): OpcionPregunta[] | null {
 export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle | null> {
   const supabase = await createClient();
 
-  const { data: examen } = await supabase
+  const { data: examen, error: errorExamen } = await supabase
     .from("examenes")
     .select(
       `id, titulo, instrucciones, intentos_maximos, minutos_limite,
@@ -116,6 +117,7 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
     )
     .eq("id_curso", cursoId)
     .maybeSingle();
+  lanzarSiFalla(errorExamen, "examenDetalle:examenes");
 
   if (!examen) return null;
 
@@ -160,7 +162,7 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
         : null,
     }));
 
-  const { data: intentos } = await supabase
+  const { data: intentos, error: errorIntentos } = await supabase
     .from("intentos_examen")
     // Proyección explícita: `preguntas_congeladas` (que sí lleva las
     // respuestas) y `respuestas` no hacen falta para el listado y no tienen
@@ -174,6 +176,7 @@ export async function getExamenDeCurso(cursoId: string): Promise<ExamenDetalle |
     )
     .eq("id_examen", examen.id)
     .order("iniciado_en", { ascending: true });
+  lanzarSiFalla(errorIntentos, "examenDetalle:intentos_examen");
 
   const contadorPorUsuario = new Map<string, number>();
   const intentosResumen: IntentoResumen[] = (intentos ?? []).map((intento) => {

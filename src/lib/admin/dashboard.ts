@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMetricasPanel } from "@/lib/admin/metricas";
 import { suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type ActividadItem = {
   id: string;
@@ -27,7 +28,7 @@ export async function getDashboardData() {
     { count: cursosPublicados },
     { count: cursosBorrador },
     { count: cortesiasActivas },
-    { data: suscripcionesVivas },
+    { data: suscripcionesVivas, error: errorSuscripcionesVivas },
   ] = await Promise.all([
     // Registrados y acceso vigente salen de la MISMA vista que alimenta
     // /admin/usuarios (`metricas_panel_usuarios`, supabase/sql/036), no de
@@ -48,6 +49,7 @@ export async function getDashboardData() {
       .select("estado, fecha_renovacion, acceso_manual")
       .in("estado", ["ACTIVA", "PAST_DUE"]),
   ]);
+  lanzarSiFalla(errorSuscripcionesVivas, "dashboard:cursos+inscripciones+suscripciones");
 
   // Cuántos de los que tienen acceso lo están pagando. `acceso_manual` es
   // equivalente a `proveedor IN ('manual','invitacion')` —lo sella un CHECK
@@ -71,7 +73,7 @@ export async function getDashboardData() {
   const conAcceso = panel.usuariosAccesoVigente;
   const accesoSinCobro = Math.max(0, conAcceso - accesoDePago);
 
-  const [{ data: perfilesRecientes }, { data: certificadosRecientes }] = await Promise.all([
+  const [{ data: perfilesRecientes, error: errorPerfilesRecientes }, { data: certificadosRecientes, error: errorCertificadosRecientes }] = await Promise.all([
     supabase
       .from("perfiles")
       .select("id, nombre, fecha_registro:creado_en")
@@ -83,6 +85,8 @@ export async function getDashboardData() {
       .order("fecha_emision", { ascending: false })
       .limit(4),
   ]);
+  lanzarSiFalla(errorPerfilesRecientes, "dashboard:perfiles+certificados");
+  lanzarSiFalla(errorCertificadosRecientes, "dashboard:perfiles+certificados");
 
   const actividad: ActividadItem[] = [
     ...(perfilesRecientes ?? []).map((perfil) => ({
@@ -115,7 +119,7 @@ export async function getDashboardData() {
   //
   // De paso desaparece el N+1: había una consulta de progreso por cada curso
   // del top, dentro de un Promise.all.
-  const [{ data: cursos }, { data: avances }] = await Promise.all([
+  const [{ data: cursos, error: errorCursos }, { data: avances, error: errorAvances }] = await Promise.all([
     supabase
       .from("cursos")
       .select("id, slug, titulo, mostrado, curso_categorias(categoria:categorias(nombre))")
@@ -127,6 +131,8 @@ export async function getDashboardData() {
       .order("participantes", { ascending: false })
       .limit(20),
   ]);
+  lanzarSiFalla(errorCursos, "dashboard:cursos+avance_cursos");
+  lanzarSiFalla(errorAvances, "dashboard:cursos+avance_cursos");
 
   const avancePorCurso = new Map(
     (avances ?? []).map((fila) => [

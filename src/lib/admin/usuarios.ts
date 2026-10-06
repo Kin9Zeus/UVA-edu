@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /** Filas por página en la tabla de usuarios del panel. */
 export const USUARIOS_POR_PAGINA = 25;
@@ -85,7 +86,10 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
     p_offset: offset,
   });
 
-  if (error || !data) {
+  // Un fallo no es "no hay usuarios": el admin vería una lista en 0 y tomaría
+  // decisiones sobre un dato que no leyó.
+  lanzarSiFalla(error, "usuarios:admin_listar_usuarios");
+  if (!data) {
     return { usuarios: [], total: 0, pagina, totalPaginas: 1 };
   }
 
@@ -111,9 +115,10 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
   // sus versiones anteriores (037, 040, 054, 074) con el tipo viejo — fallaría
   // en cada aplicación. Es una consulta más, acotada a los ids de esta página.
   const ids = filas.map((fila) => fila.id);
-  const { data: slugs } = ids.length
+  const { data: slugs, error: errorSlugs } = ids.length
     ? await supabase.from("perfiles").select("id, slug").in("id", ids)
-    : { data: [] as { id: string; slug: string }[] };
+    : { data: [] as { id: string; slug: string }[], error: null };
+  lanzarSiFalla(errorSlugs, "usuarios:perfiles");
   const slugPorId = new Map((slugs ?? []).map((fila) => [fila.id as string, fila.slug as string]));
 
   return {

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { estadoCodigo, type EstadoCodigo } from "@/lib/codigoInvitacion";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CodigoInvitacion = {
   id: string;
@@ -24,12 +25,13 @@ export type CodigoInvitacion = {
 export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("codigos_invitacion")
     .select(
       "id, codigo, duracion_dias, fecha_vencimiento, limite_usos, veces_usado, activo, creado_en, id_lote, admin_creador:perfiles(nombre)",
     )
     .order("creado_en", { ascending: false });
+  lanzarSiFalla(errorData, "codigosInvitacion:codigos_invitacion");
 
   return (data ?? []).map((fila) => {
     const adminCreador = Array.isArray(fila.admin_creador)

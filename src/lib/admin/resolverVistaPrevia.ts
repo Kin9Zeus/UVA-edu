@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluarToken, hashToken, type EstadoTokenVistaPrevia } from "@/lib/vistaPrevia";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { esUuid } from "@/lib/slug";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * ⚠️  ÚNICO punto de la aplicación que lee un curso NO publicado sin sesión.
@@ -51,11 +52,12 @@ export async function resolverTokenVistaPrevia(token: string): Promise<Resultado
 
   const supabase = createAdminClient();
 
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("tokens_vista_previa")
     .select("id, id_curso, expira_en, revocado_en, veces_usado")
     .eq("token_hash", hashToken(token))
     .maybeSingle();
+  lanzarSiFalla(errorData, "resolverVistaPrevia:tokens_vista_previa");
 
   const estado: EstadoTokenVistaPrevia = evaluarToken(
     data
@@ -112,7 +114,7 @@ export type CursoVistaPrevia = {
 export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPrevia | null> {
   const supabase = createAdminClient();
 
-  const { data: curso } = await supabase
+  const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
     .select(
       `id, titulo, descripcion, imagen_portada, nivel, mostrado, fecha_edicion:actualizado_en,
@@ -121,6 +123,7 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
     )
     .eq("id", idCurso)
     .maybeSingle();
+  lanzarSiFalla(errorCurso, "resolverVistaPrevia:cursos");
 
   if (!curso) return null;
 
@@ -135,10 +138,11 @@ export async function getCursoVistaPrevia(idCurso: string): Promise<CursoVistaPr
   // sin él, PostgREST puede responder PGRST201 en cuanto exista más de un
   // camino entre estas tablas y la consulta falla en silencio. El nombre del
   // constraint es el de la migración 20260903000000_multi_instructores.
-  const { data: filasInstructores } = await supabase
+  const { data: filasInstructores, error: errorFilasInstructores } = await supabase
     .from("curso_instructores")
     .select("perfil:perfiles!curso_instructores_id_instructor_fkey(id, nombre, especialidad, foto_url)")
     .eq("id_curso", idCurso);
+  lanzarSiFalla(errorFilasInstructores, "resolverVistaPrevia:curso_instructores");
 
   const instructores = (filasInstructores ?? [])
     .map((fila) => {
@@ -274,7 +278,7 @@ export async function getLeccionVistaPrevia(
 
   const supabase = createAdminClient();
 
-  const [{ data: detalle }, { data: recursos }] = await Promise.all([
+  const [{ data: detalle, error: errorDetalle }, { data: recursos, error: errorRecursos }] = await Promise.all([
     supabase.from("lecciones").select("resumen, contenido").eq("id", leccionId).maybeSingle(),
     supabase
       .from("recursos_descargables")
@@ -282,6 +286,8 @@ export async function getLeccionVistaPrevia(
       .eq("id_leccion", leccionId)
       .order("creado_en"),
   ]);
+  lanzarSiFalla(errorDetalle, "resolverVistaPrevia:lecciones+recursos_descargables");
+  lanzarSiFalla(errorRecursos, "resolverVistaPrevia:lecciones+recursos_descargables");
 
   return {
     cursoId: curso.id,

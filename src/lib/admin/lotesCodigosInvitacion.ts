@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { estadoCodigo } from "@/lib/codigoInvitacion";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Lectura de la opción "Lote de códigos" (rev.md: generar N códigos
@@ -41,20 +42,22 @@ export type LoteCodigosInvitacion = {
 export async function getLotesCodigosInvitacion(): Promise<LoteCodigosInvitacion[]> {
   const supabase = await createClient();
 
-  const { data: lotes } = await supabase
+  const { data: lotes, error: errorLotes } = await supabase
     .from("lotes_codigos_invitacion")
     .select("id, cantidad, duracion_dias, fecha_vencimiento, creado_en, admin_creador:perfiles(nombre)")
     .order("creado_en", { ascending: false });
+  lanzarSiFalla(errorLotes, "lotesCodigosInvitacion:lotes_codigos_invitacion");
 
   if (!lotes || lotes.length === 0) return [];
 
-  const { data: codigos } = await supabase
+  const { data: codigos, error: errorCodigos } = await supabase
     .from("codigos_invitacion")
     .select("id_lote, veces_usado, activo, fecha_vencimiento, limite_usos")
     .in(
       "id_lote",
       lotes.map((lote) => lote.id),
     );
+  lanzarSiFalla(errorCodigos, "lotesCodigosInvitacion:codigos_invitacion");
 
   const agregadosPorLote = new Map<string, { totalActual: number; canjeados: number; activos: number }>();
   for (const codigo of codigos ?? []) {

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { estadoCupon, type EstadoCupon, type TipoDescuentoCupon } from "@/lib/admin/cupones-tipos";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CuponAdmin = {
   id: string;
@@ -32,10 +33,11 @@ export type CuponAdmin = {
 export async function getCuponesAdmin(): Promise<CuponAdmin[]> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("cupones")
     .select("id, codigo, tipo_descuento, valor, fecha_vencimiento, limite_usos, veces_usado, creado_en")
     .order("creado_en", { ascending: false });
+  lanzarSiFalla(errorData, "cupones:cupones");
 
   return (data ?? []).map((fila) => {
     const fechaVencimiento = fila.fecha_vencimiento as string;

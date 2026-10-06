@@ -8,6 +8,7 @@ import {
   type EstadoCursoConExamen,
 } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CursoDelUsuario = {
   /**
@@ -80,11 +81,12 @@ export async function resolverUsuarioAdmin(
   identificador: string,
 ): Promise<{ id: string; slug: string } | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("perfiles")
     .select("id, slug")
     .eq(esUuid(identificador) ? "id" : "slug", identificador)
     .maybeSingle();
+  lanzarSiFalla(errorData, "usuarioDetalle:perfiles");
   return data as { id: string; slug: string } | null;
 }
 
@@ -103,15 +105,16 @@ function conVideoListo(
 export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetalle | null> {
   const supabase = await createClient();
 
-  const { data: perfil } = await supabase
+  const { data: perfil, error: errorPerfil } = await supabase
     .from("perfiles")
     .select("id, nombre, correo, foto_url, rol, especialidad, estado, fecha_registro:creado_en")
     .eq("id", usuarioId)
-    .single();
+    .maybeSingle();
+  lanzarSiFalla(errorPerfil, "usuarioDetalle:perfiles");
 
   if (!perfil) return null;
 
-  const { data: suscripciones } = await supabase
+  const { data: suscripciones, error: errorSuscripciones } = await supabase
     .from("suscripciones")
     .select(
       "id, estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, motivo_cancelacion, plan:planes(nombre)",
@@ -119,6 +122,7 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     .eq("id_usuario", usuarioId)
     .order("fecha_inicio", { ascending: false })
     .limit(1);
+  lanzarSiFalla(errorSuscripciones, "usuarioDetalle:suscripciones");
 
   const suscripcion = suscripciones?.[0];
   const plan = suscripcion ? (Array.isArray(suscripcion.plan) ? suscripcion.plan[0] : suscripcion.plan) : null;
@@ -145,10 +149,11 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
         )
       : null;
 
-  const { data: inscripciones } = await supabase
+  const { data: inscripciones, error: errorInscripciones } = await supabase
     .from("inscripciones")
     .select("id, id_curso, tipo_acceso, activo, motivo_revocacion, curso:cursos(titulo, slug)")
     .eq("id_usuario", usuarioId);
+  lanzarSiFalla(errorInscripciones, "usuarioDetalle:inscripciones");
 
   const cursos: CursoDelUsuario[] = [];
   for (const inscripcion of inscripciones ?? []) {
@@ -164,13 +169,14 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
       .eq("modulo.id_curso", inscripcion.id_curso)
       .eq("estado_procesamiento", "LISTO");
 
-    const { data: progreso } = await supabase
+    const { data: progreso, error: errorProgreso } = await supabase
       .from("progreso")
       .select(
         "completado, fecha_actualizacion:actualizado_en, leccion:lecciones!inner(estado_procesamiento, modulo:modulos!inner(id_curso))",
       )
       .eq("id_usuario", usuarioId)
       .eq("leccion.modulo.id_curso", inscripcion.id_curso);
+    lanzarSiFalla(errorProgreso, "usuarioDetalle:progreso");
 
     const total = totalLecciones ?? 0;
     const completados =
@@ -206,12 +212,13 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
   // aparecía aquí: la ficha de admin solo mostraba las cortesías.
   const cursoIdsConInscripcion = new Set(cursos.map((curso) => curso.cursoId));
 
-  const { data: progresoUsuario } = await supabase
+  const { data: progresoUsuario, error: errorProgresoUsuario } = await supabase
     .from("progreso")
     .select(
       "completado, actualizado_en, leccion:lecciones!inner(estado_procesamiento, modulo:modulos!inner(id_curso, curso:cursos(titulo, slug)))",
     )
     .eq("id_usuario", usuarioId);
+  lanzarSiFalla(errorProgresoUsuario, "usuarioDetalle:progreso");
 
   const progresoPorCursoSinInscripcion = new Map<
     string,

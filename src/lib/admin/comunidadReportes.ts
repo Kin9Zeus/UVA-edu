@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Cola de moderación de Comunidad: lo que `comunidad_moderacion` NO es
@@ -36,24 +36,25 @@ export async function getReportesComunidadPendientes(): Promise<ReporteComunidad
     .eq("revisado", false)
     .order("creado_en", { ascending: true });
 
-  if (error) {
-    logError("comunidad:reportes", "no se pudieron leer los reportes pendientes", error);
-    return [];
-  }
+  // Un fallo no es "sin reportes pendientes": la cola de moderación se vería
+  // vacía justo cuando no se pudo leer.
+  lanzarSiFalla(error, "comunidadReportes:comunidad_reportes");
   if (!reportes || reportes.length === 0) return [];
 
   const idsPost = reportes.filter((r) => r.id_post).map((r) => r.id_post as string);
   const idsRespuesta = reportes.filter((r) => r.id_respuesta).map((r) => r.id_respuesta as string);
   const idsReportante = reportes.map((r) => r.id_reportante);
 
-  const [{ data: posts }, { data: respuestas }] = await Promise.all([
+  const [{ data: posts, error: errorPosts }, { data: respuestas, error: errorRespuestas }] = await Promise.all([
     idsPost.length
       ? supabase.from("comunidad_posts").select("id, slug, id_usuario, titulo, contenido, eliminado").in("id", idsPost)
-      : Promise.resolve({ data: [] as never[] }),
+      : Promise.resolve({ data: [] as never[], error: null }),
     idsRespuesta.length
       ? supabase.from("comunidad_respuestas").select("id, id_post, id_usuario, contenido, eliminado").in("id", idsRespuesta)
-      : Promise.resolve({ data: [] as never[] }),
+      : Promise.resolve({ data: [] as never[], error: null }),
   ]);
+  lanzarSiFalla(errorPosts, "comunidadReportes:comunidad_posts+comunidad_respuestas");
+  lanzarSiFalla(errorRespuestas, "comunidadReportes:comunidad_posts+comunidad_respuestas");
 
   const postsPorId = new Map((posts ?? []).map((p) => [p.id, p]));
   const respuestasPorId = new Map((respuestas ?? []).map((r) => [r.id, r]));
@@ -64,9 +65,10 @@ export async function getReportesComunidadPendientes(): Promise<ReporteComunidad
   const idsPostPadre = [
     ...new Set((respuestas ?? []).map((r) => r.id_post as string).filter((id) => !postsPorId.has(id))),
   ];
-  const { data: postsPadre } = idsPostPadre.length
+  const { data: postsPadre, error: errorPostsPadre } = idsPostPadre.length
     ? await supabase.from("comunidad_posts").select("id, slug").in("id", idsPostPadre)
-    : { data: [] as { id: string; slug: string }[] };
+    : { data: [] as { id: string; slug: string }[], error: null };
+  lanzarSiFalla(errorPostsPadre, "comunidadReportes:comunidad_posts");
   const slugPorPostId = new Map<string, string>([
     ...(posts ?? []).map((p): [string, string] => [p.id, p.slug]),
     ...(postsPadre ?? []).map((p): [string, string] => [p.id, p.slug]),
@@ -77,9 +79,10 @@ export async function getReportesComunidadPendientes(): Promise<ReporteComunidad
     ...(respuestas ?? []).map((r) => r.id_usuario),
   ];
   const idsPerfiles = [...new Set([...idsReportante, ...idsAutor])];
-  const { data: perfiles } = idsPerfiles.length
+  const { data: perfiles, error: errorPerfiles } = idsPerfiles.length
     ? await supabase.from("perfiles").select("id, nombre").in("id", idsPerfiles)
-    : { data: [] as { id: string; nombre: string }[] };
+    : { data: [] as { id: string; nombre: string }[], error: null };
+  lanzarSiFalla(errorPerfiles, "comunidadReportes:perfiles");
   const nombresPorId = new Map((perfiles ?? []).map((p) => [p.id, p.nombre]));
 
   // El post/respuesta reportado pudo haberse borrado por fuera de este

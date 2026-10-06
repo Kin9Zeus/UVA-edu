@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * KPIs del panel de usuarios (RevUsuariof4). Todo se agrega en Postgres:
@@ -69,7 +70,8 @@ const TOPE_RANKING = 5;
 export async function getMetricasPanel(): Promise<MetricasPanel> {
   const supabase = await createClient();
 
-  const { data } = await supabase.from("metricas_panel_usuarios").select("*").maybeSingle();
+  const { data, error: errorData } = await supabase.from("metricas_panel_usuarios").select("*").maybeSingle();
+  lanzarSiFalla(errorData, "metricas:metricas_panel_usuarios");
   if (!data) return METRICAS_VACIAS;
 
   return {
@@ -90,7 +92,7 @@ export async function getMetricasPanel(): Promise<MetricasPanel> {
 export async function getAvanceCursos(): Promise<AvanceCurso[]> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("avance_cursos")
     .select("*")
     // Sin participantes no hay avance que rankear: un curso recién publicado
@@ -99,6 +101,7 @@ export async function getAvanceCursos(): Promise<AvanceCurso[]> {
     .gt("participantes", 0)
     .order("avance_promedio", { ascending: false })
     .limit(TOPE_RANKING);
+  lanzarSiFalla(errorData, "metricas:avance_cursos");
 
   return (data ?? []).map((fila) => ({
     cursoId: fila.curso_id,
@@ -114,11 +117,12 @@ export async function getAvanceCursos(): Promise<AvanceCurso[]> {
 export async function getAbandonoLecciones(): Promise<AbandonoLeccion[]> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error: errorData } = await supabase
     .from("abandono_lecciones")
     .select("*")
     .order("abandonos", { ascending: false })
     .limit(TOPE_RANKING);
+  lanzarSiFalla(errorData, "metricas:abandono_lecciones");
 
   return (data ?? []).map((fila) => ({
     leccionId: fila.leccion_id,

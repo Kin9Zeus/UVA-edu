@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getInstructoresDeCursos, type InstructorPublico } from "@/lib/instructores";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CursoListado = {
   id: string;
@@ -18,7 +19,7 @@ export type CursoListado = {
 export async function getCursosListado(): Promise<CursoListado[]> {
   const supabase = await createClient();
 
-  const [{ data: cursos }, { data: inscripciones }, { data: progreso }, { data: categoriasDeCursos }] =
+  const [{ data: cursos, error: errorCursos }, { data: inscripciones, error: errorInscripciones }, { data: progreso, error: errorProgreso }, { data: categoriasDeCursos, error: errorCategoriasDeCursos }] =
     await Promise.all([
       supabase
         .from("cursos")
@@ -38,6 +39,10 @@ export async function getCursosListado(): Promise<CursoListado[]> {
         .select("id_usuario, leccion:lecciones!inner(modulo:modulos!inner(id_curso))"),
       supabase.from("curso_categorias").select("id_curso, id_categoria, categoria:categorias(nombre)"),
     ]);
+  lanzarSiFalla(errorCursos, "cursos:cursos+inscripciones+progreso+curso_categorias");
+  lanzarSiFalla(errorInscripciones, "cursos:cursos+inscripciones+progreso+curso_categorias");
+  lanzarSiFalla(errorProgreso, "cursos:cursos+inscripciones+progreso+curso_categorias");
+  lanzarSiFalla(errorCategoriasDeCursos, "cursos:cursos+inscripciones+progreso+curso_categorias");
 
   const estudiantesPorCurso = new Map<string, Set<string>>();
   for (const inscripcion of inscripciones ?? []) {
@@ -94,7 +99,8 @@ export async function getCursosListado(): Promise<CursoListado[]> {
 
 export async function getCategoriasActivas() {
   const supabase = await createClient();
-  const { data } = await supabase.from("categorias").select("id, nombre").eq("activo", true).order("nombre");
+  const { data, error: errorData } = await supabase.from("categorias").select("id, nombre").eq("activo", true).order("nombre");
+  lanzarSiFalla(errorData, "cursos:categorias");
   return data ?? [];
 }
 
@@ -113,7 +119,8 @@ export async function getCategoriasActivas() {
  */
 export async function getCategoriasParaEdicion() {
   const supabase = await createClient();
-  const { data } = await supabase.from("categorias").select("id, nombre, activo").order("nombre");
+  const { data, error: errorData } = await supabase.from("categorias").select("id, nombre, activo").order("nombre");
+  lanzarSiFalla(errorData, "cursos:categorias");
   return data ?? [];
 }
 
