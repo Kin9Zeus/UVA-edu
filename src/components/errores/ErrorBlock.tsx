@@ -23,6 +23,18 @@ type ErrorBlockProps = {
   trace?: string;
 };
 
+/**
+ * Área táctil de mínimo 44 px (CLAUDE.md 3.4): el botón primario mide h-11, y
+ * el enlace secundario —un texto con subrayado de ~20 px— amplía su zona de
+ * toque con un pseudo-elemento invisible en vez de crecer, para no separar el
+ * subrayado del texto.
+ */
+const CLASE_ACCION_PRIMARIA =
+  "inline-flex h-11 items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover";
+
+const CLASE_ACCION_SECUNDARIA =
+  "relative border-b border-uva-divider pb-0.5 text-[13.5px] text-uva-muted transition-colors after:absolute after:inset-x-[-8px] after:inset-y-[-12px] after:content-[''] hover:border-uva-dim hover:text-uva-text";
+
 export function ErrorBlock({
   standalone,
   codigo,
@@ -73,7 +85,7 @@ export function ErrorBlock({
           {accionPrimaria.href ? (
             <Link
               href={accionPrimaria.href}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
+              className={CLASE_ACCION_PRIMARIA}
             >
               {accionPrimaria.label}
             </Link>
@@ -81,14 +93,14 @@ export function ErrorBlock({
             <button
               type="button"
               onClick={accionPrimaria.onClick}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
+              className={CLASE_ACCION_PRIMARIA}
             >
               {accionPrimaria.label}
             </button>
           )}
           <Link
             href={accionSecundaria.href}
-            className="border-b border-uva-divider pb-0.5 text-[13.5px] text-uva-muted transition-colors hover:border-uva-dim hover:text-uva-text"
+            className={CLASE_ACCION_SECUNDARIA}
           >
             {accionSecundaria.label}
           </Link>
