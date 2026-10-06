@@ -62,7 +62,7 @@ export async function leerNotasDeLecciones(
   supabase: SupabaseClient,
   leccionIds: string[],
   usuarioId: string,
-): Promise<NotaLeccion[]> {
+): Promise<NotaLeccion[] | null> {
   if (leccionIds.length === 0) return [];
 
   const { data, error } = await supabase
@@ -79,7 +79,8 @@ export async function leerNotasDeLecciones(
       area: "notas",
       lecciones: leccionIds.length,
     });
-    return [];
+    // `null` = "no se pudo leer", distinto de `[]` = "aún no tienes notas".
+    return null;
   }
 
   return (data ?? []).map((fila) => aNotaLeccion(fila, uno(fila.leccion)?.id_video_mux ?? null));
@@ -92,7 +93,7 @@ export async function leerNotasDeLecciones(
 export async function getNotasDeLeccion(
   leccionId: string,
   usuarioId: string | null,
-): Promise<NotaLeccion[]> {
+): Promise<NotaLeccion[] | null> {
   if (!usuarioId) return [];
   return leerNotasDeLecciones(await createClient(), [leccionId], usuarioId);
 }

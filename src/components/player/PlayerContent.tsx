@@ -62,12 +62,18 @@ export function PlayerContent({
   data,
   comentariosIniciales,
   notasIniciales,
+  comentariosNoDisponibles = false,
+  notasNoDisponibles = false,
   segundoEnUrl = null,
   usuarioActualId,
   esAdmin,
 }: {
   data: LeccionPlayer;
   comentariosIniciales: ComentarioConRespuestas[];
+  /** La lectura de comentarios falló: se avisa con Reintentar en vez de "Sé el primero en comentar". */
+  comentariosNoDisponibles?: boolean;
+  /** Igual para las notas: no decir "Aún no tienes notas" si no se pudieron leer. */
+  notasNoDisponibles?: boolean;
   /** Notas privadas del usuario en esta clase (vacío sin sesión). */
   notasIniciales: NotaLeccion[];
   /** `?t=` de la URL: al llegar desde una nota, arranca en ese segundo en
@@ -98,9 +104,16 @@ export function PlayerContent({
   // pestaña, y lo recién guardado no debe perderse al volver. Van
   // etiquetadas con su lección para descartarlas si este mismo componente
   // se reutiliza al navegar a otra clase (mismo segmento de ruta).
-  const [estadoNotas, setEstadoNotas] = useState({ leccionId: data.leccionId, notas: notasIniciales });
-  if (estadoNotas.leccionId !== data.leccionId) {
-    setEstadoNotas({ leccionId: data.leccionId, notas: notasIniciales });
+  const [estadoNotas, setEstadoNotas] = useState({
+    leccionId: data.leccionId,
+    notas: notasIniciales,
+    noDisponibles: notasNoDisponibles,
+  });
+  // Se vuelve a sembrar al cambiar de clase y también cuando las notas pasan de
+  // "no disponibles" a disponibles (Reintentar tras un fallo): sin esto la lista
+  // vacía del fallo se quedaría aunque el servidor ya devuelva las notas.
+  if (estadoNotas.leccionId !== data.leccionId || (estadoNotas.noDisponibles && !notasNoDisponibles)) {
+    setEstadoNotas({ leccionId: data.leccionId, notas: notasIniciales, noDisponibles: notasNoDisponibles });
   }
   const notas = estadoNotas.notas;
   const cambiarNotas = (actualizar: (notas: NotaLeccion[]) => NotaLeccion[]) =>
@@ -315,7 +328,9 @@ export function PlayerContent({
               onTab={setTab}
               totalRecursos={data.recursos.length}
               totalComentarios={contarComentarios(comentariosIniciales)}
+              comentariosNoDisponibles={comentariosNoDisponibles}
               totalNotas={usuarioActualId ? notas.length : undefined}
+              notasNoDisponibles={notasNoDisponibles}
             />
             {tab === "recursos" && <RecursosTab recursos={data.recursos} />}
             {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
@@ -327,6 +342,8 @@ export function PlayerContent({
                   lecciones={data.lecciones}
                   videoListo={data.videoListo}
                   notas={notas}
+                  noDisponibles={notasNoDisponibles}
+                  onReintentar={() => router.refresh()}
                   onCambiarNotas={cambiarNotas}
                   controlRef={controlRef}
                   onSaltar={saltarA}
@@ -339,6 +356,7 @@ export function PlayerContent({
                   ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
                   leccionId={data.leccionId}
                   comentarios={comentariosIniciales}
+                  noDisponibles={comentariosNoDisponibles}
                   puedeComentar={data.puedeComentar}
                   usuarioActualId={usuarioActualId}
                   esAdmin={esAdmin}
@@ -369,7 +387,9 @@ export function PlayerContent({
               panel={panel}
               onPanel={setPanel}
               totalComentarios={contarComentarios(comentariosIniciales)}
+              comentariosNoDisponibles={comentariosNoDisponibles}
               totalNotas={usuarioActualId ? notas.length : undefined}
+              notasNoDisponibles={notasNoDisponibles}
             />
             {panel === "notas" && usuarioActualId ? (
               <NotasTab
@@ -378,6 +398,8 @@ export function PlayerContent({
                 lecciones={data.lecciones}
                 videoListo={data.videoListo}
                 notas={notas}
+                noDisponibles={notasNoDisponibles}
+                onReintentar={() => router.refresh()}
                 onCambiarNotas={cambiarNotas}
                 controlRef={controlRef}
                 onSaltar={saltarA}
@@ -387,6 +409,7 @@ export function PlayerContent({
                 ruta={`/cursos/${data.cursoSlug}/${data.leccionSlug}`}
                 leccionId={data.leccionId}
                 comentarios={comentariosIniciales}
+                noDisponibles={comentariosNoDisponibles}
                 puedeComentar={data.puedeComentar}
                 usuarioActualId={usuarioActualId}
                 esAdmin={esAdmin}

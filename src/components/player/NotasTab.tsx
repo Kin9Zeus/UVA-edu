@@ -8,6 +8,7 @@ import {
   type EditorTextoEnriquecidoHandle,
 } from "@/components/editor/EditorTextoEnriquecido";
 import { NotaItem, ordenarNotas } from "@/components/notas/NotaItem";
+import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
 import { crearNota } from "@/actions/notas/crear";
 import { listarNotasDelCurso } from "@/actions/notas/listar";
 import type { NotaLeccion } from "@/lib/notas";
@@ -36,6 +37,8 @@ export function NotasTab({
   lecciones,
   videoListo,
   notas,
+  noDisponibles = false,
+  onReintentar,
   onCambiarNotas,
   controlRef,
   onSaltar,
@@ -46,6 +49,9 @@ export function NotasTab({
   lecciones: LeccionDelCurso[];
   videoListo: boolean;
   notas: NotaLeccion[];
+  /** La lectura de las notas de esta clase falló: se avisa con Reintentar en vez de "Aún no tienes notas". */
+  noDisponibles?: boolean;
+  onReintentar: () => void;
   onCambiarNotas: (actualizar: (notas: NotaLeccion[]) => NotaLeccion[]) => void;
   controlRef: RefObject<ControlReproductor | null>;
   /** Lleva el video a `segundo` y lo trae a la vista. */
@@ -241,7 +247,9 @@ export function NotasTab({
       </div>
 
       {alcance === "clase" ? (
-        notas.length === 0 ? (
+        noDisponibles ? (
+          <AvisoErrorCarga texto="No pudimos cargar tus notas de esta clase." onReintentar={onReintentar} />
+        ) : notas.length === 0 ? (
           <p className="m-0 text-[13px] text-uva-muted">
             Aún no tienes notas en esta clase. Guarda un apunte en el minuto exacto del video.
           </p>

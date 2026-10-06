@@ -59,8 +59,9 @@ export function Header({
    * ese aviso vive en la tarjeta fija del Sidebar). */
   diasGracia?: number | null;
   /** Últimas notificaciones y cuántas siguen sin leer — ver
-   * getDashboardChromeData (src/lib/dashboard-chrome.ts). */
-  notificaciones?: Notificacion[];
+   * getDashboardChromeData (src/lib/dashboard-chrome.ts). `null` = no se
+   * pudieron leer: la campana lo avisa en vez de decir que no hay ninguna. */
+  notificaciones?: Notificacion[] | null;
   notificacionesNoLeidas?: number;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;

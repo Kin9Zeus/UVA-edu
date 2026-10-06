@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { tiempoRelativo } from "@/lib/admin/format";
 import type { Notificacion } from "@/lib/notificaciones-tipos";
 
@@ -10,11 +11,14 @@ export type { Notificacion };
  * se pide en cada carga del header. */
 export async function contarNotificacionesNoLeidas(usuarioId: string): Promise<number> {
   const supabase = await createClient();
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from("notificaciones")
     .select("id", { count: "exact", head: true })
     .eq("id_usuario", usuarioId)
     .eq("leida", false);
+  // Solo un punto en la campana: sin él la campana sigue siendo usable. Se
+  // registra para que no pase en silencio.
+  registrarSiFalla(error, "notificaciones:no-leidas", "no se pudo contar las notificaciones sin leer");
   return count ?? 0;
 }
 
@@ -31,7 +35,10 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
     .order("creado_en", { ascending: false })
     .limit(limite);
 
-  if (error || !filas || filas.length === 0) return [];
+  // Un fallo no es "no tienes notificaciones": se lanza y quien llama decide
+  // (el chrome del dashboard lo convierte en un aviso dentro de la campana).
+  lanzarSiFalla(error, "notificaciones:lista");
+  if (!filas || filas.length === 0) return [];
 
   const idsActor = [...new Set(filas.filter((f) => f.id_actor).map((f) => f.id_actor as string))];
   const idsPost = [...new Set(filas.filter((f) => f.entidad_tipo === "comunidad_post").map((f) => f.entidad_id))];

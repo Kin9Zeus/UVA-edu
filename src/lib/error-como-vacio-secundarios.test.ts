@@ -29,6 +29,10 @@ const { default: sitemap } = await import("@/app/sitemap");
 const { getComentariosDeLeccion } = await import("@/lib/comentarios");
 const { getNotificaciones } = await import("@/lib/notificaciones");
 const { construirCertificadoPdf } = await import("@/lib/certificados/pdf");
+const { getNotasDeLeccion } = await import("@/lib/notas");
+const { listarNotasDelCurso } = await import("@/actions/notas/listar");
+const { contarNotificacionesNoLeidas } = await import("@/lib/notificaciones");
+const { getDashboardChromeData } = await import("@/lib/dashboard-chrome");
 
 const ERROR_PG = { message: "canceling statement due to statement timeout", code: "57014" };
 const FALLO = { data: null, error: ERROR_PG };
@@ -102,8 +106,8 @@ describe("Datos secundarios: se degradan pero dejan registro", () => {
     const comentarios = await getComentariosDeLeccion("l1", "c1", null);
 
     expect(comentarios).toHaveLength(1);
-    expect(comentarios[0].texto).toBe("Muy buena clase");
-    expect(comentarios[0].autor).toBe("Usuario");
+    expect(comentarios![0].texto).toBe("Muy buena clase");
+    expect(comentarios![0].autor).toBe("Usuario");
     expect(logError).toHaveBeenCalledWith("comentarios:autores", expect.any(String), ERROR_PG, expect.anything());
   });
 
@@ -130,5 +134,69 @@ describe("Datos secundarios: se degradan pero dejan registro", () => {
     expect(notificaciones).toHaveLength(1);
     expect(notificaciones[0].actorNombre).toBe("Alguien");
     expect(logError).toHaveBeenCalledWith("notificaciones:actores", expect.any(String), ERROR_PG, expect.anything());
+  });
+});
+
+describe("Bloques que no deben decir 'no hay nada' cuando no se pudieron leer: null, no []", () => {
+  it("comentarios: si falla la lectura devuelve null (la UI avisa con Reintentar), no [] ('Sé el primero')", async () => {
+    servidorFalso.responder("from:comentarios", FALLO);
+
+    expect(await getComentariosDeLeccion("l1", "c1", null)).toBeNull();
+    expect(logError).toHaveBeenCalledTimes(1);
+  });
+
+  it("comentarios: sin error y sin comentarios sigue siendo [] (eso sí es 'aún no hay')", async () => {
+    servidorFalso.responder("from:comentarios", { data: [], error: null });
+
+    expect(await getComentariosDeLeccion("l1", "c1", null)).toEqual([]);
+  });
+
+  it("notas de la clase: si falla devuelve null, no [] ('Aún no tienes notas')", async () => {
+    servidorFalso.responder("from:notas_leccion", FALLO);
+
+    expect(await getNotasDeLeccion("l1", "u1")).toBeNull();
+  });
+
+  it("notas de la clase: sin sesión es [] sin consultar nada, y sin error y sin notas también", async () => {
+    expect(await getNotasDeLeccion("l1", null)).toEqual([]);
+    expect(servidorFalso.llamadas).toHaveLength(0);
+
+    servidorFalso.responder("from:notas_leccion", { data: [], error: null });
+    expect(await getNotasDeLeccion("l1", "u1")).toEqual([]);
+  });
+
+  it("'Todo el curso': si falla devuelve { error } (la pestaña ya lo muestra), no una lista vacía", async () => {
+    servidorFalso.responder("from:notas_leccion", FALLO);
+
+    expect(await listarNotasDelCurso(["6f1c0f5e-1111-4222-8333-444455556666"])).toEqual({
+      error: "No pudimos cargar tus notas. Intenta de nuevo.",
+    });
+  });
+
+  it("notificaciones: si falla la lista lanza (no devuelve [] = 'No tienes notificaciones')", async () => {
+    servidorFalso.responder("from:notificaciones", FALLO);
+
+    await expect(getNotificaciones("u1")).rejects.toThrow(/notificaciones:lista falló.*57014/);
+  });
+
+  it("notificaciones: el contador de no leídas degrada a 0 pero deja registro", async () => {
+    servidorFalso.responder("from:notificaciones", { data: null, error: ERROR_PG, count: null });
+
+    expect(await contarNotificacionesNoLeidas("u1")).toBe(0);
+    expect(logError).toHaveBeenCalledWith("notificaciones:no-leidas", expect.any(String), ERROR_PG, expect.anything());
+  });
+
+  it("chrome del dashboard: si fallan las notificaciones entrega null (la campana avisa), sin tumbar el layout", async () => {
+    servidorFalso.responder("from:notificaciones", { data: null, error: ERROR_PG, count: null });
+    servidorFalso.responder("from:suscripciones", { data: null, error: null });
+    servidorFalso.responder("from:certificados", { data: null, error: null, count: 0 });
+
+    const chrome = await getDashboardChromeData({
+      user: { id: "u1", email: "a@b.co" } as never,
+      perfil: { nombre: "Ana", foto_url: null, rol: "ESTUDIANTE" } as never,
+    });
+
+    expect(chrome.notificaciones).toBeNull();
+    expect(chrome.nombre).toBe("Ana");
   });
 });

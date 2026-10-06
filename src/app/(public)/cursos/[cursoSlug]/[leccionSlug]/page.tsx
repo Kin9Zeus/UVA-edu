@@ -104,8 +104,12 @@ export default async function LeccionPlayerPage({
       <main>
         <PlayerContent
           data={data}
-          comentariosIniciales={comentarios}
-          notasIniciales={notas}
+          comentariosIniciales={comentarios ?? []}
+          notasIniciales={notas ?? []}
+          // `null` = no se pudo leer (no es lo mismo que "sin comentarios" o
+          // "sin notas"): el reproductor avisa con Reintentar en vez del vacío.
+          comentariosNoDisponibles={comentarios === null}
+          notasNoDisponibles={notas === null}
           segundoEnUrl={segundoEnUrl}
           usuarioActualId={user?.id ?? null}
           esAdmin={perfilActual.perfil?.rol === "ADMINISTRADOR"}

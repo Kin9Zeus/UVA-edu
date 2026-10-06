@@ -28,5 +28,8 @@ export async function listarNotasDelCurso(leccionIds: string[]): Promise<ListarN
   if (!parseo.success) return { error: "Curso inválido." };
 
   const notas = await leerNotasDeLecciones(await createClient(), parseo.data, user.id);
+  // Un fallo no es "no tienes notas": se avisa para que la pestaña ofrezca
+  // reintentar en vez de mostrar el vacío.
+  if (notas === null) return { error: "No pudimos cargar tus notas. Intenta de nuevo." };
   return { success: true, notas };
 }

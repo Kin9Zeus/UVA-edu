@@ -57,7 +57,7 @@ export async function getComentariosDeLeccion(
   leccionId: string,
   cursoId: string,
   usuarioId: string | null,
-): Promise<ComentarioConRespuestas[]> {
+): Promise<ComentarioConRespuestas[] | null> {
   const supabase = await createClient();
 
   const { data: filas, error } = await supabase
@@ -73,7 +73,10 @@ export async function getComentariosDeLeccion(
     logError("comentarios:listar", "no se pudieron leer los comentarios de la lección", error, {
       leccionId,
     });
-    return [];
+    // `null` = "no se pudo leer", distinto de `[]` = "aún no hay comentarios".
+    // No se lanza: un fallo aquí no debe tumbar la página de la clase con su
+    // video; la UI muestra un aviso con Reintentar en lugar de "Sé el primero".
+    return null;
   }
 
   const autorIds = [...new Set((filas ?? []).map((fila) => fila.id_usuario as string))];

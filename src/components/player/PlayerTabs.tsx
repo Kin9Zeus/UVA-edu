@@ -1,5 +1,6 @@
 "use client";
 
+import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { Download, Loader2, BadgeCheck, User, Heart, Reply, Send } from "lucide-react";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
@@ -31,7 +32,9 @@ export function TabsHeader({
   onTab,
   totalRecursos,
   totalComentarios,
+  comentariosNoDisponibles = false,
   totalNotas,
+  notasNoDisponibles = false,
 }: {
   tab: TabPlayer;
   onTab: (tab: TabPlayer) => void;
@@ -39,9 +42,13 @@ export function TabsHeader({
   /** Omitido en la vista previa sin sesión (LeccionVistaPreviaContent), que
    * no tiene comentarios: sin este dato la pestaña no se muestra. */
   totalComentarios?: number;
+  /** Si la lectura falló, el contador se omite: un "0" diría que no hay comentarios. */
+  comentariosNoDisponibles?: boolean;
   /** Omitido sin sesión (vista previa pública): las notas son de un
    * usuario, sin sesión no hay a quién pertenezcan. */
   totalNotas?: number;
+  /** Igual que `comentariosNoDisponibles`, para las notas. */
+  notasNoDisponibles?: boolean;
 }) {
   const clase = (activo: boolean) =>
     `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
@@ -66,7 +73,9 @@ export function TabsHeader({
           className={`${clase(tab === "comentarios")} lg:hidden`}
         >
           Comentarios
-          <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+          {!comentariosNoDisponibles && (
+            <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+          )}
         </button>
       )}
       {totalNotas !== undefined && (
@@ -76,7 +85,7 @@ export function TabsHeader({
           className={`${clase(tab === "notas")} lg:hidden`}
         >
           Notas
-          <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>
+          {!notasNoDisponibles && <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>}
         </button>
       )}
     </div>
@@ -93,13 +102,18 @@ export function PanelLateralHeader({
   panel,
   onPanel,
   totalComentarios,
+  comentariosNoDisponibles = false,
   totalNotas,
+  notasNoDisponibles = false,
 }: {
   panel: PanelLateral;
   onPanel: (panel: PanelLateral) => void;
   totalComentarios: number;
+  /** Si la lectura falló, el contador se omite en vez de mostrar un "0" falso. */
+  comentariosNoDisponibles?: boolean;
   /** Omitido sin sesión: sin notas, el selector no tiene nada que alternar. */
   totalNotas?: number;
+  notasNoDisponibles?: boolean;
 }) {
   const clase = (activo: boolean) =>
     `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
@@ -113,7 +127,9 @@ export function PanelLateralHeader({
         className={clase(panel === "comentarios")}
       >
         Comentarios
-        <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+        {!comentariosNoDisponibles && (
+          <span className="font-mono text-[11px] opacity-65">{totalComentarios}</span>
+        )}
       </button>
       {totalNotas !== undefined && (
         <button
@@ -123,7 +139,7 @@ export function PanelLateralHeader({
           className={clase(panel === "notas")}
         >
           Notas
-          <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>
+          {!notasNoDisponibles && <span className="font-mono text-[11px] opacity-65">{totalNotas}</span>}
         </button>
       )}
     </div>
@@ -266,6 +282,7 @@ export function ComentariosTab({
   ruta,
   leccionId,
   comentarios,
+  noDisponibles = false,
   puedeComentar,
   usuarioActualId,
   esAdmin,
@@ -279,6 +296,8 @@ export function ComentariosTab({
   ruta: string;
   leccionId: string;
   comentarios: ComentarioConRespuestas[];
+  /** La lectura falló: se avisa con Reintentar en vez de decir "Sé el primero en comentar". */
+  noDisponibles?: boolean;
   puedeComentar: boolean;
   usuarioActualId: string | null;
   esAdmin: boolean;
@@ -304,7 +323,9 @@ export function ComentariosTab({
           {mostrarTitulo && (
             <h4 className="m-0 flex items-baseline gap-1.5 font-heading text-[17px] font-bold text-uva-text">
               Comentarios
-              <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
+              {!noDisponibles && (
+                <span className="font-mono text-[13px] font-normal text-uva-muted">{total}</span>
+              )}
             </h4>
           )}
           {visibles.length > 1 && (
@@ -323,7 +344,10 @@ export function ComentariosTab({
           )}
         </div>
       )}
-      {total === 0 && (
+      {noDisponibles && (
+        <AvisoErrorCarga texto="No pudimos cargar los comentarios de esta clase." onReintentar={onCambio} />
+      )}
+      {!noDisponibles && total === 0 && (
         <p className={`m-0 text-[12px] text-uva-muted ${mostrarTitulo ? "-mt-2" : ""}`}>
           Sé el primero en comentar esta clase
         </p>

@@ -12,6 +12,7 @@ import {
 } from "@/actions/notificaciones";
 import { urlNotificacion, mensajeNotificacion, type Notificacion } from "@/lib/notificaciones-tipos";
 import { GraciaCard } from "@/components/dashboard/GraciaCard";
+import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
 
 /** Ícono + tono por tipo — mismos 4 tonos que ya usan las categorías de
  * Comunidad (CATEGORIA_ESTILO, comunidad-tipos.ts), no una paleta nueva.
@@ -58,7 +59,8 @@ export function NotificacionesBell({
   noLeidas,
   diasGracia = null,
 }: {
-  notificaciones: Notificacion[];
+  /** `null` = no se pudieron leer (no es lo mismo que "no tiene ninguna"). */
+  notificaciones: Notificacion[] | null;
   noLeidas: number;
   /** Si no es null, antepone el aviso de período de gracia al popover
    * (solo relevante en mobile: en desktop ese aviso ya vive en la tarjeta
@@ -68,7 +70,8 @@ export function NotificacionesBell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [locales, setLocales] = useState(notificaciones);
+  const noDisponibles = notificaciones === null;
+  const [locales, setLocales] = useState(notificaciones ?? []);
   // Ajustar estado a partir de props DURANTE el render (patrón recomendado
   // de React, no un useEffect) — sin esto, tras cada router.refresh() la
   // lista se quedaría congelada en el valor con el que se montó el
@@ -78,7 +81,7 @@ export function NotificacionesBell({
   const [prevNotificaciones, setPrevNotificaciones] = useState(notificaciones);
   if (notificaciones !== prevNotificaciones) {
     setPrevNotificaciones(notificaciones);
-    setLocales(notificaciones);
+    setLocales(notificaciones ?? []);
   }
 
   function alAbrirNotificacion(notificacion: Notificacion) {
@@ -160,7 +163,13 @@ export function NotificacionesBell({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {locales.length === 0 ? (
+              {noDisponibles ? (
+                <AvisoErrorCarga
+                  className="m-3.5"
+                  texto="No pudimos cargar tus notificaciones."
+                  onReintentar={() => startTransition(() => router.refresh())}
+                />
+              ) : locales.length === 0 ? (
                 <p className="px-3.5 py-6 text-center text-[13px] text-uva-text-faint">
                   No tienes notificaciones todavía.
                 </p>

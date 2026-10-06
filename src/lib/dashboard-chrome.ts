@@ -37,7 +37,15 @@ export async function getDashboardChromeData({
       });
       return null;
     }),
-    getNotificaciones(user.id),
+    // `null` = no se pudieron leer (distinto de [] = "no tiene"): la campana
+    // avisa con Reintentar en vez de decir "No tienes notificaciones todavía".
+    // Se degrada aquí y no se lanza: el chrome envuelve todas las pantallas.
+    getNotificaciones(user.id).catch((error: unknown) => {
+      logError("dashboard-chrome:notificaciones", "no se pudieron leer las notificaciones", error, {
+        area: "dashboard",
+      });
+      return null;
+    }),
     contarNotificacionesNoLeidas(user.id),
   ]);
 
