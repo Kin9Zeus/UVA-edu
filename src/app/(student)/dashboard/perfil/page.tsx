@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 import { calcularEstadoAcceso } from "@/lib/estadoAcceso";
@@ -13,7 +14,11 @@ export default async function PerfilPage() {
   const { user, perfil } = await getPerfilActual();
   const supabase = await createClient();
 
-  const [{ data: certificadosRows }, suscripcion, { data: usuarioAuth }] = await Promise.all([
+  const [
+    { data: certificadosRows, error: errorCertificados },
+    suscripcion,
+    { data: usuarioAuth, error: errorAuth },
+  ] = await Promise.all([
     supabase
       .from("certificados")
       .select("id, fecha_emision, nombre_curso")
@@ -28,6 +33,12 @@ export default async function PerfilPage() {
     // eliminarse— hace falta el `User` completo, con su propio roundtrip.
     supabase.auth.getUser(),
   ]);
+
+  // Un fallo de cualquiera de las dos no puede mostrarse como "sin
+  // certificados" ni como "sin contraseña" (esto último ocultaría el campo
+  // para eliminar la cuenta): lanza y error.tsx ofrece Reintentar.
+  lanzarSiFalla(errorCertificados, "perfil:certificados");
+  lanzarSiFalla(errorAuth, "perfil:auth-getUser");
 
   // Una cuenta que entró solo con "Continuar con Google" nunca creó
   // contraseña: EliminarCuentaCard no debe pedir un campo que no puede

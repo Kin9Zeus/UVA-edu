@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { logError } from "@/lib/log";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 
@@ -51,12 +53,14 @@ export type ProgresoData = {
 export async function getProgresoData(): Promise<ProgresoData> {
   const supabase = await createClient();
 
-  const { data: filas } = await supabase
+  const { data: filas, error } = await supabase
     .from("progreso_cursos_estudiante")
     .select(
       "curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total, examen_requerido, examen_aprobado",
     )
     .order("ultima_actividad", { ascending: false });
+  // Un fallo no es "no tienes cursos": lanza para que lo atrape error.tsx.
+  lanzarSiFalla(error, "progreso:cursos");
 
   // Ya no se consultan las categorías: la tarjeta de Progreso dejó de
   // mostrarlas (ver el comentario en ProgresoContent), y era una ida entera
@@ -151,15 +155,21 @@ async function resolverReanudacion(
   // sobre una cuenta real: 7 filas de progreso, 3 con segundo guardado, y
   // las 3 completadas — o sea cero miniaturas. Lo que importa es el último
   // frame que la persona vio en ese curso, esté la clase terminada o no.
-  const { data: avances } = await supabase
+  const { data: avances, error: errorAvances } = await supabase
     .from("progreso")
     .select("id_leccion, segundo_actual")
     .gt("segundo_actual", 0)
     .order("actualizado_en", { ascending: false });
 
+  // Aquí sí se degrada: la miniatura es un adorno y la tarjeta cae a la
+  // portada. Pero se registra, para que un fallo no pase en silencio.
+  if (errorAvances) {
+    logError("progreso:reanudacion", "no se pudo leer el avance por lección", errorAvances, { area: "progreso" });
+    return vacio;
+  }
   if (!avances?.length) return vacio;
 
-  const { data: lecciones } = await supabase
+  const { data: lecciones, error: errorLecciones } = await supabase
     .from("lecciones")
     .select("id, id_modulo, id_video_mux, estado_procesamiento, duracion")
     .in(
@@ -167,15 +177,23 @@ async function resolverReanudacion(
       avances.map((avance) => avance.id_leccion as string),
     );
 
+  if (errorLecciones) {
+    logError("progreso:reanudacion", "no se pudieron leer las lecciones", errorLecciones, { area: "progreso" });
+    return vacio;
+  }
   if (!lecciones?.length) return vacio;
 
-  const { data: modulos } = await supabase
+  const { data: modulos, error: errorModulos } = await supabase
     .from("modulos")
     .select("id, id_curso")
     .in(
       "id",
       lecciones.map((leccion) => leccion.id_modulo as string),
     );
+  if (errorModulos) {
+    logError("progreso:reanudacion", "no se pudieron leer los módulos", errorModulos, { area: "progreso" });
+    return vacio;
+  }
 
   const cursoDeModulo = new Map(
     (modulos ?? []).map((modulo) => [modulo.id as string, modulo.id_curso as string]),

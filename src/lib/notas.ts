@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type NotaLeccion = {
   id: string;
@@ -150,10 +151,10 @@ export async function getMisNotas(usuarioId: string): Promise<MisNotas> {
     .order("segundo", { ascending: true })
     .limit(MAX_NOTAS_PAGINA);
 
-  if (error) {
-    logError("notas:mis-notas", "no se pudieron leer las notas del usuario", error, { area: "notas" });
-    return { notas: [], lecciones: {}, cursos: {} };
-  }
+  // Devolver `{ notas: [] }` aquí mostraba "Aún no tienes notas" y el
+  // estudiante creía haber perdido sus apuntes. Se lanza para que lo atrape
+  // error.tsx (con Reintentar) y Sentry lo agrupe.
+  lanzarSiFalla(error, "notas:mis-notas");
 
   const notas: NotaLeccion[] = [];
   const lecciones: Record<string, LeccionDeNota> = {};

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type PagoItem = {
   id: string;
@@ -34,7 +35,7 @@ export type SuscripcionActual = {
 export async function getSuscripcionActual(usuarioId: string): Promise<SuscripcionActual | null> {
   const supabase = await createClient();
 
-  const { data: suscripcion } = await supabase
+  const { data: suscripcion, error } = await supabase
     .from("suscripciones")
     .select(
       "id, fecha_inicio, fecha_renovacion, estado, acceso_manual, id_codigo_invitacion, plan:planes(nombre, duracion_dias), pagos(id, creado_en, fecha_pago, monto_centavos, moneda, estado)",
@@ -43,6 +44,10 @@ export async function getSuscripcionActual(usuarioId: string): Promise<Suscripci
     .order("fecha_inicio", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // `null` significa "sin suscripción" (y la UI invita a canjear o pagar):
+  // un fallo de la consulta no puede confundirse con eso.
+  lanzarSiFalla(error, "suscripcion:actual");
 
   if (!suscripcion) return null;
 

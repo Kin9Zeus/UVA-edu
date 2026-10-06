@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 import { calcularDiasGracia } from "@/lib/gracia";
+import { logError } from "@/lib/log";
 import { getNotificaciones, contarNotificacionesNoLeidas } from "@/lib/notificaciones";
 import type { getPerfilActual } from "@/lib/perfil";
 
@@ -21,15 +22,32 @@ export async function getDashboardChromeData({
   perfil: PerfilActual["perfil"];
 }) {
   const supabase = await createClient();
-  const [{ count: certificadosCount }, suscripcion, notificaciones, notificacionesNoLeidas] = await Promise.all([
+  const [{ count: certificadosCount, error: errorCertificados }, suscripcion, notificaciones, notificacionesNoLeidas] = await Promise.all([
     supabase
       .from("certificados")
       .select("id", { count: "exact", head: true })
       .eq("id_usuario", user.id),
-    getSuscripcionActual(user.id),
+    // El chrome envuelve a todas las pantallas: si lanzara aquí, un fallo de
+    // `suscripciones` tumbaría el dashboard entero. Sin suscripción solo
+    // pierde el aviso de gracia; las páginas que dependen de ella (perfil,
+    // suscripción) sí lanzan por su cuenta.
+    getSuscripcionActual(user.id).catch((error: unknown) => {
+      logError("dashboard-chrome:suscripcion", "no se pudo leer la suscripción para el aviso de gracia", error, {
+        area: "dashboard",
+      });
+      return null;
+    }),
     getNotificaciones(user.id),
     contarNotificacionesNoLeidas(user.id),
   ]);
+
+  // El badge es decorativo: ante un fallo se oculta (0) y se registra, en vez
+  // de tumbar la pantalla.
+  if (errorCertificados) {
+    logError("dashboard-chrome:certificados", "no se pudo contar los certificados", errorCertificados, {
+      area: "dashboard",
+    });
+  }
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante";
   const fotoUrl = perfil?.foto_url ?? null;
