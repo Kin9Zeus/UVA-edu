@@ -367,10 +367,13 @@ async function getProgresoPorCurso(
   const progresoPorCurso = new Map<string, { completado: boolean; examenPendiente: boolean }>();
   if (cursoIds.length === 0) return progresoPorCurso;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("progreso_cursos_estudiante")
     .select("curso_id, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado")
     .in("curso_id", cursoIds);
+  // Un mapa vacío por fallo quitaría las insignias "Completado" y "Examen
+  // pendiente" como si el estudiante no tuviera avance.
+  lanzarSiFalla(error, "categoria:progreso del estudiante");
 
   for (const fila of data ?? []) {
     const estado = estadoDeCurso(

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Usuario de la sesión actual, reducido a lo que realmente consume la app.
@@ -63,11 +64,16 @@ export const getPerfilActual = cache(async () => {
     return { user: null, perfil: null };
   }
 
-  const { data: perfil } = await supabase
+  const { data: perfil, error } = await supabase
     .from("perfiles")
     .select("nombre, correo, celular, pais, rol, estado, foto_url")
     .eq("id", user.id)
     .single();
+
+  // `perfil` null por un fallo haría pasar a un ADMINISTRADOR por estudiante y
+  // mostraría el correo en vez del nombre, en todas las pantallas que cuelgan
+  // de esto. PGRST116 (cero filas: perfil aún sin crear) sí es un `null` legítimo.
+  if (error && error.code !== "PGRST116") lanzarSiFalla(error, "perfil:actual");
 
   return { user, perfil };
 });

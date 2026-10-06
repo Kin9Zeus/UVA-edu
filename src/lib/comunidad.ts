@@ -3,6 +3,7 @@ import { esUuid } from "@/lib/slug";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tiempoRelativo, formatFecha, extensionArchivo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { BUCKET_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-adjuntos";
 import type {
   CategoriaComunidad,
@@ -59,22 +60,28 @@ export async function resolverAccesoComunidad(): Promise<AccesoComunidad> {
   // comparte con (student)/dashboard/layout.tsx, que ya la resolvió antes de
   // llegar acá. Consultar `perfiles` otra vez era pedir la misma fila dos
   // veces por petición — ~190 ms de ida y vuelta a US-East por nada.
-  const [{ data: tieneAcceso }, { perfil }] = await Promise.all([
+  const [{ data: tieneAcceso, error: errorAcceso }, { perfil }] = await Promise.all([
     supabase.rpc("comunidad_tiene_acceso"),
     getPerfilActual(),
   ]);
+
+  // Un fallo de la RPC no es "sin acceso": mostraría el muro de suscripción a
+  // quien sí tiene acceso.
+  lanzarSiFalla(errorAcceso, "comunidad:comunidad_tiene_acceso");
 
   if (tieneAcceso) {
     return { acceso: true, usuarioId: user.id, esAdmin: perfil?.rol === "ADMINISTRADOR" };
   }
 
-  const { data: suscripcion } = await supabase
+  const { data: suscripcion, error: errorSuscripcion } = await supabase
     .from("suscripciones")
     .select("estado")
     .eq("id_usuario", user.id)
     .order("fecha_inicio", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  lanzarSiFalla(errorSuscripcion, "comunidad:suscripción del usuario");
 
   if (!suscripcion) return { acceso: false, motivo: "SIN_SUSCRIPCION" };
   return { acceso: false, motivo: suscripcion.estado === "CANCELADA" ? "CANCELADA" : "VENCIDA" };

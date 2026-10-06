@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
 import { getMiniaturaUrl } from "@/lib/mux/miniatura";
 import type { CategoriaChip } from "@/lib/categoria";
@@ -59,12 +60,14 @@ export type CategoriaConConteo = {
 export async function getInicioData() {
   const supabase = await createClient();
 
-  const { data: progresoCursos } = await supabase
+  const { data: progresoCursos, error: errorProgreso } = await supabase
     .from("progreso_cursos_estudiante")
     .select(
       "curso_id, curso_slug, titulo, imagen_portada, nivel, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado",
     )
     .order("ultima_actividad", { ascending: false });
+  // Un fallo no es "sin cursos en progreso".
+  lanzarSiFalla(errorProgreso, "dashboard:progreso de cursos");
 
   // Ya en orden de última actividad (la vista ordena así) y ya sin los
   // cursos terminados o sin ninguna lección lista todavía: nada de esto
@@ -91,7 +94,10 @@ export async function getInicioData() {
   // progreso del estudiante. Una sola consulta con `.in()` trae el temario
   // de TODOS los candidatos de una vez y se agrupa acá, mismo criterio que
   // categoriasPorCursoMap. En paralelo con esa consulta: son independientes.
-  const [{ data: categoriasPorCurso }, { data: moduloRowsTodos }] = cursoIds.length
+  const [
+    { data: categoriasPorCurso, error: errorCategoriasCurso },
+    { data: moduloRowsTodos, error: errorModulos },
+  ] = cursoIds.length
     ? await Promise.all([
         supabase.from("curso_categorias").select("id_curso, categoria:categorias(id, nombre)").in("id_curso", cursoIds),
         supabase
@@ -101,7 +107,12 @@ export async function getInicioData() {
           )
           .in("id_curso", cursoIds),
       ])
-    : [{ data: null }, { data: null }];
+    : [
+        { data: null, error: null },
+        { data: null, error: null },
+      ];
+  lanzarSiFalla(errorCategoriasCurso, "dashboard:categorías de los cursos");
+  lanzarSiFalla(errorModulos, "dashboard:temario de los cursos");
 
   const modulosPorCursoMap = new Map<string, NonNullable<typeof moduloRowsTodos>>();
   for (const modulo of moduloRowsTodos ?? []) {
@@ -214,15 +225,17 @@ export async function getInicioData() {
     });
   }
 
-  const { data: categoriasRows } = await supabase
+  const { data: categoriasRows, error: errorCategorias } = await supabase
     .from("categorias")
     .select("id, slug, nombre")
     .eq("activo", true);
+  lanzarSiFalla(errorCategorias, "dashboard:escuelas");
 
-  const { data: cursosRows } = await supabase
+  const { data: cursosRows, error: errorCursos } = await supabase
     .from("cursos")
     .select("curso_categorias(id_categoria)")
     .eq("mostrado", true);
+  lanzarSiFalla(errorCursos, "dashboard:conteo de cursos por escuela");
 
   // Un curso con varias categorías suma en todas ellas: el conteo dice
   // "cuántos cursos ves si entras acá", y entrando a cualquiera de sus

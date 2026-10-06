@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Estado del examen final de varios cursos para UN estudiante, en dos
@@ -28,11 +29,14 @@ export async function getEstadoExamenPorCurso(
   const estados = new Map<string, EstadoExamenCurso>();
   if (cursoIds.length === 0) return estados;
 
-  const { data: examenes } = await supabase
+  const { data: examenes, error: errorExamenes } = await supabase
     .from("examenes")
     .select("id, id_curso")
     .in("id_curso", cursoIds)
     .eq("publicado", true);
+  // Sin examen en el mapa = "el curso no exige examen": un fallo no puede
+  // leerse así, o el curso saldría "Completado" sin haber rendido el examen.
+  lanzarSiFalla(errorExamenes, "examenes:publicados por curso");
 
   if (!examenes || examenes.length === 0) return estados;
 
@@ -42,12 +46,16 @@ export async function getEstadoExamenPorCurso(
     estados.set(examen.id_curso as string, { requerido: true, aprobado: false });
   }
 
-  const { data: aprobados } = await supabase
+  const { data: aprobados, error: errorAprobados } = await supabase
     .from("intentos_examen")
     .select("id_examen")
     .eq("id_usuario", usuarioId)
     .eq("estado", "APROBADO")
     .in("id_examen", [...cursoPorExamen.keys()]);
+
+  // Y sin intento aprobado = "examen pendiente": un fallo no puede decirle a
+  // quien ya aprobó que todavía le falta.
+  lanzarSiFalla(errorAprobados, "intentos_examen:aprobados");
 
   for (const intento of aprobados ?? []) {
     const cursoId = cursoPorExamen.get(intento.id_examen as string);

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
 import { getUsuarioActual } from "@/lib/perfil";
+import { logError } from "@/lib/log";
 import {
   tituloSchema,
   contenidoPostSchema,
@@ -109,7 +110,13 @@ export async function crearPostComunidad(
     };
   }
 
-  const { data: tieneAcceso } = await supabase.rpc("comunidad_tiene_acceso");
+  const { data: tieneAcceso, error: errorAcceso } = await supabase.rpc("comunidad_tiene_acceso");
+  // Un fallo de la RPC no es "sin acceso": no se le puede decir a quien sí lo
+  // tiene que necesita una suscripción.
+  if (errorAcceso) {
+    logError("comunidad:crear", "no se pudo comprobar el acceso a la comunidad", errorAcceso, { area: "comunidad" });
+    return { error: "No pudimos comprobar tu acceso a la comunidad. Intenta de nuevo." };
+  }
   if (!tieneAcceso) {
     return { error: "Todavía no tienes acceso a la comunidad. Necesitas una suscripción activa." };
   }
@@ -175,7 +182,13 @@ export async function responderPostComunidad(
     .maybeSingle();
   if (!post || post.eliminado) return { error: "La publicación a la que respondes ya no existe." };
 
-  const { data: tieneAcceso } = await supabase.rpc("comunidad_tiene_acceso");
+  const { data: tieneAcceso, error: errorAcceso } = await supabase.rpc("comunidad_tiene_acceso");
+  // Un fallo de la RPC no es "sin acceso": no se le puede decir a quien sí lo
+  // tiene que necesita una suscripción.
+  if (errorAcceso) {
+    logError("comunidad:crear", "no se pudo comprobar el acceso a la comunidad", errorAcceso, { area: "comunidad" });
+    return { error: "No pudimos comprobar tu acceso a la comunidad. Intenta de nuevo." };
+  }
   if (!tieneAcceso) {
     return { error: "Todavía no tienes acceso a la comunidad. Necesitas una suscripción activa." };
   }

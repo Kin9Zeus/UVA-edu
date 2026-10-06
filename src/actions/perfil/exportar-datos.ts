@@ -37,18 +37,18 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
   }
 
   const [
-    { data: perfil },
-    { data: suscripciones },
-    { data: inscripciones },
-    { data: progreso },
-    { data: certificados },
-    { data: intentosExamen },
-    { data: comentarios },
-    { data: comunidadPosts },
-    { data: comunidadRespuestas },
-    { data: calificaciones },
-    { data: notificaciones },
-    { data: notas },
+    { data: perfil, error: errorPerfil },
+    { data: suscripciones, error: errorSuscripciones },
+    { data: inscripciones, error: errorInscripciones },
+    { data: progreso, error: errorProgreso },
+    { data: certificados, error: errorCertificados },
+    { data: intentosExamen, error: errorIntentos },
+    { data: comentarios, error: errorComentarios },
+    { data: comunidadPosts, error: errorPosts },
+    { data: comunidadRespuestas, error: errorRespuestas },
+    { data: calificaciones, error: errorCalificaciones },
+    { data: notificaciones, error: errorNotificaciones },
+    { data: notas, error: errorNotas },
   ] = await Promise.all([
     supabase
       .from("perfiles")
@@ -112,6 +112,33 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
       .eq("id_usuario", user.id)
       .order("creado_en"),
   ]);
+
+  // Una exportación a medias entregada como completa es peor que un error: la
+  // persona se llevaría un archivo al que le faltan secciones sin saberlo. Si
+  // CUALQUIERA de las consultas falla, no se entrega nada. (PGRST116 en el
+  // perfil, cero filas, lo trata el `if (!perfil)` de abajo.)
+  const erroresPorSeccion = {
+    perfil: errorPerfil?.code === "PGRST116" ? null : errorPerfil,
+    suscripciones: errorSuscripciones,
+    inscripciones: errorInscripciones,
+    progreso: errorProgreso,
+    certificados: errorCertificados,
+    intentos_examen: errorIntentos,
+    comentarios: errorComentarios,
+    comunidad_posts: errorPosts,
+    comunidad_respuestas: errorRespuestas,
+    calificaciones_de_curso: errorCalificaciones,
+    notificaciones: errorNotificaciones,
+    notas: errorNotas,
+  };
+  const fallidas = Object.entries(erroresPorSeccion).filter(([, error]) => error);
+  if (fallidas.length > 0) {
+    logError("exportarMisDatos", "falló la lectura de una o más secciones de la exportación", fallidas[0][1], {
+      area: "cuenta",
+      secciones: fallidas.map(([seccion]) => seccion),
+    });
+    return { error: "No pudimos armar tu exportación. Intenta de nuevo." };
+  }
 
   if (!perfil) {
     logError("exportarMisDatos", "No se encontró el perfil de la sesión actual", undefined, {

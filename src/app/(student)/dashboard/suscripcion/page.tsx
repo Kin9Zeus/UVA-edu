@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/log";
 import { SuscripcionContent } from "@/components/dashboard/SuscripcionContent";
 import { EstadoPagoBanner, type EstadoIntento } from "@/components/dashboard/EstadoPagoBanner";
 
@@ -27,12 +28,18 @@ export default async function SuscripcionPage({
     // Cliente de RLS, no Service Role: `intentos_pago_select_propio`
     // (supabase/sql/100) ya limita la lectura a los intentos del usuario, así
     // que una referencia ajena pegada en la url no devuelve nada.
-    const { data: intento } = await supabase
+    const { data: intento, error } = await supabase
       .from("intentos_pago")
       .select("estado")
       .eq("referencia", referencia)
       .maybeSingle();
 
+    // El banner es un aviso sobre un pago concreto, no el contenido de la
+    // pantalla: si la consulta falla se omite (la suscripción de abajo sí
+    // lanza si falla) pero se registra, para que no pase en silencio.
+    if (error) {
+      logError("suscripcion:estado-pago", "no se pudo leer el intento de pago", error, { area: "pagos" });
+    }
     if (intento) estadoPago = intento.estado as EstadoIntento;
   }
 
