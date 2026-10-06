@@ -52,6 +52,11 @@ Aplica siempre, tanto en tareas de diseño como de código:
 ### 3.2 Seguridad y Permisos
 - **Row Level Security (RLS):** Nunca sugieras o ejecutes consultas que se salten RLS.
 - **Validación de Roles:** Las operaciones de creación o modificación (CMS, cupones, cortesías) deben verificar explícitamente el rol `ADMINISTRADOR` en las políticas RLS y en los Server Actions.
+- **Errores de consulta (nunca un vacío por un fallo):** toda consulta a Supabase toma `{ data, error }` y maneja el `error`. Nunca mostrar un estado vacío ("no tienes certificados", "sin cursos", "sin acceso", una lista en 0) cuando hubo un error: el usuario cree que perdió su trabajo.
+  - Si el dato **es el contenido de la pantalla** (lista, acceso, estado de un curso, rol, exportación), usa `lanzarSiFalla` (`src/lib/supabase/errores.ts`): `error.tsx` muestra el mensaje con Reintentar y Sentry lo agrupa.
+  - Si es un dato **secundario** que solo deja la pantalla menos rica (nombre de un autor, un contador, una miniatura), degrada a un valor de reemplazo explícito **y registra** con `registrarSiFalla` (`src/lib/supabase/registrar.ts`). Nunca en silencio.
+  - En una Server Action devuelve `{ error }` con un mensaje que no afirme algo falso (un fallo al comprobar el acceso no es "necesitas una suscripción"). En un webhook, responde 500 para que el proveedor reintente. En una comprobación de seguridad o antes de una operación irreversible, falla cerrado.
+  - `PGRST116` (cero filas en `.single()`) no es un fallo: es "no existe".
 
 ### 3.3 Sistema de diseño y tokens (UI)
 - **Temas claro y oscuro:** la plataforma soporta ambos. Por defecto sigue `prefers-color-scheme` del sistema operativo, con un selector manual que se recuerda en `localStorage` (`src/lib/tema.ts`). El tema oscuro se activa con la clase `.dark` en `<html>`. Toda pantalla se revisa en los dos.
