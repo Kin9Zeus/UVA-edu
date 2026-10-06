@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Comunidad (size-3.5/size-4 en clases de Tailwind). */
 export function EstrellasCalificacion({ puntuacion, size = 14 }: { puntuacion: number; size?: number }) {
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${puntuacion} de 5 estrellas`}>
+    <span role="img" className="inline-flex items-center gap-0.5" aria-label={`${puntuacion} de 5 estrellas`}>
       {[1, 2, 3, 4, 5].map((valor) => (
         <Star
           key={valor}

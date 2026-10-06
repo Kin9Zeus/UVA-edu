@@ -151,7 +151,7 @@ export function PreguntaEmparejar({
             : estado === "neutral"
               ? "border border-uva-divider text-uva-text-faint"
               : estado === "activa"
-                ? "bg-uva-accent text-uva-on-accent"
+                ? "bg-uva-btn text-uva-on-accent"
                 : (colorVeredicto ?? `${colorSolido} text-uva-on-accent`)
         }`}
         aria-hidden

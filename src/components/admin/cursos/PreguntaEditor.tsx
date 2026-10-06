@@ -212,7 +212,7 @@ export function PreguntaEditor({
             id={`tipo-${pregunta.id}`}
             value={tipo}
             onChange={(event) => cambiarTipo(event.target.value as TipoPreguntaImplementado)}
-            className="h-9 w-full rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-[13.5px] text-uva-text outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+            className="h-9 w-full rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-[13.5px] text-uva-text outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
           >
             {opcionesTipo.map((valor) => (
               <option key={valor} value={valor}>

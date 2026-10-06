@@ -130,7 +130,7 @@ export function CatalogoContent({
               value={categoriaSlugActual}
               onValueChange={(value) => actualizarUrl({ categoria: value === "todas" ? undefined : (value ?? undefined) })}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filtrar por categoría">
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
               <SelectContent>

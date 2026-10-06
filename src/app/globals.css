@@ -80,6 +80,9 @@
   --color-uva-accent: var(--uva-accent);
   --color-uva-accent-hover: var(--uva-accent-hover);
   --color-uva-accent-active: var(--uva-accent-active);
+  --color-uva-btn: var(--uva-btn);
+  --color-uva-btn-hover: var(--uva-btn-hover);
+  --color-uva-btn-active: var(--uva-btn-active);
   --color-uva-accent-soft: var(--uva-accent-soft);
   --color-uva-accent-text: var(--uva-accent-text);
   --color-uva-accent-ink: var(--uva-accent-ink);
@@ -174,7 +177,7 @@
   --uva-surface-2: #f4f4f5;
   --uva-text: #18181b;
   --uva-text-muted: rgba(24, 24, 27, 0.7);
-  --uva-text-faint: rgba(24, 24, 27, 0.6);
+  --uva-text-faint: rgba(24, 24, 27, 0.65);
   --uva-text-disabled: rgba(24, 24, 27, 0.38);
   --uva-divider: #e4e4e7;
   --uva-muted: #52525b;
@@ -205,8 +208,13 @@
   --uva-accent: #ff007a;
   --uva-accent-hover: #e00069;
   --uva-accent-active: #c2005b;
+  /* Fondo del boton primario, igual en los dos temas: texto --uva-on-accent
+     (blanco) >= 4,5:1 (reposo 4,55:1) */
+  --uva-btn: #e5007a;
+  --uva-btn-hover: #cc006d;
+  --uva-btn-active: #b3005f;
   --uva-accent-soft: rgba(255, 0, 122, 0.1);
-  --uva-accent-text: #c2005b;
+  --uva-accent-text: #b30054;
   --uva-accent-warm: #ff6a3d;
   --uva-accent-2: #f2c012;
   --uva-accent-2-soft: rgba(242, 192, 18, 0.2);
@@ -317,13 +325,13 @@
   --uva-surface-2: #141417;
   --uva-text: #fafafa;
   --uva-text-muted: rgba(250, 250, 250, 0.6);
-  --uva-text-faint: rgba(250, 250, 250, 0.45);
+  --uva-text-faint: rgba(250, 250, 250, 0.55);
   --uva-text-disabled: rgba(250, 250, 250, 0.32);
   --uva-divider: #27272a;
   /* Grises del mockup del panel admin (--muted / --muted-2 / --dim) y su
      superficie de hover; el sitio publico usa los rgba de --uva-text-* */
   --uva-muted: #a1a1aa;
-  --uva-muted-2: #71717a;
+  --uva-muted-2: #a1a1aa;
   --uva-dim: #52525b;
   --uva-hover: #1c1c20;
   --uva-chip: #27272a;

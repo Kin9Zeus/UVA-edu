@@ -95,7 +95,7 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
             táctil de 44px sin crecer el header (lo fija el avatar). */}
         <SelectorTemaBoton className="-my-0.5 text-uva-muted hover:bg-uva-hover hover:text-uva-text" />
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-uva-hover">
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
             {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}
             <Avatar className="size-[34px] bg-uva-divider after:hidden">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}

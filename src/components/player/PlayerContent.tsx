@@ -205,7 +205,7 @@ export function PlayerContent({
             type="button"
             onClick={() => irALeccion(data.siguienteId!)}
             aria-label="Siguiente clase"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-btn text-uva-on-accent hover:bg-uva-btn-hover"
           >
             <ChevronRight className="size-5" strokeWidth={2.5} />
           </button>
@@ -216,7 +216,7 @@ export function PlayerContent({
           <Link
             href={`/cursos/${data.cursoSlug}/examen`}
             aria-label="Hacer examen"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-uva-btn text-uva-on-accent hover:bg-uva-btn-hover"
           >
             <FileCheck className="size-4" strokeWidth={2.5} />
           </Link>
@@ -261,7 +261,7 @@ export function PlayerContent({
               type="button"
               onClick={() => irALeccion(data.siguienteId!)}
               aria-label="Siguiente clase"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover"
             >
               Siguiente clase
               <ChevronRight className="size-4" strokeWidth={2.5} />
@@ -270,7 +270,7 @@ export function PlayerContent({
             <Link
               href={`/cursos/${data.cursoSlug}/examen`}
               aria-label="Hacer examen"
-              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-uva-md border border-transparent bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover"
             >
               Hacer examen
               <FileCheck className="size-4" strokeWidth={2.5} />

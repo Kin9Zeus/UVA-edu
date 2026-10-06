@@ -73,7 +73,7 @@ export function ErrorBlock({
           {accionPrimaria.href ? (
             <Link
               href={accionPrimaria.href}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
+              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-btn px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-btn-hover"
             >
               {accionPrimaria.label}
             </Link>
@@ -81,7 +81,7 @@ export function ErrorBlock({
             <button
               type="button"
               onClick={accionPrimaria.onClick}
-              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-accent-hover"
+              className="inline-flex h-[42px] items-center rounded-uva-md bg-uva-btn px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-btn-hover"
             >
               {accionPrimaria.label}
             </button>
@@ -95,7 +95,7 @@ export function ErrorBlock({
         </div>
 
         {meta && (
-          <div className="mt-1.5 font-mono text-[11px] tracking-[0.1em] text-uva-dim">
+          <div className="mt-1.5 font-mono text-[11px] tracking-[0.1em] text-uva-text-muted">
             {meta}
           </div>
         )}

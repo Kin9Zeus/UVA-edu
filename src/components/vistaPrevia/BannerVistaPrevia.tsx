@@ -29,7 +29,7 @@ export function BannerVistaPrevia({
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-50 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-uva-accent px-4 py-2 text-center text-[13px] font-semibold text-uva-on-accent"
+      className="fixed inset-x-0 top-0 z-50 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-uva-btn px-4 py-2 text-center text-[13px] font-semibold text-uva-on-accent"
     >
       <span className="flex items-center gap-1.5">
         <Eye className="size-4 shrink-0" aria-hidden />

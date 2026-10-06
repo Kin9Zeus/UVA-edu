@@ -67,7 +67,7 @@ function BotonToolbar({
       onClick={onClick}
       className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 disabled:cursor-not-allowed disabled:opacity-40 ${
         activo
-          ? "bg-uva-accent text-uva-on-accent"
+          ? "bg-uva-btn text-uva-on-accent"
           : "bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text"
       }`}
     >

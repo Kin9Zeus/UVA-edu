@@ -175,7 +175,7 @@ export const EditorTextoEnriquecido = forwardRef<
             }}
             className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 ${
               activos[tipo]
-                ? "bg-uva-accent text-uva-on-accent"
+                ? "bg-uva-btn text-uva-on-accent"
                 : "bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text"
             }`}
           >

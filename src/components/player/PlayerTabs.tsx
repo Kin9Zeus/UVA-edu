@@ -44,7 +44,7 @@ export function TabsHeader({
   totalNotas?: number;
 }) {
   const clase = (activo: boolean) =>
-    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
+    `${TAB_BASE} ${activo ? "bg-uva-btn text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-uva-divider pb-3.5">
@@ -102,7 +102,7 @@ export function PanelLateralHeader({
   totalNotas?: number;
 }) {
   const clase = (activo: boolean) =>
-    `${TAB_BASE} ${activo ? "bg-uva-accent text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
+    `${TAB_BASE} ${activo ? "bg-uva-btn text-uva-on-accent" : "bg-transparent text-uva-muted"}`;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-uva-divider pb-3.5">
@@ -312,7 +312,7 @@ export function ComentariosTab({
               aria-label="Ordenar comentarios"
               value={orden}
               onChange={(event) => setOrden(event.target.value as OrdenComentarios)}
-              className="ml-auto cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2 py-1 text-[12px] text-uva-muted outline-none hover:text-uva-text focus-visible:border-uva-accent"
+              className="ml-auto cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2 py-1 text-[12px] text-uva-muted outline-hidden hover:text-uva-text focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
             >
               {(Object.keys(ORDEN_LABEL) as OrdenComentarios[]).map((valor) => (
                 <option key={valor} value={valor}>
@@ -485,7 +485,7 @@ function NuevoComentarioForm({
                 }}
                 className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 ${
                   activos[tipo]
-                    ? "bg-uva-accent text-uva-on-accent"
+                    ? "bg-uva-btn text-uva-on-accent"
                     : "bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text"
                 }`}
               >
@@ -546,7 +546,7 @@ function NuevoComentarioForm({
               type="button"
               disabled={pendiente || vacio}
               onClick={enviar}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent px-4 py-1.5 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-btn px-4 py-1.5 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
             >
               {pendiente ? "Publicando…" : idComentarioPadre ? "Responder" : "Publicar"}
               {pendiente ? (
