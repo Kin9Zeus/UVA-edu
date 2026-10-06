@@ -59,7 +59,7 @@ function TabsList({
 /* Se exporta aparte porque la pantalla "Crear curso" del mockup dibuja sus
    tres pestañas inertes (`<span class="tab tab-disabled">`) sin un Tabs real. */
 const tabTriggerVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-1 py-[11px] text-[13.5px] font-semibold whitespace-nowrap outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-1 py-[11px] text-[13.5px] font-semibold whitespace-nowrap outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       state: {

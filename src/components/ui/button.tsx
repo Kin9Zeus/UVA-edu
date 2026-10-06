@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
    solo se pide explicitamente con variant="primary" (`.btn-primary`).
    El foco es `outline:2px solid var(--accent)` con offset, no un ring. */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-none select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
         /* `.btn-primary` — magenta, reservado al CTA de cada pantalla */
         primary:
-          "border-uva-accent bg-uva-accent text-uva-on-accent hover:bg-uva-accent-hover",
+          "border-uva-btn bg-uva-btn text-uva-on-accent hover:bg-uva-btn-hover hover:border-uva-btn-hover active:bg-uva-btn-active",
         /* El mockup no distingue un `outline` del `.btn` base */
         outline:
           "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
@@ -36,7 +36,7 @@ const buttonVariants = cva(
            transition-all heredada de la base para no animar lo que antes
            cambiaba de forma instantánea. */
         "uva-primary":
-          "w-full rounded-uva-md border border-transparent text-uva-on-accent bg-uva-accent transition-none hover:bg-uva-accent-hover active:not-aria-[haspopup]:bg-uva-accent-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-transparent text-uva-on-accent bg-uva-btn transition-none hover:bg-uva-btn-hover active:not-aria-[haspopup]:bg-uva-btn-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-secondary":
           "w-full rounded-uva-md border border-uva-divider bg-transparent text-uva-text transition-none hover:bg-uva-chip active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-ghost":
@@ -52,7 +52,7 @@ const buttonVariants = cva(
         xs: "gap-1 px-2.5 py-1 text-[12px] [&_svg:not([class*='size-'])]:size-3",
         lg: "gap-2 px-5 py-3 text-[14px]",
         /* Botones de solo icono: `.btn.btn-sm` con `padding:6px` */
-        icon: "p-2.5",
+        icon: "size-11 p-0",
         "icon-xs": "p-1 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "p-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         "icon-lg": "p-3",

@@ -77,7 +77,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                   onClick={() => setFiltro(opcion.valor)}
                   className={`rounded-full px-3 py-1 text-[12.5px] transition-colors ${
                     filtro === opcion.valor
-                      ? "bg-uva-accent text-uva-on-accent"
+                      ? "bg-uva-btn text-uva-on-accent"
                       : "text-uva-text-muted hover:text-uva-text"
                   }`}
                 >
@@ -85,8 +85,12 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                 </button>
               ))}
             </div>
-            <Select value={orden} onValueChange={(valor) => setOrden(valor as Orden)}>
-              <SelectTrigger className="h-8 bg-uva-bg text-[12.5px]" size="sm">
+            <Select
+              value={orden}
+              onValueChange={(valor) => setOrden(valor as Orden)}
+              items={{ recientes: "Más recientes", porcentaje: "Más avanzados" }}
+            >
+              <SelectTrigger className="h-8 bg-uva-bg text-[12.5px]" size="sm" aria-label="Ordenar cursos">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -104,7 +108,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
             </p>
             <Link
               href="/dashboard/catalogo"
-              className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover hover:no-underline"
+              className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-btn px-5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover hover:no-underline"
             >
               Ver catálogo
             </Link>

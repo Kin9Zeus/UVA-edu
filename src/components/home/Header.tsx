@@ -66,7 +66,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
         <SelectorTemaBoton className="-my-0.5 hidden min-[861px]:inline-flex" />
         <Link
           href="/login"
-          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-accent px-3.5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
+          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-btn px-3.5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
         >
           Acceder
         </Link>

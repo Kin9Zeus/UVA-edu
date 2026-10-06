@@ -203,7 +203,7 @@ export function NotasTab({
               type="button"
               disabled={guardando || vacia}
               onClick={guardar}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
             >
               {guardando && <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />}
               {guardando ? "Guardando…" : "Guardar nota"}
@@ -357,7 +357,7 @@ function NotasDelCurso({
           >
             <span
               className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-semibold ${
-                esActual ? "bg-uva-accent text-uva-on-accent" : "bg-uva-surface text-uva-muted"
+                esActual ? "bg-uva-btn text-uva-on-accent" : "bg-uva-surface text-uva-muted"
               }`}
             >
               {leccion.numero}
@@ -370,7 +370,7 @@ function NotasDelCurso({
             </span>
             <span className="mt-0.5 shrink-0 font-mono text-[10px] text-uva-muted">{notas.length}</span>
             {esActual && (
-              <span className="mt-0.5 shrink-0 rounded-full bg-uva-accent px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
+              <span className="mt-0.5 shrink-0 rounded-full bg-uva-btn px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
                 Esta clase
               </span>
             )}

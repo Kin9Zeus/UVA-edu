@@ -113,7 +113,8 @@ export function Header({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="flex items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-none hover:bg-uva-hover"
+            aria-label="Menú de usuario"
+            className="-my-0.5 flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
           >
             <Avatar className="bg-uva-divider">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}

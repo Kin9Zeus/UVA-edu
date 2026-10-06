@@ -201,7 +201,7 @@ export function NotaItem<T extends NotaLeccion>({
                 type="button"
                 disabled={vacia}
                 onClick={guardarEdicion}
-                className="inline-flex cursor-pointer items-center rounded-uva-md border-0 bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-accent-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+                className="inline-flex cursor-pointer items-center rounded-uva-md border-0 bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
               >
                 Guardar
               </button>
