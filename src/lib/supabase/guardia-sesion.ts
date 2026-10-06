@@ -41,6 +41,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/log";
 
 export type GuardiaSesion = {
   correoVerificado: boolean;
@@ -83,7 +84,7 @@ export async function getGuardiaSesion(
   // En PARALELO, no en serie: aunque haya fallo de caché, esto cuesta un
   // round-trip y no dos. Antes se encadenaban (getUser y después perfiles),
   // que era la mitad de los ~380 ms.
-  const [{ data: usuario }, { data: perfil }] = await Promise.all([
+  const [{ data: usuario }, { data: perfil, error: errorPerfil }] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from("perfiles").select("estado").eq("id", usuarioId).single(),
   ]);
@@ -99,6 +100,19 @@ export async function getGuardiaSesion(
     correoVerificado: Boolean(usuario.user.email_confirmed_at),
     suspendido: perfil?.estado === "SUSPENDIDO",
   };
+
+  // Un fallo de la consulta de `perfiles` no puede guardarse como "no
+  // suspendido": la caché lo repetiría 30 s a todas las peticiones del
+  // usuario y nadie se enteraría. Se responde sin cachear (la suspensión es
+  // comodidad de UX; la frontera real, `private.cuenta_activa()`, sigue en
+  // RLS — ver la cabecera) y se registra para que no pase en silencio.
+  // PGRST116 (cero filas) no es un fallo: es "perfil aún sin crear".
+  if (errorPerfil && errorPerfil.code !== "PGRST116") {
+    logError("guardia-sesion", "no se pudo leer perfiles.estado; se omite la caché", errorPerfil, {
+      area: "auth",
+    });
+    return valor;
+  }
 
   if (cache.size >= MAX_ENTRADAS) {
     cache.clear();

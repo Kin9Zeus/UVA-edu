@@ -97,6 +97,22 @@ describe("login", () => {
     expect(servidorFalso.llamadasA("rpc:limpiar_intentos_login")).toHaveLength(0);
   });
 
+  it("si la consulta del estado FALLA, no deja entrar: cierra la sesión y pide reintentar (falla cerrado)", async () => {
+    servidorFalso.responder("from:perfiles", { data: null, error: { code: "57014", message: "statement timeout" } });
+
+    expect(await entrar()).toEqual({
+      error: "No pudimos iniciar tu sesión. Intenta de nuevo en unos segundos.",
+    });
+    expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(1);
+    expect(servidorFalso.llamadasA("rpc:limpiar_intentos_login")).toHaveLength(0);
+  });
+
+  it("perfil aún sin crear (PGRST116, cero filas) no es un fallo: entra", async () => {
+    servidorFalso.responder("from:perfiles", { data: null, error: { code: "PGRST116", message: "0 rows" } });
+
+    expect(await destinoDe(entrar())).toBe("/dashboard");
+  });
+
   it("el estado se consulta para el usuario que acaba de autenticarse", async () => {
     await destinoDe(entrar());
 

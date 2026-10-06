@@ -62,11 +62,22 @@ export async function login(
   // Supabase ya validó la contraseña y creó la sesión antes de que podamos
   // consultar Perfiles, así que una cuenta suspendida se cierra de inmediato
   // en vez de dejarla entrar: no basta con negar el acceso más adelante.
-  const { data: perfil } = await supabase
+  const { data: perfil, error: errorPerfil } = await supabase
     .from("perfiles")
     .select("estado")
     .eq("id", data.user.id)
     .single();
+
+  // Si la consulta FALLA no sabemos si la cuenta está suspendida, y dejar
+  // entrar "por si acaso" es justo lo que esta comprobación evita. Falla
+  // cerrado, igual que el límite de intentos: iniciar sesión es una acción
+  // del usuario y reintentarla cuesta un clic. PGRST116 (cero filas: perfil
+  // aún no creado) no es un fallo, es el caso que ya se dejaba pasar.
+  if (errorPerfil && errorPerfil.code !== "PGRST116") {
+    logError("login", "no se pudo leer el estado de la cuenta", errorPerfil);
+    await supabase.auth.signOut();
+    return { error: "No pudimos iniciar tu sesión. Intenta de nuevo en unos segundos." };
+  }
 
   if (perfil?.estado === "SUSPENDIDO") {
     await supabase.auth.signOut();
