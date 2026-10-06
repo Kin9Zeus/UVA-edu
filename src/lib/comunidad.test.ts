@@ -220,16 +220,12 @@ describe("getComunidadFeed — lo que devuelve", () => {
     });
   });
 
-  it("si la función falla: feed vacío y queda registrado", async () => {
-    servidorFalso.responder("rpc:buscar_feed_comunidad", { error: { message: "statement timeout" } });
+  it("si la función falla: LANZA en vez de devolver un feed vacío (error.tsx ofrece Reintentar)", async () => {
+    // Antes devolvía { posts: [] } y la pantalla decía "Sé el primero en compartir
+    // algo": un fallo no es "no hay publicaciones". Ver CLAUDE.md, sección 3.2.
+    servidorFalso.responder("rpc:buscar_feed_comunidad", { error: { message: "statement timeout", code: "57014" } });
 
-    expect(await getComunidadFeed({ categoria: "PREGUNTAS" })).toEqual({ posts: [], pagina: 1, totalPaginas: 1 });
-    expect(logError).toHaveBeenCalledWith(
-      "comunidad:feed",
-      "no se pudo leer el feed de comunidad",
-      { message: "statement timeout" },
-      { opciones: { categoria: "PREGUNTAS" } },
-    );
+    await expect(getComunidadFeed({ categoria: "PREGUNTAS" })).rejects.toThrow(/comunidad:feed falló.*statement timeout/);
   });
 });
 

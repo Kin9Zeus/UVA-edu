@@ -18,7 +18,7 @@ const { logError } = await import("@/lib/log");
 const { getInicioData } = await import("@/lib/dashboard");
 const { getEstadoExamenPorCurso } = await import("@/lib/examenes/estadoPorCurso");
 const { getPerfilActual } = await import("@/lib/perfil");
-const { resolverAccesoComunidad } = await import("@/lib/comunidad");
+const { resolverAccesoComunidad, getComunidadFeed } = await import("@/lib/comunidad");
 const { exportarMisDatos } = await import("@/actions/perfil/exportar-datos");
 const { responderPostComunidad } = await import("@/actions/comunidad/crear");
 
@@ -184,5 +184,23 @@ describe("Exportar mis datos", () => {
     todoBien();
     servidorFalso.responder("from:perfiles", FALLO);
     expect(await exportarMisDatos()).toEqual({ error: "No pudimos armar tu exportación. Intenta de nuevo." });
+  });
+});
+
+describe("Feed de Comunidad", () => {
+  beforeEach(() => {
+    servidorFalso.conUsuario(USUARIO);
+  });
+
+  it("si falla la lectura lanza: no devuelve un feed vacío ('Sé el primero en compartir algo')", async () => {
+    servidorFalso.responder("rpc:buscar_feed_comunidad", FALLO);
+
+    await expect(getComunidadFeed()).rejects.toThrow(/comunidad:feed falló.*57014/);
+  });
+
+  it("sin error y sin publicaciones sigue siendo un feed vacío (eso sí es 'no hay')", async () => {
+    servidorFalso.responder("rpc:buscar_feed_comunidad", { data: [], error: null });
+
+    await expect(getComunidadFeed()).resolves.toEqual({ posts: [], pagina: 1, totalPaginas: 1 });
   });
 });

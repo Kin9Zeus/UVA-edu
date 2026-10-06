@@ -343,10 +343,10 @@ export async function getComunidadFeed(opciones?: {
     p_por_pagina: COMUNIDAD_POSTS_POR_PAGINA,
   });
 
-  if (error) {
-    logError("comunidad:feed", "no se pudo leer el feed de comunidad", error, { opciones });
-    return { posts: [], pagina: 1, totalPaginas: 1 };
-  }
+  // Un fallo no es "no hay publicaciones": es el contenido de la pantalla, y el
+  // estado vacío ("Sé el primero en compartir algo") le diría a la persona que
+  // no hay nada. Se lanza y error.tsx ofrece Reintentar.
+  lanzarSiFalla(error, "comunidad:feed");
 
   const filas = (data ?? []) as FilaFeed[];
   if (filas.length === 0) return { posts: [], pagina: 1, totalPaginas: 1 };
