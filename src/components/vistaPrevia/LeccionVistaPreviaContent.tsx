@@ -65,7 +65,7 @@ export function LeccionVistaPreviaContent({
           {data.siguienteSlug ? (
             <Link
               href={hrefLeccion(data.siguienteSlug)}
-              className="inline-flex items-center rounded-uva-md border border-transparent bg-uva-accent px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
+              className="inline-flex items-center rounded-uva-md border border-transparent bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover"
             >
               Siguiente clase →
             </Link>

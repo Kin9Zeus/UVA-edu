@@ -334,7 +334,7 @@ export function CursoDetalleContent({
                   // botón, el span tomaba el ancho de su propio texto (no el
                   // del botón) y `truncate` nunca cortaba — títulos largos se
                   // salían del botón.
-                  <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal opacity-80">
+                  <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal">
                     Clase {curso.leccionContinuarNumero} · {curso.leccionContinuarTitulo}
                   </span>
                 )}
@@ -355,7 +355,7 @@ export function CursoDetalleContent({
               className="min-h-12 max-w-full flex-col gap-0.5 overflow-hidden py-2"
             >
               <span>Renueva tu acceso</span>
-              <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal opacity-80">
+              <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal">
                 {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
               </span>
             </Button>

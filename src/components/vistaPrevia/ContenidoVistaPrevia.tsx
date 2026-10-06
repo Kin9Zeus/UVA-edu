@@ -157,7 +157,7 @@ export function ContenidoVistaPrevia({
           {primeraLeccion ? (
             <Link
               href={`/vista-previa/${token}/${primeraLeccion.slug}`}
-              className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent px-4 text-[14px] font-semibold text-uva-on-accent no-underline hover:bg-uva-accent-hover"
+              className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-btn px-4 text-[14px] font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover"
             >
               Comenzar curso
             </Link>

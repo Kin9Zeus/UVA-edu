@@ -93,7 +93,7 @@ export function AdminBottomTabBar() {
           <DialogPrimitive.Trigger
             aria-label="Más opciones"
             className={cn(
-              "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors outline-none",
+              "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
               enSecundario && "bg-uva-accent/15 text-uva-accent-ink",
             )}
           >

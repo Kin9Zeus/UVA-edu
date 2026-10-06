@@ -168,7 +168,7 @@ export function InicioContent({
                   className="object-cover"
                 />
               )}
-              <span className="absolute top-2 left-2 rounded-full bg-uva-accent px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
+              <span className="absolute top-2 left-2 rounded-full bg-uva-btn px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
                 Destacado
               </span>
             </div>

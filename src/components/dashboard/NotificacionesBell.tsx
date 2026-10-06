@@ -123,7 +123,7 @@ export function NotificacionesBell({
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         aria-label={ariaLabel}
-        className="relative flex size-9 shrink-0 items-center justify-center rounded-uva-sm text-uva-text hover:bg-uva-hover"
+        className="relative -my-0.5 flex size-11 shrink-0 items-center justify-center rounded-uva-sm text-uva-text hover:bg-uva-hover"
       >
         <Bell className="size-5" strokeWidth={1.9} />
         {(diasGracia !== null || noLeidas > 0) && (

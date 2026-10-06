@@ -159,7 +159,7 @@ export function Sidebar({
           ))}
 
           {!collapsed && (
-            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-uva-dim uppercase">
+            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-uva-text-muted uppercase">
               Tu progreso
             </p>
           )}

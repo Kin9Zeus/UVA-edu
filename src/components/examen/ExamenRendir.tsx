@@ -527,7 +527,7 @@ function claseOpcion(elegida: boolean, veredicto: Veredicto): string {
 
 function claseLetra(elegida: boolean, veredicto: Veredicto): string {
   if (veredicto && elegida) return veredicto === "bien" ? "bg-uva-valid text-uva-bg" : "bg-uva-error text-uva-on-accent";
-  if (elegida) return "bg-uva-accent text-uva-on-accent";
+  if (elegida) return "bg-uva-btn text-uva-on-accent";
   return "border border-uva-divider text-uva-muted group-hover:border-uva-accent/60 group-hover:text-uva-text";
 }
 
