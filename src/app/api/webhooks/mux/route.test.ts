@@ -91,6 +91,21 @@ describe("video.asset.ready sin lección que lo espere", () => {
     expect(servidorFalso.llamadasA("from:lecciones").some((l) => metodos(l).includes("update"))).toBe(false);
   });
 
+  it("si la CONSULTA de la lección falla, NO lo toma por huérfano: no borra el asset y pide reintento (500)", async () => {
+    servidorFalso.responderSegun("from:lecciones", () => ({ data: null, error: { code: "57014", message: "timeout" } }));
+
+    const respuesta = await evento("video.asset.ready", {
+      id: "asset-con-leccion",
+      upload_id: "upload-1",
+      playback_ids: [{ id: "pb-1", policy: "signed" }],
+    });
+
+    expect(respuesta.status).toBe(500);
+    expect(borrarEnMux).not.toHaveBeenCalled();
+    expect(servidorFalso.llamadasA("from:mux_assets_pendientes_eliminacion")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("from:lecciones").some((l) => metodos(l).includes("update"))).toBe(false);
+  });
+
   it("con lección esperándolo, sigue el camino normal: LISTO y sin borrar nada", async () => {
     servidorFalso.responderSegun("from:lecciones", (l) =>
       metodos(l).includes("update") ? { error: null } : { data: { id: "leccion-1", id_mux_asset_id: null } },
@@ -110,5 +125,20 @@ describe("video.asset.ready sin lección que lo espere", () => {
       duracion: 61,
     });
     expect(borrarEnMux).not.toHaveBeenCalled();
+  });
+});
+
+describe("track.ready (subtítulos): buscar la lección", () => {
+  it("si la consulta falla responde 500 para que Mux reintente, en vez de perder la transcripción", async () => {
+    servidorFalso.responderSegun("from:lecciones", () => ({ data: null, error: { code: "57014", message: "timeout" } }));
+
+    const respuesta = await evento("video.asset.track.ready", {
+      id: "track-1",
+      asset_id: "asset-1",
+      type: "text",
+      text_type: "subtitles",
+    });
+
+    expect(respuesta.status).toBe(500);
   });
 });

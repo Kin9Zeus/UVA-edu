@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { tiempoRelativo } from "@/lib/admin/format";
 import type { Notificacion } from "@/lib/notificaciones-tipos";
 
@@ -34,18 +35,21 @@ export async function getNotificaciones(usuarioId: string, limite = 20): Promise
 
   const idsActor = [...new Set(filas.filter((f) => f.id_actor).map((f) => f.id_actor as string))];
   const idsPost = [...new Set(filas.filter((f) => f.entidad_tipo === "comunidad_post").map((f) => f.entidad_id))];
-  const [{ data: actores }, { data: posts }] = await Promise.all([
+  const [{ data: actores, error: errorActores }, { data: posts, error: errorPosts }] = await Promise.all([
     // `perfiles` directo respondía null: perfiles_select_propio (001) solo
     // deja leer la fila propia (o admin), así que un estudiante viendo la
     // notificación de otro nunca veía el nombre del actor. Misma vista
     // pública que usa el feed para el nombre del autor (085_comunidad_vistas_publicas.sql).
     idsActor.length
       ? supabase.from("comunidad_autor_publico").select("id, nombre").in("id", idsActor)
-      : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; nombre: string }[], error: null }),
     idsPost.length
       ? supabase.from("comunidad_posts").select("id, titulo, slug").in("id", idsPost)
-      : Promise.resolve({ data: [] as { id: string; titulo: string; slug: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; titulo: string; slug: string }[], error: null }),
   ]);
+  // Secundarios: la notificación se muestra igual ("Alguien", sin enlace).
+  registrarSiFalla(errorActores, "notificaciones:actores", "no se pudieron leer los autores de las notificaciones");
+  registrarSiFalla(errorPosts, "notificaciones:posts", "no se pudieron leer las publicaciones de las notificaciones");
   const nombrePorActorId = new Map((actores ?? []).map((a) => [a.id, a.nombre]));
   const tituloPorPostId = new Map((posts ?? []).map((p) => [p.id, p.titulo]));
   const slugPorPostId = new Map((posts ?? []).map((p) => [p.id, p.slug]));

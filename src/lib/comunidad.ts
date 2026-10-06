@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { tiempoRelativo, formatFecha, extensionArchivo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { BUCKET_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-adjuntos";
 import type {
   CategoriaComunidad,
@@ -180,24 +181,38 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   // que se sepa de antemano cuál — Postgres simplemente no encuentra nada en
   // la columna que no aplica, sin necesidad de una condición OR construida
   // como texto. Mismo motivo para separar comunidad_adjuntos en dos.
-  const [{ data: autores }, { data: reaccionesPost }, { data: reaccionesRespuesta }, { data: adjuntosPost }, { data: adjuntosRespuesta }] =
+  const [
+    { data: autores, error: errorAutores },
+    { data: reaccionesPost, error: errorReaccionesPost },
+    { data: reaccionesRespuesta, error: errorReaccionesRespuesta },
+    { data: adjuntosPost, error: errorAdjuntosPost },
+    { data: adjuntosRespuesta, error: errorAdjuntosRespuesta },
+  ] =
     await Promise.all([
       autorIds.length
         ? supabase.from("comunidad_autor_publico").select("id, nombre, foto_url").in("id", autorIds)
-        : Promise.resolve({ data: [] }),
+        : Promise.resolve({ data: [], error: null }),
       idsParaReacciones.length
         ? supabase.from("comunidad_reacciones").select("id_usuario, id_post").in("id_post", idsParaReacciones)
-        : Promise.resolve({ data: [] }),
+        : Promise.resolve({ data: [], error: null }),
       idsParaReacciones.length
         ? supabase.from("comunidad_reacciones").select("id_usuario, id_respuesta").in("id_respuesta", idsParaReacciones)
-        : Promise.resolve({ data: [] }),
+        : Promise.resolve({ data: [], error: null }),
       objetivoIds.length
         ? supabase.from("comunidad_adjuntos").select(columnasAdjunto).in("id_post", objetivoIds)
-        : Promise.resolve({ data: [] as FilaAdjunto[] }),
+        : Promise.resolve({ data: [] as FilaAdjunto[], error: null }),
       objetivoIds.length
         ? supabase.from("comunidad_adjuntos").select(columnasAdjunto).in("id_respuesta", objetivoIds)
-        : Promise.resolve({ data: [] as FilaAdjunto[] }),
+        : Promise.resolve({ data: [] as FilaAdjunto[], error: null }),
     ]);
+
+  // Datos secundarios del feed: sin ellos las publicaciones se muestran con
+  // autor genérico, 0 reacciones o sin imágenes, pero se leen. Se registra.
+  registrarSiFalla(errorAutores, "comunidad:autores", "no se pudieron leer los autores del feed");
+  registrarSiFalla(errorReaccionesPost, "comunidad:reacciones", "no se pudieron leer las reacciones de las publicaciones");
+  registrarSiFalla(errorReaccionesRespuesta, "comunidad:reacciones", "no se pudieron leer las reacciones de las respuestas");
+  registrarSiFalla(errorAdjuntosPost, "comunidad:adjuntos", "no se pudieron leer los adjuntos de las publicaciones");
+  registrarSiFalla(errorAdjuntosRespuesta, "comunidad:adjuntos", "no se pudieron leer los adjuntos de las respuestas");
 
   const nombresPorId = new Map((autores ?? []).map((a) => [a.id as string, a.nombre as string]));
   const fotosPorId = new Map((autores ?? []).map((a) => [a.id as string, a.foto_url as string | null]));
@@ -227,9 +242,10 @@ async function enriquecer<T extends { id: string; id_usuario: string }>(
   const rutasImagen = filasAdjuntos.filter((a) => a.es_imagen).map((a) => a.ruta_storage);
   const urlPorRuta = new Map<string, string>();
   if (rutasImagen.length > 0) {
-    const { data: firmadas } = await createAdminClient()
+    const { data: firmadas, error: errorFirmas } = await createAdminClient()
       .storage.from(BUCKET_ADJUNTOS_COMUNIDAD)
       .createSignedUrls(rutasImagen, DURACION_URL_IMAGEN_SEGUNDOS);
+    registrarSiFalla(errorFirmas, "comunidad:firmas", "no se pudieron firmar las imágenes del feed");
     for (const firmada of firmadas ?? []) {
       if (!firmada.error && firmada.signedUrl && firmada.path) urlPorRuta.set(firmada.path, firmada.signedUrl);
     }
@@ -406,11 +422,12 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
   // placeholder claro, mismo criterio que ya usan las respuestas eliminadas
   // dentro de un hilo (nunca 404, un texto "[respuesta eliminada]").
   if (post.eliminado) {
-    const { data: autor } = await supabase
+    const { data: autor, error: errorAutor } = await supabase
       .from("comunidad_autor_publico")
       .select("nombre, foto_url")
       .eq("id", post.id_usuario)
       .maybeSingle();
+    registrarSiFalla(errorAutor, "comunidad:autor", "no se pudo leer el autor de la publicación eliminada");
 
     return {
       id: post.id,
@@ -512,9 +529,10 @@ export async function getComunidadActividadReciente(): Promise<ComunidadActivida
   if (filas.length === 0) return [];
 
   const autorIds = [...new Set(filas.map((p) => p.id_usuario as string))];
-  const { data: autores } = autorIds.length
+  const { data: autores, error: errorAutores } = autorIds.length
     ? await supabase.from("comunidad_autor_publico").select("id, nombre").in("id", autorIds)
-    : { data: [] as { id: string; nombre: string }[] };
+    : { data: [] as { id: string; nombre: string }[], error: null };
+  registrarSiFalla(errorAutores, "comunidad:actividad-autores", "no se pudieron leer los autores de la actividad reciente");
 
   const nombrePorAutorId = new Map((autores ?? []).map((a) => [a.id as string, a.nombre as string]));
 

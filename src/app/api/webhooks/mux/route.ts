@@ -120,11 +120,24 @@ export async function POST(request: NextRequest) {
       // el del asset nuevo. Sin esto, un reemplazo de video pierde para
       // siempre el id del asset viejo en Mux (huérfano, nadie lo vuelve a
       // encontrar ni para borrarlo a mano desde el dashboard).
-      const { data: leccionActual } = await admin
+      const { data: leccionActual, error: errorLeccionActual } = await admin
         .from("lecciones")
         .select("id, id_mux_asset_id")
         .eq("id_mux_upload_id", data.upload_id)
         .maybeSingle();
+
+      // Un fallo de la consulta NO es "ninguna lección espera este upload": el
+      // bloque de abajo borraría de Mux el video de una lección que sí lo espera.
+      // 500 para que Mux reintente el evento (registrarEvento lo deja pasar
+      // mientras no esté marcado como procesado).
+      if (errorLeccionActual) {
+        logError("webhook:mux", "no se pudo buscar la lección del upload; se pide reintento", errorLeccionActual, {
+          area: "webhook",
+          idEvento: evento.id,
+          uploadId: data.upload_id,
+        });
+        return NextResponse.json({ error: "no se pudo buscar la lección" }, { status: 500 });
+      }
 
       // Ninguna lección espera este upload: se superó con otro ("Cancelar y
       // reintentar"), se quitó el video o se borró la lección mientras Mux
@@ -339,11 +352,23 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      const { data: leccion } = await admin
+      const { data: leccion, error: errorLeccion } = await admin
         .from("lecciones")
         .select("id, id_video_mux, modulo:modulos!inner(id_curso)")
         .eq("id_mux_asset_id", data.asset_id)
         .maybeSingle();
+
+      // Un fallo no es "ninguna lección con ese asset" (eso sí es un break
+      // silencioso, abajo): se perdería la transcripción para siempre. 500 para
+      // que Mux reintente, igual que cuando falla el guardado más abajo.
+      if (errorLeccion) {
+        logError("webhook:mux", "no se pudo buscar la lección de la pista; se pide reintento", errorLeccion, {
+          area: "webhook",
+          idEvento: evento.id,
+          assetId: data.asset_id,
+        });
+        return NextResponse.json({ error: "no se pudo buscar la lección" }, { status: 500 });
+      }
 
       // Ninguna lección con ese asset: el video se reemplazó o se borró
       // mientras Mux generaba los subtítulos. No es un error — no hay nada que

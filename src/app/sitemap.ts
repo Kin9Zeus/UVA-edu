@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { siteUrl } from "@/lib/site-url";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { getCategoriasActivas } from "@/lib/categoria";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * P2-5 (AUDIT-2026-09-04.md): no existía ningún sitemap -- Google tenía que
@@ -38,10 +39,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Las escuelas salen de `getCategoriasActivas()`: solo las que tienen al
   // menos un curso publicado, igual que el filtro del catálogo y el pie de
   // página. Una escuela vacía no se le ofrece a Google.
-  const [{ data: cursos }, categorias] = await Promise.all([
+  const [{ data: cursos, error: errorCursos }, categorias] = await Promise.all([
     supabase.from("cursos").select("slug, actualizado_en").eq("mostrado", true),
     getCategoriasActivas(),
   ]);
+
+  // Con `revalidate` de 1 h, un sitemap sin cursos por un fallo pasajero se
+  // serviría una hora entera a Google. Al lanzar, Next conserva la última
+  // versión buena (igual que getCategoriasActivas, que ya lanza).
+  lanzarSiFalla(errorCursos, "sitemap:cursos");
 
   const rutasEstaticas: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: "weekly", priority: 1 },

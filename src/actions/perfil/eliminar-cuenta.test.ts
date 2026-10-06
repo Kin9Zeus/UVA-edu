@@ -167,6 +167,19 @@ describe("eliminarMiCuenta — la supresión", () => {
     expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
   });
 
+  it("si no puede leer la foto, NO sigue: dejaría la foto huérfana en Storage. Pide reintentar y no toca nada", async () => {
+    servidorFalso.responder("from:perfiles", { data: null, error: { code: "57014", message: "statement timeout" } });
+
+    expect(await eliminar()).toEqual({ error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." });
+    nadaIrreversible();
+    expect(logError).toHaveBeenCalledWith(
+      "eliminarMiCuenta",
+      expect.any(String),
+      expect.objectContaining({ code: "57014" }),
+      { area: "cuenta" },
+    );
+  });
+
   it("un fallo real de la base NO se muestra tal cual: mensaje genérico y queda registrado", async () => {
     servidorFalso.responder("rpc:solicitar_supresion_propia", {
       error: { code: "57014", message: "canceling statement due to statement timeout" },

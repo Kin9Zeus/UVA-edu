@@ -52,11 +52,20 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
     const urlVerificacionQr = `${origin}/verificar-certificado/${certificado.codigo_verificacion}`;
     const urlVerificacion = urlVerificacionQr.replace(/^https?:\/\//, "");
 
-    const { data: lecciones } = await supabase
+    const { data: lecciones, error: errorLecciones } = await supabase
       .from("lecciones")
       .select("duracion, modulo:modulos!inner(id_curso)")
       .eq("modulo.id_curso", certificado.id_curso)
       .eq("estado_procesamiento", "LISTO");
+    // El PDF se guarda en Storage y se descarga durante años: uno armado sin la
+    // línea de horas por un fallo pasajero quedaría así para siempre. Mejor un
+    // error ahora y que el próximo intento lo genere completo.
+    if (errorLecciones) {
+      logError("descargarCertificadoPdf", "No se pudo leer la duración del curso", errorLecciones, {
+        area: "certificados",
+      });
+      return { error: "No pudimos generar tu certificado. Intenta de nuevo." };
+    }
     const totalSegundos = (lecciones ?? []).reduce((acc, fila) => acc + (fila.duracion ?? 0), 0);
     const horas = Math.round(totalSegundos / 3600);
     const duracionTexto = horas > 0 ? `${horas} ${horas === 1 ? "hora" : "horas"} de teoría y práctica` : null;

@@ -87,7 +87,15 @@ export async function eliminarMiCuenta(
   // motivo que en el flujo de admin (108_anonimizar_usuario_foto.sql): la
   // función de base deja `foto_url = null`, pero no puede llamar a la API
   // de Storage.
-  const { data: perfil } = await supabase.from("perfiles").select("foto_url").eq("id", user.id).single();
+  const { data: perfil, error: errorFoto } = await supabase.from("perfiles").select("foto_url").eq("id", user.id).single();
+  // Si no se puede leer la ruta de la foto, seguir dejaría la foto huérfana en
+  // Storage para siempre (la RPC pone `foto_url = null` y ya nadie la encuentra).
+  // Todavía no se borró nada, así que se corta aquí y se pide reintentar.
+  // PGRST116 (sin perfil) lo resuelve la propia RPC más abajo.
+  if (errorFoto && errorFoto.code !== "PGRST116") {
+    logError("eliminarMiCuenta", "No se pudo leer la foto de perfil", errorFoto, { area: "cuenta" });
+    return { error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." };
+  }
   await borrarFotoPerfil(supabase, perfil?.foto_url ?? null);
 
   const { error: errorSupresion } = await supabase.rpc("solicitar_supresion_propia");

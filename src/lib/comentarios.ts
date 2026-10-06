@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { tiempoRelativo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { codigoBanderaDePais } from "@/lib/paises";
 
 export type ComentarioConRespuestas = {
@@ -76,14 +77,18 @@ export async function getComentariosDeLeccion(
   }
 
   const autorIds = [...new Set((filas ?? []).map((fila) => fila.id_usuario as string))];
-  const [{ data: autores }, { data: instructoresDelCurso }] = await Promise.all([
+  const [{ data: autores, error: errorAutores }, { data: instructoresDelCurso, error: errorInstructores }] = await Promise.all([
     autorIds.length
       ? supabase.from("comentarios_autor_publico").select("id, nombre, es_profesor, pais, foto_url").in("id", autorIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     // Quién dicta ESTE curso, no solo quién tiene rol PROFESOR en general —
     // ver el comentario de `esInstructor` arriba.
     supabase.from("curso_instructores_publico").select("id_instructor").eq("id_curso", cursoId),
   ]);
+  // Secundarios: sin ellos los comentarios se ven con "Usuario" y sin la
+  // insignia de profesor, pero se leen. Se registra el fallo.
+  registrarSiFalla(errorAutores, "comentarios:autores", "no se pudieron leer los autores de los comentarios", { leccionId });
+  registrarSiFalla(errorInstructores, "comentarios:instructores", "no se pudo leer quién dicta el curso", { cursoId });
   const autoresPorId = new Map((autores ?? []).map((autor) => [autor.id as string, autor]));
   const idsInstructoresDelCurso = new Set(
     (instructoresDelCurso ?? []).map((fila) => fila.id_instructor as string),
