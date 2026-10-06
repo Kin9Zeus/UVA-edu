@@ -139,7 +139,10 @@ export function NotificacionesBell({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner className="isolate z-50 outline-none" sideOffset={8} align="end">
-          <Popover.Popup className="flex w-[320px] max-h-[420px] flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface shadow-lg outline-none">
+          {/* `max-w`: el Positioner deja 5 px de margen por lado (collisionPadding);
+              con 320 px fijos, a 320 px de pantalla el borde derecho se salía
+              (medido: 5..325 en una pantalla de 320). */}
+          <Popover.Popup className="flex w-[320px] max-w-[calc(100vw-10px)] max-h-[420px] flex-col overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface shadow-lg outline-none">
             {diasGracia !== null && (
               // md:hidden: en desktop este mismo aviso ya vive en la
               // tarjeta fija del Sidebar — repetirlo aquí sería redundante.
