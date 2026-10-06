@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { procesarFotoPerfil } from "@/lib/fotoPerfilServidor";
 import { BUCKET_AVATARES, extraerRutaAvatar } from "@/lib/perfil/avatar";
 import { getUsuarioActual } from "@/lib/perfil";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 
 export type FotoPerfilResultado = { error: string } | { success: true; url: string };
 
@@ -30,11 +31,14 @@ export async function subirFotoPerfil(formData: FormData): Promise<FotoPerfilRes
   if ("error" in procesada) return { error: procesada.error };
   const { cuerpo, contentType, extension } = procesada.foto;
 
-  const { data: perfilAnterior } = await supabase
+  const { data: perfilAnterior, error: errorAnterior } = await supabase
     .from("perfiles")
     .select("foto_url")
     .eq("id", user.id)
     .single();
+  // Solo sirve para borrar la foto anterior tras subir la nueva: si falla se
+  // sube igual, pero la anterior quedaría huérfana, así que se registra.
+  registrarSiFalla(errorAnterior, "perfil:foto-anterior", "no se pudo leer la foto anterior");
 
   const rutaArchivo = `${user.id}/${randomUUID()}.${extension}`;
 
@@ -69,7 +73,9 @@ export async function eliminarFotoPerfil(): Promise<{ error: string } | { succes
   const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
-  const { data: perfil } = await supabase.from("perfiles").select("foto_url").eq("id", user.id).single();
+  const { data: perfil, error: errorPerfil } = await supabase.from("perfiles").select("foto_url").eq("id", user.id).single();
+  // Un fallo no es "no tienes foto": diría que se quitó algo que sigue ahí.
+  if (errorPerfil && errorPerfil.code !== "PGRST116") return { error: "No pudimos quitar la foto." };
   if (!perfil?.foto_url) return { success: true };
 
   const { error } = await supabase.from("perfiles").update({ foto_url: null }).eq("id", user.id);

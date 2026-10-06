@@ -112,12 +112,14 @@ export async function actualizarCodigoInvitacion(
   const invalido = validar(input);
   if (invalido) return { error: invalido };
 
-  const { data: actual } = await admin.supabase
+  const { data: actual, error: errorActual } = await admin.supabase
     .from("codigos_invitacion")
     .select("codigo, veces_usado")
     .eq("id", id)
     .maybeSingle();
 
+  // Un fallo no es "ese código ya no existe".
+  if (errorActual) return { error: "No pudimos comprobar el código. Intenta de nuevo." };
   if (!actual) return { error: "Ese código ya no existe." };
 
   // Bajar el límite por debajo de los canjes ya hechos no invalida nada
@@ -183,12 +185,14 @@ export async function eliminarCodigoInvitacion(id: string): Promise<AdminActionR
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { data: codigo } = await admin.supabase
+  const { data: codigo, error: errorCodigo } = await admin.supabase
     .from("codigos_invitacion")
     .select("codigo, veces_usado")
     .eq("id", id)
     .maybeSingle();
 
+  // Un fallo no es "ese código ya no existe".
+  if (errorCodigo) return { error: "No pudimos comprobar el código. Intenta de nuevo." };
   if (!codigo) return { error: "Ese código ya no existe." };
 
   if ((codigo.veces_usado as number) > 0) {

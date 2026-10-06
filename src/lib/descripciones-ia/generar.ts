@@ -119,10 +119,14 @@ export async function generarContenidoLeccion(
 ): Promise<DocumentoContenido> {
   const admin = createAdminClient();
 
-  const [{ data: curso }, lecciones] = await Promise.all([
+  const [{ data: curso, error: errorCurso }, lecciones] = await Promise.all([
     admin.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
     leccionesDelCurso(cursoId),
   ]);
+  // Un fallo no es "no encontramos la lección".
+  if (errorCurso) {
+    throw new GeneracionDescripcionError("No pudimos leer el curso. Intenta de nuevo en unos segundos.");
+  }
 
   const posicion = lecciones.findIndex((leccion) => leccion.id === leccionId);
   if (!curso || posicion === -1) {
@@ -173,17 +177,26 @@ export async function generarContenidoLeccion(
 export async function generarDescripcionCurso(cursoId: string): Promise<string> {
   const admin = createAdminClient();
 
-  const { data: curso } = await admin
+  const { data: curso, error: errorCurso } = await admin
     .from("cursos")
     .select("titulo, nivel")
     .eq("id", cursoId)
     .maybeSingle();
+  // Un fallo no es "no encontramos el curso".
+  if (errorCurso) {
+    throw new GeneracionDescripcionError("No pudimos leer el curso. Intenta de nuevo en unos segundos.");
+  }
   if (!curso) throw new GeneracionDescripcionError("No encontramos el curso.");
 
-  const [lecciones, { data: transcripciones }] = await Promise.all([
+  const [lecciones, { data: transcripciones, error: errorTranscripciones }] = await Promise.all([
     leccionesDelCurso(cursoId),
     admin.from("transcripciones_video").select("id_leccion, transcripcion").eq("id_curso", cursoId),
   ]);
+  // Sin las transcripciones la descripción se generaría solo con el temario, más
+  // pobre y sin avisar: es mejor pedir que se reintente.
+  if (errorTranscripciones) {
+    throw new GeneracionDescripcionError("No pudimos leer las transcripciones. Intenta de nuevo en unos segundos.");
+  }
 
   if (lecciones.length === 0) {
     throw new GeneracionDescripcionError(

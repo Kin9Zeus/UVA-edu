@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { barajar } from "@/lib/examenes/calificar";
 import {
   esTipoImplementado,
@@ -31,11 +32,14 @@ export async function congelarPreguntas(
   aleatorizarPreguntas: boolean,
   aleatorizarOpciones: boolean,
 ): Promise<PreguntaCongelada[]> {
-  const { data } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("preguntas_examen")
     .select("id, tipo, enunciado, puntos, opciones, respuestas_aceptadas")
     .eq("id_examen", examenId)
     .order("orden");
+  // Un fallo no es "el examen no tiene preguntas": los llamadores muestran
+  // "El examen todavía no tiene preguntas" y un intento no debe crearse vacío.
+  lanzarSiFalla(error, "congelar:preguntas del examen");
 
   const preguntas: PreguntaCongelada[] = (data ?? [])
     // Una pregunta de un tipo de Fase 2 no se sabe calificar todavía: se

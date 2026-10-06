@@ -10,6 +10,7 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
 import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
 const idSchema = z.string().uuid();
@@ -76,10 +77,15 @@ export async function iniciarSubidaVideoLeccion(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const [{ data: leccion }, { data: curso }] = await Promise.all([
+  const [{ data: leccion, error: errorLeccion }, { data: curso, error: errorCurso }] = await Promise.all([
     admin.supabase.from("lecciones").select("id, titulo, id_mux_asset_id").eq("id", leccionId).maybeSingle(),
     admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
   ]);
+  // Un fallo no es "la lección no existe". Sin saber si ya tenía un asset no se
+  // puede distinguir primera subida de reemplazo (y el viejo quedaría huérfano).
+  if (errorLeccion) return { error: "No pudimos preparar la subida del video. Intenta de nuevo." };
+  // El título del curso solo adorna la bitácora.
+  registrarSiFalla(errorCurso, "admin/mux:bitacora", "no se pudo leer el título del curso para la bitácora");
   if (!leccion) return { error: "La lección no existe." };
   // Si ya había un asset de Mux, esto es un reemplazo (no la primera
   // subida) — la bitácora y el mensaje de auditoría lo distinguen.
@@ -255,7 +261,7 @@ export async function quitarVideoLeccion(leccionId: string, cursoId: string): Pr
     return { error: "Lección inválida." };
   }
 
-  const [{ data: leccion }, { data: curso }] = await Promise.all([
+  const [{ data: leccion, error: errorLeccion }, { data: curso, error: errorCurso }] = await Promise.all([
     admin.supabase
       .from("lecciones")
       .select("id, titulo, id_mux_asset_id, id_mux_upload_id")
@@ -263,6 +269,10 @@ export async function quitarVideoLeccion(leccionId: string, cursoId: string): Pr
       .maybeSingle(),
     admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
   ]);
+  // Un fallo no es "la lección no existe": sin leer el asset no se puede quitar el video.
+  if (errorLeccion) return { error: "No pudimos quitar el video. Intenta de nuevo." };
+  // El título del curso solo adorna la bitácora.
+  registrarSiFalla(errorCurso, "admin/mux:bitacora", "no se pudo leer el título del curso para la bitácora");
   if (!leccion) return { error: "La lección no existe." };
   if (!leccion.id_mux_asset_id && !leccion.id_mux_upload_id) {
     return { error: "Esta lección no tiene video." };

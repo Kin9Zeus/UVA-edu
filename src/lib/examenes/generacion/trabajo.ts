@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { AREA_LOG, generateCourseExam } from "./generar";
 import { persistirPreguntasGeneradas } from "./persistir";
 import { obtenerVideosConTranscripcion } from "./transcripciones";
@@ -68,19 +69,24 @@ export async function puedeGenerarExamenCurso(
   // validada. Se mira `preguntas_examen` y no el estado del último trabajo a
   // propósito: un trabajo COMPLETADO que guardó cero preguntas no es un examen
   // generado, y el estado del trabajo no lo distingue.
-  const { data: examen } = await admin
+  const { data: examen, error: errorExamen } = await admin
     .from("examenes")
     .select("id")
     .eq("id_curso", courseId)
     .maybeSingle();
+  // Esta guarda existe para NO regenerar (y despublicar) un examen que ya está
+  // generado y validado. Un fallo leyéndolo no puede contar como "no hay examen
+  // → procede": se lanza y el trabajo no arranca.
+  lanzarSiFalla(errorExamen, "trabajo:examen del curso");
 
   if (!examen) return { procede: true };
 
-  const { count } = await admin
+  const { count, error: errorConteo } = await admin
     .from("preguntas_examen")
     .select("id", { count: "exact", head: true })
     .eq("id_examen", examen.id)
     .eq("validada", true);
+  lanzarSiFalla(errorConteo, "trabajo:preguntas validadas");
 
   return (count ?? 0) > 0 ? { procede: false, motivo: "ya_generado" } : { procede: true };
 }

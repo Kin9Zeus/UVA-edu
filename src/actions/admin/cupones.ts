@@ -117,12 +117,15 @@ export async function actualizarCupon(
     validarFechaVencimientoCupon(fechaVencimiento) ?? validarLimiteUsos(input.limiteUsos);
   if (invalido) return { error: invalido };
 
-  const { data: actual } = await admin.supabase
+  const { data: actual, error: errorActual } = await admin.supabase
     .from("cupones")
     .select("codigo, tipo_descuento, veces_usado")
     .eq("id", id)
     .maybeSingle();
 
+  // Un fallo no es "ese cupón ya no existe". Además el tipo se lee de la base
+  // para interpretar `valor`: sin él no se puede seguir.
+  if (errorActual) return { error: "No pudimos comprobar el cupón. Intenta de nuevo." };
   if (!actual) return { error: "Ese cupón ya no existe." };
 
   // El tipo se lee de la base, no del formulario: es lo que decide la unidad
@@ -183,12 +186,14 @@ export async function vencerCuponAhora(id: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { data: cupon } = await admin.supabase
+  const { data: cupon, error: errorCupon } = await admin.supabase
     .from("cupones")
     .select("codigo")
     .eq("id", id)
     .maybeSingle();
 
+  // Un fallo no es "ese cupón ya no existe".
+  if (errorCupon) return { error: "No pudimos comprobar el cupón. Intenta de nuevo." };
   if (!cupon) return { error: "Ese cupón ya no existe." };
 
   const { error } = await admin.supabase
@@ -226,12 +231,14 @@ export async function eliminarCupon(id: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { data: cupon } = await admin.supabase
+  const { data: cupon, error: errorCupon } = await admin.supabase
     .from("cupones")
     .select("codigo, veces_usado")
     .eq("id", id)
     .maybeSingle();
 
+  // Un fallo no es "ese cupón ya no existe" (y esta lectura decide si se puede borrar).
+  if (errorCupon) return { error: "No pudimos comprobar el cupón. Intenta de nuevo." };
   if (!cupon) return { error: "Ese cupón ya no existe." };
 
   if ((cupon.veces_usado as number) > 0) {

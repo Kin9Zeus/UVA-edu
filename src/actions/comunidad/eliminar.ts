@@ -9,6 +9,7 @@ import { enviarCorreoComunidadModerada } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 import { getUsuarioActual } from "@/lib/perfil";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 
 export type EliminarComunidadResultado = { error: string } | { success: true };
 
@@ -28,7 +29,9 @@ async function eliminarAdjuntosComunidad(
   const columna = "idPost" in filtro ? "id_post" : "id_respuesta";
   const valor = "idPost" in filtro ? filtro.idPost : filtro.idRespuesta;
 
-  const { data: adjuntos } = await supabase.from("comunidad_adjuntos").select("id, ruta_storage").eq(columna, valor);
+  const { data: adjuntos, error: errorAdjuntos } = await supabase.from("comunidad_adjuntos").select("id, ruta_storage").eq(columna, valor);
+  // No bloquea el borrado del contenido, pero sin la lista los archivos quedan huérfanos en Storage: se registra.
+  registrarSiFalla(errorAdjuntos, "comunidad:eliminar-adjuntos", "no se pudieron listar los adjuntos a borrar");
   for (const adjunto of adjuntos ?? []) {
     await borrarAdjuntoComunidad(supabase, adjunto.id, adjunto.ruta_storage);
   }
@@ -46,7 +49,9 @@ async function avisarAutorModeracion(
   motivo: string,
   tituloPost: string,
 ) {
-  const { data: autor } = await supabase.from("perfiles").select("correo, nombre").eq("id", idAutor).single();
+  const { data: autor, error: errorAutor } = await supabase.from("perfiles").select("correo, nombre").eq("id", idAutor).single();
+  // Aviso best-effort: si no se puede leer el autor no se envía, pero se registra.
+  registrarSiFalla(errorAutor, "comunidad:aviso-moderacion", "no se pudo leer al autor para avisarle");
   if (!autor) return;
 
   const resultado = await enviarCorreoComunidadModerada(
@@ -101,7 +106,9 @@ export async function eliminarPostComunidad(
   const esAutor = post.id_usuario === user.id;
   let esAdmin = false;
   if (!esAutor) {
-    const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
+    if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
     esAdmin = perfil?.rol === "ADMINISTRADOR";
   }
   if (!esAutor && !esAdmin) return { error: "No tienes permiso para eliminar esta publicación." };
@@ -175,7 +182,9 @@ export async function eliminarRespuestaComunidad(
   const esAutor = respuesta.id_usuario === user.id;
   let esAdmin = false;
   if (!esAutor) {
-    const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
+    if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
     esAdmin = perfil?.rol === "ADMINISTRADOR";
   }
   if (!esAutor && !esAdmin) return { error: "No tienes permiso para eliminar esta respuesta." };
@@ -213,11 +222,13 @@ export async function eliminarRespuestaComunidad(
       idEntidadAfectada: respuesta.id_post,
       detalles: `${respuesta.contenido.slice(0, 140)} — motivo: ${motivoLimpio}`,
     });
-    const { data: post } = await supabase
+    const { data: post, error: errorPost } = await supabase
       .from("comunidad_posts")
       .select("titulo")
       .eq("id", respuesta.id_post)
       .single();
+    // Solo el título del aviso al autor: cae a vacío pero se registra.
+    registrarSiFalla(errorPost, "comunidad:aviso-moderacion", "no se pudo leer el título de la publicación");
     await avisarAutorModeracion(supabase, respuesta.id_usuario, "respuesta", motivoLimpio, post?.titulo ?? "");
     await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_respuesta", respuestaId);
   }

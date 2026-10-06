@@ -38,12 +38,14 @@ export async function obtenerUrlRecurso(recursoId: string): Promise<UrlRecursoRe
   const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para descargar este material." };
 
-  const { data: recurso } = await supabase
+  const { data: recurso, error: errorRecurso } = await supabase
     .from("recursos_descargables")
     .select("nombre, url_archivo")
     .eq("id", recursoId)
     .maybeSingle();
 
+  // Un fallo no es "no tienes acceso a este material".
+  if (errorRecurso) return { error: "No pudimos abrir el material. Intenta de nuevo." };
   if (!recurso) return { error: "No tienes acceso a este material." };
 
   const { data, error } = await createAdminClient()

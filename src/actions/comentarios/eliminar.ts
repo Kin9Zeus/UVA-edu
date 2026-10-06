@@ -50,7 +50,9 @@ export async function eliminarComentario(
   const esAutor = comentario.id_usuario === user.id;
   let esAdmin = false;
   if (!esAutor) {
-    const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
+    if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
     esAdmin = perfil?.rol === "ADMINISTRADOR";
   }
   if (!esAutor && !esAdmin) return { error: "No tienes permiso para eliminar este comentario." };

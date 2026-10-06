@@ -7,6 +7,7 @@ import { enviarCorreoBienvenida } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 import { getUsuarioActual } from "@/lib/perfil";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 
 export type CanjearCodigoResult = {
   error?: string;
@@ -104,11 +105,13 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
   // Best-effort (Correos.md: "un fallo de Resend nunca debe romper el
   // registro del usuario") — el canje ya quedó aplicado arriba, un correo
   // que no sale no debe deshacerlo ni mostrarse como error al estudiante.
-  const { data: perfil } = await supabase
+  const { data: perfil, error: errorPerfil } = await supabase
     .from("perfiles")
     .select("nombre, correo")
     .eq("id", user.id)
     .single();
+  // El canje ya quedó aplicado: no se deshace por esto, pero se registra que no salió el correo.
+  registrarSiFalla(errorPerfil, "canje:bienvenida", "no se pudo leer el perfil para el correo de bienvenida");
 
   if (perfil) {
     const resultadoCorreo = await enviarCorreoBienvenida(

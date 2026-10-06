@@ -43,11 +43,13 @@ export async function crearComentario(
   if (!parseo.success) return { error: parseo.error.issues[0]?.message ?? "Comentario inválido." };
 
   if (idComentarioPadre) {
-    const { data: padre } = await supabase
+    const { data: padre, error: errorPadre } = await supabase
       .from("comentarios")
       .select("id_comentario_padre, eliminado")
       .eq("id", idComentarioPadre)
       .maybeSingle();
+    // Un fallo no es "el comentario al que respondes ya no existe".
+    if (errorPadre) return { error: "No pudimos publicar tu respuesta. Intenta de nuevo." };
     if (!padre || padre.eliminado) return { error: "El comentario al que respondes ya no existe." };
     if (padre.id_comentario_padre) return { error: "No se puede responder a una respuesta." };
   }

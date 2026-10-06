@@ -34,12 +34,14 @@ export async function crearEnlaceVistaPrevia(
     return { error: "Vigencia no permitida para un enlace de vista previa." };
   }
 
-  const { data: curso } = await admin.supabase
+  const { data: curso, error: errorCurso } = await admin.supabase
     .from("cursos")
     .select("titulo")
     .eq("id", cursoId)
     .maybeSingle();
 
+  // Un fallo no es "el curso ya no existe".
+  if (errorCurso) return { error: "No pudimos comprobar el curso. Intenta de nuevo." };
   if (!curso) return { error: "El curso ya no existe." };
 
   const { token, hash } = generarTokenVistaPrevia();

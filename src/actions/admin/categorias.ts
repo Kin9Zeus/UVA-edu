@@ -151,12 +151,14 @@ export async function reasignarYEliminarCategoria(
   if (!destinoId) return { error: "Selecciona la categoría de destino." };
   if (destinoId === id) return { error: "La categoría de destino debe ser otra." };
 
-  const { data: destino } = await admin.supabase
+  const { data: destino, error: errorDestinoCategoria } = await admin.supabase
     .from("categorias")
     .select("nombre")
     .eq("id", destinoId)
     .maybeSingle();
 
+  // Un fallo no es "la categoría de destino ya no existe".
+  if (errorDestinoCategoria) return { error: "No pudimos comprobar la categoría de destino. Intenta de nuevo." };
   if (!destino) return { error: "La categoría de destino ya no existe." };
 
   const [{ data: filasOrigen, error: errorOrigen }, { data: filasDestino, error: errorDestino }] =

@@ -16,11 +16,18 @@ export async function requireAdmin() {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." } as const;
   }
 
-  const { data: perfil } = await supabase
+  const { data: perfil, error: errorPerfil } = await supabase
     .from("perfiles")
     .select("rol")
     .eq("id", user.id)
     .single();
+
+  // Falla CERRADO (no se concede nada), pero un fallo de la base no es "no
+  // tienes permisos": a un administrador de verdad se le dice que reintente.
+  // PGRST116 (cero filas) sí es "no hay perfil", o sea, sin permisos.
+  if (errorPerfil && errorPerfil.code !== "PGRST116") {
+    return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." } as const;
+  }
 
   if (perfil?.rol !== "ADMINISTRADOR") {
     return { error: "No tienes permisos de administrador." } as const;

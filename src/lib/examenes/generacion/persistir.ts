@@ -175,11 +175,15 @@ export async function persistirPreguntasGeneradas(
   // corridas. No se tocan `titulo`, `nota_aprobatoria`, `intentos_maximos` ni
   // los demás ajustes si la fila ya existe — son decisiones del administrador
   // y regenerar preguntas no es motivo para pisarlas.
-  const { data: existente } = await admin
+  const { data: existente, error: errorExistente } = await admin
     .from("examenes")
     .select("id")
     .eq("id_curso", courseId)
     .maybeSingle();
+  // Un fallo no es "no hay examen": se intentaría crear uno nuevo sobre el existente.
+  if (errorExistente) {
+    throw new Error(`No se pudo comprobar si el curso ${courseId} ya tiene examen: ${errorExistente.message}`);
+  }
 
   let examenId: string;
 

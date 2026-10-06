@@ -122,7 +122,9 @@ export async function crearPostComunidad(
   }
 
   if (parseoCategoria.data === "ANUNCIOS") {
-    const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+    // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
+    if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
     if (perfil?.rol !== "ADMINISTRADOR") {
       return { error: "Solo un administrador puede publicar en Anuncios." };
     }
@@ -175,11 +177,13 @@ export async function responderPostComunidad(
   const parseo = contenidoRespuestaSchema.safeParse(contenido);
   if (!parseo.success) return { error: parseo.error.issues[0]?.message ?? "Respuesta inválida." };
 
-  const { data: post } = await supabase
+  const { data: post, error: errorPost } = await supabase
     .from("comunidad_posts")
     .select("eliminado")
     .eq("id", postId)
     .maybeSingle();
+  // Un fallo no es "la publicación a la que respondes ya no existe".
+  if (errorPost) return { error: "No pudimos publicar tu respuesta. Intenta de nuevo." };
   if (!post || post.eliminado) return { error: "La publicación a la que respondes ya no existe." };
 
   const { data: tieneAcceso, error: errorAcceso } = await supabase.rpc("comunidad_tiene_acceso");

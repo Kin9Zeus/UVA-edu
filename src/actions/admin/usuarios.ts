@@ -80,12 +80,14 @@ export async function cambiarRolProfesor(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { data: usuario } = await admin.supabase
+  const { data: usuario, error: errorUsuario } = await admin.supabase
     .from("perfiles")
     .select("rol")
     .eq("id", usuarioId)
-    .single();
+    .maybeSingle();
 
+  // Un fallo no es "no encontramos ese usuario" (y menos antes de tocar un rol).
+  if (errorUsuario) return { error: "No pudimos cambiar el rol. Intenta de nuevo." };
   if (!usuario) return { error: "No encontramos ese usuario." };
   if (usuario.rol === "ADMINISTRADOR") {
     return { error: "No se puede cambiar el rol de una cuenta administradora desde aquí." };
@@ -149,12 +151,14 @@ export async function actualizarEspecialidadProfesor(
     return { error: `La especialidad no puede superar los ${MAXIMO_ESPECIALIDAD} caracteres.` };
   }
 
-  const { data: usuario } = await admin.supabase
+  const { data: usuario, error: errorUsuario } = await admin.supabase
     .from("perfiles")
     .select("rol")
     .eq("id", usuarioId)
-    .single();
+    .maybeSingle();
 
+  // Un fallo no es "no encontramos ese usuario".
+  if (errorUsuario) return { error: "No pudimos guardar la especialidad. Intenta de nuevo." };
   if (!usuario) return { error: "No encontramos ese usuario." };
   if (usuario.rol !== "PROFESOR") {
     return { error: "Solo una cuenta con rol de profesor puede tener especialidad." };
@@ -282,13 +286,15 @@ export async function ofrecerCortesia(usuarioId: string, cursoId: string): Promi
   // Si existe, se reactiva la misma fila en vez de crear una segunda: es
   // la forma en que "revocar y volver a otorgar" queda consistente con el
   // índice sin tener que convertirlo en uno parcial.
-  const { data: existente } = await admin.supabase
+  const { data: existente, error: errorExistente } = await admin.supabase
     .from("inscripciones")
     .select("id, activo")
     .eq("id_usuario", usuarioId)
     .eq("id_curso", cursoId)
     .maybeSingle();
 
+  // Sin saber si ya está inscrito se intentaría insertar de nuevo.
+  if (errorExistente) return { error: "No pudimos otorgar el acceso. Intenta de nuevo." };
   if (existente?.activo) {
     return { error: "El usuario ya tiene acceso a este curso." };
   }
@@ -402,12 +408,14 @@ export async function revocarMembresia(
   const motivoLimpio = motivo.trim();
   if (!motivoLimpio) return { error: "Escribe el motivo de la revocación." };
 
-  const { data: suscripcion } = await admin.supabase
+  const { data: suscripcion, error: errorSuscripcion } = await admin.supabase
     .from("suscripciones")
     .select("id, id_usuario, acceso_manual, estado")
     .eq("id", suscripcionId)
-    .single();
+    .maybeSingle();
 
+  // Un fallo no es "no encontramos esa membresía manual".
+  if (errorSuscripcion) return { error: "No pudimos cancelar la membresía. Intenta de nuevo." };
   if (!suscripcion || suscripcion.id_usuario !== usuarioId || !suscripcion.acceso_manual) {
     return { error: "No encontramos esa membresía manual." };
   }
@@ -476,10 +484,14 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
   // bucket. `borrarAdjuntoComunidad` es el mismo helper que ya usa
   // eliminar.ts — best-effort (loguea, no lanza), así que un archivo que no
   // se pudo borrar no bloquea el resto de la supresión.
-  const { data: adjuntos } = await admin.supabase
+  const { data: adjuntos, error: errorAdjuntos } = await admin.supabase
     .from("comunidad_adjuntos")
     .select("id, ruta_storage")
     .eq("id_usuario", usuarioId);
+  // Esto precede a una operación IRREVERSIBLE (anonimizar): si no se puede
+  // listar los adjuntos, seguir dejaría sus archivos huérfanos en Storage para
+  // siempre, y es justo lo que una supresión no debe dejar. Se corta aquí.
+  if (errorAdjuntos) return { error: "No pudimos suprimir los datos de esta cuenta." };
   for (const adjunto of adjuntos ?? []) {
     await borrarAdjuntoComunidad(admin.supabase, adjunto.id, adjunto.ruta_storage);
   }
@@ -488,11 +500,16 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
   // la RPC deja `foto_url = null`, pero no puede borrar el archivo del
   // bucket `avatares` — eso se hace acá, antes, con el mismo criterio
   // best-effort.
-  const { data: perfilFoto } = await admin.supabase
+  const { data: perfilFoto, error: errorFoto } = await admin.supabase
     .from("perfiles")
     .select("foto_url")
     .eq("id", usuarioId)
     .single();
+  // Igual que los adjuntos: sin la ruta de la foto, la anonimización dejaría el
+  // archivo huérfano. PGRST116 (sin perfil) lo resuelve la propia RPC.
+  if (errorFoto && errorFoto.code !== "PGRST116") {
+    return { error: "No pudimos suprimir los datos de esta cuenta." };
+  }
   await borrarFotoPerfil(admin.supabase, perfilFoto?.foto_url ?? null);
 
   // Con el cliente de la sesión, no con service role: la RPC vuelve a

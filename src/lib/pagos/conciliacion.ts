@@ -6,6 +6,7 @@ import { formatearPrecio } from "@/lib/planes";
 import { formatFecha } from "@/lib/admin/format";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 
 /**
  * Qué hacer con un evento de Wompi ya verificado: convertirlo (o no) en acceso.
@@ -213,12 +214,15 @@ async function enviarRecibo(referencia: string): Promise<void> {
     // que supabase-js no sabe estrechar y obliga a castear el resultado
     // entero, que es peor que dos viajes más a la base en un camino que ya
     // es asíncrono y no bloquea a nadie.
-    const { data: intento } = await admin
+    const { data: intento, error: errorIntento } = await admin
       .from("intentos_pago")
       .select("id_usuario, id_plan, monto_centavos, moneda")
       .eq("referencia", referencia)
       .maybeSingle();
 
+    // El recibo es best-effort (el pago ya se aplicó), pero que no salga por un
+    // fallo de lectura debe quedar registrado, no confundirse con "sin intento".
+    registrarSiFalla(errorIntento, "pagos:recibo", "no se pudo leer el intento de pago para el recibo");
     if (!intento) return;
 
     const [{ data: perfil }, { data: plan }, { data: suscripcion }] = await Promise.all([

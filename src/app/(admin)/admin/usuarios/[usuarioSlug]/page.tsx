@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUsuarioDetalle, resolverUsuarioAdmin } from "@/lib/admin/usuarioDetalle";
 import { esUuid } from "@/lib/slug";
 import { UsuarioDetalleView } from "@/components/admin/usuarios/UsuarioDetalleView";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de usuario",
@@ -30,10 +31,14 @@ export default async function AdminUsuarioDetallePage({
   if (!usuario) notFound();
 
   const supabase = await createClient();
-  const [{ data: planes }, { data: cursos }] = await Promise.all([
+  const [{ data: planes, error: errorPlanes }, { data: cursos, error: errorCursos }] = await Promise.all([
     supabase.from("planes").select("id, nombre, precio_centavos, moneda").eq("activo", true).order("orden"),
     supabase.from("cursos").select("id, titulo").order("titulo"),
   ]);
+  // Son las listas de los selectores "otorgar membresía / curso": vacías por un
+  // fallo, el admin creería que no hay planes ni cursos para asignar.
+  lanzarSiFalla(errorPlanes, "admin/usuario:planes");
+  lanzarSiFalla(errorCursos, "admin/usuario:cursos");
 
   const cursosYaAsignados = new Set(usuario.cursos.map((curso) => curso.cursoId));
   const cursosDisponibles = (cursos ?? []).filter((curso) => !cursosYaAsignados.has(curso.id));

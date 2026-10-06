@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
 import { logError } from "@/lib/log";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { ordenEntre, siguienteOrden } from "@/lib/orden";
 import { TAMANO_MAXIMO_CONTENIDO, type DocumentoContenido } from "@/lib/editor/tipos";
 import { normalizarRespuestaCorta } from "@/lib/examenes/calificar";
@@ -86,7 +87,9 @@ function revalidarExamen(cursoId: string, cursoSlug?: string | null) {
 }
 
 async function slugDelCurso(supabase: SupabaseClient, cursoId: string): Promise<string | null> {
-  const { data } = await supabase.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
+  const { data, error } = await supabase.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
+  // Solo sirve para revalidar la ruta pública: si falla se devuelve null, pero se registra.
+  registrarSiFalla(error, "admin/examenes:slug", "no se pudo leer el slug del curso");
   return (data?.slug as string | undefined) ?? null;
 }
 
@@ -107,12 +110,14 @@ export async function crearExamen(cursoId: string): Promise<AdminActionResult & 
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(cursoId).success) return { error: "Curso inválido." };
 
-  const { data: curso } = await admin.supabase
+  const { data: curso, error: errorCurso } = await admin.supabase
     .from("cursos")
     .select("titulo, slug")
     .eq("id", cursoId)
     .maybeSingle();
 
+  // Un fallo no es "el curso ya no existe".
+  if (errorCurso) return { error: "No pudimos crear el examen. Intenta de nuevo." };
   if (!curso) return { error: "El curso ya no existe." };
 
   const { data, error } = await admin.supabase
@@ -214,12 +219,14 @@ export async function alternarPublicacionExamen(
   if (typeof publicado !== "boolean") return { error: "Datos inválidos." };
 
   if (publicado) {
-    const { data: examen } = await admin.supabase
+    const { data: examen, error: errorExamen } = await admin.supabase
       .from("examenes")
       .select("titulo, preguntas_examen(tipo, puntos, opciones)")
       .eq("id", examenId)
       .maybeSingle();
 
+    // Un fallo no es "el examen ya no existe": es la comprobación previa a publicar.
+    if (errorExamen) return { error: "No pudimos comprobar el examen. Intenta de nuevo." };
     if (!examen) return { error: "El examen ya no existe." };
 
     const motivos = motivosParaNoPublicarExamen({
@@ -249,11 +256,12 @@ export async function alternarPublicacionExamen(
   const { error } = await admin.supabase.from("examenes").update({ publicado }).eq("id", examenId);
   if (error) return { error: "No pudimos actualizar el examen." };
 
-  const { data: cursoDelExamen } = await admin.supabase
+  const { data: cursoDelExamen, error: errorCursoBitacora } = await admin.supabase
     .from("cursos")
     .select("titulo")
     .eq("id", cursoId)
     .maybeSingle();
+  registrarSiFalla(errorCursoBitacora, "admin/examenes:bitacora", "no se pudo leer el título del curso para la bitácora");
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
@@ -295,11 +303,12 @@ export async function eliminarExamen(examenId: string, cursoId: string): Promise
     };
   }
 
-  const { data: cursoDelExamen } = await admin.supabase
+  const { data: cursoDelExamen, error: errorCursoBitacora } = await admin.supabase
     .from("cursos")
     .select("titulo")
     .eq("id", cursoId)
     .maybeSingle();
+  registrarSiFalla(errorCursoBitacora, "admin/examenes:bitacora", "no se pudo leer el título del curso para la bitácora");
 
   const { error } = await admin.supabase.from("examenes").delete().eq("id", examenId);
   if (error) return { error: "No pudimos eliminar el examen." };
@@ -342,13 +351,15 @@ export async function crearPregunta(
     return { error: `Un examen no puede tener más de ${MAXIMO_PREGUNTAS_POR_EXAMEN} preguntas.` };
   }
 
-  const { data: ultima } = await admin.supabase
+  const { data: ultima, error: errorUltima } = await admin.supabase
     .from("preguntas_examen")
     .select("orden")
     .eq("id_examen", examenId)
     .order("orden", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Sin el último orden se calcularía el 1.º: la pregunta nueva quedaría al principio.
+  if (errorUltima) return { error: "No pudimos agregar la pregunta. Intenta de nuevo." };
 
   const { data, error } = await admin.supabase
     .from("preguntas_examen")
@@ -400,11 +411,13 @@ export async function actualizarPregunta(
   // nuevo por otra puerta. Se permite guardar sin tocar el tipo (edición
   // normal de una pregunta vieja), no se permite llegar a él desde otro tipo.
   if (!esTipoCreable(pregunta.tipo)) {
-    const { data: actual } = await admin.supabase
+    const { data: actual, error: errorActual } = await admin.supabase
       .from("preguntas_examen")
       .select("tipo")
       .eq("id", preguntaId)
       .maybeSingle();
+    // Un fallo no es "tipo de pregunta no válido".
+    if (errorActual) return { error: "No pudimos guardar la pregunta. Intenta de nuevo." };
     if (actual?.tipo !== pregunta.tipo) {
       return { error: "Tipo de pregunta no válido." };
     }
@@ -484,9 +497,11 @@ export async function moverPregunta(
   if (idSiguiente !== null && !idSchema.safeParse(idSiguiente).success) return { error: "Datos inválidos." };
 
   const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
-  const { data: vecinos } = idsVecinos.length
+  const { data: vecinos, error: errorVecinos } = idsVecinos.length
     ? await admin.supabase.from("preguntas_examen").select("id, orden").in("id", idsVecinos)
-    : { data: [] };
+    : { data: [], error: null };
+  // Sin los vecinos el orden nuevo se calcularía mal y la pregunta quedaría mal colocada.
+  if (errorVecinos) return { error: "No pudimos guardar el nuevo orden de las preguntas." };
 
   const ordenDe = (id: string | null) =>
     id ? (vecinos ?? []).find((vecino) => vecino.id === id)?.orden ?? null : null;
@@ -499,12 +514,14 @@ export async function moverPregunta(
       .eq("id", preguntaId);
     if (error) return { error: "No pudimos guardar el nuevo orden de las preguntas." };
   } else {
-    const { data: resto } = await admin.supabase
+    const { data: resto, error: errorResto } = await admin.supabase
       .from("preguntas_examen")
       .select("id")
       .eq("id_examen", examenId)
       .neq("id", preguntaId)
       .order("orden");
+    // Con `resto` vacío por un fallo, reespaciar dejaría solo esta pregunta ordenada.
+    if (errorResto) return { error: "No pudimos guardar el nuevo orden de las preguntas." };
 
     const ordenadas = resto ?? [];
     const indiceDestino = idAnterior ? ordenadas.findIndex((p) => p.id === idAnterior) + 1 : 0;
@@ -551,11 +568,13 @@ export async function otorgarIntentoExtra(
   if (!idSchema.safeParse(examenId).success) return { error: "Examen inválido." };
   if (!idSchema.safeParse(usuarioId).success) return { error: "Estudiante inválido." };
 
-  const { data: examen } = await admin.supabase
+  const { data: examen, error: errorExamenIntento } = await admin.supabase
     .from("examenes")
     .select("nota_aprobatoria, minutos_limite, aleatorizar_preguntas, aleatorizar_opciones")
     .eq("id", examenId)
     .maybeSingle();
+  // Un fallo no es "el examen ya no existe".
+  if (errorExamenIntento) return { error: "No pudimos otorgar el intento. Intenta de nuevo." };
   if (!examen) return { error: "El examen ya no existe." };
 
   const { data: intentosPrevios, error: errorPrevios } = await admin.supabase
@@ -584,11 +603,13 @@ export async function otorgarIntentoExtra(
     return { error: "Este estudiante ya tiene un intento en curso." };
   }
 
-  const preguntas = await congelarPreguntas(
-    examenId,
-    examen.aleatorizar_preguntas,
-    examen.aleatorizar_opciones,
-  );
+  let preguntas: Awaited<ReturnType<typeof congelarPreguntas>>;
+  try {
+    preguntas = await congelarPreguntas(examenId, examen.aleatorizar_preguntas, examen.aleatorizar_opciones);
+  } catch (error) {
+    logError("admin/examenes:intento-extra", "no se pudieron leer las preguntas del examen", error);
+    return { error: "No pudimos otorgar el intento. Intenta de nuevo." };
+  }
   if (preguntas.length === 0) {
     return { error: "El examen no tiene preguntas." };
   }
@@ -614,10 +635,16 @@ export async function otorgarIntentoExtra(
   });
   if (errorIntento) return { error: "No pudimos crear el intento extra." };
 
-  const [{ data: estudiante }, { data: cursoDelExamen }] = await Promise.all([
+  const [
+    { data: estudiante, error: errorEstudiante },
+    { data: cursoDelExamen, error: errorCursoBitacora },
+  ] = await Promise.all([
     admin.supabase.from("perfiles").select("nombre").eq("id", usuarioId).maybeSingle(),
     admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
   ]);
+  // Solo adornan la bitácora: cae al id, pero deja registro.
+  registrarSiFalla(errorEstudiante, "admin/examenes:bitacora", "no se pudo leer el nombre del estudiante para la bitácora");
+  registrarSiFalla(errorCursoBitacora, "admin/examenes:bitacora", "no se pudo leer el título del curso para la bitácora");
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,

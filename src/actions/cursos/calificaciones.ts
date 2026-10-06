@@ -61,13 +61,15 @@ export async function calificarCurso(
   }
   const comentarioLimpio = parseoComentario.data || null;
 
-  const { data: existente } = await supabase
+  const { data: existente, error: errorExistente } = await supabase
     .from("curso_calificaciones")
     .select("id")
     .eq("id_curso", cursoId)
     .eq("id_usuario", user.id)
     .eq("eliminado", false)
     .maybeSingle();
+  // Sin saber si ya hay una reseña se intentaría crear otra en vez de editarla.
+  if (errorExistente) return { error: "No pudimos guardar tu reseña. Intenta de nuevo." };
 
   const { error } = existente
     ? await supabase
@@ -137,7 +139,9 @@ export async function moderarCalificacion(
   const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
-  const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+  const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
+  // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
+  if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
   if (perfil?.rol !== "ADMINISTRADOR") return { error: "No tienes permiso para moderar reseñas." };
 
   // Mismo motivo que en eliminarCalificacionPropia, y aquí pesa más: sin

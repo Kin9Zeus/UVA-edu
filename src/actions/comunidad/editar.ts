@@ -59,11 +59,13 @@ export async function editarPostComunidad(
   const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión." };
 
-  const { data: post } = await supabase
+  const { data: post, error: errorPost } = await supabase
     .from("comunidad_posts")
     .select("id_usuario, eliminado, categoria")
     .eq("id", postId)
     .maybeSingle();
+  // Un fallo no es "la publicación ya no existe".
+  if (errorPost) return { error: "No pudimos guardar los cambios. Intenta de nuevo." };
   if (!post || post.eliminado) return { error: "La publicación ya no existe." };
   if (post.id_usuario !== user.id) return { error: "No tienes permiso para editar esta publicación." };
 
@@ -101,10 +103,12 @@ export async function editarPostComunidad(
     return { error: `No puedes adjuntar más de ${MAX_ADJUNTOS_COMUNIDAD} archivos por publicación.` };
   }
 
-  const { data: adjuntosPrevios } = await supabase
+  const { data: adjuntosPrevios, error: errorAdjuntosPrevios } = await supabase
     .from("comunidad_adjuntos")
     .select("id, ruta_storage")
     .eq("id_post", postId);
+  // Sin los adjuntos previos no se sabe cuáles quitó la edición: quedarían archivos huérfanos.
+  if (errorAdjuntosPrevios) return { error: "No pudimos guardar los cambios. Intenta de nuevo." };
 
   const resultadoAdjuntos = await prepararAdjuntosNuevos(parseoContenido.data, adjuntosFormData);
   if ("error" in resultadoAdjuntos) return { error: resultadoAdjuntos.error };

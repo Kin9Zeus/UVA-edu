@@ -65,13 +65,15 @@ export async function validarCodigoCupon(
     return { ok: false, error: "Tu sesión expiró. Vuelve a iniciar sesión." };
   }
 
-  const { data: plan } = await supabase
+  const { data: plan, error: errorPlan } = await supabase
     .from("planes")
     .select("precio_centavos, moneda")
     .eq("id", idPlan)
     .eq("activo", true)
     .maybeSingle();
 
+  // Un fallo no es "ese plan ya no está disponible".
+  if (errorPlan) return { ok: false, error: "No pudimos validar el cupón. Intenta de nuevo." };
   if (!plan) {
     return { ok: false, error: "Ese plan ya no está disponible." };
   }

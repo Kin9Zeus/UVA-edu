@@ -8,6 +8,7 @@ import { congelarPreguntas } from "@/lib/examenes/congelar";
 import { calcularDisponibilidad } from "@/lib/examen";
 import { getUsuarioActual } from "@/lib/perfil";
 import { logError } from "@/lib/log";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import {
   parsearProgreso,
   respuestaEstudianteSchema,
@@ -147,11 +148,13 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
     };
   }
 
-  const preguntas = await congelarPreguntas(
-    examen.id,
-    examen.aleatorizar_preguntas,
-    examen.aleatorizar_opciones,
-  );
+  let preguntas: Awaited<ReturnType<typeof congelarPreguntas>>;
+  try {
+    preguntas = await congelarPreguntas(examen.id, examen.aleatorizar_preguntas, examen.aleatorizar_opciones);
+  } catch (error) {
+    logError("examenes:iniciar", "no se pudieron leer las preguntas del examen", error, { area: "examenes" });
+    return { error: "No pudimos iniciar el examen. Intenta de nuevo." };
+  }
 
   if (preguntas.length === 0) {
     return { error: "El examen todavía no tiene preguntas. Escríbenos si el problema continúa." };
@@ -191,13 +194,15 @@ export async function iniciarIntento(cursoId: string): Promise<IntentoActionResu
     // 23505 sobre el índice parcial: dos peticiones simultáneas: la otra ya
     // creó el intento, así que no es un error para el estudiante.
     if (error.code === "23505") {
-      const { data: existente } = await supabase
+      const { data: existente, error: errorExistente } = await supabase
         .from("intentos_examen")
         .select("id")
         .eq("id_examen", examen.id)
         .eq("id_usuario", usuarioId)
         .eq("estado", "EN_CURSO")
         .maybeSingle();
+      // Si falla, cae al mensaje genérico de abajo ("No pudimos iniciar el examen"), que es lo cierto.
+      registrarSiFalla(errorExistente, "examenes:intento-en-curso", "no se pudo leer el intento en curso");
       if (existente) return { success: true, intentoId: existente.id };
     }
     return { error: "No pudimos iniciar el examen. Intenta de nuevo." };
@@ -266,12 +271,15 @@ async function escribirIntento(
   if (error) return "fallo";
   if ((count ?? 0) > 0) return "ok";
 
-  const { data: actual } = await admin
+  const { data: actual, error: errorActual } = await admin
     .from("intentos_examen")
     .select("estado")
     .eq("id", intentoId)
     .eq("id_usuario", usuarioId)
     .maybeSingle<{ estado: string }>();
+  // Si no se puede leer, no se sabe si el intento sigue en curso: "cerrado" le
+  // diría al estudiante que su intento terminó cuando quizá no. Es un fallo.
+  if (errorActual) return "fallo";
 
   return actual?.estado === "EN_CURSO" ? "conflicto" : "cerrado";
 }
@@ -335,7 +343,9 @@ async function revalidarTrasCierre(admin: AdminClient, cursoId: string | undefin
   revalidatePath("/dashboard/certificados");
   revalidatePath("/dashboard/progreso");
   if (!cursoId) return;
-  const { data: curso } = await admin.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
+  const { data: curso, error: errorCurso } = await admin.from("cursos").select("slug").eq("id", cursoId).maybeSingle();
+  // Solo sirve para revalidar las rutas públicas del curso: se registra.
+  registrarSiFalla(errorCurso, "examenes:revalidar", "no se pudo leer el slug del curso");
   if (curso?.slug) {
     revalidatePath(`/cursos/${curso.slug}`);
     revalidatePath(`/cursos/${curso.slug}/examen`);
@@ -435,12 +445,18 @@ export async function responderPregunta(
   if (!parseo.success) return { error: "Respuesta inválida." };
 
   const admin = createAdminClient();
-  const { data: intento } = await admin
+  const { data: intento, error: errorIntento } = await admin
     .from("intentos_examen")
     .select(COLUMNAS_INTENTO)
     .eq("id", intentoId)
     .maybeSingle<IntentoParaResponder>();
 
+  // Un fallo no es "no encontramos ese intento": a mitad de un examen el
+  // estudiante creería que perdió el intento.
+  if (errorIntento) {
+    logError("examenes:responder", "no se pudo leer el intento", errorIntento, { area: "examenes" });
+    return { error: "No pudimos guardar tu respuesta. Intenta de nuevo." };
+  }
   if (!intento || intento.id_usuario !== usuarioId) return { error: "No encontramos ese intento." };
   if (intento.estado !== "EN_CURSO") return { error: "Este intento ya fue enviado." };
 
@@ -624,12 +640,18 @@ export async function enviarIntento(intentoId: string): Promise<EnvioResultado> 
   // ("conflicto"), basta releer y cerrar con el progreso nuevo. Pocas
   // vueltas: solo compite con las respuestas del propio estudiante.
   for (let vuelta = 0; vuelta < INTENTOS_CIERRE_POR_TIEMPO; vuelta++) {
-    const { data: intento } = await admin
+    const { data: intento, error: errorIntento } = await admin
       .from("intentos_examen")
       .select(COLUMNAS_INTENTO)
       .eq("id", intentoId)
       .maybeSingle<IntentoParaResponder>();
 
+    // Un fallo no es "no encontramos ese intento": al enviar el examen el
+    // estudiante creería que lo perdió.
+    if (errorIntento) {
+      logError("examenes:enviar", "no se pudo leer el intento", errorIntento, { area: "examenes" });
+      return { error: "No pudimos enviar tu examen. Intenta de nuevo." };
+    }
     if (!intento || intento.id_usuario !== usuarioId) return { error: "No encontramos ese intento." };
     if (intento.estado !== "EN_CURSO") return { error: "Este intento ya fue enviado." };
 

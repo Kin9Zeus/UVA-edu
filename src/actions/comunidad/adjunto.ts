@@ -30,11 +30,13 @@ export async function obtenerUrlAdjuntoComunidad(adjuntoId: string): Promise<Url
   const user = await getUsuarioActual();
   if (!user) return { error: "Debes iniciar sesión para descargar este archivo." };
 
-  const { data: adjunto } = await supabase
+  const { data: adjunto, error: errorAdjunto } = await supabase
     .from("comunidad_adjuntos")
     .select("ruta_storage, nombre_original")
     .eq("id", adjuntoId)
     .maybeSingle();
+  // Un fallo no es "no tienes acceso a este archivo".
+  if (errorAdjunto) return { error: "No pudimos abrir el archivo. Intenta de nuevo." };
   if (!adjunto) return { error: "No tienes acceso a este archivo." };
 
   const { data, error } = await createAdminClient()

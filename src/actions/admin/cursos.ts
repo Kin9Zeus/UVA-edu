@@ -14,6 +14,9 @@ import {
   type AssetPorBorrar,
 } from "@/lib/mux/limpieza";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { logError } from "@/lib/log";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import { procesarPortada } from "@/lib/admin/portada";
@@ -102,12 +105,15 @@ async function generarSlugLeccion(
   const base = slugificarTexto(titulo, "leccion");
 
   // Las lecciones no tienen `id_curso` propio: se llega por su módulo.
-  const { data: modulos } = await supabase.from("modulos").select("id").eq("id_curso", cursoId);
+  const { data: modulos, error: errorModulos } = await supabase.from("modulos").select("id").eq("id_curso", cursoId);
+  // Un fallo no es "no hay slugs tomados": se elegiría uno que ya existe.
+  lanzarSiFalla(errorModulos, "admin/cursos:módulos del curso (slug de lección)");
   const moduloIds = (modulos ?? []).map((modulo) => modulo.id as string);
 
-  const { data: lecciones } = moduloIds.length
+  const { data: lecciones, error: errorLecciones } = moduloIds.length
     ? await supabase.from("lecciones").select("id, slug").in("id_modulo", moduloIds)
-    : { data: [] };
+    : { data: [], error: null };
+  lanzarSiFalla(errorLecciones, "admin/cursos:lecciones del curso (slug de lección)");
 
   const tomados = (lecciones ?? []).map((leccion) => leccion.slug as string).filter(Boolean);
 
@@ -485,12 +491,17 @@ async function bloqueoDePublicacion(
   supabase: SupabaseClient,
   cursoId: string,
 ): Promise<string | null> {
-  const { data: curso } = await supabase
+  const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
     .select("titulo, imagen_portada, modulos(lecciones(estado_procesamiento))")
     .eq("id", cursoId)
-    .single();
+    .maybeSingle();
 
+  // Un fallo no es "el curso ya no existe": es la comprobación previa a publicar.
+  if (errorCurso) {
+    logError("admin/cursos:publicar", "no se pudo leer el curso para validar la publicación", errorCurso);
+    return "No pudimos comprobar el curso. Intenta de nuevo.";
+  }
   if (!curso) return "El curso ya no existe.";
 
   const motivos = motivosParaNoPublicar({
@@ -595,11 +606,14 @@ export async function subirPortadaCurso(
   if ("error" in procesada) return { error: procesada.error };
   const { cuerpo, contentType, extension } = procesada.portada;
 
-  const { data: curso } = await admin.supabase
+  const { data: curso, error: errorCursoPortada } = await admin.supabase
     .from("cursos")
     .select("titulo, imagen_portada")
     .eq("id", cursoId)
-    .single();
+    .maybeSingle();
+  // `curso` solo nombra la carpeta y trae la portada anterior a borrar; si falla
+  // se sube igual a la carpeta genérica, pero se registra.
+  registrarSiFalla(errorCursoPortada, "admin/cursos:portada", "no se pudo leer el curso para subir la portada");
 
   // El nombre es aleatorio, nunca el que traía el archivo del usuario: evita
   // colisiones entre subidas y que un nombre malicioso ("../..") escape de
@@ -712,13 +726,15 @@ export async function crearModulo(cursoId: string, titulo: string): Promise<Admi
   if (!parseo.success) return { error: primerError(parseo) };
   const tituloLimpio = parseo.data;
 
-  const { data: ultimo } = await admin.supabase
+  const { data: ultimo, error: errorUltimo } = await admin.supabase
     .from("modulos")
     .select("orden")
     .eq("id_curso", cursoId)
     .order("orden", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Sin el último orden se calcularía el 1.º: el módulo nuevo quedaría al principio.
+  if (errorUltimo) return { error: "No pudimos crear el módulo." };
 
   const { error } = await admin.supabase.from("modulos").insert({
     id_curso: cursoId,
@@ -830,9 +846,11 @@ export async function moverModulo(
   if (!parseo.success) return { error: primerError(parseo) };
 
   const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
-  const { data: vecinos } = idsVecinos.length
+  const { data: vecinos, error: errorVecinos } = idsVecinos.length
     ? await admin.supabase.from("modulos").select("id, orden").in("id", idsVecinos)
-    : { data: [] };
+    : { data: [], error: null };
+  // Sin los vecinos el orden nuevo se calcularía mal y el módulo quedaría mal colocado.
+  if (errorVecinos) return { error: "No pudimos guardar el nuevo orden de los módulos." };
 
   const ordenDe = (id: string | null) => (id ? (vecinos ?? []).find((v) => v.id === id)?.orden ?? null : null);
   const nuevoOrden = ordenEntre(ordenDe(idAnterior), ordenDe(idSiguiente));
@@ -841,12 +859,14 @@ export async function moverModulo(
     const { error } = await admin.supabase.from("modulos").update({ orden: nuevoOrden }).eq("id", moduloId);
     if (error) return { error: "No pudimos guardar el nuevo orden de los módulos." };
   } else {
-    const { data: resto } = await admin.supabase
+    const { data: resto, error: errorResto } = await admin.supabase
       .from("modulos")
       .select("id")
       .eq("id_curso", cursoId)
       .neq("id", moduloId)
       .order("orden");
+    // Con `resto` vacío por un fallo, reespaciar dejaría solo este módulo ordenado.
+    if (errorResto) return { error: "No pudimos guardar el nuevo orden de los módulos." };
 
     const ordenados = resto ?? [];
     const indiceDestino = idAnterior ? ordenados.findIndex((m) => m.id === idAnterior) + 1 : 0;
@@ -884,13 +904,15 @@ export async function crearLeccion(
   if (!parseoTitulo.success) return { error: primerError(parseoTitulo) };
   const tituloLimpio = parseoTitulo.data;
 
-  const { data: ultima } = await admin.supabase
+  const { data: ultima, error: errorUltima } = await admin.supabase
     .from("lecciones")
     .select("orden")
     .eq("id_modulo", moduloId)
     .order("orden", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Sin el último orden se calcularía el 1.º: la lección nueva quedaría al principio.
+  if (errorUltima) return { error: "No pudimos crear la lección." };
 
   const { data, error } = await admin.supabase
     .from("lecciones")
@@ -946,7 +968,8 @@ export async function actualizarLeccion(
   // invitación", así que registrarlo acá no es ruidoso. `idEntidadAfectada`
   // es el curso (la lección no tiene pantalla propia); el nombre de la
   // lección queda en `detalles`.
-  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle();
+  const { data: curso, error: errorCursoBitacora } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle();
+  registrarSiFalla(errorCursoBitacora, "admin/cursos:bitacora", "no se pudo leer el título del curso para la bitácora");
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: "Editó el contenido de una lección",
@@ -966,10 +989,18 @@ export async function eliminarLeccion(leccionId: string, cursoId: string): Promi
 
   // El título y el asset hacen falta ANTES del delete — después ya no hay
   // de dónde leerlos.
-  const [{ data: leccion }, { data: curso }] = await Promise.all([
+  const [{ data: leccion, error: errorLeccion }, { data: curso, error: errorCurso }] = await Promise.all([
     admin.supabase.from("lecciones").select("titulo, id_mux_asset_id").eq("id", leccionId).maybeSingle(),
     admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle(),
   ]);
+  // Sin leer el asset, la lección se borraría y su video quedaría HUÉRFANO en
+  // Mux (nadie lo encolaría para borrar; con el plan gratuito cada uno cuenta).
+  if (errorLeccion) {
+    logError("admin/cursos:eliminar-leccion", "no se pudo leer la lección antes de borrarla", errorLeccion);
+    return { error: "No pudimos eliminar la lección. Intenta de nuevo." };
+  }
+  // El título del curso solo adorna la bitácora.
+  registrarSiFalla(errorCurso, "admin/cursos:bitacora", "no se pudo leer el título del curso para la bitácora");
 
   const assets = assetsDeLecciones(leccion ? [{ id: leccionId, ...leccion }] : []);
   const borrado = await borrarConSusVideos(assets, () =>
@@ -1011,9 +1042,11 @@ export async function moverLeccion(
   if (!parseo.success) return { error: primerError(parseo) };
 
   const idsVecinos = [idAnterior, idSiguiente].filter((id): id is string => id !== null);
-  const { data: vecinos } = idsVecinos.length
+  const { data: vecinos, error: errorVecinos } = idsVecinos.length
     ? await admin.supabase.from("lecciones").select("id, orden").in("id", idsVecinos)
-    : { data: [] };
+    : { data: [], error: null };
+  // Sin los vecinos el orden nuevo se calcularía mal y la lección quedaría mal colocada.
+  if (errorVecinos) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
 
   const ordenDe = (id: string | null) => (id ? (vecinos ?? []).find((v) => v.id === id)?.orden ?? null : null);
   const nuevoOrden = ordenEntre(ordenDe(idAnterior), ordenDe(idSiguiente));
@@ -1022,12 +1055,14 @@ export async function moverLeccion(
     const { error } = await admin.supabase.from("lecciones").update({ orden: nuevoOrden }).eq("id", leccionId);
     if (error) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
   } else {
-    const { data: resto } = await admin.supabase
+    const { data: resto, error: errorResto } = await admin.supabase
       .from("lecciones")
       .select("id")
       .eq("id_modulo", moduloId)
       .neq("id", leccionId)
       .order("orden");
+    // Con `resto` vacío por un fallo, reespaciar dejaría solo esta lección ordenada.
+    if (errorResto) return { error: "No pudimos guardar el nuevo orden de las lecciones." };
 
     const ordenadas = resto ?? [];
     const indiceDestino = idAnterior ? ordenadas.findIndex((l) => l.id === idAnterior) + 1 : 0;
@@ -1052,7 +1087,9 @@ export async function moverLeccion(
  * confirmarSubidaRecurso -- separada para que ambas construyan exactamente
  * la misma ruta sin repetir la consulta a `cursos` dos veces. */
 async function carpetaDelCurso(admin: { supabase: SupabaseClient }, cursoId: string): Promise<string> {
-  const { data: curso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).single();
+  const { data: curso, error: errorCurso } = await admin.supabase.from("cursos").select("titulo").eq("id", cursoId).maybeSingle();
+  // Solo el nombre de la carpeta en Storage: cae a "curso" pero deja registro.
+  registrarSiFalla(errorCurso, "admin/cursos:carpeta", "no se pudo leer el título del curso para la carpeta");
   // Sufijo de 8 caracteres del id: el slug del título por sí solo no es
   // único (dos cursos podrían llamarse igual), y esta carpeta es la que
   // reemplaza al uuid crudo que se veía en Storage.
@@ -1168,11 +1205,13 @@ export async function eliminarRecursoLeccion(recursoId: string): Promise<AdminAc
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(recursoId).success) return { error: "Material inválido." };
 
-  const { data: recurso } = await admin.supabase
+  const { data: recurso, error: errorRecurso } = await admin.supabase
     .from("recursos_descargables")
     .select("url_archivo")
     .eq("id", recursoId)
-    .single();
+    .maybeSingle();
+  // Sin la ruta del archivo, la fila se borraría y el archivo quedaría huérfano en Storage.
+  if (errorRecurso) return { error: "No pudimos eliminar el material." };
 
   const { error } = await admin.supabase.from("recursos_descargables").delete().eq("id", recursoId);
   if (error) return { error: "No pudimos eliminar el material." };
