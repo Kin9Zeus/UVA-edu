@@ -26,7 +26,7 @@ export function GraciaCard({ diasGracia }: { diasGracia: number }) {
         }
       >
         <span className={vencido ? "size-1.5 bg-uva-badge-danger-fg" : "size-1.5 bg-uva-accent-2"} />
-        {vencido ? "Plan vencido" : "Período de gracia"}
+        {vencido ? (PRECIOS_HABILITADOS ? "Plan vencido" : "Acceso vencido") : "Período de gracia"}
       </span>
       <p className="text-[13px] text-uva-muted">
         {vencido
