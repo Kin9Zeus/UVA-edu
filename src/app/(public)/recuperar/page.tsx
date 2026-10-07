@@ -35,11 +35,11 @@ export default async function RecuperarPage() {
 
       <AuthVisual />
 
-      <section className="relative z-[2] grid flex-1 place-items-center px-5 pt-3 pb-10 min-[900px]:overflow-y-auto min-[900px]:bg-uva-text/4 min-[900px]:p-11 min-[900px]:[place-items:safe_center]">
+      <main className="relative z-[2] grid flex-1 place-items-center px-5 pt-3 pb-10 min-[900px]:overflow-y-auto min-[900px]:bg-uva-text/4 min-[900px]:p-11 min-[900px]:[place-items:safe_center]">
         <div className="w-full max-w-[396px] rounded-uva-lg border border-uva-divider bg-uva-surface/90 px-6 py-7 shadow-xl backdrop-blur-sm min-[900px]:rounded-none min-[900px]:border-0 min-[900px]:bg-transparent min-[900px]:px-0 min-[900px]:py-4 min-[900px]:shadow-none min-[900px]:backdrop-blur-none">
-          <h2 className="mb-1.5 text-center text-[30px] text-uva-text">
+          <h1 className="mb-1.5 text-center text-[30px] text-uva-text">
             Recupera tu contraseña
-          </h2>
+          </h1>
           <p className="mb-6 text-center text-sm text-uva-text-muted">
             Escribe el correo con el que te registraste y te enviamos un
             enlace para crear una nueva.
@@ -48,10 +48,12 @@ export default async function RecuperarPage() {
           <RecuperarForm />
 
           <p className="mt-5 text-center text-[13px] text-uva-text-muted">
-            <Link href="/login">Volver a iniciar sesión</Link>
+            <Link href="/login" className="inline-flex min-h-11 items-center px-2">
+              Volver a iniciar sesión
+            </Link>
           </p>
         </div>
-      </section>
+      </main>
     </div>
   );
 }

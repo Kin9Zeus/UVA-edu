@@ -64,6 +64,7 @@ export function RegistroForm({
           autoComplete="email"
           defaultValue={email}
           required
+          className="h-11 sm:text-base"
         />
       </div>
 
@@ -75,12 +76,14 @@ export function RegistroForm({
           placeholder="Tu nombre y apellido"
           autoComplete="name"
           required
+          className="h-11 sm:text-base"
         />
       </div>
 
       <div>
         <Label htmlFor="reg-pass">Contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="reg-pass"
           name="password"
           placeholder="Mínimo 10 caracteres"
@@ -114,6 +117,7 @@ export function RegistroForm({
       <div>
         <Label htmlFor="reg-pass2">Repite la contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="reg-pass2"
           name="password2"
           placeholder="Debe coincidir"
@@ -129,21 +133,31 @@ export function RegistroForm({
         )}
       </div>
 
-      <label className="mt-1.5 flex items-start gap-2 text-[12px] leading-[1.4] text-uva-text-muted">
+      {/* El <label> entero es el área táctil (44 px de alto); la casilla
+          nativa conserva Espacio para marcarla y el foco visible global. */}
+      <label
+        htmlFor="reg-terminos"
+        className="mt-1.5 flex min-h-11 items-start gap-2 py-1 text-[12px] leading-[1.4] text-uva-text-muted"
+      >
         <input
+          id="reg-terminos"
+          name="terminos"
           type="checkbox"
+          required
           checked={aceptaTerminos}
           onChange={(event) => setAceptaTerminos(event.target.checked)}
-          className="mt-0.5 size-3.5 shrink-0 accent-uva-accent"
+          className="mt-0.5 size-4 shrink-0 accent-uva-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         />
-        Acepto los{" "}
-        <Link href="/soporte?tema=terminos" className="underline" target="_blank">
-          Términos
-        </Link>{" "}
-        y la{" "}
-        <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
-          Política de privacidad
-        </Link>
+        <span>
+          Acepto los{" "}
+          <Link href="/soporte?tema=terminos" className="underline" target="_blank">
+            Términos
+          </Link>{" "}
+          y la{" "}
+          <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
+            Política de privacidad
+          </Link>
+        </span>
       </label>
 
       <Button
@@ -151,10 +165,21 @@ export function RegistroForm({
         variant="uva-primary"
         size="uva"
         disabled={!canSubmit || pending}
-        className="mt-1.5 min-h-10 text-[15px]"
+        aria-describedby={aceptaTerminos ? undefined : "reg-terminos-ayuda"}
+        className="mt-1.5 text-[15px]"
       >
         {pending ? "Creando cuenta…" : "Crear mi cuenta"}
       </Button>
+      {/* El botón deshabilitado no recibe foco con Tab: sin este texto quien
+          navega con teclado no sabe por qué no puede avanzar. */}
+      {!aceptaTerminos && (
+        <p
+          id="reg-terminos-ayuda"
+          className="mb-0 text-center text-xs text-uva-text-muted"
+        >
+          Acepta los Términos y la Política de privacidad para crear tu cuenta.
+        </p>
+      )}
     </form>
   );
 }

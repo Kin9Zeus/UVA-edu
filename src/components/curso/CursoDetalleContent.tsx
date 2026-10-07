@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { BarChart2, ChevronLeft, CircleCheck, Clock, Download, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
@@ -141,7 +142,7 @@ export function CursoDetalleContent({
               categoría. Mismo patrón que CategoriaContent.tsx. */}
           <Link
             href={basePath}
-            className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
+            className="inline-flex min-h-11 items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
           >
             <ChevronLeft className="size-4" strokeWidth={1.9} />
             Catálogo
@@ -354,7 +355,7 @@ export function CursoDetalleContent({
               size="uva"
               className="min-h-12 max-w-full flex-col gap-0.5 overflow-hidden py-2"
             >
-              <span>Renueva tu acceso</span>
+              <span>{PRECIOS_HABILITADOS ? "Renueva tu acceso" : "Canjea un código"}</span>
               <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal">
                 {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
               </span>

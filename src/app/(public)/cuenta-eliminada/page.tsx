@@ -23,7 +23,7 @@ export default function CuentaEliminadaPage() {
 
       <section className="grid place-items-center bg-uva-text/4 p-7 min-[900px]:p-11">
         <div className="w-full max-w-[396px] text-center">
-          <h2 className="mb-1.5 text-[30px] text-uva-text">Cuenta eliminada</h2>
+          <h1 className="mb-1.5 text-[30px] text-uva-text">Cuenta eliminada</h1>
           <p className="mb-6 text-sm text-uva-text-muted">
             Suprimimos tus datos personales (nombre, correo, celular, foto y
             el contenido que escribiste) y cerramos tu sesión en todas

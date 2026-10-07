@@ -55,13 +55,16 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
+      // Colapsado no hay texto visible: el tooltip solo aparece al pasar el
+      // mouse, así que el nombre accesible tiene que ir en el propio enlace.
+      aria-label={collapsed ? label : undefined}
       className={cn(
         "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3.5 py-2.5 text-sm text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
         active && "border-uva-accent bg-uva-surface text-uva-text",
         collapsed && "justify-center px-0",
       )}
     >
-      <Icon className="size-[18px] shrink-0" strokeWidth={1.9} />
+      <Icon className="size-[18px] shrink-0" strokeWidth={1.9} aria-hidden />
       {!collapsed && (
         <span className="flex-1 truncate">{label}</span>
       )}
