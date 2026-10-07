@@ -21,7 +21,7 @@ export async function AuthVisual() {
       {/* Mobile: sin hero — el degradado de fondo y el card flotante viven en
           page.tsx. Desktop: contenido completo, sin cambios. */}
       <div className="relative z-[2] hidden max-w-[490px] min-[900px]:block">
-        <p className="mb-3.5 font-heading font-bold tracking-[-0.02em] text-[34px] text-uva-text min-[900px]:text-[46px]">
+        <p className="mb-3.5 font-heading text-[34px] leading-[1.08] font-bold tracking-[-0.02em] text-uva-text min-[900px]:text-[46px]">
           Aprende el oficio.
           <br />
           Presupuesta de verdad.
