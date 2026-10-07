@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -138,13 +138,30 @@ export function AuthFlow({
     setStep("pendiente");
   }
 
+  // Al cambiar de paso el contenido se reemplaza entero: sin esto el foco
+  // queda en un botón que ya no existe y el lector de pantalla no anuncia
+  // nada. Se salta el primer render para no robar el foco al entrar.
+  const tituloRef = useRef<HTMLHeadingElement>(null);
+  const pasoInicial = useRef(true);
+  useEffect(() => {
+    if (pasoInicial.current) {
+      pasoInicial.current = false;
+      return;
+    }
+    tituloRef.current?.focus();
+  }, [step]);
+
   const { title, subtitle } = STEP_COPY[step];
 
   return (
     <>
-      <h2 className="mb-1.5 text-center text-[30px] text-uva-text">
+      <h1
+        ref={tituloRef}
+        tabIndex={-1}
+        className="mb-1.5 text-center text-[30px] text-uva-text focus:outline-none"
+      >
         {title}
-      </h2>
+      </h1>
       <p className="mb-6 text-center text-sm text-uva-text-muted">
         {subtitle}
       </p>
@@ -195,7 +212,7 @@ export function AuthFlow({
             <button
               type="button"
               onClick={handleCrearCuenta}
-              className="text-uva-accent-ink hover:underline"
+              className="inline-flex min-h-11 items-center px-2 text-uva-accent-ink hover:underline"
             >
               Crear cuenta
             </button>
@@ -217,12 +234,12 @@ export function AuthFlow({
       ) : (
         <>
           {step !== "signup" && step !== "confirmar" && step !== "pendiente" && (
-            <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 px-3.5 py-2.5 text-sm text-uva-text">
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 py-0 pr-1 pl-3.5 text-sm text-uva-text">
               <span className="truncate">{email}</span>
               <button
                 type="button"
                 onClick={handleCambiar}
-                className="shrink-0 text-xs text-uva-accent-ink hover:underline"
+                className="inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-uva-accent-ink hover:underline"
               >
                 Cambiar
               </button>
@@ -249,7 +266,7 @@ export function AuthFlow({
                 <button
                   type="button"
                   onClick={handleCambiar}
-                  className="text-uva-accent-ink hover:underline"
+                  className="inline-flex min-h-11 items-center px-2 text-uva-accent-ink hover:underline"
                 >
                   Inicia sesión
                 </button>

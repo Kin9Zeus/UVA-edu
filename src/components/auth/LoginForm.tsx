@@ -57,7 +57,10 @@ export function LoginForm({
       </div>
 
       <div className="mt-2.5 flex justify-end">
-        <Link href="/recuperar" className="text-xs">
+        <Link
+          href="/recuperar"
+          className="inline-flex min-h-11 items-center px-2 text-xs"
+        >
           ¿Olvidaste tu contraseña?
         </Link>
       </div>

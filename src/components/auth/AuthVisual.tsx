@@ -21,11 +21,11 @@ export async function AuthVisual() {
       {/* Mobile: sin hero — el degradado de fondo y el card flotante viven en
           page.tsx. Desktop: contenido completo, sin cambios. */}
       <div className="relative z-[2] hidden max-w-[490px] min-[900px]:block">
-        <h1 className="mb-3.5 text-[34px] text-uva-text min-[900px]:text-[46px]">
+        <p className="mb-3.5 font-heading font-bold tracking-[-0.02em] text-[34px] text-uva-text min-[900px]:text-[46px]">
           Aprende el oficio.
           <br />
           Presupuesta de verdad.
-        </h1>
+        </p>
         <p className="max-w-[450px] text-base text-uva-text-muted">
           Formación para arquitectos, residentes de obra y presupuestadores.
           Cursos en video y plantillas que puedes usar mañana en la obra.
