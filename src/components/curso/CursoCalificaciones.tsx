@@ -73,7 +73,7 @@ function BotonMeGusta({
       type="button"
       disabled={!puedeReaccionar || pending}
       onClick={alternar}
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 text-xs font-medium text-uva-text-faint transition-colors hover:bg-uva-text/5 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:hover:bg-transparent ${meGusta ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-1.5 py-1 max-sm:min-h-11 pointer-coarse:min-h-11 text-xs font-medium text-uva-text-faint transition-colors hover:bg-uva-text/5 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:hover:bg-transparent ${meGusta ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
     >
       <Heart className="size-3.5" strokeWidth={2.4} fill={meGusta ? "currentColor" : "none"} />
       {total > 0 ? total : "Me gusta"}
@@ -161,7 +161,7 @@ function FormularioCalificacion({
             type="button"
             disabled={pending}
             onClick={eliminar}
-            className="cursor-pointer border-0 bg-transparent p-0 text-xs text-uva-text-faint hover:text-uva-error-text disabled:cursor-not-allowed"
+            className="inline-flex cursor-pointer items-center border-0 bg-transparent p-0 text-xs text-uva-text-faint hover:text-uva-error-text disabled:cursor-not-allowed max-sm:min-h-11 pointer-coarse:min-h-11"
           >
             Eliminar mi reseña
           </button>

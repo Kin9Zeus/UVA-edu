@@ -60,7 +60,10 @@ function Burbuja({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors",
+        // px-1.5 y no px-3.5: con 5 ítems la burbuja medía 358 px y se salía
+        // de un celular de 320 (y a 375 quedaba a 3 px del borde). min-w-11
+        // conserva el área táctil de 44 px en los ítems cortos ("Más").
+        "flex min-w-11 flex-col items-center gap-0.5 rounded-[18px] px-1.5 py-1.5 text-uva-text-faint transition-colors",
         active && "bg-uva-accent/15 text-uva-accent-ink",
       )}
     >
@@ -82,7 +85,7 @@ export function AdminBottomTabBar() {
   return (
     <nav
       aria-label="Navegación del panel admin"
-      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+14px)] sm:px-6 md:hidden"
     >
       <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-lg shadow-uva-shadow/40 backdrop-blur">
         {principales.map((item) => (
@@ -93,7 +96,7 @@ export function AdminBottomTabBar() {
           <DialogPrimitive.Trigger
             aria-label="Más opciones"
             className={cn(
-              "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+              "flex min-w-11 flex-col items-center gap-0.5 rounded-[18px] px-1.5 py-1.5 text-uva-text-faint transition-colors outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
               enSecundario && "bg-uva-accent/15 text-uva-accent-ink",
             )}
           >

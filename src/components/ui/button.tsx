@@ -8,6 +8,13 @@ import { cn } from "@/lib/utils"
    defecto es neutro (superficie + borde) y el magenta es la excepcion, que
    solo se pide explicitamente con variant="primary" (`.btn-primary`).
    El foco es `outline:2px solid var(--accent)` con offset, no un ring. */
+/* Área táctil mínima de 44 px (piso de calidad, CLAUDE.md 3.4) sin engordar la
+   densidad de escritorio: solo en pantallas angostas (< 640 px) o con puntero
+   táctil. El alto de escritorio de cada tamaño no cambia. */
+const TACTIL_ALTO = "max-sm:min-h-11 pointer-coarse:min-h-11"
+const TACTIL_CUADRADO =
+  "max-sm:min-h-11 max-sm:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -46,16 +53,16 @@ const buttonVariants = cva(
       },
       size: {
         /* `.btn` — el mockup no fija alto: lo define el padding */
-        default: "gap-[7px] px-4 py-2.5 text-[13.5px]",
+        default: `gap-[7px] px-4 py-2.5 text-[13.5px] ${TACTIL_ALTO}`,
         /* `.btn-sm` */
-        sm: "gap-1.5 px-3 py-[7px] text-[12.5px] [&_svg:not([class*='size-'])]:size-3.5",
-        xs: "gap-1 px-2.5 py-1 text-[12px] [&_svg:not([class*='size-'])]:size-3",
-        lg: "gap-2 px-5 py-3 text-[14px]",
+        sm: `gap-1.5 px-3 py-[7px] text-[12.5px] [&_svg:not([class*='size-'])]:size-3.5 ${TACTIL_ALTO}`,
+        xs: `gap-1 px-2.5 py-1 text-[12px] [&_svg:not([class*='size-'])]:size-3 ${TACTIL_ALTO}`,
+        lg: `gap-2 px-5 py-3 text-[14px] ${TACTIL_ALTO}`,
         /* Botones de solo icono: `.btn.btn-sm` con `padding:6px` */
         icon: "size-11 p-0",
-        "icon-xs": "p-1 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "p-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        "icon-lg": "p-3",
+        "icon-xs": `p-1 [&_svg:not([class*='size-'])]:size-3 ${TACTIL_CUADRADO}`,
+        "icon-sm": `p-1.5 [&_svg:not([class*='size-'])]:size-3.5 ${TACTIL_CUADRADO}`,
+        "icon-lg": `p-3 ${TACTIL_CUADRADO}`,
         /* U.V.A — dimensiones compartidas de .btn (auth.css); primary ajusta alto/tipografía por className */
         uva: "min-h-11 gap-2.5 px-5 py-2 text-sm font-semibold",
         /* El tamaño exacto vive por completo en la className de cada uso (p.ej. botones ícono) */

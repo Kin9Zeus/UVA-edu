@@ -40,14 +40,14 @@ export function PasswordInput({
         value={value}
         onChange={onChange}
         required={required}
-        className={`pr-[42px] ${inputClassName ?? ""}`}
+        className={`pr-11 ${inputClassName ?? ""}`}
       />
       <Button
         type="button"
         variant="uva-icon"
         size="auto"
         id={toggleId}
-        className="absolute top-1 right-1 size-8"
+        className="absolute top-0 right-0 size-11"
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}

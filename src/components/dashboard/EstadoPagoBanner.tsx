@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 export type EstadoIntento = "PENDIENTE" | "APROBADO" | "RECHAZADO";
 
@@ -67,8 +68,9 @@ export function EstadoPagoBanner({ estado }: { estado: EstadoIntento }) {
         <div>
           <p className="m-0 text-sm font-semibold text-uva-badge-danger-fg">El pago no se completó</p>
           <p className="m-0 mt-0.5 text-[13px] text-uva-text-muted">
-            No se te cobró nada. Puedes intentarlo otra vez desde Planes, con el
-            mismo medio de pago u otro distinto.
+            {PRECIOS_HABILITADOS
+              ? "No se te cobró nada. Puedes intentarlo otra vez desde Planes, con el mismo medio de pago u otro distinto."
+              : "No se te cobró nada."}
           </p>
         </div>
       </div>

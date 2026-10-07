@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import Link from "next/link";
 import { formatFecha } from "@/lib/admin/format";
 import {
   ETIQUETA_TIPO_ACCESO,
@@ -10,16 +12,41 @@ const DESCRIPCION_TIPO: Record<TipoAccesoGratuito, string> = {
   OTORGADO_ADMIN: "El equipo de U.V.A. te dio acceso completo a la plataforma.",
 };
 
-/** Cómo se lee la fecha límite según en qué punto del periodo esté el estudiante. */
-function lineaVigencia(vigencia: EstadoVigencia, fechaVigencia: string | null) {
+/**
+ * Cómo se lee la fecha límite según en qué punto del periodo esté el
+ * estudiante.
+ *
+ * Un acceso VENCIDO con `diasRestantes >= 0` terminó por su ESTADO
+ * (cancelado o revocado a mano), no por la fecha, y esa fecha todavía no ha
+ * llegado: "estuvo vigente hasta el 27 de octubre" dicho el 7 de octubre le
+ * anuncia como pasada una fecha futura —y contradice a "Mi suscripción", que
+ * ya la omite—. En ese caso no se imprime nada; el aviso de abajo lo explica.
+ */
+export function lineaVigencia(
+  vigencia: EstadoVigencia,
+  fechaVigencia: string | null,
+  diasRestantes: number | null,
+): string | null {
   if (vigencia === "SIN_LIMITE" || !fechaVigencia) return "Tu acceso no tiene fecha de cierre.";
-  if (vigencia === "VENCIDO") return `Estuvo vigente hasta el ${formatFecha(fechaVigencia)}.`;
+  if (vigencia === "VENCIDO") {
+    return diasRestantes !== null && diasRestantes < 0
+      ? `Estuvo vigente hasta el ${formatFecha(fechaVigencia)}.`
+      : null;
+  }
   return `Vigente hasta el ${formatFecha(fechaVigencia)}.`;
 }
 
-function textoAviso(vigencia: EstadoVigencia, diasRestantes: number | null) {
+function textoAviso(vigencia: EstadoVigencia, diasRestantes: number | null): ReactNode {
   if (vigencia === "VENCIDO") {
-    return "Tu periodo de acceso ya terminó. Escríbenos y con gusto lo renovamos.";
+    return (
+      <>
+        Tu periodo de acceso ya terminó. Si tienes un código nuevo, canjéalo en{" "}
+        <Link href="/dashboard/suscripcion" className="font-semibold text-uva-text underline underline-offset-2">
+          Mi suscripción
+        </Link>
+        .
+      </>
+    );
   }
   if (vigencia !== "POR_VENCER" || diasRestantes === null) return null;
   if (diasRestantes === 0) {
@@ -34,7 +61,8 @@ function textoAviso(vigencia: EstadoVigencia, diasRestantes: number | null) {
  * propio historial de pagos en /dashboard/suscripcion. El tono es
  * deliberadamente el de un regalo con cupo limitado, no el de una prueba
  * gratuita a punto de caducar: ni el aviso de los últimos días ni el de
- * periodo terminado empujan a pagar, invitan a escribirle al equipo.
+ * periodo terminado empujan a pagar: el primero invita a escribirle al equipo
+ * y el segundo lleva a canjear un código nuevo.
  *
  * Todo el estado (tipo, vigencia y días) llega ya resuelto por
  * `calcularEstadoAcceso` para que la página y la tarjeta no puedan discrepar.
@@ -52,6 +80,7 @@ export function EstadoAccesoCard({
 }) {
   const vencido = vigencia === "VENCIDO";
   const aviso = textoAviso(vigencia, diasRestantes);
+  const linea = lineaVigencia(vigencia, fechaVigencia, diasRestantes);
 
   return (
     <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-[22px]">
@@ -76,7 +105,7 @@ export function EstadoAccesoCard({
 
       <p className="text-sm text-uva-text-muted">{DESCRIPCION_TIPO[tipo]}</p>
 
-      <p className="text-[12.5px] text-uva-text">{lineaVigencia(vigencia, fechaVigencia)}</p>
+      {linea && <p className="text-[12.5px] text-uva-text">{linea}</p>}
 
       {aviso && (
         <div
