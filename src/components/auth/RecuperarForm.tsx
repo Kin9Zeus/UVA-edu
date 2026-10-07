@@ -59,6 +59,7 @@ export function RecuperarForm() {
           autoComplete="email"
           value={email}
           onChange={handleChange}
+          className="h-11 sm:text-base"
           ref={campoRef}
           aria-invalid={state?.error ? true : undefined}
           aria-describedby={state?.error ? "recuperar-email-error" : undefined}

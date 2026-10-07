@@ -191,6 +191,7 @@ export function AuthFlow({
                 placeholder="Ingresa tu correo electrónico"
                 autoComplete="email"
                 required
+                className="h-11 sm:text-base"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />

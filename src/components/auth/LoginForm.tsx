@@ -48,6 +48,7 @@ export function LoginForm({
       <div>
         <Label htmlFor="login-pass">Contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="login-pass"
           name="password"
           placeholder="••••••••"

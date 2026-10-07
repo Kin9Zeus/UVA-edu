@@ -61,7 +61,7 @@ export function ReenviarVerificacion({ email }: { email: string }) {
         variant="uva-secondary"
         size="sm"
         disabled={pending || cooldown > 0}
-        className="w-auto px-5"
+        className="min-h-11 w-auto px-5"
       >
         {pending
           ? "Enviando…"

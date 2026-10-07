@@ -64,6 +64,7 @@ export function RegistroForm({
           autoComplete="email"
           defaultValue={email}
           required
+          className="h-11 sm:text-base"
         />
       </div>
 
@@ -75,12 +76,14 @@ export function RegistroForm({
           placeholder="Tu nombre y apellido"
           autoComplete="name"
           required
+          className="h-11 sm:text-base"
         />
       </div>
 
       <div>
         <Label htmlFor="reg-pass">Contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="reg-pass"
           name="password"
           placeholder="Mínimo 10 caracteres"
@@ -114,6 +117,7 @@ export function RegistroForm({
       <div>
         <Label htmlFor="reg-pass2">Repite la contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="reg-pass2"
           name="password2"
           placeholder="Debe coincidir"
@@ -162,7 +166,7 @@ export function RegistroForm({
         size="uva"
         disabled={!canSubmit || pending}
         aria-describedby={aceptaTerminos ? undefined : "reg-terminos-ayuda"}
-        className="mt-1.5 min-h-10 text-[15px]"
+        className="mt-1.5 text-[15px]"
       >
         {pending ? "Creando cuenta…" : "Crear mi cuenta"}
       </Button>
