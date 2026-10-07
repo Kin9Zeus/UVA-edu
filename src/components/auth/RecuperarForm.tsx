@@ -39,7 +39,7 @@ export function RecuperarForm() {
         ref={exitoRef}
         tabIndex={-1}
         role="status"
-        className="mt-4 focus:outline-none rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-valid"
+        className="mt-4 focus:outline-none rounded-uva-md bg-uva-valid-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-valid"
       >
         Si el correo existe en nuestra base de datos, te llegará un enlace en
         unos minutos.

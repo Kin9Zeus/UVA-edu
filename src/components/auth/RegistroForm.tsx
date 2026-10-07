@@ -144,14 +144,16 @@ export function RegistroForm({
           onChange={(event) => setAceptaTerminos(event.target.checked)}
           className="mt-0.5 size-4 shrink-0 accent-uva-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         />
-        Acepto los{" "}
-        <Link href="/soporte?tema=terminos" className="underline" target="_blank">
-          Términos
-        </Link>{" "}
-        y la{" "}
-        <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
-          Política de privacidad
-        </Link>
+        <span>
+          Acepto los{" "}
+          <Link href="/soporte?tema=terminos" className="underline" target="_blank">
+            Términos
+          </Link>{" "}
+          y la{" "}
+          <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
+            Política de privacidad
+          </Link>
+        </span>
       </label>
 
       <Button
