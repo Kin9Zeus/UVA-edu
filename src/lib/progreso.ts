@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { logError } from "@/lib/log";
-import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { ANCHO_MINIATURA_TARJETA, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 
 export type CursoConProgreso = {
@@ -222,7 +222,7 @@ async function resolverReanudacion(
 
   const firmadas = await Promise.all(
     [...elegido].map(async ([cursoId, { playbackId, segundo, duracion }]) => {
-      const url = await getMiniaturaUrl(playbackId, segundo);
+      const url = await getMiniaturaUrl(playbackId, ANCHO_MINIATURA_TARJETA, segundo);
       return [cursoId, url, segundo, duracion] as const;
     }),
   );

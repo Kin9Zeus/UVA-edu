@@ -648,7 +648,7 @@ function ComentarioItem({
       <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-uva-chip text-uva-muted">
         {comentario.autorFotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
-          <img src={comentario.autorFotoUrl} alt="" className="size-full object-cover" />
+          <img src={comentario.autorFotoUrl} alt="" loading="lazy" className="size-full object-cover" />
         ) : (
           <User className="size-[18px]" strokeWidth={2} />
         )}

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO } from "@/lib/cache-catalogo";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
-import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { ANCHO_MINIATURA_TEMARIO, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructores";
 import { esUuid } from "@/lib/slug";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
@@ -274,7 +274,7 @@ async function armarCursoPublico(
         modulo.lecciones.map(async ({ idVideoMuxListo, ...leccion }) => ({
           ...leccion,
           completado: completadoIds.has(leccion.id),
-          miniaturaUrl: idVideoMuxListo ? await getMiniaturaUrl(idVideoMuxListo) : null,
+          miniaturaUrl: idVideoMuxListo ? await getMiniaturaUrl(idVideoMuxListo, ANCHO_MINIATURA_TEMARIO) : null,
         })),
       ),
     })),
