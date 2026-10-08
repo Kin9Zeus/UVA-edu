@@ -19,9 +19,15 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// Sin precarga: solo la usan etiquetas y contadores pequeños, y precargarla
+// (27 KiB) competía con la imagen del LCP en todas las páginas. El navegador
+// la pide cuando aparece el primer texto que la usa; mientras llega se ve la
+// monoespaciada de respaldo, que next/font ajusta de tamaño para no mover el
+// diseño.
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
