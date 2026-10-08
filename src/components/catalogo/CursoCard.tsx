@@ -11,7 +11,8 @@ const PORTADA_TRAMA = {
     "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
-export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
+/** `prioritaria`: la primera tarjeta es el LCP del catálogo; las demás cargan diferidas. */
+export function CursoCard({ curso, prioritaria = false }: { curso: CursoDeCategoria; prioritaria?: boolean }) {
   return (
     <Link
       href={`/cursos/${curso.slug}`}
@@ -24,6 +25,7 @@ export function CursoCard({ curso }: { curso: CursoDeCategoria }) {
             alt=""
             fill
             sizes="(max-width: 640px) 90vw, 300px"
+            {...(prioritaria ? { loading: "eager", fetchPriority: "high" } as const : {})}
             className="object-cover"
           />
         )}
