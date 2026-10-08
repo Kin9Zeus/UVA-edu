@@ -67,6 +67,7 @@ export function VideoPlayer({
   titulo,
   segundoActual = 0,
   posterUrl,
+  reproducirAlCargar = false,
   onTerminado,
   controlRef,
 }: {
@@ -76,6 +77,8 @@ export function VideoPlayer({
   segundoActual?: number;
   /** Imagen del video para el recuadro mientras carga y como póster. */
   posterUrl?: string | null;
+  /** El estudiante ya tocó play en el póster: arranca apenas esté listo. */
+  reproducirAlCargar?: boolean;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
   /** Se llena con el control del reproductor mientras está montado. */
@@ -331,6 +334,7 @@ export function VideoPlayer({
       playbackId={estado.playbackId}
       tokens={{ playback: estado.token }}
       poster={posterUrl ?? undefined}
+      autoPlay={reproducirAlCargar}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
       className="aspect-video w-full"
