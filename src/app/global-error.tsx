@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportarErrorDelCliente } from "@/lib/reportar-cliente";
 import { ErrorBlock } from "@/components/errores/ErrorBlock";
 import "./globals.css";
 
@@ -19,7 +19,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    reportarErrorDelCliente(error);
   }, [error]);
 
   return (
