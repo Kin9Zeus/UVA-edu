@@ -13,12 +13,13 @@ vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloL
 vi.mock("@/lib/accesoCurso", () => ({
   obtenerAccesoAlCurso: vi.fn(async () => ({ tieneAcceso: true, tieneCortesia: false, suscripcion: null })),
 }));
-vi.mock("@/lib/mux/miniatura", () => ({ ANCHO_MINIATURA_TEMARIO: 160, getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
+vi.mock("@/lib/mux/miniatura", () => ({ ANCHO_MINIATURA_TEMARIO: 160, ANCHO_MINIATURA_TARJETA: 800, getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
 vi.mock("@/lib/examen", () => ({ getSituacionExamen: vi.fn(async () => ({ situacion: "SIN_EXAMEN" })) }));
 
 const { getLeccionPlayer } = await import("@/lib/leccion");
 const { obtenerAccesoAlCurso } = await import("@/lib/accesoCurso");
 const { logError } = await import("@/lib/log");
+const { getMiniaturaUrl } = await import("@/lib/mux/miniatura");
 
 const ERROR_PG = { message: "canceling statement due to statement timeout", code: "57014" };
 
@@ -76,6 +77,23 @@ describe("getLeccionPlayer", () => {
     expect(data).toMatchObject({ cursoId: "k1", leccionId: "l2", numero: 2, totalClases: 2, segundoActual: 1234 });
     expect(data?.recursos).toHaveLength(1);
     expect(obtenerAccesoAlCurso).toHaveBeenCalledOnce();
+  });
+
+  it("trae el póster de la clase que se ve, a ancho de tarjeta; sin video listo, null", async () => {
+    servidorFalso.responder(
+      "from:cursos",
+      respuestaCurso([
+        leccion("l1", "intro", 10),
+        { ...leccion("l2", "clase-2", 20), estado_procesamiento: "PROCESANDO" },
+      ]),
+    );
+
+    const conVideo = await getLeccionPlayer("revit-desde-cero", "intro", "u1");
+    expect(conVideo?.posterUrl).toBe("https://image.mux.com/miniatura.jpg");
+    expect(getMiniaturaUrl).toHaveBeenCalledWith("pb-l1", 800);
+
+    const sinVideo = await getLeccionPlayer("revit-desde-cero", "clase-2", "u1");
+    expect(sinVideo?.posterUrl).toBeNull();
   });
 
   it("el avance cuenta solo las clases con video listo, igual que Progreso y el certificado", async () => {
