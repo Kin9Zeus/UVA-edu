@@ -11,13 +11,8 @@ const PORTADA_TRAMA = {
     "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
 };
 
-// Cuántas tarjetas de la lista cargan su portada sin esperar al scroll. Con
-// `loading="lazy"` (el valor por defecto de next/image) la imagen más grande
-// de la pantalla se descubre tarde y retrasa el LCP (Lighthouse:
-// `lcp-lazy-loaded`). Solo las primeras: el resto sigue en lazy.
-const TARJETAS_CON_CARGA_TEMPRANA = 3;
-
-export function CursoCard({ curso, posicion = Number.POSITIVE_INFINITY }: { curso: CursoDeCategoria; posicion?: number }) {
+/** `prioritaria`: la primera tarjeta es el LCP del catálogo; las demás cargan diferidas. */
+export function CursoCard({ curso, prioritaria = false }: { curso: CursoDeCategoria; prioritaria?: boolean }) {
   return (
     <Link
       href={`/cursos/${curso.slug}`}
@@ -30,8 +25,7 @@ export function CursoCard({ curso, posicion = Number.POSITIVE_INFINITY }: { curs
             alt=""
             fill
             sizes="(max-width: 640px) 90vw, 300px"
-            loading={posicion < TARJETAS_CON_CARGA_TEMPRANA ? "eager" : "lazy"}
-            fetchPriority={posicion === 0 ? "high" : "auto"}
+            {...(prioritaria ? { loading: "eager", fetchPriority: "high" } as const : {})}
             className="object-cover"
           />
         )}
