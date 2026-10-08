@@ -76,7 +76,7 @@ export default async function AdminUsuariosPage({
           objetos aparte, y la página ya trae 2 tarjetas más abajo (Cursos
           con más avance, Dónde se atasca la gente) — ver el comentario de la
           misma cuadrícula en admin/page.tsx. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(n+2)]:border-t min-[360px]:[&>*:nth-child(2)]:border-t-0 min-[360px]:[&>*:nth-child(2n)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0">
         <MetricaCard
           label="Invitaciones sin usar"
           valor={metricas.cuposDisponibles}

@@ -111,7 +111,7 @@ export default async function AdminDashboardPage() {
           derecha en la columna par, arriba en la fila de abajo) y `lg:`
           la aplana a una sola fila. */}
       <div
-        className="grid grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(2n)]:border-l [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0"
+        className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 [&>*]:border-uva-divider [&>*:nth-child(n+2)]:border-t min-[360px]:[&>*:nth-child(2)]:border-t-0 min-[360px]:[&>*:nth-child(2n)]:border-l lg:[&>*:nth-child(n+3)]:border-t-0 lg:[&>*]:border-l lg:[&>*:first-child]:border-l-0"
       >
         {tarjetas.map((tarjeta) => (
           <MetricaCard key={tarjeta.label} {...tarjeta} />
