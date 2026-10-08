@@ -225,7 +225,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             de arriba siempre muestran el acumulado, porque "cupos
             disponibles" es un saldo y acotarlo a un periodo no significa
             nada. */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="filtro-desde">
             Registro
           </label>
@@ -234,7 +234,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("desde") ?? ""}
             onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-            className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
             aria-label="Registrados desde"
           />
           <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
@@ -242,7 +242,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("hasta") ?? ""}
             onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-            className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
             aria-label="Registrados hasta"
           />
         </div>

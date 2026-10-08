@@ -93,7 +93,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
       {/* Rango sobre `creado_en` (mismo criterio que el filtro de registro
           en UsuariosTable): vive en la URL para que la página, y no solo la
           tabla, se recargue con el rango aplicado. */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="bitacora-filtro-desde">
           Fecha
         </label>
@@ -102,7 +102,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
           type="date"
           value={searchParams.get("desde") ?? ""}
           onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-          className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
           aria-label="Desde"
         />
         <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
@@ -110,7 +110,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
           type="date"
           value={searchParams.get("hasta") ?? ""}
           onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-          className="min-w-0 flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-[13px] text-uva-text md:flex-none"
+          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
           aria-label="Hasta"
         />
         {(searchParams.get("desde") || searchParams.get("hasta")) && (

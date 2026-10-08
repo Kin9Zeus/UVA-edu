@@ -344,7 +344,7 @@ export function CursoDetalleContent({
                 )}
               </Button>
             ) : (
-              <Button variant="uva-primary" size="uva" className="min-h-12" disabled>
+              <Button variant="uva-primary" size="uva" className="min-h-12 max-w-full whitespace-normal text-center" disabled>
                 El curso todavía no tiene clases
               </Button>
             )
@@ -369,7 +369,7 @@ export function CursoDetalleContent({
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-12"
+              className="min-h-12 max-w-full whitespace-normal text-center"
             >
               Canjea tu código
             </Button>
@@ -379,7 +379,7 @@ export function CursoDetalleContent({
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-12"
+              className="min-h-12 max-w-full whitespace-normal text-center"
             >
               Entra o crea tu cuenta para canjear tu código
             </Button>

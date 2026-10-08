@@ -236,7 +236,7 @@ export function AuthFlow({
         <>
           {step !== "signup" && step !== "confirmar" && step !== "pendiente" && (
             <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 py-0 pr-1 pl-3.5 text-sm text-uva-text">
-              <span className="truncate">{email}</span>
+              <span className="min-w-0 truncate">{email}</span>
               <button
                 type="button"
                 onClick={handleCambiar}
