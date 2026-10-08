@@ -203,8 +203,8 @@ export function CatalogoContent({
       ) : (
         <>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-4">
-            {resultado.cursos.map((curso) => (
-              <CursoCard key={curso.id} curso={curso} />
+            {resultado.cursos.map((curso, indice) => (
+              <CursoCard key={curso.id} curso={curso} posicion={indice} />
             ))}
           </div>
 
