@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { preconnect } from "react-dom";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
@@ -86,6 +87,13 @@ export default async function LeccionPlayerPage({
   // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
   if (esUuid(cursoSlug) || esUuid(leccionSlug)) {
     redirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}${segundoEnUrl !== null ? `?t=${segundoEnUrl}` : ""}`);
+  }
+
+  // Mux sirve el póster (image.mux.com) y el video (stream.mux.com): abrir las
+  // conexiones ya, en vez de cuando el reproductor las pida (~470 ms en móvil).
+  if (data.videoListo) {
+    preconnect("https://image.mux.com");
+    preconnect("https://stream.mux.com");
   }
 
   // En paralelo: las notas no deben sumar un viaje a Supabase en serie.

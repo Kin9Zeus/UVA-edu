@@ -5,6 +5,7 @@ import MuxPlayer from "@mux/mux-player-react";
 import type MuxPlayerElement from "@mux/mux-player";
 import { obtenerTokenReproduccion } from "@/actions/video/reproduccion";
 import { guardarSegundoActual } from "@/actions/progreso/marcar";
+import { PosterDelVideo } from "@/components/features/PosterDelVideo";
 
 // Cada cuánto se guarda el segundo actual mientras el video se reproduce
 // (Revf3: "cada ~10 segundos con throttle, no en cada timeupdate").
@@ -65,6 +66,7 @@ export function VideoPlayer({
   leccionId,
   titulo,
   segundoActual = 0,
+  posterUrl,
   onTerminado,
   controlRef,
 }: {
@@ -72,6 +74,8 @@ export function VideoPlayer({
   titulo: string;
   /** Segundo donde retomar, tal como quedó guardado en `progreso`. */
   segundoActual?: number;
+  /** Imagen del video para el recuadro mientras carga y como póster. */
+  posterUrl?: string | null;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
   /** Se llena con el control del reproductor mientras está montado. */
@@ -307,11 +311,7 @@ export function VideoPlayer({
   }
 
   if (estado.tipo === "cargando") {
-    return (
-      <div className="flex aspect-video items-center justify-center bg-uva-surface-2 text-sm text-uva-muted-2">
-        Cargando video…
-      </div>
-    );
+    return <PosterDelVideo posterUrl={posterUrl} />;
   }
 
   if (estado.tipo === "error") {
@@ -330,6 +330,7 @@ export function VideoPlayer({
       ref={mediaRef}
       playbackId={estado.playbackId}
       tokens={{ playback: estado.token }}
+      poster={posterUrl ?? undefined}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
       className="aspect-video w-full"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportarErrorDelCliente } from "@/lib/reportar-cliente";
 import { ErrorBlock } from "@/components/errores/ErrorBlock";
 
 /**
@@ -31,7 +31,7 @@ export default function Error({
   // que se muestra: guardar el id de Sentry en estado forzaría un segundo
   // render solo para eso.
   useEffect(() => {
-    Sentry.captureException(error);
+    reportarErrorDelCliente(error);
   }, [error]);
 
   return (

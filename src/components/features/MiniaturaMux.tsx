@@ -14,17 +14,19 @@ export function MiniaturaMux({
   src,
   className,
   loading,
+  fetchPriority,
   respaldo = null,
 }: {
   src: string;
   className?: string;
   loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
   respaldo?: ReactNode;
 }) {
   const [fallo, setFallo] = useState(false);
   if (fallo) return <>{respaldo}</>;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Mux, de vida corta
-    <img src={src} alt="" loading={loading} className={className} onError={() => setFallo(true)} />
+    <img src={src} alt="" loading={loading} fetchPriority={fetchPriority} className={className} onError={() => setFallo(true)} />
   );
 }

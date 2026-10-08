@@ -303,6 +303,7 @@ export function PlayerContent({
               videoListo={data.videoListo}
               titulo={data.leccionTitulo}
               segundoActual={segundoEnUrl ?? data.segundoActual}
+              posterUrl={data.posterUrl}
               onTerminado={completarPorFinDeVideo}
               controlRef={controlRef}
               className="rounded-none lg:rounded-uva-md"

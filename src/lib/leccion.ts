@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
-import { ANCHO_MINIATURA_TEMARIO, getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { ANCHO_MINIATURA_TARJETA, ANCHO_MINIATURA_TEMARIO, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { getSituacionExamen } from "@/lib/examen";
@@ -59,6 +59,8 @@ export type LeccionPlayer = {
   duracion: number | null;
   /** Si el video ya terminó de procesarse en Mux; VideoPlayer pide su propio token firmado. */
   videoListo: boolean;
+  /** Imagen del video de esta clase (Mux, firmada): póster y primer pintado. */
+  posterUrl: string | null;
   recursos: RecursoLeccion[];
   lecciones: LeccionPlayerItem[];
   completadas: number;
@@ -253,6 +255,11 @@ async function cargarLeccionPlayer(
     })),
   );
 
+  // Un frame del video a ancho de tarjeta: es lo primero que se pinta en el
+  // recuadro del reproductor (ver PosterDelVideo).
+  const posterUrl =
+    actual.videoListo && actual.idVideoMux ? await getMiniaturaUrl(actual.idVideoMux, ANCHO_MINIATURA_TARJETA) : null;
+
   const { data: recursos, error: errorRecursos } = recursosRespuesta;
   if (errorRecursos) {
     logError("leccion:recursos", "no se pudieron leer los recursos de la clase", errorRecursos, {
@@ -284,6 +291,7 @@ async function cargarLeccionPlayer(
     ),
     duracion: actual.duracion,
     videoListo: actual.videoListo,
+    posterUrl,
     recursos: (recursos ?? []).map((recurso) => ({
       id: recurso.id,
       nombre: recurso.nombre,

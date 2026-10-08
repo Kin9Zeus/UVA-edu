@@ -1,8 +1,9 @@
 "use client";
 
 import { Play } from "lucide-react";
-import type { RefObject } from "react";
-import { VideoPlayer, type ControlReproductor } from "@/components/features/VideoPlayer";
+import { useEffect, useState, type RefObject } from "react";
+import type { ControlReproductor, VideoPlayer as VideoPlayerTipo } from "@/components/features/VideoPlayer";
+import { PosterDelVideo } from "@/components/features/PosterDelVideo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,6 +26,7 @@ export function VideoFrame({
   videoListo,
   titulo,
   segundoActual,
+  posterUrl,
   onTerminado,
   controlRef,
   className,
@@ -34,23 +36,46 @@ export function VideoFrame({
   titulo: string;
   /** Segundo donde retomar (Revf3: guardado de progreso). */
   segundoActual?: number;
+  /** Imagen del video (Mux) para el recuadro mientras carga el reproductor. */
+  posterUrl?: string | null;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
   /** Ver ControlReproductor (features/VideoPlayer.tsx). */
   controlRef?: RefObject<ControlReproductor | null>;
   className?: string;
 }) {
+  // El reproductor de Mux pesa ~290 KiB: se descarga aparte de la página y
+  // solo después de hidratar, así no compite con el resto del JavaScript antes
+  // de que la clase sea visible. Hasta que llega, el recuadro muestra el póster
+  // (PosterDelVideo), que viene en el HTML.
+  const [VideoPlayer, setVideoPlayer] = useState<typeof VideoPlayerTipo | null>(null);
+  useEffect(() => {
+    if (!videoListo) return;
+    let cancelado = false;
+    void import("@/components/features/VideoPlayer").then((modulo) => {
+      if (!cancelado) setVideoPlayer(() => modulo.VideoPlayer);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [videoListo]);
+
   if (videoListo) {
     return (
       <div className={cn("dark overflow-hidden rounded-uva-md bg-black", className)}>
-        <VideoPlayer
-          key={leccionId}
-          leccionId={leccionId}
-          titulo={titulo}
-          segundoActual={segundoActual}
-          onTerminado={onTerminado}
-          controlRef={controlRef}
-        />
+        {VideoPlayer ? (
+          <VideoPlayer
+            key={leccionId}
+            leccionId={leccionId}
+            titulo={titulo}
+            segundoActual={segundoActual}
+            posterUrl={posterUrl}
+            onTerminado={onTerminado}
+            controlRef={controlRef}
+          />
+        ) : (
+          <PosterDelVideo posterUrl={posterUrl} />
+        )}
       </div>
     );
   }
