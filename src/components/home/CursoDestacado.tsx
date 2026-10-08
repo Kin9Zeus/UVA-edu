@@ -41,9 +41,10 @@ export async function CursoDestacado() {
                 src={curso.imagenPortada}
                 alt=""
                 fill
-                // En escritorio es el LCP; en móvil queda bajo el texto, así que
-                // `eager` (no diferida) y no `preload`, que le quitaría ancho de banda al LCP.
+                // Es el LCP de la portada también en móvil (Lighthouse, 2026-10-08):
+                // sin prioridad alta el navegador la pedía tarde.
                 loading="eager"
+                fetchPriority="high"
                 sizes="(max-width: 1023px) 100vw, 500px"
                 className="object-cover transition-transform duration-300 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               />
