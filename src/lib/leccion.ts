@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
-import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { ANCHO_MINIATURA_TEMARIO, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { esUuid } from "@/lib/slug";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { getSituacionExamen } from "@/lib/examen";
@@ -249,7 +249,7 @@ async function cargarLeccionPlayer(
       moduloId: leccion.moduloId,
       moduloTitulo: leccion.moduloTitulo,
       miniaturaUrl:
-        leccion.videoListo && leccion.idVideoMux ? await getMiniaturaUrl(leccion.idVideoMux) : null,
+        leccion.videoListo && leccion.idVideoMux ? await getMiniaturaUrl(leccion.idVideoMux, ANCHO_MINIATURA_TEMARIO) : null,
     })),
   );
 

@@ -308,7 +308,10 @@ export function CursoDetalleContent({
                 src={curso.imagenPortada}
                 alt=""
                 fill
-                sizes="(max-width: 1024px) 100vw, 340px"
+                // En escritorio es el LCP; en móvil queda bajo el texto, así que
+                // `eager` (no diferida) y no `preload`, que le quitaría ancho de banda al LCP.
+                loading="eager"
+                sizes="(max-width: 1023px) 100vw, 340px"
                 className="object-cover"
               />
             </div>
@@ -402,7 +405,7 @@ export function CursoDetalleContent({
               <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-uva-chip font-heading text-[15px] text-uva-text">
                 {instructor.fotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
-                  <img src={instructor.fotoUrl} alt="" className="size-full object-cover" />
+                  <img src={instructor.fotoUrl} alt="" loading="lazy" className="size-full object-cover" />
                 ) : (
                   instructor.nombre
                     .split(/\s+/)

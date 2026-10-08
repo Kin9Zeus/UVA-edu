@@ -91,7 +91,7 @@ export function TemarioDrawer({
                   >
                     <div className="relative h-[38px] w-[62px] shrink-0 overflow-hidden rounded-uva-md bg-uva-surface-2">
                       {leccion.miniaturaUrl && (
-                        <MiniaturaMux src={leccion.miniaturaUrl} className="absolute inset-0 size-full object-cover" />
+                        <MiniaturaMux src={leccion.miniaturaUrl} loading="lazy" className="absolute inset-0 size-full object-cover" />
                       )}
                       {completadaSinAbrir ? (
                         <div className="absolute inset-0 grid place-items-center bg-uva-bg/45">

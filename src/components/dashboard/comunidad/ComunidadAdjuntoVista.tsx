@@ -21,7 +21,7 @@ export function ComunidadAdjuntoVista({ adjunto }: { adjunto: ComunidadAdjunto }
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={adjunto.url}
-      alt=""
+      alt={`Imagen adjunta: ${adjunto.nombre}`}
       width={adjunto.ancho}
       height={adjunto.alto}
       loading="lazy"
