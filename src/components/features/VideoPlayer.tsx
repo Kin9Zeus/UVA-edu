@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import MuxPlayer from "@mux/mux-player-react";
+import MuxPlayer, { type MuxPlayerCSSProperties } from "@mux/mux-player-react";
 import type MuxPlayerElement from "@mux/mux-player";
 import { obtenerTokenReproduccion } from "@/actions/video/reproduccion";
 import { guardarSegundoActual } from "@/actions/progreso/marcar";
@@ -32,6 +32,17 @@ const REINTENTO_TOKEN_MAXIMO_MS = 60_000;
 // Fracción de la duración total a partir de la cual se considera "vista":
 // casi nadie ve los créditos finales hasta el segundo 100%.
 const UMBRAL_COMPLETADO = 0.9;
+
+// Mux Player oculta el tiempo y los botones de ±10 s cuando el reproductor mide
+// menos de 576 px (puntos de corte de su tema: sm 384, md 576, lg 768), o sea en
+// cualquier celular y en ventanas de escritorio angostas. Sin eso el estudiante
+// no sabe en qué minuto va ni puede adelantar o retroceder. Estas variables del
+// propio reproductor los dejan siempre visibles (probado a 393 px y a 1366 px).
+const CONTROLES_SIEMPRE_VISIBLES = {
+  "--time-display": "flex",
+  "--seek-backward-button": "flex",
+  "--seek-forward-button": "flex",
+} satisfies MuxPlayerCSSProperties;
 
 /**
  * Control imperativo mínimo del reproductor, para quien vive fuera de él
@@ -335,6 +346,7 @@ export function VideoPlayer({
       tokens={{ playback: estado.token }}
       poster={posterUrl ?? undefined}
       autoPlay={reproducirAlCargar}
+      style={CONTROLES_SIEMPRE_VISIBLES}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
       className="aspect-video w-full"
