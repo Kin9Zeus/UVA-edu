@@ -13,7 +13,12 @@ import {
 import { CanjearCodigoForm } from "@/components/dashboard/CanjearCodigoForm";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { formatFecha, formatMoneda } from "@/lib/admin/format";
-import { calcularDiasVigencia, suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import {
+  calcularDiasVigencia,
+  leyendaAcceso,
+  leyendaAccesoGratuito,
+  suscripcionDaAcceso,
+} from "@/lib/estadoAcceso";
 import type { PagoItem, SuscripcionActual } from "@/lib/suscripcion";
 
 const ESTADO_LABEL: Record<SuscripcionActual["estado"], string> = {
@@ -85,12 +90,12 @@ export function SuscripcionContent({
       <div className="mx-auto flex max-w-[640px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-16">
         <div className="flex flex-col items-center gap-4 text-center">
           <h1 className="text-2xl text-uva-text">Mi suscripción</h1>
-          <Badge variant="default" className="w-fit">
+          <Badge variant="default" className="w-fit bg-uva-btn text-uva-on-accent">
             Acceso permanente
           </Badge>
           <p className="text-sm text-uva-text-muted">
-            Como administrador tienes acceso completo a todo el catálogo. No necesitas un plan
-            ni renovarlo — esto no vence.
+            Como administrador tienes acceso completo a todo el catálogo. Tu acceso no vence ni
+            necesita un código.
           </p>
         </div>
       </div>
@@ -149,19 +154,20 @@ export function SuscripcionContent({
   const dias = diasSinAcotar === null ? null : Math.max(0, diasSinAcotar);
   const avance = porcentajeTranscurrido(suscripcion.fechaInicio, suscripcion.fechaRenovacion);
 
-  // "Mensual"/"Anual" solo tiene sentido para un plan de pago, que sí se
-  // renueva en un ciclo fijo. Un código puede otorgar cualquier número de
-  // días (15, 45, 90...) y antes esto lo etiquetaba igual que un plan
-  // mensual con solo que duracionDias < 360 — un código de 15 días se leía
-  // literalmente como "Acceso por invitación · Mensual", que es falso.
-  const nombrePlan = suscripcion.accesoManual
-    ? `${suscripcion.planNombre} · ${suscripcion.duracionDias} día${suscripcion.duracionDias === 1 ? "" : "s"}`
-    : (() => {
-        const periodoLabel = suscripcion.duracionDias >= 360 ? "Anual" : "Mensual";
-        return suscripcion.planNombre.toLowerCase().includes(periodoLabel.toLowerCase())
-          ? suscripcion.planNombre
-          : `${suscripcion.planNombre} · ${periodoLabel}`;
-      })();
+  // Un acceso gratuito (invitación u otorgado) se explica con una frase
+  // completa, no con el nombre de un plan: nadie compró nada. El nombre con
+  // "Mensual"/"Anual" solo existe para un plan de pago, que sí se renueva en
+  // un ciclo fijo.
+  // Con el cobro apagado ninguna pantalla nombra un plan: tampoco la de una
+  // suscripción de pago (solo existe en datos de prueba), que usa la misma
+  // frase sin plan. Con el cobro encendido, la de pago conserva su plan.
+  const leyendaGratuita = PRECIOS_HABILITADOS
+    ? leyendaAccesoGratuito(suscripcion)
+    : leyendaAcceso(suscripcion);
+  const periodoLabel = suscripcion.duracionDias >= 360 ? "Anual" : "Mensual";
+  const nombrePlan = suscripcion.planNombre.toLowerCase().includes(periodoLabel.toLowerCase())
+    ? suscripcion.planNombre
+    : `${suscripcion.planNombre} · ${periodoLabel}`;
 
   return (
     <div className="flex max-w-[820px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
@@ -169,24 +175,26 @@ export function SuscripcionContent({
 
       <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-accent-soft p-6">
         <div className="flex items-center gap-3">
-          <div>
-            <p className="font-heading text-xl text-uva-text">{nombrePlan}</p>
-            <p className="text-[13px] text-uva-text-muted">
-              {/* Sin acceso vigente (revocada, cancelada o vencida por fecha):
-                  "Vence"/"Renovación" en futuro le mentiría al estudiante —
-                  ese acceso ya no está en curso, así que la fecha pasa a ser
-                  solo un dato histórico. */}
-              {!accesoVigente
-                ? leyendaSinAcceso(estadoMostrado, suscripcion.fechaRenovacion)
-                : suscripcion.fechaRenovacion
-                  ? // Un acceso manual (código/cortesía) no se renueva solo: se
-                    // vence y punto, no hay cobro automático detrás. "Renovación"
-                    // ahí prometía algo que no iba a pasar. La de pago sí
-                    // renueva, así que conserva su palabra.
-                    `${suscripcion.accesoManual ? "Vence" : "Renovación"} ${formatFecha(suscripcion.fechaRenovacion)}`
-                  : "Sin fecha de vencimiento"}
-            </p>
-          </div>
+          {leyendaGratuita ? (
+            // Acceso gratuito: una sola frase en lenguaje claro (ver
+            // `leyendaAccesoGratuito`). Sin subtítulo: ya trae fecha y salida.
+            <p className="min-w-0 font-heading text-xl text-uva-text">{leyendaGratuita}</p>
+          ) : (
+            <div className="min-w-0">
+              <p className="font-heading text-xl text-uva-text">{nombrePlan}</p>
+              <p className="text-[13px] text-uva-text-muted">
+                {/* Sin acceso vigente (revocada, cancelada o vencida por fecha):
+                    "Renovación" en futuro le mentiría al estudiante — ese acceso
+                    ya no está en curso, así que la fecha pasa a ser solo un dato
+                    histórico. */}
+                {!accesoVigente
+                  ? leyendaSinAcceso(estadoMostrado, suscripcion.fechaRenovacion)
+                  : suscripcion.fechaRenovacion
+                    ? `Renovación ${formatFecha(suscripcion.fechaRenovacion)}`
+                    : "Sin fecha de vencimiento"}
+              </p>
+            </div>
+          )}
           {/* "X días restantes" solo tiene sentido con acceso vigente: una
               CANCELADA con fecha de renovación todavía futura (el admin revocó
               antes de que terminara el periodo) seguía mostrando "quedan 12
@@ -213,23 +221,50 @@ export function SuscripcionContent({
         )}
         <Badge
           variant={accesoVigente ? "default" : estadoMostrado === "CANCELADA" ? "secondary" : "destructive"}
-          className="w-fit"
+          // Los colores por defecto de la insignia no llegan a AA: el relleno
+          // de acento con letra blanca da 3,6:1 y el rojo suave de "Vencida"
+          // da 3,3:1 en claro. Se usan los pares del sistema, ya medidos.
+          className={
+            accesoVigente
+              ? "w-fit bg-uva-btn text-uva-on-accent"
+              : estadoMostrado === "CANCELADA"
+                ? "w-fit bg-uva-hover text-uva-text-muted"
+                : "w-fit bg-uva-badge-danger-bg text-uva-badge-danger-fg"
+          }
         >
           {ESTADO_LABEL[estadoMostrado]}
         </Badge>
       </div>
 
-      {/* Un acceso manual (cortesía/invitación) nunca tendrá filas en Pagos
-          — es gratis por definición — así que el módulo ni se muestra en
-          vez de mostrarse vacío ("Todavía no hay pagos registrados"),
-          que lee como desconfianza sobre una suscripción que nunca debió
-          pasar por caja. */}
-      {!suscripcion.accesoManual && (
+      {/* El módulo solo existe si hay pagos que mostrar. Un acceso manual
+          (cortesía/invitación) nunca los tiene —es gratis por definición—, y
+          una suscripción de pago sin cobros registrados tampoco debe mostrar
+          "Todavía no hay pagos": lee como desconfianza sobre algo que nunca
+          debió pasar por caja. */}
+      {suscripcion.pagos.length > 0 && (
         <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">
           <h2 className="mb-4 text-base text-uva-text">Historial de pagos</h2>
-          {suscripcion.pagos.length === 0 ? (
-            <p className="text-sm text-uva-text-muted">Todavía no hay pagos registrados.</p>
-          ) : (
+
+          {/* En móvil, filas apiladas: una tabla de tres columnas no cabe en
+              320 px y `overflow-x-auto` la dejaría cortada. */}
+          <ul className="sm:hidden">
+            {suscripcion.pagos.map((pago) => (
+              <li
+                key={pago.id}
+                className="flex items-baseline justify-between gap-3 border-b border-uva-divider py-3 first:pt-0 last:border-b-0 last:pb-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm text-uva-text">{formatFecha(pago.fecha)}</p>
+                  <p className="text-sm text-uva-text-muted">{ESTADO_PAGO_LABEL[pago.estado]}</p>
+                </div>
+                <p className="shrink-0 font-mono text-sm tabular-nums text-uva-text">
+                  {formatMoneda(pago.monto_centavos, pago.moneda)}
+                </p>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -250,7 +285,7 @@ export function SuscripcionContent({
                 ))}
               </TableBody>
             </Table>
-          )}
+          </div>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { formatFecha } from "@/lib/admin/format";
 import { calcularDiasGracia } from "@/lib/gracia";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 
@@ -185,6 +186,72 @@ export function calcularEstadoAcceso(
     diasRestantes,
     vigencia,
   };
+}
+
+/**
+ * La frase con la que "Mi suscripción" le dice al estudiante en qué está su
+ * acceso, en lenguaje claro y SIN nombrar un plan. Con el cobro apagado
+ * (NEXT_PUBLIC_PRICING_ENABLED) es lo que se muestra, sea el acceso una
+ * invitación, uno otorgado por el equipo o —solo en datos de prueba— una
+ * suscripción de pago.
+ *
+ * Para el acceso gratuito sale de `calcularEstadoAcceso` —la misma fuente de
+ * la tarjeta "Tu acceso" del perfil— para que las dos pantallas no puedan
+ * contradecirse, y distingue INVITACION de OTORGADO_ADMIN: decir "por
+ * invitación" de un acceso que el estudiante nunca canjeó sería falso. Para
+ * una suscripción de pago usa la misma regla de vigencia que el reproductor
+ * (`suscripcionDaAcceso`), así que la frase nunca contradice al catálogo.
+ *
+ * Una vez terminado, la fecha solo se imprime si de verdad ya pasó. Una
+ * CANCELADA (o VENCIDA a mano) conserva la `fecha_renovacion` original, que
+ * puede estar en el futuro: "venció el 3 de octubre" dicho un 14 de septiembre
+ * anunciaría una fecha que todavía no llega.
+ */
+export function leyendaAcceso(
+  suscripcion: Pick<
+    SuscripcionActual,
+    "accesoManual" | "tieneCodigoInvitacion" | "estado" | "fechaRenovacion"
+  >,
+  ahora: Date = new Date(),
+): string {
+  const acceso = calcularEstadoAcceso(suscripcion, ahora);
+  // Gratuito: manda `calcularEstadoAcceso` (incluye "vencido" por días < 0
+  // aunque el estado siga en gracia). De pago: la regla de vigencia a secas.
+  const vencido = acceso ? acceso.vigencia === "VENCIDO" : !suscripcionDaAcceso(suscripcion, ahora);
+  const dias = acceso?.diasRestantes ?? calcularDiasVigencia(suscripcion.fechaRenovacion, ahora);
+
+  if (vencido) {
+    const fechaYaPaso =
+      suscripcion.fechaRenovacion !== null &&
+      suscripcion.estado !== "CANCELADA" &&
+      dias !== null &&
+      dias < 0;
+    const cuando = fechaYaPaso ? `venció el ${formatFecha(suscripcion.fechaRenovacion!)}` : "terminó";
+    return `Tu acceso ${cuando}. Si tienes un código nuevo, canjéalo aquí.`;
+  }
+
+  const origen = !acceso
+    ? ""
+    : acceso.tipo === "INVITACION"
+      ? " por invitación"
+      : " otorgado por el equipo de U.V.A.";
+  return suscripcion.fechaRenovacion
+    ? `Tienes acceso${origen} hasta el ${formatFecha(suscripcion.fechaRenovacion)}.`
+    : `Tienes acceso${origen}, sin fecha de cierre.`;
+}
+
+/**
+ * Igual que `leyendaAcceso`, pero `null` para una suscripción de pago: la
+ * pantalla con el cobro encendido habla de su plan y sus pagos.
+ */
+export function leyendaAccesoGratuito(
+  suscripcion: Pick<
+    SuscripcionActual,
+    "accesoManual" | "tieneCodigoInvitacion" | "estado" | "fechaRenovacion"
+  >,
+  ahora: Date = new Date(),
+): string | null {
+  return tipoAccesoGratuito(suscripcion) ? leyendaAcceso(suscripcion, ahora) : null;
 }
 
 /**

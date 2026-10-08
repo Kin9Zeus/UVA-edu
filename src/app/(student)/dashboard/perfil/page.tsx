@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
-import { calcularEstadoAcceso } from "@/lib/estadoAcceso";
+import { calcularEstadoAcceso, suscripcionDaAcceso } from "@/lib/estadoAcceso";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { PerfilForm } from "@/components/dashboard/PerfilForm";
 
 export const metadata: Metadata = {
@@ -71,8 +72,10 @@ export default async function PerfilPage() {
   // gratuita · Vigente hasta…" de un cupo que ya no es lo que le da entrada.
   const estadoAcceso = perfil?.rol === "ADMINISTRADOR" ? null : calcularEstadoAcceso(suscripcion);
 
-  const suscripcionVigente =
-    suscripcion && (suscripcion.estado === "ACTIVA" || suscripcion.estado === "PAST_DUE");
+  // Misma regla de vigencia que el reproductor y que "Mi suscripción": una
+  // PAST_DUE pasada la gracia ya no da acceso, y la insignia no puede seguir
+  // diciendo el nombre de un plan mientras el catálogo está con candado.
+  const suscripcionVigente = suscripcion !== null && suscripcionDaAcceso(suscripcion);
 
   // El acceso gratuito manda sobre el nombre del plan en la insignia de la
   // cabecera: a quien recibió una invitación no se le anuncia "Anual" —
@@ -90,9 +93,11 @@ export default async function PerfilPage() {
             texto: estadoAcceso.vigencia === "VENCIDO" ? "Acceso finalizado" : "Acceso gratuito",
             atenuada: estadoAcceso.vigencia === "VENCIDO",
           }
-        : suscripcionVigente
-          ? { texto: suscripcion.planNombre, atenuada: false }
-          : null;
+        : suscripcion && suscripcionVigente
+          ? { texto: PRECIOS_HABILITADOS ? suscripcion.planNombre : "Acceso activo", atenuada: false }
+          : suscripcion
+            ? { texto: "Acceso finalizado", atenuada: true }
+            : null;
 
   return (
     <div className="px-[clamp(20px,3vw,44px)] py-8">

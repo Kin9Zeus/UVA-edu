@@ -36,6 +36,7 @@ export function ActualizarPasswordForm() {
       <div>
         <Label htmlFor="nueva-pass">Nueva contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="nueva-pass"
           name="password"
           placeholder="Mínimo 10 caracteres"
@@ -69,6 +70,7 @@ export function ActualizarPasswordForm() {
       <div>
         <Label htmlFor="nueva-pass2">Repite la contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="nueva-pass2"
           name="password2"
           placeholder="Debe coincidir"

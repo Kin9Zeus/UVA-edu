@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
-import { getMiniaturaUrl } from "@/lib/mux/miniatura";
+import { ANCHO_MINIATURA_TARJETA, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import type { CategoriaChip } from "@/lib/categoria";
 import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
@@ -194,7 +194,7 @@ export async function getInicioData() {
     // devuelve null cuando falta la credencial o falla la firma, y una url
     // vacía pintaría un <img> roto en vez de caer a la portada.
     const miniatura = ultimaVista
-      ? await getMiniaturaUrl(ultimaVista.idVideoMux!, ultimaVista.segundoActual)
+      ? await getMiniaturaUrl(ultimaVista.idVideoMux!, ANCHO_MINIATURA_TARJETA, ultimaVista.segundoActual)
       : null;
 
     const reanudarEn =

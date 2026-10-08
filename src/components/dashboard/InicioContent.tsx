@@ -79,7 +79,7 @@ export function InicioContent({
                             src={clase.imagenPortada}
                             alt=""
                             fill
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 400px"
                             className="object-cover"
                           />
                         )
@@ -91,7 +91,7 @@ export function InicioContent({
                         src={clase.imagenPortada}
                         alt=""
                         fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 400px"
                         className="object-cover"
                       />
                     )

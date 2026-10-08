@@ -125,6 +125,10 @@ jobs:
     name: Migraciones, RLS y autorización (base real)
     needs: checks
     runs-on: ubuntu-latest
+    # Una corrida normal tarda ~5 min (test:rls ~1-1,5 min). Sin límite, un
+    # runner colgado deja el job abierto hasta 6 h y no se deja cancelar
+    # (pasó el 2026-10-08): con 15 min falla solo y se puede re-correr.
+    timeout-minutes: 15
     # Acotada a `pull_request` a propósito. Un `github.actor !=
     # 'dependabot[bot]'` suelto aplicaría también a `push`, y entonces un
     # merge hecho por el bot (auto-merge, merge queue) saltaría las

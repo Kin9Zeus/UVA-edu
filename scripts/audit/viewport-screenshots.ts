@@ -11,6 +11,7 @@
  *   --base-url=<url>   Default: https://uva-edu-production.up.railway.app
  *   --depth=<n>        Profundidad del crawl. Default: 3
  *   --routes=<a,b,c>   Rutas específicas (separadas por coma) — se saltea el crawl
+ *   --tema=oscuro      Captura en tema oscuro (archivos <ancho>px-oscuro.png)
  *
  * Local, bajo demanda — no corre en CI.
  */
@@ -34,6 +35,9 @@ function leerArg(nombre: string): string | undefined {
 const baseUrl = leerArg("base-url") ?? DEFAULT_BASE_URL;
 const depth = Number(leerArg("depth") ?? 3);
 const routesArg = leerArg("routes");
+// --tema=oscuro emula prefers-color-scheme: dark (el tema por defecto sigue
+// al sistema, ver src/lib/tema.ts) y agrega el sufijo -oscuro al archivo.
+const oscuro = leerArg("tema") === "oscuro";
 
 function fechaHoy(): string {
   return new Date().toISOString().slice(0, 10);
@@ -70,7 +74,7 @@ async function main() {
   const outDir = join(process.cwd(), "viewport-screenshots", fecha);
 
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const page = await browser.newPage({ colorScheme: oscuro ? "dark" : "light" });
 
   let capturadas = 0;
   const fallidas: { ruta: string; ancho: number; error: string }[] = [];
@@ -86,7 +90,7 @@ async function main() {
         try {
           await page.setViewportSize({ width: ancho, height: ALTO });
           await page.goto(url, { waitUntil: "networkidle", timeout: TIMEOUT_MS });
-          await page.screenshot({ path: join(subDir, `${ancho}px.png`), fullPage: true });
+          await page.screenshot({ path: join(subDir, `${ancho}px${oscuro ? "-oscuro" : ""}.png`), fullPage: true });
           capturadas += 1;
         } catch (error) {
           const mensaje = error instanceof Error ? error.message : String(error);

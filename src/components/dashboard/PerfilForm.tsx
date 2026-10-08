@@ -22,6 +22,7 @@ import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm"
 import { ExportarDatosButton } from "@/components/dashboard/ExportarDatosButton";
 import { EliminarCuentaCard } from "@/components/dashboard/EliminarCuentaCard";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 
 type Certificado = {
@@ -98,7 +99,7 @@ export function PerfilForm({
               </span>
             ) : (
               <span className="ml-auto shrink-0 rounded-full bg-uva-hover px-2.5 py-1 text-[11px] text-uva-text-muted">
-                Sin plan
+                {PRECIOS_HABILITADOS ? "Sin plan" : "Sin acceso activo"}
               </span>
             )}
           </div>
@@ -146,7 +147,7 @@ export function PerfilForm({
                   >
                     <SelectTrigger
                       aria-label="Indicativo del país"
-                      className="h-10 w-[104px] shrink-0 bg-uva-surface"
+                      className="data-[size=default]:h-11 w-[104px] shrink-0 bg-uva-surface"
                     >
                       <SelectValue>
                         {(codigo: string) => {

@@ -28,9 +28,9 @@ export default async function VerificarCorreoPage() {
 
       <section className="grid place-items-center bg-uva-text/4 p-7 min-[900px]:p-11">
         <div className="w-full max-w-[396px] text-center">
-          <h2 className="mb-1.5 text-[30px] text-uva-text">
+          <h1 className="mb-1.5 text-[30px] text-uva-text">
             Verifica tu correo
-          </h2>
+          </h1>
           <p className="mb-6 text-sm text-uva-text-muted">
             Enviamos un enlace de confirmación a{" "}
             <span className="text-uva-text">{user.email}</span>. Ábrelo para

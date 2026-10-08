@@ -13,7 +13,7 @@ vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloL
 vi.mock("@/lib/accesoCurso", () => ({
   obtenerAccesoAlCurso: vi.fn(async () => ({ tieneAcceso: true, tieneCortesia: false, suscripcion: null })),
 }));
-vi.mock("@/lib/mux/miniatura", () => ({ getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
+vi.mock("@/lib/mux/miniatura", () => ({ ANCHO_MINIATURA_TEMARIO: 160, getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
 vi.mock("@/lib/examen", () => ({ getSituacionExamen: vi.fn(async () => ({ situacion: "SIN_EXAMEN" })) }));
 
 const { getLeccionPlayer } = await import("@/lib/leccion");

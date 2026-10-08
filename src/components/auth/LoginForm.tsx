@@ -48,6 +48,7 @@ export function LoginForm({
       <div>
         <Label htmlFor="login-pass">Contraseña</Label>
         <PasswordInput
+          inputClassName="h-11 sm:text-base"
           id="login-pass"
           name="password"
           placeholder="••••••••"
@@ -57,7 +58,10 @@ export function LoginForm({
       </div>
 
       <div className="mt-2.5 flex justify-end">
-        <Link href="/recuperar" className="text-xs">
+        <Link
+          href="/recuperar"
+          className="inline-flex min-h-11 items-center px-2 text-xs"
+        >
           ¿Olvidaste tu contraseña?
         </Link>
       </div>

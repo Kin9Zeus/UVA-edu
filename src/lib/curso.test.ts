@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.m
 vi.mock("@/lib/accesoCurso", () => ({
   obtenerAccesoAlCurso: vi.fn(async () => ({ tieneAcceso: false, tieneCortesia: false, suscripcion: null })),
 }));
-vi.mock("@/lib/mux/miniatura", () => ({ getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
+vi.mock("@/lib/mux/miniatura", () => ({ ANCHO_MINIATURA_TEMARIO: 160, getMiniaturaUrl: vi.fn(async () => "https://image.mux.com/miniatura.jpg") }));
 
 const { getCursoPublico } = await import("@/lib/curso");
 const { logError } = await import("@/lib/log");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { BarChart2, ChevronLeft, CircleCheck, Clock, Download, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFecha, formatHoras, formatDuracion } from "@/lib/admin/format";
@@ -141,7 +142,7 @@ export function CursoDetalleContent({
               categoría. Mismo patrón que CategoriaContent.tsx. */}
           <Link
             href={basePath}
-            className="mb-3 inline-flex items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
+            className="inline-flex min-h-11 items-center gap-1 text-[13px] text-uva-text-muted hover:text-uva-text"
           >
             <ChevronLeft className="size-4" strokeWidth={1.9} />
             Catálogo
@@ -307,7 +308,10 @@ export function CursoDetalleContent({
                 src={curso.imagenPortada}
                 alt=""
                 fill
-                sizes="(max-width: 1024px) 100vw, 340px"
+                // En escritorio es el LCP; en móvil queda bajo el texto, así que
+                // `eager` (no diferida) y no `preload`, que le quitaría ancho de banda al LCP.
+                loading="eager"
+                sizes="(max-width: 1023px) 100vw, 340px"
                 className="object-cover"
               />
             </div>
@@ -354,7 +358,7 @@ export function CursoDetalleContent({
               size="uva"
               className="min-h-12 max-w-full flex-col gap-0.5 overflow-hidden py-2"
             >
-              <span>Renueva tu acceso</span>
+              <span>{PRECIOS_HABILITADOS ? "Renueva tu acceso" : "Canjea un código"}</span>
               <span className="block w-full min-w-0 truncate text-center text-[11.5px] font-normal">
                 {siguiendoProgreso ? "Tu progreso queda guardado" : "Tu periodo de acceso terminó"}
               </span>
@@ -401,7 +405,7 @@ export function CursoDetalleContent({
               <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-uva-chip font-heading text-[15px] text-uva-text">
                 {instructor.fotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
-                  <img src={instructor.fotoUrl} alt="" className="size-full object-cover" />
+                  <img src={instructor.fotoUrl} alt="" loading="lazy" className="size-full object-cover" />
                 ) : (
                   instructor.nombre
                     .split(/\s+/)

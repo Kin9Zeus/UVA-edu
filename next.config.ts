@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
 
   images: {
+    // AVIF pesa ~20 % menos que WebP (respaldo para quien no lo soporte).
+    // Cuesta más codificar la primera vez; después sale de caché.
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       ...(supabaseHostname
         ? [
