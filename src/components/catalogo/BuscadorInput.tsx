@@ -15,7 +15,7 @@ export type CursoOpcion = {
 /**
  * Input de búsqueda de la página de catálogo: mientras se escribe solo
  * despliega un dropdown con las coincidencias (mismo criterio de título/
- * instructor que el filtro de CatalogoContent), sin ejecutar la búsqueda.
+ * instructor que el filtro de CatalogoCursos), sin ejecutar la búsqueda.
  * El filtro real solo se aplica al clickear (o confirmar con Enter sobre
  * una opción resaltada) una opción del dropdown.
  */

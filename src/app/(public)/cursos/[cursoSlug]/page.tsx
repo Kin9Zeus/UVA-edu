@@ -9,6 +9,7 @@ import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
 import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
+import { CursoFichaPublica } from "@/components/curso/CursoFichaPublica";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
 import { metadataPublica } from "@/lib/seo/metadata";
@@ -99,15 +100,9 @@ export default async function CursoDetallePage({
         <JsonLd data={jsonLd} />
         <SiteHeader {...perfilActual} />
         <main>
-          <CursoDetalleContent
-            curso={curso}
-            basePath={basePath}
-            sesionActiva={false}
-            situacionExamen={situacionExamen}
-            calificaciones={calificaciones}
-            usuarioActualId={null}
-            esAdmin={false}
-          />
+          {/* Sin sesión: ficha con la dirección visual "Maqueta". Sin examen
+              (no es contenido público) y con reseñas de solo lectura. */}
+          <CursoFichaPublica curso={curso} calificaciones={calificaciones} />
         </main>
         <Footer />
       </>

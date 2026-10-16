@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { resolverCategoria, buscarCatalogoConProgreso, getCursosParaBuscador } from "@/lib/categoria";
-import { CatalogoContent } from "@/components/catalogo/CatalogoContent";
+import {
+  resolverCategoria,
+  buscarCatalogoConProgreso,
+  filtroEstadoDeUrl,
+  getCursosParaBuscador,
+} from "@/lib/categoria";
+import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
-import { numeroDePagina, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
+import { numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
 
 export async function generateMetadata({
   params,
@@ -21,7 +26,7 @@ export default async function DashboardCategoriaPage({
 }: {
   params: Promise<{ categoriaSlug: string }>;
   // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
-  searchParams: Promise<{ q?: ParametroUrl; page?: ParametroUrl }>;
+  searchParams: Promise<{ q?: ParametroUrl; estado?: ParametroUrl; page?: ParametroUrl }>;
 }) {
   const { categoriaSlug } = await params;
   const parametros = await searchParams;
@@ -49,17 +54,18 @@ export default async function DashboardCategoriaPage({
       query: q,
       categoriaId: categoria.id,
       pagina,
+      estado: filtroEstadoDeUrl(parametroUnico(parametros.estado)),
     }),
     getCursosParaBuscador(),
   ]);
 
   return (
-    <CatalogoContent
+    <CatalogoCursos
+      contexto="panel"
       categorias={[]}
       resultado={resultado}
       opcionesBusqueda={opcionesBusqueda}
       categoriaFija={categoria}
-      basePath="/dashboard/catalogo"
     />
   );
 }

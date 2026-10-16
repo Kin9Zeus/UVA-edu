@@ -8,6 +8,7 @@ import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
 import { CursoTarjetaPublica } from "@/components/catalogo/CursoTarjetaPublica";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
 import { cn } from "@/lib/utils";
+import { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
 import type {
   CategoriaActiva,
   CategoriaChip,
@@ -23,27 +24,48 @@ const DEBOUNCE_MS = 300;
 /** Botones de categoría visibles en celular antes de "Ver las N categorías". */
 const CATEGORIAS_VISIBLES = 6;
 
+/** Botones de estado del catálogo del panel, en el orden del diseño. */
+const ESTADOS: { valor: string | undefined; etiqueta: string }[] = [
+  { valor: undefined, etiqueta: "Todos" },
+  { valor: "sin-empezar", etiqueta: "Sin empezar" },
+  { valor: "en-progreso", etiqueta: "En progreso" },
+  { valor: "completados", etiqueta: "Completados" },
+];
+
+/** Qué decir cuando un filtro de estado no deja cursos (sin texto de búsqueda). */
+const VACIO_POR_ESTADO: Record<FiltroEstado, string> = {
+  SIN_EMPEZAR: "Ya empezaste todos los cursos de esta lista.",
+  EN_PROGRESO: "No tienes cursos en progreso.",
+  COMPLETADO: "Todavía no completas ningún curso.",
+};
+
 const CLASE_ENLACE_TEXTO =
   "inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline";
 
 /**
- * Catálogo público (`/catalogo` y `/catalogo/[categoria]`), dirección visual
- * "Maqueta" (artboard "Catalogo Home" del canvas de diseño).
+ * Catálogo de cursos, dirección visual "Maqueta". Un solo componente para los
+ * dos contextos del canvas de diseño:
  *
- * El catálogo del panel del estudiante sigue usando `CatalogoContent`: este
- * componente no lo reemplaza.
+ * - `publico` ("Catalogo Home"): `/catalogo` y `/catalogo/[categoria]`. Ruta
+ *   "Inicio / Catálogo", botones de categoría en celular y cursos en filas.
+ * - `panel` ("Catalogo sesion"): `/dashboard/catalogo` y su vista por
+ *   categoría. Enlace "← Inicio" al panel, filtro por estado (Todos, Sin
+ *   empezar, En progreso, Completados), tarjetas también en celular y el
+ *   avance del estudiante sobre la portada.
  *
- * Búsqueda, categoría y cuántos cursos se ven viven en la URL
- * (`?q=&categoria=&page=`): recargar, compartir el enlace o volver atrás
- * reproduce la misma lista. `page` es HASTA qué página se ve ("cargar más"),
- * ver `buscarCatalogoPublico`.
+ * Búsqueda, categoría, estado y cuántos cursos se ven viven en la URL
+ * (`?q=&categoria=&estado=&page=`): recargar, compartir el enlace o volver
+ * atrás reproduce la misma lista. `page` es HASTA qué página se ve ("cargar
+ * más"), ver `buscarCatalogoPublico` y `buscarCatalogoConProgreso`.
  */
-export function CatalogoPublico({
+export function CatalogoCursos({
+  contexto,
   categorias,
   resultado,
   opcionesBusqueda,
   categoriaFija,
 }: {
+  contexto: "publico" | "panel";
   /** Categorías activas para el filtro. Vacío en la vista de una categoría. */
   categorias: CategoriaActiva[];
   resultado: ResultadoCatalogo;
@@ -67,6 +89,10 @@ export function CatalogoPublico({
 
   const slugActivo = categoriaFija ? null : searchParams.get("categoria");
   const categoriaActiva = slugActivo ? categorias.find((c) => c.slug === slugActivo) : undefined;
+  const panel = contexto === "panel";
+  const parametroEstado = panel ? (searchParams.get("estado") ?? undefined) : undefined;
+  const estadoActivo = filtroEstadoDeUrl(parametroEstado);
+  const rutaCatalogo = panel ? "/dashboard/catalogo" : "/catalogo";
 
   function hrefCon(cambios: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -106,7 +132,7 @@ export function CatalogoPublico({
     navegar(pathname);
   }
 
-  const hayFiltros = texto.trim() !== "" || Boolean(categoriaActiva);
+  const hayFiltros = texto.trim() !== "" || Boolean(categoriaActiva) || Boolean(estadoActivo);
 
   /** La categoría que muestra cada tarjeta: la del filtro si hay una, si no la primera del curso. */
   function categoriaDeTarjeta(curso: CursoDeCategoria): CategoriaChip {
@@ -117,37 +143,58 @@ export function CatalogoPublico({
 
   return (
     <div className="mx-auto flex w-full max-w-uva flex-col gap-6 px-uva-margen pt-2 pb-uva-seccion md:gap-8">
-      <nav aria-label="Ruta" className="text-uva-detalle text-uva-text-muted">
-        <ol className="flex flex-wrap items-center gap-2">
-          <li>
-            <Link href="/" className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
-              Inicio
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          {categoriaFija ? (
-            <>
-              <li>
-                <Link href="/catalogo" className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
-                  Catálogo
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li aria-current="page" className="text-uva-text">
-                {categoriaFija.nombre}
-              </li>
-            </>
-          ) : (
-            <li aria-current="page" className="text-uva-text">
-              Catálogo
+      {panel ? (
+        <Link
+          href={categoriaFija ? rutaCatalogo : "/dashboard"}
+          className="inline-flex min-h-11 items-center gap-1 self-start text-uva-detalle text-uva-text-muted hover:text-uva-text"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="size-4"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          {categoriaFija ? "Catálogo" : "Inicio"}
+        </Link>
+      ) : (
+        <nav aria-label="Ruta" className="text-uva-detalle text-uva-text-muted">
+          <ol className="flex flex-wrap items-center gap-2">
+            <li>
+              <Link href="/" className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
+                Inicio
+              </Link>
             </li>
-          )}
-        </ol>
-      </nav>
+            <li aria-hidden="true">/</li>
+            {categoriaFija ? (
+              <>
+                <li>
+                  <Link href={rutaCatalogo} className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
+                    Catálogo
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-uva-text">
+                  {categoriaFija.nombre}
+                </li>
+              </>
+            ) : (
+              <li aria-current="page" className="text-uva-text">
+                Catálogo
+              </li>
+            )}
+          </ol>
+        </nav>
+      )}
 
       <div className="flex flex-col gap-2">
         <h1 className="text-uva-titulo-3 text-balance text-uva-text">
-          {categoriaFija ? categoriaFija.nombre : "Catálogo de cursos"}
+          {categoriaFija ? categoriaFija.nombre : panel ? "Catálogo" : "Catálogo de cursos"}
         </h1>
         <p className="max-w-[60ch] text-uva-lead text-uva-text-muted">
           {categoriaFija
@@ -169,7 +216,11 @@ export function CatalogoPublico({
             >
               <SelectTrigger
                 aria-label="Filtrar por categoría"
-                className="hidden min-h-11 gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:flex dark:bg-uva-surface dark:hover:bg-uva-surface"
+                className={cn(
+                  "min-h-11 gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text dark:bg-uva-surface dark:hover:bg-uva-surface",
+                  // En el público, el celular filtra con los botones de categoría.
+                  panel ? "flex max-md:w-full" : "hidden md:flex",
+                )}
               >
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
@@ -204,13 +255,40 @@ export function CatalogoPublico({
           )}
           {/* En celular las categorías van entre el buscador y el total, que
               queda justo encima de la lista (`order-last`). */}
-          {categorias.length > 0 && (
+          {!panel && categorias.length > 0 && (
             <CategoriasMovil categorias={categorias} activa={categoriaActiva?.slug} onElegir={elegirCategoria} />
           )}
         </div>
+
+        {panel && (
+          <ul aria-label="Filtrar por estado" className="flex flex-wrap gap-2">
+            {ESTADOS.map(({ valor, etiqueta }) => {
+              const presionado = (filtroEstadoDeUrl(valor) ?? null) === (estadoActivo ?? null);
+              return (
+                <li key={etiqueta}>
+                  <button
+                    type="button"
+                    aria-pressed={presionado}
+                    onClick={() => navegar(hrefCon({ estado: valor }))}
+                    className={cn(
+                      "inline-flex min-h-11 items-center rounded-full border-[1.5px] px-4 text-uva-detalle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+                      presionado
+                        ? "border-uva-text bg-uva-text font-bold text-uva-bg"
+                        : "border-uva-line-strong font-medium text-uva-text hover:border-uva-text",
+                    )}
+                  >
+                    {etiqueta}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <Resultados
+        panel={panel}
+        estado={estadoActivo}
         resultado={resultado}
         texto={texto}
         hayFiltros={hayFiltros}
@@ -297,6 +375,8 @@ function CategoriasMovil({
 }
 
 function Resultados({
+  panel,
+  estado,
   resultado,
   texto,
   hayFiltros,
@@ -307,6 +387,8 @@ function Resultados({
   onReintentar,
   onLimpiar,
 }: {
+  panel: boolean;
+  estado: FiltroEstado | undefined;
   resultado: ResultadoCatalogo;
   texto: string;
   hayFiltros: boolean;
@@ -348,13 +430,15 @@ function Resultados({
         <p className="text-uva-cuerpo text-uva-text-muted">
           {texto.trim()
             ? `No encontramos cursos para «${texto.trim()}».`
-            : hayFiltros
+            : estado
+              ? VACIO_POR_ESTADO[estado]
+              : hayFiltros
               ? "No encontramos cursos en esta categoría."
               : "Todavía no hay cursos publicados. Vuelve pronto."}
         </p>
         {hayFiltros && (
           <button type="button" onClick={onLimpiar} className={CLASE_ENLACE_TEXTO}>
-            Limpiar filtros
+            {estado && !texto.trim() ? "Ver todos los cursos" : "Limpiar filtros"}
           </button>
         )}
       </div>
@@ -371,13 +455,22 @@ function Resultados({
         ref={listaRef}
         aria-busy={cargando}
         className={cn(
-          "border-t border-uva-divider transition-opacity motion-reduce:transition-none md:grid md:grid-cols-2 md:gap-x-5 md:gap-y-8 md:border-t-0 lg:grid-cols-3",
+          "transition-opacity motion-reduce:transition-none",
+          panel
+            ? "grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3"
+            : "border-t border-uva-divider md:grid md:grid-cols-2 md:gap-x-5 md:gap-y-8 md:border-t-0 lg:grid-cols-3",
           cargando && "opacity-60",
         )}
       >
         {resultado.cursos.map((curso, i) => (
-          <li key={curso.id} className="border-b border-uva-divider md:border-b-0">
-            <CursoTarjetaPublica curso={curso} categoria={categoriaDeTarjeta(curso)} prioritaria={i === 0} />
+          <li key={curso.id} className={panel ? undefined : "border-b border-uva-divider md:border-b-0"}>
+            <CursoTarjetaPublica
+              curso={curso}
+              categoria={categoriaDeTarjeta(curso)}
+              prioritaria={i === 0}
+              disposicion={panel ? "tarjeta" : "fila-en-celular"}
+              sobrePortada={panel && curso.progreso ? <InsigniaAvance progreso={curso.progreso} /> : undefined}
+            />
           </li>
         ))}
       </ul>
@@ -412,5 +505,61 @@ function Resultados({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Avance del estudiante sobre la portada: "Completado" en amarillo de marca,
+ * "Examen pendiente" (terminó las clases y le falta aprobar el examen) y "En
+ * progreso" con el porcentaje y una barra al pie de la portada. Es texto del
+ * enlace, así que el lector de pantalla lo anuncia con el título.
+ */
+function InsigniaAvance({ progreso }: { progreso: NonNullable<CursoDeCategoria["progreso"]> }) {
+  const pildora = "inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 text-uva-detalle font-bold";
+
+  if (progreso.estado === "COMPLETADO") {
+    return (
+      <span className="absolute top-2.5 left-2.5">
+        <span className={cn(pildora, "bg-uva-accent-2 text-uva-on-bright")}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="size-3.5"
+          >
+            <path d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+          Completado
+        </span>
+      </span>
+    );
+  }
+
+  if (progreso.estado === "EXAMEN_PENDIENTE") {
+    return (
+      <span className="absolute top-2.5 left-2.5">
+        <span className={cn(pildora, "border border-uva-line-strong bg-uva-surface text-uva-badge-warn-fg")}>
+          Examen pendiente
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <span className="absolute top-2.5 left-2.5">
+        <span className={cn(pildora, "bg-uva-btn text-uva-on-accent")}>
+          En progreso
+          <span className="font-mono">{progreso.porcentaje} %</span>
+        </span>
+      </span>
+      <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1 bg-uva-overlay">
+        <span className="block h-full bg-uva-btn" style={{ width: `${progreso.porcentaje}%` }} />
+      </span>
+    </>
   );
 }

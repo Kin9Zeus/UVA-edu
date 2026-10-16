@@ -10,7 +10,12 @@ import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { numeroDePagina, textoDeBusqueda } from "@/lib/parametros-url";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
-import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
+import {
+  estadoDeCurso,
+  porcentajeLecciones,
+  porcentajeMostrado,
+  type EstadoCursoConExamen,
+} from "@/lib/examenes/estadoPorCurso";
 
 /** Chip de categoría reutilizado por el catálogo y por "Tu progreso" (lib/progreso.ts). */
 export type CategoriaChip = { id: string; nombre: string };
@@ -40,22 +45,19 @@ export type CursoDeCategoria = {
   duracionTotalSegundos: number | null;
   imagenPortada: string;
   /**
-   * `true` solo cuando lo trae `buscarCatalogoConProgreso()` (el catálogo
-   * del dashboard) y el estudiante ya completó el 100% de las lecciones
-   * LISTAS del curso Y, si el curso exige examen final, lo aprobó (Revf5 —
-   * mismo criterio que decide la emisión del certificado, ver
-   * lib/progreso.ts). En el catálogo público (`buscarCatalogoPublico()`)
-   * siempre queda `undefined`.
+   * Avance del estudiante en el curso. Solo lo trae `buscarCatalogoConProgreso()`
+   * (catálogo del panel) y solo para los cursos que el estudiante ya empezó;
+   * `undefined` = sin empezar, y siempre `undefined` en el catálogo público.
+   *
+   * `estado` sale de `estadoDeCurso` (la regla de la certificación: si el curso
+   * exige examen, aprobarlo basta) y `porcentaje` de `porcentajeMostrado`, el
+   * mismo número que muestran "Tu progreso" y el panel de admin.
    */
-  completado?: boolean;
-  /**
-   * `true` cuando terminó el 100% de las clases pero el curso exige examen
-   * final y todavía no lo aprobó — el tercer estado de "Tu progreso"
-   * (ProgresoContent.tsx). `undefined` en las mismas condiciones que
-   * `completado`.
-   */
-  examenPendiente?: boolean;
+  progreso?: { estado: EstadoCursoConExamen; porcentaje: number };
 };
+
+export { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
+import type { FiltroEstado } from "@/lib/filtroEstado";
 
 /** `totalCursos`: cursos publicados de la categoría (siempre 1 o más). */
 export type CategoriaActiva = { id: string; slug: string; nombre: string; totalCursos: number };
@@ -199,7 +201,13 @@ type OpcionesBuscarCatalogo = {
    * compartir el enlace. Sin esto, `pagina` es una sola página.
    */
   acumular?: boolean;
+  /** Solo estos cursos (filtro por estado, SQL 122). */
+  incluir?: string[];
+  /** Todos menos estos cursos (filtro por estado, SQL 122). */
+  excluir?: string[];
 };
+
+type ProgresoPorCurso = Map<string, NonNullable<CursoDeCategoria["progreso"]>>;
 
 /**
  * Revf3 ("Catálogo con búsqueda por palabra clave y filtro por categoría"):
@@ -224,7 +232,9 @@ type OpcionesBuscarCatalogo = {
 async function buscarCatalogoConCliente(
   supabase: SupabaseClient,
   opciones: OpcionesBuscarCatalogo,
-  incluirProgreso: boolean,
+  /** Avance del estudiante (catálogo del panel); `null` en el público. Puede
+   * llegar como promesa para pedirlo en paralelo con la búsqueda. */
+  progreso: ProgresoPorCurso | Promise<ProgresoPorCurso> | null,
 ): Promise<ResultadoCatalogo> {
   // Se normaliza también acá, aunque los llamadores ya lo hacen: es lo que
   // llega a la base, y no debe depender de que cada página se acuerde.
@@ -237,6 +247,10 @@ async function buscarCatalogoConCliente(
     p_categoria_id: opciones.categoriaId || null,
     p_limite: limite,
     p_offset: offset,
+    // Solo se mandan cuando hay filtro: así la llamada sigue sirviendo con
+    // una base sin el script 122 (los 4 argumentos de siempre).
+    ...(opciones.incluir ? { p_incluir: opciones.incluir } : {}),
+    ...(opciones.excluir ? { p_excluir: opciones.excluir } : {}),
   });
 
   lanzarSiFalla(error, "buscar_catalogo");
@@ -258,12 +272,7 @@ async function buscarCatalogoConCliente(
   const filas = (data ?? []) as FilaBusqueda[];
   const totalResultados = filas[0]?.total_resultados ?? 0;
 
-  const progresoPorCurso = incluirProgreso
-    ? await getProgresoPorCurso(
-        supabase,
-        filas.map((fila) => fila.curso_id),
-      )
-    : null;
+  const progresoPorCurso = progreso ? await progreso : null;
 
   const cursos: CursoDeCategoria[] = filas.map((fila) => ({
     id: fila.curso_id,
@@ -275,8 +284,7 @@ async function buscarCatalogoConCliente(
     totalClases: Number(fila.total_clases),
     duracionTotalSegundos: fila.duracion_total_segundos == null ? null : Number(fila.duracion_total_segundos),
     imagenPortada: fila.imagen_portada,
-    completado: progresoPorCurso?.get(fila.curso_id)?.completado,
-    examenPendiente: progresoPorCurso?.get(fila.curso_id)?.examenPendiente,
+    progreso: progresoPorCurso?.get(fila.curso_id),
   }));
 
   return {
@@ -316,7 +324,7 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
       ? await buscarCatalogoConCliente(
           createPublicClient(),
           { query, categoriaId: opciones.categoriaId, pagina, acumular: true },
-          false,
+          null,
         )
       : await listadoPublicoCacheado(opciones.categoriaId ?? null, pagina);
   } catch (error) {
@@ -343,7 +351,7 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
  */
 const listadoPublicoCacheado = unstable_cache(
   async (categoriaId: string | null, pagina: number): Promise<ResultadoCatalogo> =>
-    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina, acumular: true }, false),
+    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina, acumular: true }, null),
   // Clave nueva desde "cargar más": una entrada guardada con la forma
   // anterior (una sola página, sin duración) no debe servirse con esta.
   ["catalogo-publico-acumulado"],
@@ -360,31 +368,62 @@ const listadoPublicoCacheado = unstable_cache(
  * público: un error de la consulta se muestra como tal, no como "todavía no
  * hay cursos publicados".
  */
-export async function buscarCatalogoConProgreso(opciones: OpcionesBuscarCatalogo): Promise<ResultadoCatalogo> {
+export async function buscarCatalogoConProgreso(
+  opciones: OpcionesBuscarCatalogo & { estado?: FiltroEstado },
+): Promise<ResultadoCatalogo> {
   const pagina = numeroDePagina(opciones.pagina ?? 1);
   // Fuera del try: `createClient()` lee `cookies()`, y lo que eso pueda lanzar
   // es de Next, no un fallo del catálogo.
   const supabase = await createClient();
 
   try {
-    return await buscarCatalogoConCliente(supabase, { ...opciones, pagina }, true);
+    const { estado, ...resto } = opciones;
+    // Lista acumulada ("cargar más"), igual que el catálogo público.
+    const base = { ...resto, pagina, acumular: true };
+    if (!estado) {
+      // Sin filtro, el avance se pide en paralelo con la búsqueda.
+      return await buscarCatalogoConCliente(supabase, base, getProgresoPorCurso(supabase));
+    }
+    // Con filtro, el avance decide qué cursos entran: va primero.
+    const progreso = await getProgresoPorCurso(supabase);
+    return await buscarCatalogoConCliente(supabase, { ...base, ...filtroDeEstado(estado, progreso) }, progreso);
   } catch (error) {
     unstable_rethrow(error);
     logError("catalogo:dashboard", "no se pudo cargar el catálogo del dashboard", error, {
       area: "catalogo",
       conBusqueda: Boolean(textoDeBusqueda(opciones.query)),
       pagina,
+      estado: opciones.estado,
     });
     return catalogoFallido(pagina);
   }
 }
 
 /**
- * `curso_id -> {completado, examenPendiente}` para el catálogo del
- * dashboard (033/078). Solo trae las filas de los cursos de esta página, no
- * todo el progreso del estudiante. Un curso que el estudiante nunca tocó no
- * tiene fila en la vista — el `Map` simplemente no lo incluye, y `.get()`
- * devuelve `undefined`, que en CursoCard se trata igual que `false`.
+ * Qué cursos entran en cada filtro de estado, a partir del avance del
+ * estudiante. "Sin empezar" = los que no tienen fila en
+ * `progreso_cursos_estudiante` (nunca abrió una clase), igual que en "Tu
+ * progreso". "Examen pendiente" entra en EN_PROGRESO.
+ */
+export function filtroDeEstado(
+  estado: FiltroEstado,
+  progreso: ProgresoPorCurso,
+): Pick<OpcionesBuscarCatalogo, "incluir" | "excluir"> {
+  const empezados = [...progreso.keys()];
+  if (estado === "SIN_EMPEZAR") return { excluir: empezados };
+  const completado = (id: string) => progreso.get(id)?.estado === "COMPLETADO";
+  return {
+    incluir: empezados.filter((id) => (estado === "COMPLETADO" ? completado(id) : !completado(id))),
+  };
+}
+
+/**
+ * `curso_id -> {estado, porcentaje}` de TODOS los cursos que el estudiante
+ * empezó (033/078; la vista ya filtra por `auth.uid()`). Son pocos —los que
+ * tocó, no el catálogo— y así sirve para dos cosas: las insignias de las
+ * tarjetas y el filtro por estado, que necesita saber qué cursos excluir o
+ * incluir antes de buscar. Un curso que nunca tocó no tiene fila: queda fuera
+ * del mapa y es "sin empezar".
  *
  * La regla la decide `estadoDeCurso` (la misma de getProgresoData() y del
  * panel de admin): si el curso exige examen, aprobarlo basta aunque falten
@@ -393,30 +432,22 @@ export async function buscarCatalogoConProgreso(opciones: OpcionesBuscarCatalogo
  * del catálogo no marcaba "Completado" un curso que en "Mi progreso" sí lo
  * estaba (P2-4, AUDIT-2026-09-22.md).
  */
-async function getProgresoPorCurso(
-  supabase: SupabaseClient,
-  cursoIds: string[],
-): Promise<Map<string, { completado: boolean; examenPendiente: boolean }>> {
-  const progresoPorCurso = new Map<string, { completado: boolean; examenPendiente: boolean }>();
-  if (cursoIds.length === 0) return progresoPorCurso;
+async function getProgresoPorCurso(supabase: SupabaseClient): Promise<ProgresoPorCurso> {
+  const progresoPorCurso: ProgresoPorCurso = new Map();
 
   const { data, error } = await supabase
     .from("progreso_cursos_estudiante")
-    .select("curso_id, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado")
-    .in("curso_id", cursoIds);
-  // Un mapa vacío por fallo quitaría las insignias "Completado" y "Examen
-  // pendiente" como si el estudiante no tuviera avance.
+    .select("curso_id, lecciones_total, lecciones_completadas, examen_requerido, examen_aprobado");
+  // Un mapa vacío por fallo quitaría las insignias de avance y, con un filtro
+  // por estado, mostraría cursos que no corresponden.
   lanzarSiFalla(error, "categoria:progreso del estudiante");
 
   for (const fila of data ?? []) {
-    const estado = estadoDeCurso(
-      porcentajeLecciones(fila.lecciones_completadas as number, fila.lecciones_total as number),
-      { requerido: fila.examen_requerido === true, aprobado: fila.examen_aprobado === true },
-    );
-
+    const examen = { requerido: fila.examen_requerido === true, aprobado: fila.examen_aprobado === true };
+    const lecciones = porcentajeLecciones(fila.lecciones_completadas as number, fila.lecciones_total as number);
     progresoPorCurso.set(fila.curso_id as string, {
-      completado: estado === "COMPLETADO",
-      examenPendiente: estado === "EXAMEN_PENDIENTE",
+      estado: estadoDeCurso(lecciones, examen),
+      porcentaje: porcentajeMostrado(lecciones, examen),
     });
   }
   return progresoPorCurso;

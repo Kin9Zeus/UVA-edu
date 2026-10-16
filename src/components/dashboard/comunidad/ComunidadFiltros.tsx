@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Mismo criterio que CatalogoContent (Revf3): no disparar una consulta al
+// Mismo criterio que CatalogoCursos (Revf3): no disparar una consulta al
 // servidor por cada tecla.
 const DEBOUNCE_MS = 300;
 
@@ -17,7 +17,7 @@ const OPCIONES_ORDEN = [
 /**
  * Búsqueda de texto + orden del feed de Comunidad — mismo patrón de "vive
  * en la URL, no en estado perdido al recargar" que el buscador del
- * catálogo (CatalogoContent): ?q= y ?orden= se leen en getComunidadFeed
+ * catálogo (CatalogoCursos): ?q= y ?orden= se leen en getComunidadFeed
  * (src/lib/comunidad.ts), así que un link compartido reproduce el mismo
  * resultado. Categoría/"mías" (los otros params de la URL) se preservan
  * al tocar estos dos, nunca se resetean entre sí.

@@ -166,7 +166,7 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
                     )
                   )}
                   {/* Franja negra de siempre abajo de la portada (mismo
-                      recurso que CursoCard.tsx del catálogo): "Completado" en
+                      recurso que tenía la tarjeta vieja del catálogo): "Completado" en
                       una esquina sin fondo se perdía sobre una portada clara
                       — acá el badge tiene garantizado el contraste debajo. La
                       franja es oscura en los dos temas, así que el badge usa

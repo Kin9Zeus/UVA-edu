@@ -35,8 +35,14 @@ vi.mock("@/lib/supabase/public", () => import("@/test/servidor-falso").then((m) 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
-const { buscarCatalogoPublico, buscarCatalogoConProgreso, getCategoriasActivas, getCursosParaBuscador, resolverCategoria } =
-  await import("@/lib/categoria");
+const {
+  buscarCatalogoPublico,
+  buscarCatalogoConProgreso,
+  filtroEstadoDeUrl,
+  getCategoriasActivas,
+  getCursosParaBuscador,
+  resolverCategoria,
+} = await import("@/lib/categoria");
 const { logError } = await import("@/lib/log");
 
 const ERROR_PG = { message: "canceling statement due to statement timeout", code: "57014" };
@@ -329,7 +335,7 @@ describe("buscarCatalogoConProgreso — regla de curso completado (P2-4)", () =>
 
     const { cursos } = await buscarCatalogoConProgreso({});
 
-    expect(cursos[0]).toMatchObject({ completado: true, examenPendiente: false });
+    expect(cursos[0].progreso).toEqual({ estado: "COMPLETADO", porcentaje: 100 });
   });
 
   it("todas las clases sin el examen aprobado: Examen pendiente, no Completado", async () => {
@@ -337,7 +343,7 @@ describe("buscarCatalogoConProgreso — regla de curso completado (P2-4)", () =>
 
     const { cursos } = await buscarCatalogoConProgreso({});
 
-    expect(cursos[0]).toMatchObject({ completado: false, examenPendiente: true });
+    expect(cursos[0].progreso).toEqual({ estado: "EXAMEN_PENDIENTE", porcentaje: 100 });
   });
 
   it("sin examen, 199 de 200 clases no está completado (redondeo hacia abajo)", async () => {
@@ -345,6 +351,89 @@ describe("buscarCatalogoConProgreso — regla de curso completado (P2-4)", () =>
 
     const { cursos } = await buscarCatalogoConProgreso({});
 
-    expect(cursos[0]).toMatchObject({ completado: false, examenPendiente: false });
+    expect(cursos[0].progreso).toEqual({ estado: "EN_PROGRESO", porcentaje: 99 });
+  });
+
+  it("un curso que nunca empezó no trae avance (la tarjeta no muestra insignia)", async () => {
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [filaCurso("a")], error: null });
+    servidorFalso.responder("from:progreso_cursos_estudiante", { data: [], error: null });
+
+    const { cursos } = await buscarCatalogoConProgreso({});
+
+    expect(cursos[0].progreso).toBeUndefined();
+  });
+});
+
+/** Filtro "Sin empezar / En progreso / Completados" del catálogo del panel (SQL 122). */
+describe("buscarCatalogoConProgreso — filtro por estado", () => {
+  const AVANCE = [
+    // a: completado; b: examen pendiente; c: a medias; d nunca se tocó (sin fila).
+    { curso_id: "a", lecciones_total: 4, lecciones_completadas: 4, examen_requerido: false, examen_aprobado: false },
+    { curso_id: "b", lecciones_total: 4, lecciones_completadas: 4, examen_requerido: true, examen_aprobado: false },
+    { curso_id: "c", lecciones_total: 4, lecciones_completadas: 1, examen_requerido: false, examen_aprobado: false },
+  ];
+
+  function conAvance() {
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [], error: null });
+    servidorFalso.responder("from:progreso_cursos_estudiante", { data: AVANCE, error: null });
+  }
+
+  it("sin filtro no manda listas: la llamada sirve igual en una base sin el 122", async () => {
+    conAvance();
+
+    await buscarCatalogoConProgreso({});
+
+    const argumentos = servidorFalso.argumentosDe("rpc:buscar_catalogo") as Record<string, unknown>;
+    expect(argumentos).not.toHaveProperty("p_incluir");
+    expect(argumentos).not.toHaveProperty("p_excluir");
+  });
+
+  it("Sin empezar excluye todo lo que el estudiante ya tocó", async () => {
+    conAvance();
+
+    await buscarCatalogoConProgreso({ estado: "SIN_EMPEZAR" });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_excluir: ["a", "b", "c"] });
+  });
+
+  it("En progreso incluye el examen pendiente (todavía no tiene certificado)", async () => {
+    conAvance();
+
+    await buscarCatalogoConProgreso({ estado: "EN_PROGRESO" });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_incluir: ["b", "c"] });
+  });
+
+  it("Completados incluye solo los completados", async () => {
+    conAvance();
+
+    await buscarCatalogoConProgreso({ estado: "COMPLETADO" });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_incluir: ["a"] });
+  });
+
+  it("si el avance no carga, con filtro es un fallo (no una lista equivocada)", async () => {
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [filaCurso("a")], error: null });
+    servidorFalso.responder("from:progreso_cursos_estudiante", { data: null, error: ERROR_PG });
+
+    const resultado = await buscarCatalogoConProgreso({ estado: "COMPLETADO" });
+
+    expect(resultado.fallo).toBe(true);
+  });
+
+  it("cargar más también en el panel: lista acumulada desde el primer curso", async () => {
+    conAvance();
+
+    await buscarCatalogoConProgreso({ pagina: 2 });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_offset: 0, p_limite: 24 });
+  });
+
+  it("?estado= de la URL: solo los tres valores conocidos; cualquier otro es Todos", () => {
+    expect(filtroEstadoDeUrl("sin-empezar")).toBe("SIN_EMPEZAR");
+    expect(filtroEstadoDeUrl("en-progreso")).toBe("EN_PROGRESO");
+    expect(filtroEstadoDeUrl("completados")).toBe("COMPLETADO");
+    expect(filtroEstadoDeUrl("toString")).toBeUndefined();
+    expect(filtroEstadoDeUrl(undefined)).toBeUndefined();
   });
 });

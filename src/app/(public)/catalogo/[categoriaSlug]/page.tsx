@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { resolverCategoria, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
-import { CatalogoPublico } from "@/components/catalogo/CatalogoPublico";
+import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { numeroDePagina, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
@@ -74,7 +74,8 @@ export default async function CategoriaPage({
     <>
       <SiteHeader {...perfilActual} />
       <main>
-        <CatalogoPublico
+        <CatalogoCursos
+          contexto="publico"
           categorias={[]}
           resultado={resultado}
           opcionesBusqueda={opcionesBusqueda}

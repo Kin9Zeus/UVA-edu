@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Controles de paginación compartidos. Extraído de CatalogoContent, que era
+ * Controles de paginación compartidos. Extraído del catálogo de cursos, que era
  * el único sitio del proyecto que paginaba, para que la tabla de usuarios del
  * panel no duplique el markup ni los estilos.
  *
