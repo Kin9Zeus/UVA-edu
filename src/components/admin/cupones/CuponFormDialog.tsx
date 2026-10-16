@@ -145,7 +145,7 @@ export function CuponFormDialog({
                 // cambiarlo no lo renombra, mata el que está publicado y crea
                 // otro que nadie tiene. Para corregir un código mal escrito
                 // que nunca se usó, se elimina y se vuelve a crear.
-                <p className="mt-1 font-mono text-[13.5px] tracking-[0.06em] text-uva-muted">
+                <p className="mt-1 font-codigo text-[13.5px] tracking-[0.06em] text-uva-muted">
                   {cupon.codigo} <span className="font-sans tracking-normal text-uva-text-faint">· no se puede cambiar</span>
                 </p>
               ) : (
@@ -160,7 +160,7 @@ export function CuponFormDialog({
                     placeholder="LANZAMIENTO"
                     maxLength={MAX_LARGO_CODIGO}
                     autoComplete="off"
-                    className="font-mono tracking-[0.06em] uppercase"
+                    className="font-codigo tracking-[0.06em] uppercase"
                     required
                   />
                   <p className="mt-1.5 text-xs text-uva-text-faint">

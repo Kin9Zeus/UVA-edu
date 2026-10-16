@@ -59,12 +59,12 @@ Aplica siempre, tanto en tareas de diseño como de código:
   - `PGRST116` (cero filas en `.single()`) no es un fallo: es "no existe".
 
 ### 3.3 Sistema de diseño y tokens (UI)
-- **Temas claro y oscuro:** la plataforma soporta ambos. Por defecto sigue `prefers-color-scheme` del sistema operativo, con un selector manual que se recuerda en `localStorage` (`src/lib/tema.ts`). El tema oscuro se activa con la clase `.dark` en `<html>`. Toda pantalla se revisa en los dos.
+- **Temas claro y oscuro:** la plataforma soporta ambos. Por defecto es **oscuro**; el selector manual permite claro u "Usar tema del sistema" (`prefers-color-scheme`) y se recuerda en `localStorage` (`src/lib/tema.ts`). El tema oscuro se activa con la clase `.dark` en `<html>`. Toda pantalla se revisa en los dos.
 - **Tokens:** viven en `src/app/globals.css` como variables `--uva-*`, expuestas a Tailwind como `uva-*` (`bg-uva-bg`, `bg-uva-surface`, `border-uva-divider`, `text-uva-text`…). Valores de referencia:
 
   | Token | Claro | Oscuro |
   | --- | --- | --- |
-  | Fondo (`uva-bg`) | `#FAFAFA` | `#09090B` (Zinc 950) |
+  | Fondo (`uva-bg`) | `#F4F4F5` | `#09090B` (Zinc 950) |
   | Tarjetas (`uva-surface`) | `#FFFFFF` | `#18181B` (Zinc 900) |
   | Bordes (`uva-divider`) | `#E4E4E7` | `#27272A` (Zinc 800) |
   | Texto (`uva-text`) | `#18181B` | `#FAFAFA` |
@@ -72,7 +72,9 @@ Aplica siempre, tanto en tareas de diseño como de código:
   No usar negro puro (`#000000`).
 - **Color de acento:** Magenta Neón `#FF007A` (`uva-accent`), uso exclusivo para CTAs, estados activos y progreso. Para **texto o íconos** de acento usa `uva-accent-ink` / `uva-accent-text`: en tema claro bajan a `#C2005B` para cumplir contraste AA sobre fondo blanco.
 - **Radios de borde:** solo los tokens `rounded-uva-*` (`xs` 4px, `sm` 8px, `md` 10px, `lg` 16px). Botones, tarjetas e inputs usan `rounded-uva-md`; `rounded-full` solo para píldoras, avatares e insignias. Evitar redondeados excesivos.
-- **Tipografías:** Headings en `Plus Jakarta Sans`, cuerpo en `Inter`, métricas/duración en `JetBrains Mono`.
+- **Amarillo de marca:** `#FFC400` (`uva-accent-2`); como texto usa `uva-accent-2-text` (`#8A5B00` en claro).
+- **Tipografías:** `Plus Jakarta Sans` en títulos, cuerpo y cifras (`font-mono` = Jakarta con números de ancho fijo, dirección visual «Maqueta»). `JetBrains Mono` solo para códigos de invitación, cupones, folios y enlaces (`font-codigo`).
+- **Escala de letra fluida:** los tamaños de texto salen de tokens que crecen solos entre 360 px y 1440 px de ancho y se quedan en su máximo después (`globals.css`, `text-uva-*`): `display` 48→88 (en menos de 375 px baja con el ancho), `titulo-1` 32→72, `titulo-2` 28→56, `titulo-3` 22→40, `titulo-4` 19→24, `lead` 15→20, `cuerpo` 15→17, `detalle` 13→14. Cada token trae su interlineado, espaciado y peso. Espacios: `uva-seccion` (56→112), `uva-margen` (20→56) y `max-w-uva` (1440 px). No escribir tamaños sueltos (`text-[17px]`, `lg:text-5xl`) en pantallas nuevas o pasadas a la dirección visual; los puntos de quiebre (640/768/1024/1280) solo cambian la disposición. Excepción: campos de formulario en 16 px (`text-base`) por el zoom del iPhone.
 
 ### 3.4 Piso de calidad ("terminado")
 Fuente: Notion, "Qué significa terminado (el piso de calidad)". Ninguna pantalla se da por lista si no cumple **todo** esto. En el paso 5 del ciclo (sección 1.1) se reporta punto por punto, y lo que no se pudo medir se dice explícitamente: no se da por cumplido.

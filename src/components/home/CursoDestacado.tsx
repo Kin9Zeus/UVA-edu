@@ -1,23 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getCursoDestacado } from "@/lib/cursoDestacado";
 import { esPortadaReal } from "@/lib/media";
 import { formatHoras } from "@/lib/admin/format";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
-const PORTADA_TRAMA = {
-  backgroundColor: "var(--uva-surface-2)",
-  backgroundImage:
-    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
-};
-
 /**
  * Sin curso marcado `destacado` en el admin, la sección no se renderiza —
- * ver getCursoDestacado(). No hay banner de "próximamente" ni placeholder:
- * la landing simplemente pasa directo de Hero a ProductBand.
+ * ver getCursoDestacado(). No hay banner de "próximamente" ni placeholder.
  */
 export async function CursoDestacado() {
   const curso = await getCursoDestacado();
@@ -26,78 +17,63 @@ export async function CursoDestacado() {
   return (
     <section
       aria-labelledby="curso-destacado-heading"
-      className="mx-auto max-w-[1180px] px-[clamp(20px,4vw,56px)] py-[clamp(56px,8vw,96px)]"
+      className="mx-auto w-full max-w-uva px-uva-margen pt-uva-seccion"
     >
-      <div className="grid grid-cols-1 items-center gap-[clamp(32px,6vw,64px)] lg:grid-cols-2">
-        {/* Zoom al pasar el mouse: puramente CSS (group-hover), sin JS ni
-            "use client" — el resto de la sección no necesita interactividad. */}
-        <div className="group order-1 overflow-hidden rounded-uva-lg border border-uva-divider">
-          <div
-            className="relative aspect-video"
-            style={esPortadaReal(curso.imagenPortada) ? undefined : PORTADA_TRAMA}
-          >
-            {esPortadaReal(curso.imagenPortada) && (
-              <Image
-                src={curso.imagenPortada}
-                alt=""
-                fill
-                // Es el LCP de la portada también en móvil (Lighthouse, 2026-10-08):
-                // sin prioridad alta el navegador la pedía tarde.
-                loading="eager"
-                fetchPriority="high"
-                sizes="(max-width: 1023px) 100vw, 500px"
-                className="object-cover transition-transform duration-300 ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-              />
-            )}
-          </div>
+      <h2
+        id="curso-destacado-heading"
+        className="mb-4 text-uva-titulo-4 text-uva-text lg:mb-5"
+      >
+        Curso destacado
+      </h2>
+      <article className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-[60px]">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-uva-lg border border-uva-divider bg-uva-surface-2 bg-[repeating-linear-gradient(135deg,var(--uva-stripe)_0_2px,transparent_2px_9px)] lg:w-[min(560px,45%)]">
+          {esPortadaReal(curso.imagenPortada) && (
+            <Image
+              src={curso.imagenPortada}
+              alt=""
+              fill
+              // Es el LCP de la portada también en móvil (Lighthouse, 2026-10-08):
+              // sin prioridad alta el navegador la pedía tarde.
+              loading="eager"
+              fetchPriority="high"
+              sizes="(max-width: 1023px) 100vw, 560px"
+              className="object-cover"
+            />
+          )}
         </div>
 
-        <div className="order-2">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="shrink-0 font-mono text-[11px] font-semibold tracking-[.16em] text-uva-accent-ink uppercase">
-              Curso destacado
-            </span>
-            <span aria-hidden="true" className="h-px flex-1 bg-uva-divider" />
-          </div>
-
-          <h2
-            id="curso-destacado-heading"
-            className="text-[clamp(28px,4vw,40px)] leading-[1.12] tracking-[-0.02em] text-uva-text"
-          >
+        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:gap-3.5">
+          <h3 className="text-uva-titulo-3 text-balance text-uva-text">
             {curso.titulo}
-          </h2>
-
-          <p className="mt-4 line-clamp-3 max-w-[480px] text-[15px] text-uva-text-muted">
-            {curso.descripcion}
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[11px] font-medium tracking-[.1em] text-uva-text-faint uppercase">
-            <span>{NIVEL_LABEL[curso.nivel]}</span>
-            <span aria-hidden="true">·</span>
-            <span>
-              {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
-            </span>
+          </h3>
+          <p className="line-clamp-3 text-uva-lead text-uva-text-muted">{curso.descripcion}</p>
+          <dl className="mt-1 grid grid-cols-3 gap-3">
+            <div>
+              <dt className="text-uva-detalle text-uva-text-muted">Nivel</dt>
+              <dd className="mt-1 text-uva-cuerpo font-bold text-uva-text">{NIVEL_LABEL[curso.nivel]}</dd>
+            </div>
+            <div>
+              <dt className="text-uva-detalle text-uva-text-muted">Clases</dt>
+              <dd className="mt-1 font-mono text-uva-cuerpo font-bold text-uva-text">{curso.totalClases}</dd>
+            </div>
             {/* Sin videos listos no hay duración real: se omite en vez de "—". */}
             {curso.duracionTotalSegundos > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{formatHoras(curso.duracionTotalSegundos)}</span>
-              </>
+              <div>
+                <dt className="text-uva-detalle text-uva-text-muted">Duración</dt>
+                <dd className="mt-1 font-mono text-uva-cuerpo font-bold text-uva-text">
+                  {formatHoras(curso.duracionTotalSegundos)}
+                </dd>
+              </div>
             )}
-          </div>
-
-          <Button
-            render={<Link href={`/cursos/${curso.slug}`} />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="mt-7 w-auto gap-2 px-6"
+          </dl>
+          <Link
+            href={`/cursos/${curso.slug}`}
+            className="inline-flex min-h-11 items-center self-start text-uva-lead font-bold text-uva-text underline decoration-uva-accent-2 decoration-[3px] underline-offset-[6px] hover:text-uva-accent-ink"
           >
-            Explorar curso
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
+            Explorar el curso
+          </Link>
         </div>
-      </div>
+      </article>
     </section>
   );
 }

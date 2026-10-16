@@ -132,7 +132,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                     type="button"
                     onClick={() => handleCopiar(cupon.codigo)}
                     title="Copiar código"
-                    className="flex min-w-0 items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex min-w-0 items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     <span className="truncate">{cupon.codigo}</span>
                     {copiado === cupon.codigo ? (
@@ -186,7 +186,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                       type="button"
                       onClick={() => handleCopiar(cupon.codigo)}
                       title="Copiar código"
-                      className="flex items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] whitespace-nowrap text-uva-text hover:text-uva-accent-text"
+                      className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] whitespace-nowrap text-uva-text hover:text-uva-accent-text"
                     >
                       {cupon.codigo}
                       {copiado === cupon.codigo ? (

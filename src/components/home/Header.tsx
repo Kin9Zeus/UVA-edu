@@ -7,6 +7,10 @@ import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
 import { NavMovilDialog } from "@/components/home/NavMovilDialog";
 import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { LogoUva } from "@/components/home/LogoUva";
+
+const CLASE_ENLACE =
+  "inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-text no-underline hover:text-uva-accent-ink hover:no-underline";
 
 export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
@@ -22,7 +26,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
 
   return (
     <header
-      className={`sticky top-0 z-50 flex items-center justify-between gap-5 border-b px-[clamp(20px,4vw,56px)] py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
+      className={`sticky top-0 z-50 flex items-center gap-1 border-b py-2.5 pr-2 pl-4 sm:gap-6 sm:px-uva-margen lg:gap-10 lg:py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
         scrolled
           ? "border-uva-divider bg-uva-bg/86"
           : "border-transparent bg-uva-bg/40"
@@ -30,48 +34,57 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
     >
       <Link
         href="/"
-        className="shrink-0 font-heading text-2xl font-bold text-uva-text no-underline hover:no-underline"
+        aria-label="U.V.A., ir al inicio"
+        className="mr-auto inline-flex min-h-11 shrink-0 items-center text-uva-text no-underline hover:no-underline sm:mr-0"
       >
-        U.V.A<span className="text-uva-accent">.</span>
+        <LogoUva className="h-[25px] w-[77px] lg:h-[34px] lg:w-[105px]" />
       </Link>
 
-      <div className="hidden max-w-[400px] flex-1 sm:block">
+      <div className="hidden max-w-[420px] min-w-0 flex-1 sm:block">
         {!ocultarBuscador && <BuscadorHeaderInput placeholder="¿Qué quieres aprender?" destino="/catalogo" />}
       </div>
 
-      <nav
-        className="flex shrink-0 items-center gap-3 min-[861px]:gap-7"
-        aria-label="Navegación principal"
-      >
-        <div className="hidden items-center gap-5 min-[861px]:flex">
-          <Link
-            href="/catalogo"
-            className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
-          >
+      <nav className="flex shrink-0 items-center gap-1 sm:ml-auto lg:gap-7" aria-label="Navegación principal">
+        <div className="hidden items-center gap-7 lg:flex">
+          <Link href="/catalogo" className={CLASE_ENLACE}>
             Cursos
           </Link>
           {PRECIOS_HABILITADOS && (
-            <Link
-              href="/#planes"
-              className="text-[15px] text-uva-text-muted no-underline hover:text-uva-text hover:no-underline"
-            >
+            <Link href="/#planes" className={CLASE_ENLACE}>
               Precios
             </Link>
           )}
+          <Link href="/#verificar-certificado" className={CLASE_ENLACE}>
+            Verificar certificado
+          </Link>
         </div>
-        {/* Por debajo de 861px no cabe junto a "Acceder", la lupa y la
-            hamburguesa: ahí vive dentro del menú móvil (NavMovilDialog). El
-            -my-0.5 deja el área táctil en 44px sin crecer el header, que
-            mide lo que el botón "Acceder" (40px). */}
-        <SelectorTemaBoton className="-my-0.5 hidden min-[861px]:inline-flex" />
+        {/* Por debajo de lg no cabe junto a "Acceder", la lupa y el menú: ahí
+            vive dentro del menú móvil (NavMovilDialog). */}
+        <SelectorTemaBoton className="hidden rounded-uva-md border-[1.5px] border-uva-line-strong text-uva-text lg:inline-flex" />
+        {!ocultarBuscador && <BuscadorMovilDialog destino="/catalogo" className="size-11 text-uva-text sm:hidden" />}
+        {/* En celular el botón se ve de 36 px pero el enlace mide 44 px de
+            alto: el área de toque cumple el mínimo sin que el botón pese. */}
         <Link
           href="/login"
-          className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-btn px-3.5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent min-[861px]:px-5"
+          className="group inline-flex min-h-11 items-center px-0.5 no-underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent lg:px-0"
         >
-          Acceder
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-uva-sm bg-uva-btn px-2.5 text-uva-detalle font-semibold text-uva-on-accent group-hover:bg-uva-btn-hover lg:h-11 lg:rounded-uva-md lg:px-[22px] lg:text-uva-cuerpo">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              aria-hidden="true"
+              className="size-[18px] lg:hidden"
+            >
+              <circle cx="12" cy="8.5" r="4" />
+              <path d="M4.5 20.5c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6" />
+            </svg>
+            Acceder
+          </span>
         </Link>
-        {!ocultarBuscador && <BuscadorMovilDialog destino="/catalogo" className="sm:hidden" />}
-        <NavMovilDialog className="min-[861px]:hidden" />
+        <NavMovilDialog className="size-11 text-uva-text lg:hidden" />
       </nav>
     </header>
   );

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 // SVG, no depende de fuente de emoji del SO — sin esto, "🇨🇴" cae en texto
 // plano ("CO") en Chrome/Windows por falta de glifos de bandera.
@@ -14,12 +14,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-// Sin precarga: solo la usan etiquetas y contadores pequeños, y precargarla
+// Sin precarga: solo la usan los códigos de invitación, cupones y folios
+// (`font-codigo` en globals.css), y precargarla
 // (27 KiB) competía con la imagen del LCP en todas las páginas. El navegador
 // la pide cuando aparece el primer texto que la usa; mientras llega se ve la
 // monoespaciada de respaldo, que next/font ajusta de tamaño para no mover el
@@ -42,15 +38,11 @@ export const metadata: Metadata = {
 
 // Sin esto, el navegador móvil pinta de blanco por defecto la barra de
 // herramientas dinámica y la zona de overscroll al final del scroll — el
-// "pedazo blanco" que corta el fondo oscuro de la app. Una etiqueta por cada
-// `prefers-color-scheme`, para que siga al sistema sin JavaScript; con una
-// elección manual del selector, aplicarTema() (src/lib/tema.ts) les pone a
-// las dos el color del tema elegido.
+// "pedazo blanco" que corta el fondo oscuro de la app. Nace con el color del
+// tema oscuro, el de por defecto; aplicarTema() (src/lib/tema.ts) lo cambia
+// si el visitante eligió otro.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: COLOR_BARRA_NAVEGADOR.claro },
-    { media: "(prefers-color-scheme: dark)", color: COLOR_BARRA_NAVEGADOR.oscuro },
-  ],
+  themeColor: COLOR_BARRA_NAVEGADOR.oscuro,
   colorScheme: "light dark",
 };
 
@@ -63,11 +55,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning: SCRIPT_TEMA_INICIAL pone `.dark` y
     // `color-scheme` en <html> antes de hidratar, a propósito; el servidor
-    // no puede saber el tema (vive en localStorage y en el sistema del
-    // visitante). Solo silencia los atributos de <html>, no a sus hijos.
+    // no puede saber el tema (vive en localStorage). Nace con `dark`, el tema
+    // por defecto. Solo silencia los atributos de <html>, no a sus hijos.
     <html
       lang="es"
-      className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`dark ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

@@ -12,7 +12,7 @@ import {
 } from "@/lib/tema";
 
 type ContextoTema = {
-  /** Lo que eligió el usuario ("sistema" si no eligió nada). */
+  /** Lo que eligió el usuario ("oscuro" si no eligió nada). */
   preferencia: PreferenciaTema;
   /** El tema que se está viendo. */
   tema: Tema;
@@ -33,7 +33,7 @@ function leerSnapshot(): string {
 // snapshot real del navegador y re-renderiza el selector con el ícono
 // correcto (el <html> ya tiene el tema bien puesto por SCRIPT_TEMA_INICIAL).
 function leerSnapshotServidor(): string {
-  return "sistema|oscuro";
+  return "oscuro|oscuro";
 }
 
 export function TemaProvider({ children }: { children: ReactNode }) {

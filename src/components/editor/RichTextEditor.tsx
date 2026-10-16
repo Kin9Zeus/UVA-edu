@@ -29,9 +29,9 @@ const CLASES_CONTENIDO =
   "[&_ul[data-type='taskList']_li]:flex [&_ul[data-type='taskList']_li]:items-start [&_ul[data-type='taskList']_li]:gap-2 " +
   "[&_ul[data-type='taskList']_input]:mt-[3px] [&_ul[data-type='taskList']_input]:accent-uva-accent " +
   "[&_blockquote]:my-1.5 [&_blockquote]:border-l-2 [&_blockquote]:border-uva-accent [&_blockquote]:pl-3.5 [&_blockquote]:text-[13.5px] [&_blockquote]:text-uva-muted [&_blockquote]:italic " +
-  "[&_pre]:my-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-uva-md [&_pre]:bg-uva-chip [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-[12px] " +
+  "[&_pre]:my-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-uva-md [&_pre]:bg-uva-chip [&_pre]:p-3 [&_pre]:font-codigo [&_pre]:text-[12px] " +
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 " +
-  "[&_code]:rounded-uva-xs [&_code]:bg-uva-chip [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12px] " +
+  "[&_code]:rounded-uva-xs [&_code]:bg-uva-chip [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-codigo [&_code]:text-[12px] " +
   "[&_hr]:my-3 [&_hr]:border-uva-divider " +
   "[&_a]:text-uva-accent-ink [&_a]:underline [&_a]:underline-offset-2 " +
   "empty:before:pointer-events-none empty:before:float-left empty:before:h-0 empty:before:text-uva-text-faint empty:before:content-[attr(data-placeholder)] " +

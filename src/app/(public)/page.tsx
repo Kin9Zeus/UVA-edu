@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/home/Header";
-import { Hero } from "@/components/home/Hero";
+import { Hero, TITULO_PORTADA, DESCRIPCION_PORTADA } from "@/components/home/Hero";
+import { CategoriasPortada } from "@/components/home/CategoriasPortada";
+import { getCategoriasActivas } from "@/lib/categoria";
 import { CursoDestacado } from "@/components/home/CursoDestacado";
 import { ProductBand } from "@/components/home/ProductBand";
 import { Pricing } from "@/components/home/Pricing";
@@ -8,7 +10,8 @@ import { AccesoInvitacion } from "@/components/home/AccesoInvitacion";
 import { Footer } from "@/components/home/Footer";
 import { WhatsAppButton } from "@/components/home/WhatsAppButton";
 import { connection } from "next/server";
-import { PRECIOS_HABILITADOS } from "@/lib/features";import { JsonLd } from "@/components/seo/JsonLd";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { organizacionCompleta } from "@/lib/seo/organizacion";
 
@@ -18,9 +21,8 @@ import { organizacionCompleta } from "@/lib/seo/organizacion";
 // descripción salen del propio Hero, no de copy nueva: lo que promete la
 // página y lo que promete el resultado de búsqueda tienen que ser lo mismo.
 export const metadata: Metadata = metadataPublica({
-  titulo: "La escuela del oficio de la construcción",
-  descripcion:
-    "Formación técnica para arquitectos, residentes de obra, presupuestadores y coordinadores BIM en toda LATAM.",
+  titulo: TITULO_PORTADA,
+  descripcion: DESCRIPCION_PORTADA,
   ruta: "/",
 });
 
@@ -45,6 +47,10 @@ export default async function Home() {
   // visita.
   const hrefCodigo = "/dashboard/suscripcion";
 
+  // Una sola lectura (cacheada) para la maqueta del hero y la lista de
+  // categorías; el pie la vuelve a pedir y le llega de la misma caché.
+  const categorias = await getCategoriasActivas();
+
   return (
     <>
       {/* La `Organization` completa se publica UNA vez, aquí, y cada ficha
@@ -54,9 +60,10 @@ export default async function Home() {
       <JsonLd data={organizacionCompleta()} />
       <Header />
       <main>
-        <Hero hrefCodigo={hrefCodigo} />
-        <CursoDestacado />
+        <Hero hrefCodigo={hrefCodigo} categorias={categorias} />
+        <CategoriasPortada categorias={categorias} />
         <ProductBand />
+        <CursoDestacado />
         {/* El bloque "Más de 400 empresas…" (FinalCta) se retiró de la
             portada: no hay oferta para empresas y su cifra no está
             respaldada. Lo que la portada anuncia vive en content/marketing.ts. */}

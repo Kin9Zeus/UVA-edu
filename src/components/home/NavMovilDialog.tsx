@@ -12,11 +12,12 @@ import { SelectorTemaFila, SelectorTemaSistemaFila } from "@/components/tema/Sel
 const ENLACES = [
   { href: "/catalogo", label: "Cursos" },
   ...(PRECIOS_HABILITADOS ? [{ href: "/#planes", label: "Precios" }] : []),
+  { href: "/#verificar-certificado", label: "Verificar certificado" },
 ];
 
 /**
  * Hamburguesa + panel de navegación para cuando el header no tiene espacio
- * para los links inline (headers públicos por debajo de min-[861px], ver
+ * para los links inline (headers públicos por debajo de lg, ver
  * Header.tsx). Mismo patrón visual que BuscadorMovilDialog: panel a ancho
  * completo que baja desde el header, no un dropdown flotante.
  */
@@ -35,7 +36,7 @@ export function NavMovilDialog({ className }: { className?: string }) {
         <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-uva-overlay/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <DialogPrimitive.Popup
           className={cn(
-            "fixed inset-x-0 top-0 z-50 border-b border-uva-divider bg-uva-bg p-4 outline-none",
+            "fixed inset-x-0 top-0 z-50 border-b border-uva-line-strong bg-uva-surface px-5 pb-5 outline-none",
             "pt-[max(1rem,env(safe-area-inset-top))]",
             "data-open:animate-in data-open:slide-in-from-top-4 data-open:fade-in-0",
             "data-closed:animate-out data-closed:slide-out-to-top-4 data-closed:fade-out-0",
@@ -56,14 +57,14 @@ export function NavMovilDialog({ className }: { className?: string }) {
                 key={enlace.href}
                 href={enlace.href}
                 onClick={() => setOpen(false)}
-                className="border-b border-uva-divider py-3 text-[15px] text-uva-text no-underline last:border-b-0 hover:text-uva-accent-ink hover:no-underline"
+                className="flex min-h-13 items-center border-b border-uva-divider text-uva-titulo-4 font-semibold text-uva-text no-underline last:border-b-0 hover:text-uva-accent-ink hover:no-underline"
               >
                 {enlace.label}
               </Link>
             ))}
           </nav>
-          <SelectorTemaFila className="border-t border-uva-divider" />
-          <SelectorTemaSistemaFila className="border-t border-uva-divider" />
+          <SelectorTemaFila className="min-h-14 border-t border-uva-divider text-uva-titulo-4 font-semibold" />
+          <SelectorTemaSistemaFila className="min-h-14 border-t border-uva-divider text-uva-titulo-4 font-semibold" />
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

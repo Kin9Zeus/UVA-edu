@@ -81,10 +81,11 @@ describe("parsearPreferencia / resolverTema", () => {
   it.each([
     ["claro", "claro"],
     ["oscuro", "oscuro"],
-    [null, "sistema"],
-    ["", "sistema"],
-    ["dark", "sistema"],
-    ["CLARO", "sistema"],
+    ["sistema", "sistema"],
+    [null, "oscuro"],
+    ["", "oscuro"],
+    ["dark", "oscuro"],
+    ["CLARO", "oscuro"],
   ] as const)("%j se lee como %s", (valor, esperado) => {
     expect(parsearPreferencia(valor)).toBe(esperado);
   });
@@ -106,11 +107,13 @@ describe("SCRIPT_TEMA_INICIAL (corre en el <head> antes de pintar)", () => {
   }
 
   it.each([
+    [null, false, true],
     [null, true, true],
-    [null, false, false],
     ["claro", true, false],
     ["oscuro", false, true],
-    ["basura", true, true],
+    ["sistema", true, true],
+    ["sistema", false, false],
+    ["basura", false, true],
   ] as const)("guardado=%j, sistema oscuro=%s → .dark=%s", (guardado, sistemaOscuro, esperado) => {
     const nav = navegadorFalso({ guardado, sistemaOscuro });
     correrScript();
@@ -118,8 +121,8 @@ describe("SCRIPT_TEMA_INICIAL (corre en el <head> antes de pintar)", () => {
     expect(nav.document.documentElement.style.colorScheme).toBe(esperado ? "dark" : "light");
   });
 
-  it("si localStorage lanza (ventana privada), sigue al sistema sin romper", () => {
-    const nav = navegadorFalso({ sistemaOscuro: true, storageRoto: true });
+  it("si localStorage lanza (ventana privada), queda en oscuro sin romper", () => {
+    const nav = navegadorFalso({ sistemaOscuro: false, storageRoto: true });
     expect(correrScript).not.toThrow();
     expect(nav.clases.has("dark")).toBe(true);
   });
@@ -134,25 +137,25 @@ describe("guardarPreferencia", () => {
     expect(nav.metas.map((m) => m.content)).toEqual([COLOR_BARRA_NAVEGADOR.claro, COLOR_BARRA_NAVEGADOR.claro]);
   });
 
-  it("'sistema' borra la clave y vuelve a seguir al sistema", () => {
-    const nav = navegadorFalso({ guardado: "claro", sistemaOscuro: true });
+  it("'sistema' se guarda y vuelve a seguir al sistema", () => {
+    const nav = navegadorFalso({ guardado: "oscuro", sistemaOscuro: false });
     guardarPreferencia("sistema");
-    expect(nav.almacen.has(TEMA_STORAGE_KEY)).toBe(false);
-    expect(nav.clases.has("dark")).toBe(true);
+    expect(nav.almacen.get(TEMA_STORAGE_KEY)).toBe("sistema");
+    expect(nav.clases.has("dark")).toBe(false);
     expect(leerPreferencia()).toBe("sistema");
   });
 
   it("sin almacenamiento aplica igual el tema de esta visita", () => {
     const nav = navegadorFalso({ storageRoto: true });
-    expect(() => guardarPreferencia("oscuro")).not.toThrow();
-    expect(nav.clases.has("dark")).toBe(true);
-    expect(leerPreferencia()).toBe("sistema");
+    expect(() => guardarPreferencia("claro")).not.toThrow();
+    expect(nav.clases.has("dark")).toBe(false);
+    expect(leerPreferencia()).toBe("oscuro");
   });
 });
 
 describe("suscribirTema", () => {
   it("en modo sistema, un cambio del sistema re-aplica el tema y avisa", () => {
-    const nav = navegadorFalso({ sistemaOscuro: false });
+    const nav = navegadorFalso({ guardado: "sistema", sistemaOscuro: false });
     const aviso = vi.fn();
     suscribirTema(aviso);
     nav.cambiarSistema(true);
@@ -176,11 +179,11 @@ describe("suscribirTema", () => {
   });
 
   it("aplica lo que otra pestaña guardó (evento storage)", () => {
-    const nav = navegadorFalso({ sistemaOscuro: false });
+    const nav = navegadorFalso({ sistemaOscuro: true });
     suscribirTema(vi.fn());
-    nav.almacen.set(TEMA_STORAGE_KEY, "oscuro");
+    nav.almacen.set(TEMA_STORAGE_KEY, "claro");
     nav.emitirStorage(TEMA_STORAGE_KEY);
-    expect(nav.clases.has("dark")).toBe(true);
+    expect(nav.clases.has("dark")).toBe(false);
   });
 
   it("al desuscribirse no deja oyentes colgados", () => {
