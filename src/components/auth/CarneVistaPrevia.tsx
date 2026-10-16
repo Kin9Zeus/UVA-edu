@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogoUva } from "@/components/LogoUva";
+import { LogoUva } from "@/components/home/LogoUva";
 import { passwordRules } from "@/lib/password";
 import { cn } from "@/lib/utils";
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LogoUva } from "@/components/LogoUva";
+import { LogoUva } from "@/components/home/LogoUva";
 
 /**
  * Marco del paso de crear cuenta y de "¡Ya casi!" (Crear cuenta lab 6,

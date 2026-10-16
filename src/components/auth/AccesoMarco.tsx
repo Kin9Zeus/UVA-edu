@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LogoUva } from "@/components/LogoUva";
+import { LogoUva } from "@/components/home/LogoUva";
 
 /**
  * Marco de los pasos de acceso (correo, contraseña, Google, verificación
