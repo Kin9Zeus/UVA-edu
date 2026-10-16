@@ -148,7 +148,7 @@ export function RegistroForm({
             <li
               key={rule.id}
               className={cn(
-                "flex items-center gap-1.5 text-[13px] leading-5",
+                "flex items-center gap-1.5 text-uva-detalle",
                 met
                   ? "text-uva-text"
                   : fallando
@@ -202,7 +202,7 @@ export function RegistroForm({
             nativa conserva Espacio para marcarla y el foco visible global. */}
         <label
           htmlFor="reg-terminos"
-          className="flex min-h-11 items-center gap-2.5 text-sm leading-5 text-uva-text-muted"
+          className="flex min-h-11 items-center gap-2.5 text-uva-detalle text-uva-text-muted"
         >
           <input
             id="reg-terminos"
@@ -250,7 +250,7 @@ export function RegistroForm({
         {/* El botón deshabilitado no recibe foco con Tab: sin este texto quien
             navega con teclado no sabe por qué no puede avanzar. */}
         {!aceptaTerminos && (
-          <p id="reg-terminos-ayuda" className="text-[13px] text-uva-text-muted">
+          <p id="reg-terminos-ayuda" className="text-uva-detalle text-uva-text-muted">
             Acepta los Términos y la Política de privacidad para crear tu cuenta.
           </p>
         )}

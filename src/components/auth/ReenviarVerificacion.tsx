@@ -87,7 +87,7 @@ export function ReenviarVerificacion({
 
       {state?.error && <MensajeError id="reenviar-error">{state.error}</MensajeError>}
       {state?.success && (
-        <p role="status" className="text-sm font-semibold text-uva-text">
+        <p role="status" className="text-uva-detalle font-semibold text-uva-text">
           Te reenviamos el enlace a{" "}
           <strong className="[overflow-wrap:anywhere]">{email || correo}</strong>.
         </p>
@@ -102,8 +102,8 @@ export function ReenviarVerificacion({
         // el botón crece en alto en vez de salirse.
         className={`h-auto min-h-12 whitespace-normal py-2.5 bajo:min-h-11 ${
           variante === "primario"
-            ? "text-base"
-            : "border-[1.5px] border-uva-muted-2 text-base"
+            ? "text-uva-cuerpo"
+            : "border-[1.5px] border-uva-muted-2 text-uva-cuerpo"
         }`}
       >
         {pending

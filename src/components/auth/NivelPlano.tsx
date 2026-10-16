@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
  * eje al centro y cota debajo. Mientras falta el correo la burbuja está
  * corrida y la marca dice "N +0,12"; desde el paso siguiente queda a nivel.
  *
+ * Dibujo de tamaño fijo: sus rótulos ("600 mm", "N +0,12") van en px y no
+ * en la escala fluida de letra; donde hay que achicarlo se usa `zoom`.
+ *
  * Solo marcado y CSS, oculto para lectores de pantalla: el estado real lo
  * cuentan el título y el subtítulo de cada paso. La transición de la burbuja
  * la apaga la regla global de `prefers-reduced-motion` (globals.css).

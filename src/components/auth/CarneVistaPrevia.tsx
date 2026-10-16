@@ -57,7 +57,7 @@ export function CarneVistaPrevia({
         aria-label="Vista previa de tu carné"
         className="relative mx-auto grid max-w-[410px] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 rounded-uva-lg border-[1.5px] border-uva-muted-2 bg-uva-surface px-3.5 py-2.5 min-[900px]:hidden"
       >
-        <div className="col-span-2 flex items-center justify-between gap-3 text-[13px] font-semibold text-uva-text-muted">
+        <div className="col-span-2 flex items-center justify-between gap-3 text-uva-detalle font-semibold text-uva-text-muted">
           <Link
             href="/"
             aria-label="U.V.A., ir al inicio"
@@ -69,7 +69,7 @@ export function CarneVistaPrevia({
         </div>
         <div
           aria-hidden="true"
-          className="grid size-[52px] place-items-center rounded-uva-md bg-uva-accent-2 font-heading text-xl font-extrabold text-uva-on-bright"
+          className="grid size-[52px] place-items-center rounded-uva-md bg-uva-accent-2 font-heading text-uva-titulo-4 font-extrabold text-uva-on-bright"
         >
           {iniciales || <IconoPersona className="size-7" />}
         </div>
@@ -78,18 +78,18 @@ export function CarneVistaPrevia({
             <>
               <b
                 className={cn(
-                  "font-heading text-lg leading-[1.2] font-extrabold [overflow-wrap:anywhere]",
+                  "font-heading text-uva-titulo-4 font-extrabold [overflow-wrap:anywhere]",
                   limpio ? "text-uva-text" : "text-uva-text-muted",
                 )}
               >
                 {limpio || "Tu nombre"}
               </b>
-              <span className="truncate text-sm text-uva-text-muted">{correoVisible}</span>
+              <span className="truncate text-uva-detalle text-uva-text-muted">{correoVisible}</span>
             </>
           ) : (
             <b
               className={cn(
-                "font-heading text-base leading-[1.25] font-extrabold [overflow-wrap:anywhere]",
+                "font-heading text-uva-cuerpo font-extrabold [overflow-wrap:anywhere]",
                 correoConocido ? "text-uva-text" : "text-uva-text-muted",
               )}
             >
@@ -102,14 +102,17 @@ export function CarneVistaPrevia({
         {sello && (
           <Sello
             tipo={sello}
-            className="static col-span-2 -mt-0.5 justify-self-end -rotate-[3deg] border-[2.5px] px-2 py-0.5 text-xs"
+            className="static col-span-2 -mt-0.5 justify-self-end -rotate-[3deg] border-[2.5px] px-2 py-0.5 text-uva-detalle leading-tight"
           />
         )}
       </section>
 
       {/* Escritorio: la cinta y el carné se encogen con la altura de la
           pantalla (`zoom`, no `scale`, para que también ocupen menos alto)
-          y crecen en monitores grandes y altos (2560×1440). */}
+          y crecen en monitores grandes y altos (2560×1440). Es un dibujo de
+          tamaño fijo (360×560): sus letras van en px, no en la escala fluida,
+          porque una letra que crece con el ancho lo descuadraría; lo que lo
+          adapta a la pantalla es el `zoom`. */}
       <div className="hidden flex-col items-center min-[900px]:flex medio:[zoom:0.85] bajo:[zoom:0.78] muy-bajo:[zoom:0.66] [@media(min-width:1920px)_and_(min-height:1100px)]:[zoom:1.3]">
         <svg
           aria-hidden="true"

@@ -17,7 +17,7 @@ export function AvisoAcceso({
   return (
     <div
       role={icono === "alerta" ? "alert" : "status"}
-      className="flex items-start gap-3 border-y border-uva-divider py-3.5 text-[15px] leading-[1.5] text-uva-text bajo:py-3"
+      className="flex items-start gap-3 border-y border-uva-divider py-3.5 text-uva-cuerpo text-uva-text bajo:py-3"
     >
       {icono === "ok" && <FichaOk />}
       {icono === "correo" && (
@@ -41,7 +41,7 @@ export function AvisoAcceso({
       {icono === "alerta" && (
         <span
           aria-hidden="true"
-          className="grid size-6 flex-none place-items-center rounded-full border-2 border-uva-danger-text text-sm font-extrabold text-uva-danger-text"
+          className="grid size-6 flex-none place-items-center rounded-full border-2 border-uva-danger-text text-uva-detalle font-extrabold text-uva-danger-text"
         >
           !
         </span>

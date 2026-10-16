@@ -227,7 +227,7 @@ export function AuthFlow({
                 onCuentaCreada={handleCuentaCreada}
                 onCambio={setCarne}
               />
-              <p className="text-sm text-uva-text-muted">
+              <p className="text-uva-detalle text-uva-text-muted">
                 ¿Ya tienes cuenta?{" "}
                 <button
                   type="button"
@@ -253,7 +253,7 @@ export function AuthFlow({
                 ¿No te llegó? Revisa la carpeta de spam o de promociones.
               </p>
               <ReenviarVerificacion email={email} />
-              <p className="text-sm text-uva-text-muted">
+              <p className="text-uva-detalle text-uva-text-muted">
                 ¿Te equivocaste de correo?{" "}
                 <button
                   type="button"
@@ -272,7 +272,7 @@ export function AuthFlow({
 
   // En pantallas muy bajas se quita: el botón ya dice "Continuar con Google".
   const separador = (
-    <div className="flex items-center gap-3 text-sm text-uva-text-muted muy-bajo:hidden">
+    <div className="flex items-center gap-3 text-uva-detalle text-uva-text-muted muy-bajo:hidden">
       <div className="h-px flex-1 bg-uva-divider" />
       <span className="whitespace-nowrap">o continúa con</span>
       <div className="h-px flex-1 bg-uva-divider" />
@@ -283,7 +283,7 @@ export function AuthFlow({
     <GoogleAuthButton
       label="Continuar con Google"
       next={redirectTo}
-      className="h-12 border-[1.5px] border-uva-muted-2 text-base bajo:h-11"
+      className="h-12 border-[1.5px] border-uva-muted-2 text-uva-cuerpo bajo:h-11"
     />
   );
 
@@ -348,7 +348,7 @@ export function AuthFlow({
               </Button>
             </form>
 
-            <p className="text-sm text-uva-text-muted">
+            <p className="text-uva-detalle text-uva-text-muted">
               ¿No tienes cuenta?{" "}
               <button
                 type="button"
@@ -367,7 +367,7 @@ export function AuthFlow({
             {step !== "pendiente" && (
               <div className="flex items-center gap-2.5 border-b border-uva-divider">
                 <FichaOk />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-uva-text">
+                <span className="min-w-0 flex-1 truncate text-uva-detalle font-semibold text-uva-text">
                   {email}
                 </span>
                 <button
@@ -392,7 +392,7 @@ export function AuthFlow({
               <>
                 <div
                   role="status"
-                  className="rounded-uva-md bg-uva-danger-soft px-4 py-3.5 text-center text-sm leading-[1.5] text-uva-danger-text"
+                  className="rounded-uva-md bg-uva-danger-soft px-4 py-3.5 text-center text-uva-detalle text-uva-danger-text"
                 >
                   Aún no confirmas {email || "tu correo"}. Revisa tu bandeja o
                   pide un nuevo enlace.
