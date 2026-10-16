@@ -55,7 +55,7 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
               </p>
 
               <div className="relative flex w-full items-center gap-2 border-t border-uva-divider pt-2">
-                <span className="font-mono text-[11px] text-uva-text-faint">
+                <span className="font-codigo text-[11px] text-uva-text-faint">
                   {certificado.codigoVerificacion}
                 </span>
                 <DescargarCertificadoButton certificadoId={certificado.id} />

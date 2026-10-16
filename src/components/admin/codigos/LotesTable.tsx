@@ -292,7 +292,7 @@ export function LotesTable({
                       type="button"
                       onClick={() => handleCopiar(codigo.codigo)}
                       title="Copiar código"
-                      className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                      className="flex items-center gap-1.5 font-codigo text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
                     >
                       {codigo.codigo}
                       {copiado === codigo.codigo ? (
@@ -356,7 +356,7 @@ export function LotesTable({
                         type="button"
                         onClick={() => handleCopiar(codigo.codigo)}
                         title="Copiar código"
-                        className="flex items-center gap-1.5 font-mono text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                        className="flex items-center gap-1.5 font-codigo text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
                       >
                         {codigo.codigo}
                         {copiado === codigo.codigo ? (

@@ -219,7 +219,7 @@ export function LoteFormDialog({
 
             <div className="flex flex-col gap-3">
               <div className="max-h-[240px] overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface-2 p-3">
-                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[12.5px] text-uva-text">
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 font-codigo text-[12.5px] text-uva-text">
                   {loteCreado.codigos.map((codigo) => (
                     <li key={codigo}>{codigo}</li>
                   ))}

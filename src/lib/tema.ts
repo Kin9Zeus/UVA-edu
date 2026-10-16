@@ -2,12 +2,12 @@
  * Tema claro / oscuro de toda la plataforma (sitio público, panel del
  * estudiante y panel de administración).
  *
- * Tres preferencias posibles:
- *   - "sistema" (por defecto, sin nada guardado): sigue la media query
- *     `prefers-color-scheme` del sistema operativo, y cambia en vivo si el
- *     usuario cambia el tema de su equipo con la página abierta.
- *   - "claro" / "oscuro": elección manual con el selector de la interfaz;
- *     sobrescribe al sistema y persiste en `localStorage`.
+ * Tres preferencias posibles, todas guardadas en `localStorage`:
+ *   - "oscuro" (por defecto, sin nada guardado): el tema de la marca.
+ *   - "claro": elección manual con el selector de la interfaz.
+ *   - "sistema": sigue la media query `prefers-color-scheme` del sistema
+ *     operativo, y cambia en vivo si el usuario cambia el tema de su equipo
+ *     con la página abierta.
  *
  * El servidor no puede leer `localStorage`, así que el tema se aplica en el
  * navegador ANTES de pintar con SCRIPT_TEMA_INICIAL (en el <head> del layout
@@ -32,12 +32,12 @@ const EVENTO_CAMBIO = "uva-tema-cambio";
 /** Color de la barra del navegador móvil y de la zona de overscroll: el
  *  mismo `--uva-bg` de cada tema en globals.css. */
 export const COLOR_BARRA_NAVEGADOR: Record<Tema, string> = {
-  claro: "#fafafa",
+  claro: "#f4f4f5",
   oscuro: "#09090b",
 };
 
 export function parsearPreferencia(valor: string | null | undefined): PreferenciaTema {
-  return valor === "claro" || valor === "oscuro" ? valor : "sistema";
+  return valor === "claro" || valor === "sistema" ? valor : "oscuro";
 }
 
 export function resolverTema(preferencia: PreferenciaTema, sistemaOscuro: boolean): Tema {
@@ -49,7 +49,7 @@ export function leerPreferencia(): PreferenciaTema {
   try {
     return parsearPreferencia(window.localStorage.getItem(TEMA_STORAGE_KEY));
   } catch {
-    return "sistema";
+    return "oscuro";
   }
 }
 
@@ -81,12 +81,12 @@ export function aplicarTema(tema: Tema): void {
   });
 }
 
-/** Guarda la preferencia (o la borra, con "sistema"), la aplica y avisa. */
+/** Guarda la preferencia, la aplica y avisa. "sistema" también se guarda:
+ *  sin nada guardado el tema es oscuro, no el del sistema. */
 export function guardarPreferencia(preferencia: PreferenciaTema): void {
   if (typeof window === "undefined") return;
   try {
-    if (preferencia === "sistema") window.localStorage.removeItem(TEMA_STORAGE_KEY);
-    else window.localStorage.setItem(TEMA_STORAGE_KEY, preferencia);
+    window.localStorage.setItem(TEMA_STORAGE_KEY, preferencia);
   } catch {
     // Sin almacenamiento la elección vale solo para esta visita: se aplica
     // igual, pero no sobrevive a la recarga.
@@ -130,6 +130,6 @@ export function suscribirTema(alCambiar: () => void): () => void {
  */
 export const SCRIPT_TEMA_INICIAL = `(function(){var p=null;try{p=localStorage.getItem(${JSON.stringify(
   TEMA_STORAGE_KEY,
-)})}catch(e){}var d=p==="oscuro"||(p!=="claro"&&window.matchMedia(${JSON.stringify(
+)})}catch(e){}var d=p==="sistema"?window.matchMedia(${JSON.stringify(
   MEDIA_OSCURO,
-)}).matches);var r=document.documentElement;r.classList.toggle("dark",d);r.style.colorScheme=d?"dark":"light"})()`;
+)}).matches:p!=="claro";var r=document.documentElement;r.classList.toggle("dark",d);r.style.colorScheme=d?"dark":"light"})()`;

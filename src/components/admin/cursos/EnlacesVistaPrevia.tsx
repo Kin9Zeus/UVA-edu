@@ -181,7 +181,7 @@ export function EnlacesVistaPrevia({
             Copia el enlace ahora: no se vuelve a mostrar.
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 overflow-x-auto rounded-uva-md bg-uva-surface-2 px-2.5 py-1.5 font-mono text-[11.5px] whitespace-nowrap text-uva-text">
+            <code className="flex-1 overflow-x-auto rounded-uva-md bg-uva-surface-2 px-2.5 py-1.5 font-codigo text-[11.5px] whitespace-nowrap text-uva-text">
               {enlaceNuevo}
             </code>
             <Button

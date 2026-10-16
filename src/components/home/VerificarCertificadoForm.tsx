@@ -29,7 +29,7 @@ export function VerificarCertificadoForm() {
         onChange={(event) => setCodigo(event.target.value)}
         placeholder="Ej. K7M2Q-XP4TB"
         aria-label="Código de verificación del certificado"
-        className="w-full rounded-uva-md border border-uva-divider bg-transparent px-3 py-2 font-mono text-[12.5px] text-uva-text placeholder:text-uva-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="w-full rounded-uva-md border border-uva-divider bg-transparent px-3 py-2 font-codigo text-[12.5px] text-uva-text placeholder:text-uva-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       />
       <button
         type="submit"

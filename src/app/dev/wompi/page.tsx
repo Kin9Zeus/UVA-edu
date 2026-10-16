@@ -64,7 +64,7 @@ export default async function SimuladorWompiPage({
           </div>
           <div className="flex justify-between">
             <dt className="text-uva-text-muted">Referencia</dt>
-            <dd className="font-mono text-[11.5px] text-uva-text-faint">{referencia}</dd>
+            <dd className="font-codigo text-[11.5px] text-uva-text-faint">{referencia}</dd>
           </div>
         </dl>
 

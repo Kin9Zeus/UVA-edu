@@ -114,7 +114,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
               una sola fila rígida se salía del ancho en un teléfono angosto
               en vez de solo verse apretado. */}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-mono text-[15px] font-semibold tracking-[0.08em] text-uva-text">
+            <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-codigo text-[15px] font-semibold tracking-[0.08em] text-uva-text">
               {recienCreado}
             </code>
             <Button
@@ -170,7 +170,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     type="button"
                     onClick={() => handleCopiar(codigo.codigo)}
                     title="Copiar código"
-                    className="flex items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (
@@ -260,7 +260,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     type="button"
                     onClick={() => handleCopiar(codigo.codigo)}
                     title="Copiar código"
-                    className="flex items-center gap-1.5 font-mono text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (

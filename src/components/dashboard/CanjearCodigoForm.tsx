@@ -156,7 +156,7 @@ export function CanjearCodigoForm({
               autoComplete="off"
               spellCheck={false}
               maxLength={13}
-              className="max-w-[220px] font-mono tracking-[0.08em] uppercase"
+              className="max-w-[220px] font-codigo tracking-[0.08em] uppercase"
               disabled={bloqueado}
               required
             />
