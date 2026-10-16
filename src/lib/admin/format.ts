@@ -67,8 +67,11 @@ export function formatDuracion(segundos: number | null) {
 /** Duración total de un curso, p.ej. `3 h 20 m` o `45 min`. */
 export function formatHoras(segundos: number) {
   if (segundos <= 0) return "—";
-  const horas = Math.floor(segundos / 3600);
-  const minutos = Math.round((segundos % 3600) / 60);
+  // Se redondea el total a minutos ANTES de partir en horas: redondear solo
+  // el resto daba "1 h 60 m" con 1 h 59 min 40 s.
+  const totalMinutos = Math.round(segundos / 60);
+  const horas = Math.floor(totalMinutos / 60);
+  const minutos = totalMinutos % 60;
   if (horas === 0) return `${minutos} min`;
   if (minutos === 0) return `${horas} h`;
   return `${horas} h ${minutos} m`;

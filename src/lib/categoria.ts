@@ -31,6 +31,13 @@ export type CursoDeCategoria = {
   /** Todas las categorías del curso — `curso_categorias` es muchos-a-muchos (ver 059). */
   categorias: CategoriaChip[];
   totalClases: number;
+  /**
+   * Suma de la duración de las clases con video LISTO (121), el mismo
+   * criterio que la ficha del curso. `null` si la base todavía no trae la
+   * columna (un entorno sin el script 121): la tarjeta oculta el dato en vez
+   * de mostrar "0 min".
+   */
+  duracionTotalSegundos: number | null;
   imagenPortada: string;
   /**
    * `true` solo cuando lo trae `buscarCatalogoConProgreso()` (el catálogo
@@ -185,6 +192,13 @@ type OpcionesBuscarCatalogo = {
   query?: string;
   categoriaId?: string;
   pagina?: number;
+  /**
+   * "Cargar más" del catálogo público: `pagina` dice HASTA qué página se ve,
+   * y se traen todos los cursos desde el primero (`?page=3` = los 36
+   * primeros). Así la URL reproduce la lista completa al recargar o
+   * compartir el enlace. Sin esto, `pagina` es una sola página.
+   */
+  acumular?: boolean;
 };
 
 /**
@@ -215,12 +229,13 @@ async function buscarCatalogoConCliente(
   // Se normaliza también acá, aunque los llamadores ya lo hacen: es lo que
   // llega a la base, y no debe depender de que cada página se acuerde.
   const pagina = numeroDePagina(opciones.pagina ?? 1);
-  const offset = (pagina - 1) * CURSOS_POR_PAGINA;
+  const offset = opciones.acumular ? 0 : (pagina - 1) * CURSOS_POR_PAGINA;
+  const limite = opciones.acumular ? pagina * CURSOS_POR_PAGINA : CURSOS_POR_PAGINA;
 
   const { data, error } = await supabase.rpc("buscar_catalogo", {
     p_query: textoDeBusqueda(opciones.query) ?? null,
     p_categoria_id: opciones.categoriaId || null,
-    p_limite: CURSOS_POR_PAGINA,
+    p_limite: limite,
     p_offset: offset,
   });
 
@@ -236,6 +251,8 @@ async function buscarCatalogoConCliente(
     categorias: CategoriaChip[] | null;
     total_clases: number;
     total_resultados: number;
+    /** Ausente si la base no tiene el script 121. */
+    duracion_total_segundos?: number | null;
   };
 
   const filas = (data ?? []) as FilaBusqueda[];
@@ -256,6 +273,7 @@ async function buscarCatalogoConCliente(
     instructorNombre: fila.instructor_nombre ?? SIN_INSTRUCTOR,
     categorias: fila.categorias?.length ? fila.categorias : [{ id: "general", nombre: "General" }],
     totalClases: Number(fila.total_clases),
+    duracionTotalSegundos: fila.duracion_total_segundos == null ? null : Number(fila.duracion_total_segundos),
     imagenPortada: fila.imagen_portada,
     completado: progresoPorCurso?.get(fila.curso_id)?.completado,
     examenPendiente: progresoPorCurso?.get(fila.curso_id)?.examenPendiente,
@@ -271,7 +289,8 @@ async function buscarCatalogoConCliente(
 
 /**
  * Catálogo público (`/catalogo`) — cliente sin cookies, sin progreso del
- * estudiante.
+ * estudiante. Lista ACUMULADA ("cargar más"): `pagina` es hasta qué página se
+ * ve, ver `OpcionesBuscarCatalogo.acumular`.
  *
  * Qué se cachea y qué no (AUDIT-2026-09-22.md, P2-2 y P2-3)
  * ---------------------------------------------------------
@@ -294,7 +313,11 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
 
   try {
     return query
-      ? await buscarCatalogoConCliente(createPublicClient(), { query, categoriaId: opciones.categoriaId, pagina }, false)
+      ? await buscarCatalogoConCliente(
+          createPublicClient(),
+          { query, categoriaId: opciones.categoriaId, pagina, acumular: true },
+          false,
+        )
       : await listadoPublicoCacheado(opciones.categoriaId ?? null, pagina);
   } catch (error) {
     unstable_rethrow(error);
@@ -320,8 +343,10 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
  */
 const listadoPublicoCacheado = unstable_cache(
   async (categoriaId: string | null, pagina: number): Promise<ResultadoCatalogo> =>
-    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina }, false),
-  ["catalogo-publico"],
+    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina, acumular: true }, false),
+  // Clave nueva desde "cargar más": una entrada guardada con la forma
+  // anterior (una sola página, sin duración) no debe servirse con esta.
+  ["catalogo-publico-acumulado"],
   { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
 );
 

@@ -71,7 +71,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
     expect(resultado.fallo).toBeUndefined();
     // La clave es JSON.stringify(args): `2.7` ya llega como `2`, y la categoría
     // ausente sería `null`, nunca `undefined`.
-    expect(llamadasA("catalogo-publico")).toEqual([{ clave: "catalogo-publico", args: ["cat-1", 2], resultado: "resolvio" }]);
+    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: ["cat-1", 2], resultado: "resolvio" }]);
   });
 
   it("sin categoría, la clave lleva `null` explícito (no `undefined`, que JSON.stringify colapsa)", async () => {
@@ -79,7 +79,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
 
     await buscarCatalogoPublico({});
 
-    expect(llamadasA("catalogo-publico")[0].args).toEqual([null, 1]);
+    expect(llamadasA("catalogo-publico-acumulado")[0].args).toEqual([null, 1]);
   });
 
   it("una búsqueda con texto va directo a la base y NO crea entrada de caché", async () => {
@@ -88,7 +88,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
     const resultado = await buscarCatalogoPublico({ query: "  revit  ", pagina: 1 });
 
     expect(resultado.cursos).toHaveLength(1);
-    expect(llamadasA("catalogo-publico")).toHaveLength(0);
+    expect(llamadasA("catalogo-publico-acumulado")).toHaveLength(0);
     expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_query: "revit" });
   });
 
@@ -97,7 +97,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
 
     await buscarCatalogoPublico({ query: "    " });
 
-    expect(llamadasA("catalogo-publico")).toHaveLength(1);
+    expect(llamadasA("catalogo-publico-acumulado")).toHaveLength(1);
     expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_query: null });
   });
 
@@ -106,9 +106,34 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
 
     await buscarCatalogoPublico({ query: "a".repeat(5000), pagina: 99999 });
 
-    const argumentos = servidorFalso.argumentosDe("rpc:buscar_catalogo") as { p_query: string; p_offset: number };
+    const argumentos = servidorFalso.argumentosDe("rpc:buscar_catalogo") as {
+      p_query: string;
+      p_offset: number;
+      p_limite: number;
+    };
     expect(argumentos.p_query).toHaveLength(100);
-    expect(argumentos.p_offset).toBe((100 - 1) * 12);
+    // Lista acumulada ("cargar más"): desde el primer curso hasta la página 100.
+    expect(argumentos.p_offset).toBe(0);
+    expect(argumentos.p_limite).toBe(100 * 12);
+  });
+
+  it("cargar más: `pagina` trae todos los cursos hasta esa página, desde el primero", async () => {
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [], error: null });
+
+    await buscarCatalogoPublico({ pagina: 3 });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_offset: 0, p_limite: 36 });
+  });
+
+  it("la duración llega en segundos, y sin la columna queda `null` (no 0)", async () => {
+    servidorFalso.responder("rpc:buscar_catalogo", {
+      data: [{ ...filaCurso("a"), duracion_total_segundos: 5280 }, filaCurso("b")],
+      error: null,
+    });
+
+    const { cursos } = await buscarCatalogoPublico({});
+
+    expect(cursos.map((curso) => curso.duracionTotalSegundos)).toEqual([5280, null]);
   });
 });
 
@@ -118,7 +143,7 @@ describe("buscarCatalogoPublico — un fallo nunca se cachea", () => {
 
     const resultado = await buscarCatalogoPublico({ pagina: 3 });
 
-    expect(llamadasA("catalogo-publico")).toEqual([{ clave: "catalogo-publico", args: [null, 3], resultado: "rechazo" }]);
+    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: [null, 3], resultado: "rechazo" }]);
     expect(resultado).toEqual({ cursos: [], totalResultados: 0, pagina: 3, totalPaginas: 1, fallo: true });
     expect(logError).toHaveBeenCalledWith(
       "catalogo:publico",
@@ -163,7 +188,7 @@ describe("buscarCatalogoPublico — un fallo nunca se cachea", () => {
 
     expect(resultado.fallo).toBeUndefined();
     expect(resultado.cursos).toEqual([]);
-    expect(llamadasA("catalogo-publico")[0].resultado).toBe("resolvio");
+    expect(llamadasA("catalogo-publico-acumulado")[0].resultado).toBe("resolvio");
     expect(logError).not.toHaveBeenCalled();
   });
 });

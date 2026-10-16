@@ -3,6 +3,7 @@ import {
   extensionArchivo,
   formatDuracion,
   formatFecha,
+  formatHoras,
   formatMoneda,
   formatTamanoArchivo,
   tiempoRelativo,
@@ -96,6 +97,23 @@ describe("formatDuracion", () => {
 
   it("padea también los segundos sueltos", () => {
     expect(formatDuracion(65)).toBe("01:05");
+  });
+});
+
+describe("formatHoras", () => {
+  it("muestra horas y minutos", () => {
+    expect(formatHoras(5280)).toBe("1 h 28 m");
+    expect(formatHoras(2700)).toBe("45 min");
+    expect(formatHoras(7200)).toBe("2 h");
+  });
+
+  it("no da 60 minutos al redondear", () => {
+    expect(formatHoras(7180)).toBe("2 h");
+    expect(formatHoras(3590)).toBe("1 h");
+  });
+
+  it("sin duración muestra la raya", () => {
+    expect(formatHoras(0)).toBe("—");
   });
 });
 

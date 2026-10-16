@@ -27,7 +27,9 @@ export function BuscadorInput({
   onTextoChange,
   mensajeVacio = "Sin resultados",
   className,
+  inputClassName,
   autoFocus = false,
+  etiqueta,
 }: {
   placeholder?: string;
   valorInicial?: string;
@@ -39,6 +41,11 @@ export function BuscadorInput({
   onTextoChange?: (valor: string) => void;
   mensajeVacio?: string;
   className?: string;
+  /** Clases extra del campo (se fusionan con las de siempre): el catálogo
+   * público lo usa para su campo más alto y con borde marcado. */
+  inputClassName?: string;
+  /** Nombre accesible del campo. Sin él, el lector de pantalla solo tiene el placeholder. */
+  etiqueta?: string;
   /** Para cuando este input recién se monta dentro de un overlay ya abierto
    * (buscador móvil): no usar en un input que vive siempre en la página. */
   autoFocus?: boolean;
@@ -83,17 +90,25 @@ export function BuscadorInput({
         <Autocomplete.Input
           placeholder={placeholder}
           autoFocus={autoFocus}
+          aria-label={etiqueta}
           // Mismo tope que aplica el servidor (lib/parametros-url.ts): así
           // nadie escribe algo que después se recorte en silencio.
           maxLength={LARGO_MAXIMO_BUSQUEDA}
-          className="h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-base text-uva-text caret-uva-accent outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm"
+          className={cn(
+            "h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-3 pl-9 text-base text-uva-text caret-uva-accent outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm",
+            // Espacio para la ✕ de limpiar solo cuando se ve: vacío, el
+            // texto de ayuda usa todo el ancho (a 320 px se cortaba).
+            texto && "pr-11",
+            inputClassName,
+          )}
         />
         {texto && (
           <button
             type="button"
             onClick={limpiar}
             aria-label="Limpiar búsqueda"
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-uva-text-faint hover:text-uva-text"
+            // 44 px de ancho y el alto del campo: área táctil mínima (CLAUDE.md 3.4).
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-uva-md text-uva-text-faint hover:text-uva-text focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-uva-accent"
           >
             <CrossIcon className="size-3" />
           </button>
