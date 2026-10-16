@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
 import { MensajeError } from "@/components/auth/MensajeError";
 import { PasoAcceso } from "@/components/auth/PasoAcceso";
+import { POSICION_NIVEL } from "@/components/auth/NivelObra";
 import {
   ACCESO_BOTON,
   ACCESO_ENLACE,
@@ -45,12 +46,8 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
 
   return (
     <PasoAcceso
-      nivel={
-        enviado
-          ? { aNivel: true, posicion: 50, cota: "N ±0,00" }
-          : valido
-            ? { aNivel: false, posicion: 34, cota: "N +0,06" }
-            : { aNivel: false, posicion: 22, cota: "N +0,12" }
+      posicionNivel={
+        enviado ? POSICION_NIVEL.centro : valido ? POSICION_NIVEL.avance : POSICION_NIVEL.inicio
       }
       titulo="Recupera tu contraseña"
       subtitulo="Escribe el correo con el que te registraste y te enviamos un enlace para crear una nueva."

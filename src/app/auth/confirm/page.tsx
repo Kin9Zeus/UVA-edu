@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AccesoMarco } from "@/components/auth/AccesoMarco";
 import { PasoAcceso } from "@/components/auth/PasoAcceso";
+import { POSICION_NIVEL } from "@/components/auth/NivelObra";
 import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
 import { CarneVistaPrevia } from "@/components/auth/CarneVistaPrevia";
 import { RegistroMarco } from "@/components/auth/RegistroMarco";
@@ -164,7 +165,7 @@ export default async function ConfirmarEnlacePage({
   return (
     <AccesoMarco>
       <PasoAcceso
-        nivel={{ aNivel: false, posicion: 44, cota: "N +0,03" }}
+        posicionNivel={POSICION_NIVEL.centro}
         titulo="Confirma tu enlace"
         subtitulo="Abriste el enlace para crear tu contraseña nueva. Pulsa el botón para continuar."
         paso={2}

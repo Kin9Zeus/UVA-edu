@@ -8,7 +8,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { RegistroForm } from "@/components/auth/RegistroForm";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { ReenviarVerificacion } from "@/components/auth/ReenviarVerificacion";
-import { NivelPlano } from "@/components/auth/NivelPlano";
+import { NivelObra, POSICION_NIVEL } from "@/components/auth/NivelObra";
 import { MensajeError } from "@/components/auth/MensajeError";
 import { FichaOk } from "@/components/auth/FichaOk";
 import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
@@ -192,12 +192,14 @@ export function AuthFlow({
 
   const { title, subtitle } = STEP_COPY[step];
 
-  const encabezado = (className: string) => (
+  // `subtituloClase`: el registro es más alto que el login; en una pantalla
+  // muy baja su subtítulo queda solo para el lector de pantalla.
+  const encabezado = (className: string, subtituloClase = "") => (
     <div className={`grid grid-cols-1 gap-2 bajo:gap-1 ${className}`}>
       <h1 ref={tituloRef} tabIndex={-1} className={ACCESO_TITULO}>
         {title}
       </h1>
-      <p className={ACCESO_SUBTITULO}>{subtitle}</p>
+      <p className={`${ACCESO_SUBTITULO} ${subtituloClase}`}>{subtitle}</p>
     </div>
   );
 
@@ -216,7 +218,7 @@ export function AuthFlow({
         }
       >
         <div className="grid grid-cols-1 gap-4 bajo:gap-3">
-          {encabezado("")}
+          {encabezado("", "muy-bajo:sr-only")}
 
           {step === "signup" && (
             <div className="grid grid-cols-1 gap-1">
@@ -297,9 +299,11 @@ export function AuthFlow({
   return (
     <AccesoMarco>
       <div className="grid grid-cols-1 gap-5 bajo:gap-3 muy-bajo:gap-2.5 apaisado:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] apaisado:content-start apaisado:gap-x-6">
-        {/* `zoom` (no `scale`) para que el nivel también ocupe menos alto. */}
-        <div className="bajo:[zoom:0.8] muy-bajo:[zoom:0.5] apaisado:col-start-1 apaisado:row-start-1 apaisado:pt-2">
-          <NivelPlano aNivel={step !== "email"} />
+        {/* La burbuja empieza a la izquierda y queda centrada desde que el
+            correo está identificado. `zoom` (no `scale`) para que en una
+            pantalla muy baja también ocupe menos alto. */}
+        <div className="muy-bajo:[zoom:0.85] apaisado:col-start-1 apaisado:row-start-1 apaisado:pt-2">
+          <NivelObra posicion={step === "email" ? POSICION_NIVEL.inicio : POSICION_NIVEL.centro} />
         </div>
 
         {encabezado(

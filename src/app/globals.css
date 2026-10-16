@@ -9,11 +9,11 @@
    zoom. Cada una va después de la anterior para ganarle donde se cruzan:
    `medio` < `bajo` < `muy-bajo` < `apaisado` (celular girado) <
    `escritorio-bajo` (el registro en PC pasa sus campos a dos columnas). */
-@custom-variant medio (@media (max-height: 820px));
+@custom-variant medio (@media (max-height: 880px));
 @custom-variant bajo (@media (max-height: 760px));
 @custom-variant muy-bajo (@media (max-height: 640px));
 @custom-variant apaisado (@media (max-height: 500px) and (min-width: 600px));
-@custom-variant escritorio-bajo (@media (min-width: 900px) and (max-height: 800px));
+@custom-variant escritorio-bajo (@media (min-width: 900px) and (max-height: 900px));
 
 @theme inline {
   --color-background: var(--background);

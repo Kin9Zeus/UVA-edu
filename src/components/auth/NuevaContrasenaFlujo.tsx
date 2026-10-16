@@ -9,6 +9,7 @@ import { ReglasPassword } from "@/components/auth/ReglasPassword";
 import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
 import { MensajeError } from "@/components/auth/MensajeError";
 import { PasoAcceso } from "@/components/auth/PasoAcceso";
+import { POSICION_NIVEL } from "@/components/auth/NivelObra";
 import {
   ACCESO_BOTON,
   ACCESO_INPUT,
@@ -20,13 +21,11 @@ import {
   type ActualizarPasswordState,
 } from "@/actions/auth/actualizar-password";
 
-/** Burbuja y cota del nivel según cuántos requisitos van cumplidos (0 a 5). */
-const POSICIONES = [16, 23, 30, 37, 44, 50];
-const COTAS = ["N +0,15", "N +0,12", "N +0,09", "N +0,06", "N +0,03", "N ±0,00"];
-
 /**
- * Crea tu nueva contraseña (Nueva contraseña lab 7, "Nivel"): cada regla
- * cumplida y la repetición que coincide acercan la burbuja al centro. Al
+ * Crea tu nueva contraseña (Nueva contraseña lab 7, "Nivel"). La burbuja
+ * sigue el recorrido de izquierda a derecha: llega al centro con el enlace
+ * enviado, se queda ahí mientras se crea la contraseña y pasa a la derecha
+ * cuando queda guardada. Al
  * guardar, actualizarPassword cierra la sesión del enlace y esta pantalla
  * pasa a "Contraseña guardada" con "Iniciar sesión", que precarga el correo.
  */
@@ -42,8 +41,7 @@ export function NuevaContrasenaFlujo() {
   const cumplidas = passwordRules.filter((regla) => regla.test(password)).length;
   const coinciden = password.length > 0 && password === password2;
   const noCoinciden = password2.length > 0 && !coinciden;
-  const hechos = guardada ? 5 : cumplidas + (coinciden ? 1 : 0);
-  const lista = hechos === 5;
+  const lista = cumplidas === passwordRules.length && coinciden;
 
   // El formulario se reemplaza entero al guardar: el foco va al título
   // nuevo para que el lector de pantalla anuncie "Contraseña guardada".
@@ -58,7 +56,7 @@ export function NuevaContrasenaFlujo() {
 
   return (
     <PasoAcceso
-      nivel={{ aNivel: lista, posicion: POSICIONES[hechos], cota: COTAS[hechos] }}
+      posicionNivel={guardada ? POSICION_NIVEL.final : POSICION_NIVEL.centro}
       titulo={guardada ? "Contraseña guardada" : "Crea tu nueva contraseña"}
       subtitulo={
         guardada
