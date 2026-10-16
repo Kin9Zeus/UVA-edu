@@ -61,7 +61,11 @@ export function LoginForm({
 
       {state?.error && <MensajeError id="login-error">{state.error}</MensajeError>}
 
-      <Link href="/recuperar" className={`justify-self-end ${ACCESO_ENLACE}`}>
+      {/* Lleva el correo ya escrito: /recuperar lo muestra en el campo. */}
+      <Link
+        href={`/recuperar?email=${encodeURIComponent(email)}`}
+        className={`justify-self-end ${ACCESO_ENLACE}`}
+      >
         ¿Olvidaste tu contraseña?
       </Link>
 

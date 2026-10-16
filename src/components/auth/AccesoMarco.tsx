@@ -30,7 +30,7 @@ export function AccesoMarco({ children }: { children: ReactNode }) {
       </header>
 
       <main className="grid flex-1 px-3 pt-3 pb-8 [place-items:safe_center] min-[900px]:px-6 min-[900px]:py-10 bajo:py-3 muy-bajo:pt-2 muy-bajo:pb-1">
-        <div className="w-full min-w-0 max-w-[460px] rounded-uva-lg border border-uva-divider bg-uva-surface px-4 py-5 sm:px-8 sm:py-8 min-[1920px]:max-w-[520px] min-[1920px]:px-11 min-[1920px]:py-10 bajo:py-5 muy-bajo:py-3 apaisado:max-w-[680px] apaisado:px-6 apaisado:py-3">
+        <div className="w-full min-w-0 max-w-[460px] rounded-uva-lg border border-uva-divider bg-uva-surface px-4 py-5 sm:px-8 sm:py-8 min-[1920px]:max-w-[520px] min-[1920px]:px-11 min-[1920px]:py-10 medio:py-6 bajo:py-5 muy-bajo:py-3 apaisado:max-w-[680px] apaisado:px-6 apaisado:py-3">
           {children}
         </div>
       </main>

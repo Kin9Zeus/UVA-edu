@@ -52,8 +52,13 @@ test("enlace de recuperación ya usado no deja volver a entrar con él", async (
     await page.fill("#nueva-pass", passwordNueva);
     await page.fill("#nueva-pass2", passwordNueva);
     await page.getByRole("button", { name: "Guardar nueva contraseña" }).click();
-    // actualizarPassword() cierra la sesión del enlace y manda a /login.
-    await expect(page).toHaveURL("/login", { timeout: 15_000 });
+    // actualizarPassword() cierra la sesión del enlace y la pantalla pasa a
+    // "Contraseña guardada"; "Iniciar sesión" lleva a /login con el correo.
+    await expect(page.getByRole("heading", { name: "Contraseña guardada" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole("link", { name: "Iniciar sesión" }).click();
+    await expect(page).toHaveURL(/\/login(\?email=|$)/, { timeout: 15_000 });
   });
 
   await test.step("segundo uso del MISMO enlace: no entra, y /login explica por qué", async () => {

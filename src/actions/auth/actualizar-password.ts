@@ -1,12 +1,20 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 
-export type ActualizarPasswordState = { error: string } | null;
+/**
+ * `guardada`: la contraseña se cambió y la sesión del enlace ya se cerró; la
+ * pantalla muestra "Contraseña guardada" con "Iniciar sesión" (Nueva
+ * contraseña lab 7). `email` precarga el login para saltar al paso de
+ * contraseña.
+ */
+export type ActualizarPasswordState =
+  | { error: string; guardada?: never }
+  | { guardada: true; email: string | null; error?: never }
+  | null;
 
 export async function actualizarPassword(
   _prevState: ActualizarPasswordState,
@@ -56,5 +64,5 @@ export async function actualizarPassword(
   // quedar autenticado de una vez en el dashboard.
   await supabase.auth.signOut();
 
-  redirect("/login");
+  return { guardada: true, email: user.email ?? null };
 }

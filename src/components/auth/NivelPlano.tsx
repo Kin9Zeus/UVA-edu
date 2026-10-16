@@ -13,7 +13,20 @@ import { cn } from "@/lib/utils";
  * cuentan el título y el subtítulo de cada paso. La transición de la burbuja
  * la apaga la regla global de `prefers-reduced-motion` (globals.css).
  */
-export function NivelPlano({ aNivel }: { aNivel: boolean }) {
+export function NivelPlano({
+  aNivel,
+  posicion,
+  cota,
+}: {
+  /** A nivel: eje sólido amarillo y marca en negro. */
+  aNivel: boolean;
+  /** Posición de la burbuja en % del tubo (50 = centrada). Por defecto, 22 o 50 según `aNivel`. */
+  posicion?: number;
+  /** Rótulo de la marca ("N +0,12"). Por defecto, el de `aNivel`. */
+  cota?: string;
+}) {
+  const izquierda = `${posicion ?? (aNivel ? 50 : 22)}%`;
+  const rotulo = cota ?? (aNivel ? "N ±0,00" : "N +0,12");
   return (
     <div
       aria-hidden="true"
@@ -34,7 +47,7 @@ export function NivelPlano({ aNivel }: { aNivel: boolean }) {
             strokeLinejoin="round"
           />
         </svg>
-        {aNivel ? "N ±0,00" : "N +0,12"}
+        {rotulo}
       </span>
 
       <span
@@ -55,7 +68,7 @@ export function NivelPlano({ aNivel }: { aNivel: boolean }) {
             <Raya className="left-[calc(50%+9px)]" />
             <span
               className="absolute inset-y-0.5 w-[15px] -translate-x-1/2 rounded-full bg-uva-on-accent ring-1 ring-uva-text transition-[left] duration-500 ease-[cubic-bezier(.25,1.2,.5,1)]"
-              style={{ left: aNivel ? "50%" : "22%" }}
+              style={{ left: izquierda }}
             />
           </span>
         </span>

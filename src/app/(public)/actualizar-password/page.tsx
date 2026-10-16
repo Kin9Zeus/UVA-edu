@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AuthVisual } from "@/components/auth/AuthVisual";
-import { ActualizarPasswordForm } from "@/components/auth/ActualizarPasswordForm";
+import { AccesoMarco } from "@/components/auth/AccesoMarco";
+import { NuevaContrasenaFlujo } from "@/components/auth/NuevaContrasenaFlujo";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
@@ -42,33 +42,8 @@ export default async function ActualizarPasswordPage({
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden min-[900px]:h-screen min-[900px]:flex-row min-[900px]:overflow-hidden">
-      {/* Mobile: degradado de fondo detrás de todo — desktop no lo usa
-          (AuthVisual ya trae los suyos, confinados a su propia sección).
-          Mismo tratamiento que /login y /recuperar (ver esos page.tsx). */}
-      <div
-        aria-hidden="true"
-        className="absolute -top-[80px] -right-[100px] h-[320px] w-[320px] rounded-full bg-[radial-gradient(circle_at_35%_30%,color-mix(in_srgb,var(--uva-accent)_24%,transparent),transparent_70%)] min-[900px]:hidden"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute top-[220px] -left-[80px] h-[260px] w-[260px] rounded-full opacity-60 bg-[radial-gradient(circle_at_60%_40%,color-mix(in_srgb,var(--uva-accent-2)_22%,transparent),transparent_75%)] min-[900px]:hidden"
-      />
-
-      <AuthVisual />
-
-      <section className="relative z-[2] grid flex-1 place-items-center px-5 pt-3 pb-10 min-[900px]:overflow-y-auto min-[900px]:bg-uva-text/4 min-[900px]:p-11 min-[900px]:[place-items:safe_center]">
-        <div className="w-full max-w-[396px] rounded-uva-lg border border-uva-divider bg-uva-surface/90 px-6 py-7 shadow-xl backdrop-blur-sm min-[900px]:rounded-none min-[900px]:border-0 min-[900px]:bg-transparent min-[900px]:px-0 min-[900px]:py-4 min-[900px]:shadow-none min-[900px]:backdrop-blur-none">
-          <h1 className="mb-1.5 text-center text-[30px] text-uva-text">
-            Crea tu nueva contraseña
-          </h1>
-          <p className="mb-6 text-center text-sm text-uva-text-muted">
-            Esta será tu nueva contraseña para iniciar sesión en U.V.A.
-          </p>
-
-          <ActualizarPasswordForm />
-        </div>
-      </section>
-    </div>
+    <AccesoMarco>
+      <NuevaContrasenaFlujo />
+    </AccesoMarco>
   );
 }

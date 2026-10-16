@@ -7,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { MensajeError } from "@/components/auth/MensajeError";
+import { ReglasPassword } from "@/components/auth/ReglasPassword";
 import type { DatosCarne } from "@/components/auth/CarneVistaPrevia";
 import {
   ACCESO_BOTON,
   ACCESO_INPUT,
   ACCESO_LABEL,
 } from "@/components/auth/acceso";
-import { passwordRules, isPasswordValid } from "@/lib/password";
+import { isPasswordValid } from "@/lib/password";
 import { registro, type RegistroState } from "@/actions/auth/registro";
-import { cn } from "@/lib/utils";
 
 /**
  * Formulario de crear cuenta (Crear cuenta lab 6, "Carné"). Nombre, correo y
@@ -137,42 +137,11 @@ export function RegistroForm({
 
       {/* En una columna va justo debajo de la contraseña; en `escritorio-bajo`
           pasa debajo de las dos contraseñas, a todo el ancho. */}
-      <ul
+      <ReglasPassword
         id="reg-reglas"
-        className="-mt-1 flex flex-wrap gap-x-3 gap-y-0.5 escritorio-bajo:order-1 escritorio-bajo:col-span-2 escritorio-bajo:mt-0"
-      >
-        {passwordRules.map((rule) => {
-          const met = rule.test(password);
-          const fallando = !met && password.length > 0;
-          return (
-            <li
-              key={rule.id}
-              className={cn(
-                "flex items-center gap-1.5 text-uva-detalle",
-                met
-                  ? "text-uva-text"
-                  : fallando
-                    ? "text-uva-danger-text"
-                    : "text-uva-text-muted",
-              )}
-            >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "size-3.5 flex-none rounded-full border-2 transition-colors duration-150",
-                  met
-                    ? "border-uva-text bg-uva-accent-2"
-                    : fallando
-                      ? "border-uva-accent"
-                      : "border-uva-muted-2",
-                )}
-              />
-              <span className="sr-only">{met ? "Cumple: " : "Falta: "}</span>
-              {rule.label}
-            </li>
-          );
-        })}
-      </ul>
+        password={password}
+        className="-mt-1 escritorio-bajo:order-1 escritorio-bajo:col-span-2 escritorio-bajo:mt-0"
+      />
 
       <div>
         <Label htmlFor="reg-pass2" className={ACCESO_LABEL}>
