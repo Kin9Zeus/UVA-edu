@@ -25,6 +25,7 @@ import {
   leerCorreoConfirmado,
 } from "@/lib/correo-confirmado";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Confirmar",
@@ -89,7 +90,7 @@ export default async function ConfirmarEnlacePage({
             se anuncia como botón). */}
         <Link
           href={login}
-          className={buttonVariants({ variant: "uva-primary", size: "uva", className: ACCESO_BOTON })}
+          className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), ACCESO_BOTON)}
         >
           Iniciar sesión
         </Link>

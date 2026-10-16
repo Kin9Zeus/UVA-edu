@@ -23,7 +23,7 @@ export type TemaSoporte =
 // Mientras los precios estén apagados (`PRECIOS_HABILITADOS`) se entra solo
 // con código de invitación: las respuestas sobre suscripciones pagadas y
 // cambio de plan quedan fuera, porque describirían algo que hoy no existe.
-const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
+export const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
   {
     pregunta: "¿Qué es U.V.A.?",
     respuesta:

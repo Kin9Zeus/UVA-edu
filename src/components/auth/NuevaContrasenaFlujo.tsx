@@ -16,6 +16,7 @@ import {
   ACCESO_LABEL,
 } from "@/components/auth/acceso";
 import { passwordRules } from "@/lib/password";
+import { cn } from "@/lib/utils";
 import {
   actualizarPassword,
   type ActualizarPasswordState,
@@ -74,7 +75,7 @@ export function NuevaContrasenaFlujo() {
           {/* Un enlace, no un botón: es navegación. */}
           <Link
             href={login}
-            className={buttonVariants({ variant: "uva-primary", size: "uva", className: ACCESO_BOTON })}
+            className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), ACCESO_BOTON)}
           >
             Iniciar sesión
           </Link>
