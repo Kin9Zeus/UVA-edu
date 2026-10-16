@@ -5,6 +5,13 @@ import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
+import { MensajeError } from "@/components/auth/MensajeError";
+import {
+  ACCESO_BOTON,
+  ACCESO_ENLACE,
+  ACCESO_INPUT,
+  ACCESO_LABEL,
+} from "@/components/auth/acceso";
 import { login, type LoginState } from "@/actions/auth/login";
 
 export function LoginForm({
@@ -32,46 +39,38 @@ export function LoginForm({
   }
 
   return (
-    <form className="flex flex-col gap-3.5" action={formAction} noValidate>
+    <form className="grid grid-cols-1 gap-3 bajo:gap-2" action={formAction} noValidate>
       <input type="hidden" name="email" value={email} />
       <input type="hidden" name="redirect" value={redirectTo} />
 
-      {state?.error && (
-        <div
-          role="alert"
-          className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-center text-[13px] text-uva-danger-text"
-        >
-          {state.error}
-        </div>
-      )}
-
       <div>
-        <Label htmlFor="login-pass">Contraseña</Label>
+        <Label htmlFor="login-pass" className={ACCESO_LABEL}>
+          Contraseña
+        </Label>
         <PasswordInput
-          inputClassName="h-11 sm:text-base"
+          inputClassName={ACCESO_INPUT}
           id="login-pass"
           name="password"
           placeholder="••••••••"
           autoComplete="current-password"
           required
+          alternar="texto"
+          describedBy={state?.error ? "login-error" : undefined}
         />
       </div>
 
-      <div className="mt-2.5 flex justify-end">
-        <Link
-          href="/recuperar"
-          className="inline-flex min-h-11 items-center px-2 text-xs"
-        >
-          ¿Olvidaste tu contraseña?
-        </Link>
-      </div>
+      {state?.error && <MensajeError id="login-error">{state.error}</MensajeError>}
+
+      <Link href="/recuperar" className={`justify-self-end ${ACCESO_ENLACE}`}>
+        ¿Olvidaste tu contraseña?
+      </Link>
 
       <Button
         type="submit"
         variant="uva-primary"
         size="uva"
         disabled={pending}
-        className="mt-4 min-h-[46px] text-[15px]"
+        className={ACCESO_BOTON}
       >
         {pending ? "Entrando…" : "Entrar"}
       </Button>

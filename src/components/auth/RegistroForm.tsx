@@ -6,19 +6,41 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { CheckIcon, DotIcon } from "@/components/auth/icons";
+import { MensajeError } from "@/components/auth/MensajeError";
+import type { DatosCarne } from "@/components/auth/CarneVistaPrevia";
+import {
+  ACCESO_BOTON,
+  ACCESO_INPUT,
+  ACCESO_LABEL,
+} from "@/components/auth/acceso";
 import { passwordRules, isPasswordValid } from "@/lib/password";
 import { registro, type RegistroState } from "@/actions/auth/registro";
+import { cn } from "@/lib/utils";
 
+/**
+ * Formulario de crear cuenta (Crear cuenta lab 6, "Carné"). Nombre, correo y
+ * contraseña son controlados para que el carné de la vista previa se llene
+ * mientras se escribe (`onCambio`). En un PC bajo (`escritorio-bajo`) los
+ * campos van de a dos por fila y la lista de reglas pasa debajo de las dos
+ * contraseñas, para que todo quepa sin scroll; el orden del DOM (y del
+ * teclado) no cambia, solo el visual.
+ */
 export function RegistroForm({
   email,
+  nombreInicial = "",
   redirectTo,
   onCuentaCreada,
+  onCambio,
 }: {
   email: string;
+  /** Nombre ya escrito, al volver desde "¿Te equivocaste de correo?". */
+  nombreInicial?: string;
   redirectTo: string;
   onCuentaCreada?: (email: string) => void;
+  onCambio?: (datos: DatosCarne) => void;
 }) {
+  const [correo, setCorreo] = useState(email);
+  const [nombre, setNombre] = useState(nombreInicial);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
@@ -29,7 +51,12 @@ export function RegistroForm({
 
   const passwordValid = isPasswordValid(password);
   const passwordsMatch = password.length > 0 && password === password2;
+  const noCoinciden = password2.length > 0 && !passwordsMatch;
   const canSubmit = passwordValid && passwordsMatch && aceptaTerminos;
+
+  function cambiar(datos: Partial<DatosCarne>) {
+    onCambio?.({ nombre, correo, password, ...datos });
+  }
 
   useEffect(() => {
     if (registroState?.needsConfirmation) {
@@ -42,82 +69,117 @@ export function RegistroForm({
   }
 
   return (
-    <form className="flex flex-col gap-2" action={formAction}>
+    <form
+      className="grid grid-cols-1 gap-2.5 bajo:gap-2 escritorio-bajo:grid-cols-2 escritorio-bajo:gap-x-4"
+      action={formAction}
+    >
       <input type="hidden" name="redirect" value={redirectTo} />
 
-      {registroState?.error && (
-        <div
-          role="alert"
-          className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-center text-[13px] text-uva-danger-text"
-        >
-          {registroState.error}
-        </div>
-      )}
-
       <div>
-        <Label htmlFor="reg-email">Correo electrónico</Label>
+        <Label htmlFor="reg-email" className={ACCESO_LABEL}>
+          Correo electrónico
+        </Label>
         <Input
           id="reg-email"
           name="email"
           type="email"
           placeholder="Ingresa tu correo electrónico"
           autoComplete="email"
-          defaultValue={email}
+          value={correo}
+          onChange={(event) => {
+            setCorreo(event.target.value);
+            cambiar({ correo: event.target.value });
+          }}
           required
-          className="h-11 sm:text-base"
+          className={ACCESO_INPUT}
         />
       </div>
 
       <div>
-        <Label htmlFor="reg-nombre">Nombre completo</Label>
+        <Label htmlFor="reg-nombre" className={ACCESO_LABEL}>
+          Nombre completo
+        </Label>
         <Input
           id="reg-nombre"
           name="nombre"
           placeholder="Tu nombre y apellido"
           autoComplete="name"
+          value={nombre}
+          onChange={(event) => {
+            setNombre(event.target.value);
+            cambiar({ nombre: event.target.value });
+          }}
           required
-          className="h-11 sm:text-base"
+          className={ACCESO_INPUT}
         />
       </div>
 
       <div>
-        <Label htmlFor="reg-pass">Contraseña</Label>
+        <Label htmlFor="reg-pass" className={ACCESO_LABEL}>
+          Contraseña
+        </Label>
         <PasswordInput
-          inputClassName="h-11 sm:text-base"
+          inputClassName={ACCESO_INPUT}
           id="reg-pass"
           name="password"
           placeholder="Mínimo 10 caracteres"
           autoComplete="new-password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            cambiar({ password: event.target.value });
+          }}
           required
+          alternar="texto"
+          describedBy="reg-reglas"
         />
-
-        <ul className="mt-1.5 grid grid-cols-2 gap-x-2.5 gap-y-1">
-          {passwordRules.map((rule) => {
-            const met = rule.test(password);
-            const colorClass = met
-              ? "text-uva-valid"
-              : password.length > 0
-                ? "text-uva-danger-text"
-                : "text-uva-text-faint";
-            return (
-              <li
-                key={rule.id}
-                className={`flex items-center gap-1.5 text-[11px] leading-[1.3] transition-colors duration-150 [transition-timing-function:ease] [&_svg]:size-3 [&_svg]:shrink-0 ${colorClass}`}
-              >
-                {met ? <CheckIcon /> : <DotIcon />}
-                {rule.label}
-              </li>
-            );
-          })}
-        </ul>
       </div>
 
+      {/* En una columna va justo debajo de la contraseña; en `escritorio-bajo`
+          pasa debajo de las dos contraseñas, a todo el ancho. */}
+      <ul
+        id="reg-reglas"
+        className="-mt-1 flex flex-wrap gap-x-3 gap-y-0.5 escritorio-bajo:order-1 escritorio-bajo:col-span-2 escritorio-bajo:mt-0"
+      >
+        {passwordRules.map((rule) => {
+          const met = rule.test(password);
+          const fallando = !met && password.length > 0;
+          return (
+            <li
+              key={rule.id}
+              className={cn(
+                "flex items-center gap-1.5 text-[13px] leading-5",
+                met
+                  ? "text-uva-text"
+                  : fallando
+                    ? "text-uva-danger-text"
+                    : "text-uva-text-muted",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-3.5 flex-none rounded-full border-2 transition-colors duration-150",
+                  met
+                    ? "border-uva-text bg-uva-accent-2"
+                    : fallando
+                      ? "border-uva-accent"
+                      : "border-uva-muted-2",
+                )}
+              />
+              <span className="sr-only">{met ? "Cumple: " : "Falta: "}</span>
+              {rule.label}
+            </li>
+          );
+        })}
+      </ul>
+
       <div>
-        <Label htmlFor="reg-pass2">Repite la contraseña</Label>
+        <Label htmlFor="reg-pass2" className={ACCESO_LABEL}>
+          Repite la contraseña
+        </Label>
         <PasswordInput
-          inputClassName="h-11 sm:text-base"
+          inputClassName={ACCESO_INPUT}
           id="reg-pass2"
           name="password2"
           placeholder="Debe coincidir"
@@ -125,61 +187,74 @@ export function RegistroForm({
           value={password2}
           onChange={(event) => setPassword2(event.target.value)}
           required
+          alternar="texto"
+          invalid={noCoinciden}
+          describedBy={noCoinciden ? "reg-pass2-error" : undefined}
         />
-        {password2.length > 0 && !passwordsMatch && (
-          <p className="mt-1.5 text-xs text-uva-danger-text">
-            Las contraseñas no coinciden
+      </div>
+
+      <div className="grid grid-cols-1 gap-2.5 bajo:gap-2 escritorio-bajo:order-2 escritorio-bajo:col-span-2">
+        {noCoinciden && (
+          <MensajeError id="reg-pass2-error">Las contraseñas no coinciden.</MensajeError>
+        )}
+
+        {/* El <label> entero es el área táctil (44 px de alto); la casilla
+            nativa conserva Espacio para marcarla y el foco visible global. */}
+        <label
+          htmlFor="reg-terminos"
+          className="flex min-h-11 items-center gap-2.5 text-sm leading-5 text-uva-text-muted"
+        >
+          <input
+            id="reg-terminos"
+            name="terminos"
+            type="checkbox"
+            required
+            checked={aceptaTerminos}
+            onChange={(event) => setAceptaTerminos(event.target.checked)}
+            className="size-5 shrink-0 accent-uva-btn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          />
+          <span>
+            Acepto los{" "}
+            <Link
+              href="/soporte?tema=terminos"
+              className="text-uva-accent-ink underline underline-offset-3"
+              target="_blank"
+            >
+              Términos
+            </Link>{" "}
+            y la{" "}
+            <Link
+              href="/soporte?tema=privacidad"
+              className="text-uva-accent-ink underline underline-offset-3"
+              target="_blank"
+            >
+              Política de privacidad
+            </Link>
+          </span>
+        </label>
+
+        {registroState?.error && (
+          <MensajeError id="reg-error">{registroState.error}</MensajeError>
+        )}
+
+        <Button
+          type="submit"
+          variant="uva-primary"
+          size="uva"
+          disabled={!canSubmit || pending}
+          aria-describedby={aceptaTerminos ? undefined : "reg-terminos-ayuda"}
+          className={`${ACCESO_BOTON} disabled:border-uva-divider disabled:bg-uva-chip disabled:text-uva-text-muted disabled:opacity-100`}
+        >
+          {pending ? "Creando cuenta…" : "Crear mi cuenta"}
+        </Button>
+        {/* El botón deshabilitado no recibe foco con Tab: sin este texto quien
+            navega con teclado no sabe por qué no puede avanzar. */}
+        {!aceptaTerminos && (
+          <p id="reg-terminos-ayuda" className="text-[13px] text-uva-text-muted">
+            Acepta los Términos y la Política de privacidad para crear tu cuenta.
           </p>
         )}
       </div>
-
-      {/* El <label> entero es el área táctil (44 px de alto); la casilla
-          nativa conserva Espacio para marcarla y el foco visible global. */}
-      <label
-        htmlFor="reg-terminos"
-        className="mt-1.5 flex min-h-11 items-start gap-2 py-1 text-[12px] leading-[1.4] text-uva-text-muted"
-      >
-        <input
-          id="reg-terminos"
-          name="terminos"
-          type="checkbox"
-          required
-          checked={aceptaTerminos}
-          onChange={(event) => setAceptaTerminos(event.target.checked)}
-          className="mt-0.5 size-4 shrink-0 accent-uva-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-        />
-        <span>
-          Acepto los{" "}
-          <Link href="/soporte?tema=terminos" className="underline" target="_blank">
-            Términos
-          </Link>{" "}
-          y la{" "}
-          <Link href="/soporte?tema=privacidad" className="underline" target="_blank">
-            Política de privacidad
-          </Link>
-        </span>
-      </label>
-
-      <Button
-        type="submit"
-        variant="uva-primary"
-        size="uva"
-        disabled={!canSubmit || pending}
-        aria-describedby={aceptaTerminos ? undefined : "reg-terminos-ayuda"}
-        className="mt-1.5 text-[15px]"
-      >
-        {pending ? "Creando cuenta…" : "Crear mi cuenta"}
-      </Button>
-      {/* El botón deshabilitado no recibe foco con Tab: sin este texto quien
-          navega con teclado no sabe por qué no puede avanzar. */}
-      {!aceptaTerminos && (
-        <p
-          id="reg-terminos-ayuda"
-          className="mb-0 text-center text-xs text-uva-text-muted"
-        >
-          Acepta los Términos y la Política de privacidad para crear tu cuenta.
-        </p>
-      )}
     </form>
   );
 }

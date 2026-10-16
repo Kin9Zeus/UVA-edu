@@ -8,6 +8,25 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { RegistroForm } from "@/components/auth/RegistroForm";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { ReenviarVerificacion } from "@/components/auth/ReenviarVerificacion";
+import { NivelPlano } from "@/components/auth/NivelPlano";
+import { MensajeError } from "@/components/auth/MensajeError";
+import { FichaOk } from "@/components/auth/FichaOk";
+import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
+import { AccesoMarco } from "@/components/auth/AccesoMarco";
+import { RegistroMarco } from "@/components/auth/RegistroMarco";
+import {
+  CarneVistaPrevia,
+  type DatosCarne,
+} from "@/components/auth/CarneVistaPrevia";
+import {
+  ACCESO_BOTON,
+  ACCESO_ENLACE,
+  ACCESO_INPUT,
+  ACCESO_LABEL,
+  ACCESO_NOTA,
+  ACCESO_SUBTITULO,
+  ACCESO_TITULO,
+} from "@/components/auth/acceso";
 import { checkEmail } from "@/actions/auth/check-email";
 
 type Step =
@@ -63,6 +82,10 @@ const MENSAJES_ERROR_QUERY: Record<string, string> = {
   enlace_invalido: "Ese enlace ya no es válido o ya venció. Pide uno nuevo.",
 };
 
+/** Con el celular girado, el formulario ocupa la columna derecha entera. */
+const COLUMNA_FORMULARIO =
+  "apaisado:col-start-2 apaisado:row-span-2 apaisado:row-start-1";
+
 export function AuthFlow({
   redirectTo,
   initialEmail,
@@ -78,6 +101,13 @@ export function AuthFlow({
   const [checkError, setCheckError] = useState<string | null>(
     initialError ? (MENSAJES_ERROR_QUERY[initialError] ?? null) : null,
   );
+  // Lo que el carné de la vista previa muestra mientras se crea la cuenta;
+  // se conserva en "¡Ya casi!" para que el carné siga con el nombre puesto.
+  const [carne, setCarne] = useState<DatosCarne>({
+    nombre: "",
+    correo: "",
+    password: "",
+  });
 
   async function runCheckEmail(correo: string) {
     setCheckError(null);
@@ -93,6 +123,7 @@ export function AuthFlow({
     }
 
     if (!result.exists) {
+      setCarne({ nombre: "", correo, password: "" });
       setStep("signup");
     } else if (result.provider === "both") {
       setStep("both");
@@ -126,12 +157,20 @@ export function AuthFlow({
 
   function handleCrearCuenta() {
     setCheckError(null);
+    setCarne({ nombre: "", correo: email, password: "" });
     setStep("signup");
   }
 
   function handleCuentaCreada(correo: string) {
     setEmail(correo);
+    setCarne((actual) => ({ ...actual, correo }));
     setStep("confirmar");
+  }
+
+  // "¿Te equivocaste de correo?": vuelve a los datos sin perder el nombre.
+  function handleCorregirCorreo() {
+    setCarne((actual) => ({ ...actual, password: "" }));
+    setStep("signup");
   }
 
   function handlePendienteVerificacion() {
@@ -153,184 +192,231 @@ export function AuthFlow({
 
   const { title, subtitle } = STEP_COPY[step];
 
-  return (
-    <>
-      <h1
-        ref={tituloRef}
-        tabIndex={-1}
-        className="mb-1.5 text-center text-[30px] text-uva-text focus:outline-none"
-      >
+  const encabezado = (className: string) => (
+    <div className={`grid grid-cols-1 gap-2 bajo:gap-1 ${className}`}>
+      <h1 ref={tituloRef} tabIndex={-1} className={ACCESO_TITULO}>
         {title}
       </h1>
-      <p className="mb-6 text-center text-sm text-uva-text-muted">
-        {subtitle}
-      </p>
+      <p className={ACCESO_SUBTITULO}>{subtitle}</p>
+    </div>
+  );
 
-      {step === "email" ? (
-        <>
-          <form
-            className="flex flex-col gap-3.5"
-            onSubmit={handleEmailSubmit}
-            noValidate
-          >
-            {checkError && (
-              <div
-                role="alert"
-                className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-center text-[13px] text-uva-danger-text"
-              >
-                {checkError}
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="auth-email">Correo electrónico</Label>
-              <Input
-                id="auth-email"
-                name="email"
-                type="email"
-                placeholder="Ingresa tu correo electrónico"
-                autoComplete="email"
-                required
-                className="h-11 sm:text-base"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              variant="uva-primary"
-              size="uva"
-              disabled={checking}
-              className="mt-2.5 min-h-[46px] text-[15px]"
-            >
-              {checking ? "Verificando…" : "Continuar"}
-            </Button>
-          </form>
-
-          <p className="mt-4 text-center text-[13px] text-uva-text-muted">
-            ¿No tienes cuenta?{" "}
-            <button
-              type="button"
-              onClick={handleCrearCuenta}
-              className="inline-flex min-h-11 items-center px-2 text-uva-accent-ink hover:underline"
-            >
-              Crear cuenta
-            </button>
-          </p>
-
-          <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-uva-divider" />
-            <span className="text-[11px] whitespace-nowrap text-uva-text-faint">
-              o continúa con
-            </span>
-            <div className="h-px flex-1 bg-uva-divider" />
-          </div>
-
-          <GoogleAuthButton
-            label="Continuar con Google"
-            next={redirectTo}
+  // Crear cuenta y "¡Ya casi!": pantalla partida con el carné (Crear cuenta
+  // lab 6, "Carné").
+  if (step === "signup" || step === "confirmar") {
+    return (
+      <RegistroMarco
+        carne={
+          <CarneVistaPrevia
+            nombre={carne.nombre}
+            correo={carne.correo}
+            password={carne.password}
+            sello={step === "confirmar" ? "pendiente" : null}
           />
-        </>
-      ) : (
-        <>
-          {step !== "signup" && step !== "confirmar" && step !== "pendiente" && (
-            <div className="mb-4 flex items-center justify-between gap-2 rounded-uva-md border border-uva-divider bg-uva-surface/40 py-0 pr-1 pl-3.5 text-sm text-uva-text">
-              <span className="min-w-0 truncate">{email}</span>
-              <button
-                type="button"
-                onClick={handleCambiar}
-                className="inline-flex min-h-11 shrink-0 items-center px-2 text-xs text-uva-accent-ink hover:underline"
-              >
-                Cambiar
-              </button>
-            </div>
-          )}
-
-          {step === "login" && (
-            <LoginForm
-              email={email}
-              redirectTo={redirectTo}
-              onPendienteVerificacion={handlePendienteVerificacion}
-            />
-          )}
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 bajo:gap-3">
+          {encabezado("")}
 
           {step === "signup" && (
-            <>
+            <div className="grid grid-cols-1 gap-1">
               <RegistroForm
                 email={email}
+                nombreInicial={carne.nombre}
                 redirectTo={redirectTo}
                 onCuentaCreada={handleCuentaCreada}
+                onCambio={setCarne}
               />
-              <p className="mt-4 text-center text-[13px] text-uva-text-muted">
+              <p className="text-sm text-uva-text-muted">
                 ¿Ya tienes cuenta?{" "}
                 <button
                   type="button"
                   onClick={handleCambiar}
-                  className="inline-flex min-h-11 items-center px-2 text-uva-accent-ink hover:underline"
+                  className={ACCESO_ENLACE}
                 >
                   Inicia sesión
                 </button>
               </p>
-            </>
+            </div>
           )}
 
           {step === "confirmar" && (
-            <>
-              <div
-                role="status"
-                className="rounded-uva-md bg-uva-success-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-success-text"
-              >
-                Te enviamos un correo de confirmación a {email || "tu correo"}.
-              </div>
+            <div className="grid grid-cols-1 gap-3">
+              <AvisoAcceso icono="ok">
+                Te enviamos un correo de confirmación a{" "}
+                <strong className="[overflow-wrap:anywhere]">
+                  {email || "tu correo"}
+                </strong>
+                . Abre el enlace del correo para activar tu cuenta.
+              </AvisoAcceso>
+              <p className={ACCESO_NOTA}>
+                ¿No te llegó? Revisa la carpeta de spam o de promociones.
+              </p>
               <ReenviarVerificacion email={email} />
-            </>
+              <p className="text-sm text-uva-text-muted">
+                ¿Te equivocaste de correo?{" "}
+                <button
+                  type="button"
+                  onClick={handleCorregirCorreo}
+                  className={ACCESO_ENLACE}
+                >
+                  Cámbialo
+                </button>
+              </p>
+            </div>
           )}
+        </div>
+      </RegistroMarco>
+    );
+  }
 
-          {step === "pendiente" && (
-            <>
-              <div
-                role="status"
-                className="rounded-uva-md bg-uva-danger-soft px-4 py-3.5 text-center text-[13px] leading-[1.5] text-uva-danger-text"
-              >
-                Aún no confirmas {email || "tu correo"}. Revisa tu bandeja o
-                pide un nuevo enlace.
+  // En pantallas muy bajas se quita: el botón ya dice "Continuar con Google".
+  const separador = (
+    <div className="flex items-center gap-3 text-sm text-uva-text-muted muy-bajo:hidden">
+      <div className="h-px flex-1 bg-uva-divider" />
+      <span className="whitespace-nowrap">o continúa con</span>
+      <div className="h-px flex-1 bg-uva-divider" />
+    </div>
+  );
+
+  const botonGoogle = (
+    <GoogleAuthButton
+      label="Continuar con Google"
+      next={redirectTo}
+      className="h-12 border-[1.5px] border-uva-muted-2 text-base bajo:h-11"
+    />
+  );
+
+  // Login lab 7, "Nivel plano técnico": el nivel arriba, título y subtítulo
+  // alineados a la izquierda y cada error debajo de su campo. El tablero es
+  // de 1440×900; aquí la escala baja para que la tarjeta entera quepa en la
+  // pantalla de un portátil (1366×650 de área útil) y solo crece desde
+  // 1920 px de ancho. Con el celular girado (`apaisado`) no cabe en una
+  // columna: el nivel y el título van a la izquierda y el formulario a la
+  // derecha.
+  return (
+    <AccesoMarco>
+      <div className="grid grid-cols-1 gap-5 bajo:gap-3 muy-bajo:gap-2.5 apaisado:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] apaisado:content-start apaisado:gap-x-6">
+        {/* `zoom` (no `scale`) para que el nivel también ocupe menos alto. */}
+        <div className="bajo:[zoom:0.8] muy-bajo:[zoom:0.5] apaisado:col-start-1 apaisado:row-start-1 apaisado:pt-2">
+          <NivelPlano aNivel={step !== "email"} />
+        </div>
+
+        {encabezado(
+          "apaisado:col-start-1 apaisado:row-start-2 apaisado:content-start",
+        )}
+
+        {step === "email" ? (
+          // Google y "Crear cuenta" van fuera del <form>, como antes del
+          // rediseño: solo el correo y "Continuar" envían.
+          <div className={`grid grid-cols-1 gap-3 bajo:gap-2 ${COLUMNA_FORMULARIO}`}>
+            <form
+              className="grid grid-cols-1 gap-3 bajo:gap-2"
+              onSubmit={handleEmailSubmit}
+              noValidate
+            >
+              <div>
+                <Label htmlFor="auth-email" className={ACCESO_LABEL}>
+                  Correo electrónico
+                </Label>
+                <Input
+                  id="auth-email"
+                  name="email"
+                  type="email"
+                  placeholder="Ingresa tu correo electrónico"
+                  autoComplete="email"
+                  required
+                  aria-describedby={checkError ? "auth-email-error" : undefined}
+                  className={ACCESO_INPUT}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
               </div>
-              <ReenviarVerificacion email={email} />
-            </>
-          )}
 
-          {step === "oauth" && (
-            <GoogleAuthButton
-              label="Continuar con Google"
-              next={redirectTo}
-            />
-          )}
+              {checkError && (
+                <MensajeError id="auth-email-error">{checkError}</MensajeError>
+              )}
 
-          {step === "both" && (
-            <>
+              <Button
+                type="submit"
+                variant="uva-primary"
+                size="uva"
+                disabled={checking}
+                className={ACCESO_BOTON}
+              >
+                {checking ? "Verificando…" : "Continuar"}
+              </Button>
+            </form>
+
+            <p className="text-sm text-uva-text-muted">
+              ¿No tienes cuenta?{" "}
+              <button
+                type="button"
+                onClick={handleCrearCuenta}
+                className={ACCESO_ENLACE}
+              >
+                Crear cuenta
+              </button>
+            </p>
+
+            {separador}
+            {botonGoogle}
+          </div>
+        ) : (
+          <div className={`grid grid-cols-1 gap-3 bajo:gap-2 ${COLUMNA_FORMULARIO}`}>
+            {step !== "pendiente" && (
+              <div className="flex items-center gap-2.5 border-b border-uva-divider">
+                <FichaOk />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-uva-text">
+                  {email}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCambiar}
+                  className={`shrink-0 ${ACCESO_ENLACE}`}
+                >
+                  Cambiar
+                </button>
+              </div>
+            )}
+
+            {step === "login" && (
               <LoginForm
                 email={email}
                 redirectTo={redirectTo}
                 onPendienteVerificacion={handlePendienteVerificacion}
               />
+            )}
 
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-uva-divider" />
-                <span className="text-[11px] whitespace-nowrap text-uva-text-faint">
-                  o continúa con
-                </span>
-                <div className="h-px flex-1 bg-uva-divider" />
-              </div>
+            {step === "pendiente" && (
+              <>
+                <div
+                  role="status"
+                  className="rounded-uva-md bg-uva-danger-soft px-4 py-3.5 text-center text-sm leading-[1.5] text-uva-danger-text"
+                >
+                  Aún no confirmas {email || "tu correo"}. Revisa tu bandeja o
+                  pide un nuevo enlace.
+                </div>
+                <ReenviarVerificacion email={email} />
+              </>
+            )}
 
-              <GoogleAuthButton
-                label="Continuar con Google"
-                next={redirectTo}
-              />
-            </>
-          )}
-        </>
-      )}
-    </>
+            {step === "oauth" && botonGoogle}
+
+            {step === "both" && (
+              <>
+                <LoginForm
+                  email={email}
+                  redirectTo={redirectTo}
+                  onPendienteVerificacion={handlePendienteVerificacion}
+                />
+                {separador}
+                {botonGoogle}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </AccesoMarco>
   );
 }

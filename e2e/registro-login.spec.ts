@@ -56,10 +56,13 @@ test("registro -> verificación de correo -> login llega al dashboard", async ({
     // /auth/confirm ya no verifica solo por visitar la URL (evita que un
     // escáner de enlaces de correo consuma el token antes que la persona
     // real, ver Sentry UVA-EDU-10/13/14) — hace falta el clic.
-    await page.getByRole("button", { name: "Confirmar" }).click();
-    // Cierra la sesión que deja el enlace (signout=1) y redirige a
-    // /login?email=... — AuthFlow salta directo al paso de contraseña
-    // porque el correo ya existe y usa provider "password".
+    await page.getByRole("button", { name: "Confirmar mi correo" }).click();
+    // Cierra la sesión que deja el enlace (signout=1) y muestra "¡Correo
+    // confirmado!" con el carné; "Iniciar sesión" lleva a /login?email=...,
+    // donde AuthFlow salta directo al paso de contraseña porque el correo
+    // ya existe y usa provider "password".
+    await expect(page.getByRole("heading", { name: "¡Correo confirmado!" })).toBeVisible();
+    await page.getByRole("link", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/login\?email=/);
     await expect(page.locator("#login-pass")).toBeVisible();
   });

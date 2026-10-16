@@ -2,11 +2,18 @@
 
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import {
+  COOKIE_CORREO_CONFIRMADO,
+  DURACION_CORREO_CONFIRMADO_S,
+  esEnlaceDeRegistro,
+  serializarCorreoConfirmado,
+} from "@/lib/correo-confirmado";
 
 /**
  * Antes esta lógica corría directo en el GET de /auth/confirm (auto-verificar
@@ -16,12 +23,25 @@ import { destinoInternoSeguro } from "@/lib/redirect-seguro";
  * persona real llegaba después a un "enlace inválido o vencido" (Sentry
  * UVA-EDU-10/13/14). Moverla a un Server Action que solo se dispara al
  * pulsar un botón evita que un escáner que solo hace GET lo consuma.
+ *
+ * Los enlaces de REGISTRO (`signup` / `email`) ya no saltan directo al login:
+ * al confirmar van a `/auth/confirm?estado=confirmada` ("¡Correo
+ * confirmado!", con el carné) y, si el enlace no sirve, a
+ * `/auth/confirm?estado=vencido` (pedir uno nuevo). El nombre y el correo del
+ * carné viajan en una cookie de corta vida, no en la URL
+ * (lib/correo-confirmado.ts). Recuperar contraseña y el canje por `code`
+ * siguen como estaban.
  */
 export async function confirmarEnlace(formData: FormData): Promise<void> {
   const code = String(formData.get("code") ?? "") || null;
   const tokenHash = String(formData.get("tokenHash") ?? "") || null;
   const type = (String(formData.get("type") ?? "") || null) as EmailOtpType | null;
   const nextParam = String(formData.get("next") ?? "");
+  // El correo que trae el enlace (la página lo pasa en un campo oculto):
+  // con él la pantalla de "enlace vencido" puede pedir uno nuevo sin
+  // volver a preguntarlo.
+  const correoDelEnlace = String(formData.get("email") ?? "").trim();
+  const esRegistro = esEnlaceDeRegistro(type);
 
   // `next` puede llegar como URL absoluta (redirect_to ya resuelto, ver
   // src/app/api/webhooks/supabase-auth/route.ts) o como ruta relativa
@@ -55,19 +75,46 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
       nivel: nivelFalloEnlace(error),
     });
   } else if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
 
     if (!error) {
+      if (esRegistro) {
+        const nombre = data.user?.user_metadata?.nombre;
+        (await cookies()).set(
+          COOKIE_CORREO_CONFIRMADO,
+          serializarCorreoConfirmado({
+            nombre: typeof nombre === "string" ? nombre : "",
+            correo: data.user?.email ?? correoDelEnlace,
+          }),
+          {
+            httpOnly: true,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+            maxAge: DURACION_CORREO_CONFIRMADO_S,
+            path: "/auth/confirm",
+          },
+        );
+      }
       if (signOutAlConfirmar) {
         await supabase.auth.signOut();
       }
-      redirect(next);
+      redirect(
+        esRegistro ? `/auth/confirm?estado=confirmada&next=${encodeURIComponent(next)}` : next,
+      );
     }
 
     logError("auth/confirm", "verifyOtp falló", error, { nivel: nivelFalloEnlace(error) });
+
+    if (esRegistro) {
+      redirect(
+        correoDelEnlace
+          ? `/auth/confirm?estado=vencido&email=${encodeURIComponent(correoDelEnlace)}`
+          : "/auth/confirm?estado=vencido",
+      );
+    }
   } else {
     logError("auth/confirm", "faltan code o token_hash/type en la URL", null, {
       code,
