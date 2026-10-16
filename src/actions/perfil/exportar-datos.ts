@@ -49,6 +49,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     { data: calificaciones, error: errorCalificaciones },
     { data: notificaciones, error: errorNotificaciones },
     { data: notas, error: errorNotas },
+    { data: diasDeEstudio, error: errorDiasDeEstudio },
   ] = await Promise.all([
     supabase
       .from("perfiles")
@@ -111,6 +112,8 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
       )
       .eq("id_usuario", user.id)
       .order("creado_en"),
+    // Días con avance en alguna clase, para la racha (supabase/sql/119).
+    supabase.from("actividad_diaria").select("fecha").eq("id_usuario", user.id).order("fecha"),
   ]);
 
   // Una exportación a medias entregada como completa es peor que un error: la
@@ -130,6 +133,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     calificaciones_de_curso: errorCalificaciones,
     notificaciones: errorNotificaciones,
     notas: errorNotas,
+    dias_de_estudio: errorDiasDeEstudio,
   };
   const fallidas = Object.entries(erroresPorSeccion).filter(([, error]) => error);
   if (fallidas.length > 0) {
@@ -161,6 +165,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     calificaciones_de_curso: calificaciones ?? [],
     notificaciones: notificaciones ?? [],
     notas: notas ?? [],
+    dias_de_estudio: (diasDeEstudio ?? []).map((dia) => dia.fecha),
   };
 
   return {

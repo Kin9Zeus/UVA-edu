@@ -1,14 +1,6 @@
 import Link from "next/link";
 import type { CategoriaActiva } from "@/lib/categoria";
-
-/** Ícono de trazo según el tema de la categoría (por su slug); el resto, una
- *  regla de dibujo. Cuando haya más escuelas con ícono propio, se agregan aquí. */
-function trazoIcono(slug: string): string {
-  if (/estructura|construcci/.test(slug)) return "M10 12h76v12H56v48h30v12H10V72h30V24H10z";
-  if (/bim|modelad/.test(slug)) return "M48 6l40 22v40L48 90 8 68V28z M8 28l40 22 40-22 M48 50v40";
-  if (/visualiz|render/.test(slug)) return "M6 84L48 12l42 72z M6 84h84 M48 12v72 M27 48h42";
-  return "M8 72L72 8l16 16-64 64z M24 56l8 8 M36 44l8 8 M48 32l8 8";
-}
+import { IconoCategoria } from "@/components/categorias/IconoCategoria";
 
 /** Cuántas categorías caben en la portada; el resto vive en el catálogo. */
 const MAXIMO_EN_PORTADA = 5;
@@ -43,16 +35,7 @@ export function CategoriasPortada({ categorias }: { categorias: CategoriaActiva[
               href={`/catalogo/${categoria.slug}`}
               className="group flex min-h-22 items-center gap-4 border-b border-uva-divider px-1 py-[18px] text-uva-text no-underline hover:no-underline lg:min-h-[88px] lg:gap-6 lg:px-2 lg:py-4"
             >
-              <svg
-                viewBox="0 0 96 96"
-                fill="none"
-                strokeWidth={6}
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="size-9 shrink-0 stroke-uva-accent-2-text lg:size-10"
-              >
-                <path d={trazoIcono(categoria.slug)} />
-              </svg>
+              <IconoCategoria clave={categoria.slug} className="size-9 lg:size-10" />
               <span className="flex min-w-0 flex-1 flex-col gap-1 lg:flex-row lg:items-center lg:gap-6">
                 <span className="flex-1 font-heading text-uva-titulo-4 font-extrabold text-balance group-hover:text-uva-accent-2-text">
                   {categoria.nombre}

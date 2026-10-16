@@ -1,245 +1,384 @@
 import Link from "next/link";
 import Image from "next/image";
+import { ArrowRight, ChevronRight, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
-import { Building2, Ruler, Calculator, HardHat, Layers } from "lucide-react";
-import { formatHoras } from "@/lib/admin/format";
-import { AnilloProgreso } from "@/components/dashboard/AnilloProgreso";
-import { formatDuracion } from "@/lib/admin/format";
+import { Button } from "@/components/ui/button";
+import { IconoCategoria } from "@/components/categorias/IconoCategoria";
+import { TuObra } from "@/components/dashboard/TuObra";
+import { formatDuracion, formatHoras } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
-import type { ClaseEnProgreso, CategoriaConConteo } from "@/lib/dashboard";
+import type { CursoDeCategoria } from "@/lib/categoria";
+import type { ClaseEnProgreso, CategoriaConConteo, ResumenObra } from "@/lib/dashboard";
 import type { CursoDestacado } from "@/lib/cursoDestacado";
-
-const PORTADA_TRAMA = {
-  backgroundColor: "var(--uva-surface-2)",
-  backgroundImage:
-    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
-};
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
-// Sin tabla de íconos por categoría en el esquema: se rota un set fijo,
-// puramente decorativo (no representa datos reales de la categoría).
-const ICONOS_CATEGORIA = [Calculator, Building2, HardHat, Ruler, Layers];
+/** Fondo de una portada sin imagen: la retícula de lámina. */
+const RETICULA =
+  "bg-uva-surface-2 bg-[linear-gradient(color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px)] bg-[size:24px_24px]";
+
+function Barra({ porcentaje, etiqueta }: { porcentaje: number; etiqueta: string }) {
+  return (
+    <div
+      role="progressbar"
+      aria-label={etiqueta}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={porcentaje}
+      className="h-2 overflow-hidden rounded-uva-xs border border-uva-line-strong bg-uva-surface-2"
+    >
+      <div className="h-full bg-uva-accent" style={{ width: `${porcentaje}%` }} />
+    </div>
+  );
+}
+
+/** Portada de un curso: la imagen real o, sin ella, la retícula con su ícono. */
+function Portada({
+  imagen,
+  claveCategoria,
+  sizes,
+  iconoClase = "size-14",
+}: {
+  imagen: string;
+  claveCategoria?: string;
+  sizes: string;
+  iconoClase?: string;
+}) {
+  if (esPortadaReal(imagen)) {
+    return <Image src={imagen} alt="" fill sizes={sizes} className="object-cover" />;
+  }
+  return (
+    <span aria-hidden="true" className={`absolute inset-0 grid place-items-center ${RETICULA}`}>
+      {claveCategoria && <IconoCategoria clave={claveCategoria} className={iconoClase} />}
+    </span>
+  );
+}
+
+function ContinuaDondeQuedaste({ clase }: { clase: ClaseEnProgreso }) {
+  const href = `/cursos/${clase.cursoSlug}/${clase.leccionSlug}`;
+  const avanceClase =
+    clase.reanudarEn?.duracion && clase.reanudarEn.duracion > 0
+      ? Math.min(100, Math.round((clase.reanudarEn.segundo / clase.reanudarEn.duracion) * 100))
+      : 0;
+
+  return (
+    <section
+      aria-labelledby="inicio-continua"
+      className="grid min-w-0 gap-5 rounded-uva-lg border border-uva-divider bg-uva-surface p-4 sm:p-[22px] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
+    >
+      <Link
+        href={href}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="relative block aspect-video self-center overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface-2"
+      >
+        {clase.reanudarEn ? (
+          <MiniaturaMux
+            src={clase.reanudarEn.url}
+            className="absolute inset-0 size-full object-cover"
+            respaldo={<Portada imagen={clase.imagenPortada} sizes="(max-width: 1279px) 100vw, 480px" />}
+          />
+        ) : (
+          <Portada
+            imagen={clase.imagenPortada}
+            claveCategoria={clase.categorias[0]?.nombre}
+            sizes="(max-width: 1279px) 100vw, 480px"
+          />
+        )}
+        <span className="absolute inset-0 m-auto grid size-[76px] place-items-center rounded-full border-2 border-uva-on-accent bg-uva-btn text-uva-on-accent">
+          <Play className="size-7 fill-current" aria-hidden="true" />
+        </span>
+        {clase.reanudarEn && (
+          <span className="absolute bottom-4 left-2.5 rounded-uva-xs bg-uva-overlay/80 px-2 py-0.5 font-mono text-uva-detalle font-bold text-uva-on-accent">
+            {formatDuracion(clase.reanudarEn.segundo)}
+            {clase.reanudarEn.duracion ? ` / ${formatDuracion(clase.reanudarEn.duracion)}` : ""}
+          </span>
+        )}
+        {avanceClase > 0 && (
+          <span className="absolute inset-x-0 bottom-0 h-[5px] bg-uva-overlay/50">
+            <span className="block h-full bg-uva-accent" style={{ width: `${avanceClase}%` }} />
+          </span>
+        )}
+      </Link>
+
+      <div className="flex min-w-0 flex-col justify-between gap-5 py-1">
+        <div className="flex flex-col gap-2">
+          <p className="text-uva-cuerpo font-semibold text-uva-text-muted">Continúa donde quedaste</p>
+          <h2 id="inicio-continua" className="text-uva-titulo-4 font-extrabold text-balance text-uva-text sm:text-uva-titulo-3 xl:text-uva-titulo-4">
+            {clase.leccionTitulo}
+          </h2>
+          <p className="text-uva-cuerpo text-uva-text-muted">{clase.cursoTitulo}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <p className="flex justify-between gap-3 text-uva-cuerpo">
+            <span className="min-w-0 text-uva-text-muted">
+              {clase.moduloTitulo}, clase {clase.numeroClase} de {clase.totalClases}
+            </span>
+            <span className="font-mono font-extrabold text-uva-text">{clase.progreso}%</span>
+          </p>
+          <Barra
+            porcentaje={clase.progreso}
+            etiqueta={`${clase.clasesCompletadas} de ${clase.totalClases} clases del curso`}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button
+            render={<Link href={href} />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-13 gap-2 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto"
+          >
+            <Play className="size-4 fill-current" aria-hidden="true" />
+            Seguir la clase
+          </Button>
+          <Link
+            href={`/cursos/${clase.cursoSlug}`}
+            className="inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline underline-offset-4"
+          >
+            Ver temario
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ParaEmpezar({ curso }: { curso: CursoDestacado }) {
+  return (
+    <section
+      aria-labelledby="inicio-empezar"
+      className="grid min-w-0 gap-5 rounded-uva-lg border border-uva-divider bg-uva-surface p-4 sm:p-[22px] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
+    >
+      <div className="relative aspect-video self-center overflow-hidden rounded-uva-md border border-uva-divider">
+        <Portada imagen={curso.imagenPortada} sizes="(max-width: 1279px) 100vw, 480px" />
+      </div>
+      <div className="flex min-w-0 flex-col justify-between gap-5 py-1">
+        <div className="flex flex-col gap-2">
+          <p className="text-uva-cuerpo font-semibold text-uva-text-muted">Para empezar</p>
+          <h2 id="inicio-empezar" className="text-uva-titulo-4 font-extrabold text-balance text-uva-text sm:text-uva-titulo-3 xl:text-uva-titulo-4">
+            {curso.titulo}
+          </h2>
+          <p className="line-clamp-3 text-uva-cuerpo text-uva-text-muted">{curso.descripcion}</p>
+        </div>
+        <p className="text-uva-cuerpo text-uva-text-muted">
+          {NIVEL_LABEL[curso.nivel]}, {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
+          {curso.duracionTotalSegundos > 0 ? `, ${formatHoras(curso.duracionTotalSegundos)}` : ""}
+        </p>
+        <Button
+          render={<Link href={`/cursos/${curso.slug}`} />}
+          nativeButton={false}
+          variant="uva-primary"
+          size="uva"
+          className="min-h-13 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto sm:self-start"
+        >
+          Ver el curso
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function TambienEnProgreso({ clases }: { clases: ClaseEnProgreso[] }) {
+  return (
+    <section aria-labelledby="inicio-otros" className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h2 id="inicio-otros" className="text-uva-titulo-4 text-uva-text">
+          También en progreso
+        </h2>
+        <Link
+          href="/dashboard/progreso"
+          className="inline-flex min-h-11 items-center text-uva-detalle font-bold text-uva-accent-ink"
+        >
+          Ver todo tu progreso
+        </Link>
+      </div>
+      <ul>
+        {clases.map((clase, i) => (
+          <li key={clase.leccionId}>
+            <Link
+              href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
+              className={`group grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-1 py-3.5 no-underline hover:no-underline md:grid-cols-[128px_minmax(0,1fr)_200px_20px] md:gap-x-[22px] lg:px-2 ${i > 0 ? "border-t border-uva-divider" : ""}`}
+            >
+              <span className="relative block aspect-video overflow-hidden rounded-uva-md border border-uva-divider">
+                {clase.reanudarEn ? (
+                  <MiniaturaMux
+                    src={clase.reanudarEn.url}
+                    className="absolute inset-0 size-full object-cover"
+                    respaldo={<Portada imagen={clase.imagenPortada} sizes="128px" iconoClase="size-8" />}
+                  />
+                ) : (
+                  <Portada
+                    imagen={clase.imagenPortada}
+                    claveCategoria={clase.categorias[0]?.nombre}
+                    sizes="128px"
+                    iconoClase="size-8"
+                  />
+                )}
+              </span>
+              <span className="grid min-w-0">
+                <span className="text-uva-cuerpo leading-snug font-bold text-uva-text group-hover:text-uva-accent-ink">
+                  {clase.cursoTitulo}
+                </span>
+                <span className="text-uva-detalle text-uva-text-muted">
+                  {clase.moduloTitulo}, {clase.clasesCompletadas} de {clase.totalClases} clases
+                </span>
+              </span>
+              <span className="col-span-2 flex items-center gap-2.5 md:col-span-1">
+                <span className="flex-1">
+                  <Barra
+                    porcentaje={clase.progreso}
+                    etiqueta={`${clase.clasesCompletadas} de ${clase.totalClases} clases`}
+                  />
+                </span>
+                <span className="font-mono text-uva-detalle font-bold text-uva-text">{clase.progreso}%</span>
+              </span>
+              <ArrowRight className="hidden size-5 text-uva-text-muted md:block" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Recomendados({ cursos }: { cursos: CursoDeCategoria[] }) {
+  return (
+    <section aria-labelledby="inicio-recomendados" className="flex flex-col gap-3.5">
+      <h2 id="inicio-recomendados" className="text-uva-titulo-4 text-uva-text">
+        Recomendados para ti
+      </h2>
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {cursos.map((curso) => {
+          const categoria = curso.categorias[0];
+          return (
+            <li key={curso.id}>
+              <Link href={`/cursos/${curso.slug}`} className="group flex h-full flex-col no-underline hover:no-underline">
+                <span className="relative block aspect-video overflow-hidden rounded-uva-md border border-uva-divider group-hover:border-uva-line-strong">
+                  <Portada
+                    imagen={curso.imagenPortada}
+                    claveCategoria={categoria?.nombre}
+                    sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 360px"
+                  />
+                </span>
+                <span className="flex flex-1 flex-col gap-2 pt-3.5">
+                  {categoria && (
+                    <span className="inline-flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
+                      <IconoCategoria clave={categoria.nombre} className="size-4" />
+                      {categoria.nombre}
+                    </span>
+                  )}
+                  <span className="text-uva-cuerpo font-bold text-uva-text group-hover:text-uva-accent-ink">
+                    {curso.titulo}
+                  </span>
+                  {curso.instructorNombre && (
+                    <span className="text-uva-detalle text-uva-text-muted">{curso.instructorNombre}</span>
+                  )}
+                  <span className="mt-auto flex justify-between border-t border-uva-divider pt-2.5 text-uva-detalle text-uva-text-muted">
+                    <span>{NIVEL_LABEL[curso.nivel]}</span>
+                    <span className="font-mono">
+                      {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
+                    </span>
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function ExploraCategorias({ categorias }: { categorias: CategoriaConConteo[] }) {
+  return (
+    <section aria-labelledby="inicio-categorias" className="flex flex-col gap-3.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+        <h2 id="inicio-categorias" className="text-uva-titulo-4 text-uva-text">
+          Explora por categoría
+        </h2>
+        <Link
+          href="/dashboard/catalogo"
+          className="inline-flex min-h-11 items-center gap-1.5 text-uva-cuerpo font-bold text-uva-accent-ink"
+        >
+          Ver catálogo
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
+      <ul className="grid border-t-[1.5px] border-uva-text sm:grid-cols-2">
+        {categorias.map((categoria) => (
+          <li key={categoria.id} className="border-b border-uva-divider sm:odd:border-r">
+            <Link
+              href={`/dashboard/catalogo/${categoria.slug}`}
+              className="group flex min-h-16 items-center gap-3.5 px-3 py-2.5 no-underline hover:no-underline"
+            >
+              <IconoCategoria clave={categoria.slug} className="size-[30px]" />
+              <span className="min-w-0 flex-1 text-uva-cuerpo font-extrabold text-uva-text group-hover:text-uva-accent-ink">
+                {categoria.nombre}
+              </span>
+              <span className="font-mono text-uva-detalle text-uva-text-muted">
+                {categoria.cursos} {categoria.cursos === 1 ? "curso" : "cursos"}
+              </span>
+              <ChevronRight className="size-4 text-uva-accent-ink" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export function InicioContent({
   nombre,
   sigueAprendiendo,
   categorias,
   cursoDestacado,
+  resumenObra,
+  recomendados,
 }: {
   nombre: string;
   sigueAprendiendo: ClaseEnProgreso[];
   categorias: CategoriaConConteo[];
   cursoDestacado: CursoDestacado | null;
+  resumenObra: ResumenObra;
+  recomendados: CursoDeCategoria[];
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
+  const [actual, ...otros] = sigueAprendiendo;
 
   return (
-    <div className="mx-auto flex max-w-[1320px] flex-col gap-10 px-[clamp(20px,3vw,44px)] py-8">
+    <div className="mx-auto flex w-full max-w-uva flex-col gap-9 px-uva-margen py-7 lg:py-9">
       <div>
-        <h1 className="text-2xl text-uva-text">
-          Hola {primerNombre}, tienes metas que alcanzar.
-        </h1>
-        <p className="mt-1 text-sm text-uva-text-muted">
-          Retoma donde quedaste o explora algo nuevo del gremio.
-        </p>
+        <h1 className="text-uva-titulo-3 text-balance text-uva-text">Hola {primerNombre}, tienes metas que alcanzar.</h1>
+        <p className="mt-2 text-uva-lead text-uva-text-muted">Retoma donde quedaste o explora algo nuevo del gremio.</p>
       </div>
 
-      {sigueAprendiendo.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-base text-uva-text">Sigue aprendiendo</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sigueAprendiendo.map((clase) => (
-              <Link
-                key={clase.leccionId}
-                href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
-                className="group flex flex-col gap-2.5"
-              >
-                {/* Mismo tratamiento que la tarjeta de Progreso: sin marco,
-                    la miniatura sostiene la pieza y la barra va a ras de
-                    ella. Sin chip "En curso" —la sección se titula "Sigue
-                    aprendiendo", decirlo otra vez en cada tarjeta sobra— ni
-                    chips de categoría: aquí ya son tus cursos, no estás
-                    eligiendo cuál tomar. */}
-                <div
-                  className="relative aspect-video overflow-hidden rounded-uva-md bg-uva-surface-2 ring-1 ring-uva-divider transition-[box-shadow] group-hover:ring-uva-text-faint"
-                  style={
-                    !clase.reanudarEn && !esPortadaReal(clase.imagenPortada)
-                      ? PORTADA_TRAMA
-                      : undefined
-                  }
-                >
-                  {clase.reanudarEn ? (
-                    <MiniaturaMux
-                      src={clase.reanudarEn.url}
-                      className="absolute inset-0 size-full object-cover"
-                      respaldo={
-                        esPortadaReal(clase.imagenPortada) && (
-                          <Image
-                            src={clase.imagenPortada}
-                            alt=""
-                            fill
-                            sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 400px"
-                            className="object-cover"
-                          />
-                        )
-                      }
-                    />
-                  ) : (
-                    esPortadaReal(clase.imagenPortada) && (
-                      <Image
-                        src={clase.imagenPortada}
-                        alt=""
-                        fill
-                        sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 400px"
-                        className="object-cover"
-                      />
-                    )
-                  )}
-                  {clase.reanudarEn && (
-                    <span className="absolute top-2 right-2 rounded-uva-xs bg-black/75 px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums text-white">
-                      {formatDuracion(clase.reanudarEn.segundo)}
-                      {clase.reanudarEn.duracion
-                        ? ` / ${formatDuracion(clase.reanudarEn.duracion)}`
-                        : ""}
-                    </span>
-                  )}
-                  {clase.progreso > 0 && (
-                    <div
-                      className="absolute inset-x-0 bottom-0 h-[5px] bg-black/55"
-                      role="progressbar"
-                      aria-valuenow={clase.progreso}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`${clase.clasesCompletadas} de ${clase.totalClases} clases`}
-                    >
-                      <div
-                        className="h-full bg-uva-accent"
-                        style={{ width: `${clase.progreso}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <h3 className="line-clamp-2 text-sm leading-snug text-uva-text transition-colors group-hover:text-uva-accent-ink">
-                      {clase.cursoTitulo}
-                    </h3>
-                    <AnilloProgreso
-                      porcentaje={clase.progreso}
-                      etiqueta={`${clase.clasesCompletadas} de ${clase.totalClases} clases`}
-                    />
-                  </div>
-                  {/* Un solo renglón de apoyo, igual que en Progreso. Antes
-                      eran tres —módulo, y aparte nivel · duración · clases— y
-                      leídos en columna estrecha parecían datos sueltos sin
-                      relación. Nivel y duración salieron: son datos para
-                      ELEGIR curso, y aquí ya lo elegiste. */}
-                  <p className="-mt-0.5 truncate font-mono text-[11px] text-uva-text-faint tabular-nums">
-                    {clase.moduloTitulo} · {clase.clasesCompletadas}/{clase.totalClases} clases
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {sigueAprendiendo.length === 0 && cursoDestacado && (
-        <section>
-          {/* No es una recomendación personalizada: es el curso destacado,
-              el mismo para todos. Solo aparece si aún no hay cursos empezados. */}
-          <h2 className="mb-4 text-base text-uva-text">Para empezar</h2>
-          <Link
-            href={`/cursos/${cursoDestacado.slug}`}
-            className="group flex max-w-[380px] flex-col rounded-uva-md border border-uva-divider bg-uva-surface p-3 hover:border-uva-text-faint"
-          >
-            <div
-              className="relative aspect-video overflow-hidden rounded-uva-sm"
-              style={esPortadaReal(cursoDestacado.imagenPortada) ? undefined : PORTADA_TRAMA}
+      <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]">
+        {actual ? (
+          <ContinuaDondeQuedaste clase={actual} />
+        ) : cursoDestacado ? (
+          <ParaEmpezar curso={cursoDestacado} />
+        ) : (
+          <section className="flex flex-col justify-center gap-3 rounded-uva-lg border border-uva-divider bg-uva-surface p-6">
+            <h2 className="text-uva-titulo-4 text-uva-text">Todavía no tienes cursos en progreso</h2>
+            <p className="text-uva-cuerpo text-uva-text-muted">Elige uno en el catálogo y arranca con la primera clase.</p>
+            <Button
+              render={<Link href="/dashboard/catalogo" />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-12 text-uva-cuerpo sm:w-auto sm:self-start"
             >
-              {esPortadaReal(cursoDestacado.imagenPortada) && (
-                <Image
-                  src={cursoDestacado.imagenPortada}
-                  alt=""
-                  fill
-                  sizes="380px"
-                  className="object-cover"
-                />
-              )}
-              <span className="absolute top-2 left-2 rounded-full bg-uva-btn px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
-                Destacado
-              </span>
-            </div>
-            <span className="mt-2 font-mono text-[10px] tracking-[.08em] text-uva-text-faint uppercase">
-              {NIVEL_LABEL[cursoDestacado.nivel]}
-            </span>
-            <h3 className="mt-0.5 text-sm text-uva-text">{cursoDestacado.titulo}</h3>
-            <p className="mt-1 line-clamp-2 text-xs text-uva-text-muted">{cursoDestacado.descripcion}</p>
-            <div className="mt-2 flex items-center gap-2 font-mono text-[10px] tracking-[.06em] text-uva-text-faint uppercase">
-              <span>
-                {cursoDestacado.totalClases} {cursoDestacado.totalClases === 1 ? "clase" : "clases"}
-              </span>
-              {cursoDestacado.duracionTotalSegundos > 0 && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>{formatHoras(cursoDestacado.duracionTotalSegundos)}</span>
-                </>
-              )}
-            </div>
-          </Link>
-        </section>
-      )}
+              Ver el catálogo
+            </Button>
+          </section>
+        )}
+        <TuObra resumen={resumenObra} />
+      </div>
 
-      {categorias.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-base text-uva-text">Explora por categoría</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {categorias.map((categoria, index) => {
-              const Icon = ICONOS_CATEGORIA[index % ICONOS_CATEGORIA.length];
-              const esFucsia = index % 2 === 0;
-              return (
-                <Link
-                  key={categoria.id}
-                  href={`/dashboard/catalogo/${categoria.slug}`}
-                  className={`flex flex-col justify-between rounded-uva-md border border-uva-divider p-4 transition-colors ${
-                    esFucsia ? "hover:border-uva-accent" : "hover:border-uva-accent-2"
-                  }`}
-                  style={{
-                    background: esFucsia
-                      ? "linear-gradient(160deg, color-mix(in oklch, var(--color-uva-accent) 16%, var(--color-uva-surface)) 0%, var(--color-uva-surface) 70%)"
-                      : "linear-gradient(160deg, color-mix(in oklch, var(--color-uva-accent-2) 16%, var(--color-uva-surface)) 0%, var(--color-uva-surface) 70%)",
-                  }}
-                >
-                  <Icon
-                    className={`size-5 ${esFucsia ? "text-uva-accent-ink" : "text-uva-accent-2"}`}
-                    strokeWidth={1.9}
-                  />
-                  <div className="mt-6">
-                    <p className="text-sm text-uva-text">{categoria.nombre}</p>
-                    <p className="text-xs text-uva-text-faint">
-                      {categoria.cursos} {categoria.cursos === 1 ? "curso" : "cursos"}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {sigueAprendiendo.length === 0 && !cursoDestacado && categorias.length > 0 && (
-        <p className="-mt-6 text-sm text-uva-text-muted">
-          Todavía no tienes cursos en progreso. Explora el catálogo abajo y arranca con el primero.
-        </p>
-      )}
-
-      {sigueAprendiendo.length === 0 && categorias.length === 0 && (
-        <p className="text-sm text-uva-text-muted">
-          Todavía no hay cursos publicados. Vuelve pronto.
-        </p>
-      )}
+      {otros.length > 0 && <TambienEnProgreso clases={otros.slice(0, 3)} />}
+      {recomendados.length > 0 && <Recomendados cursos={recomendados} />}
+      {categorias.length > 0 && <ExploraCategorias categorias={categorias} />}
     </div>
   );
 }

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GraciaCard } from "@/components/dashboard/GraciaCard";
+import { LogoUva } from "@/components/home/LogoUva";
+import type { AccesoVigente } from "@/lib/dashboard-chrome";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const navPrincipal = [
@@ -59,17 +61,17 @@ function NavLink({
       // mouse, así que el nombre accesible tiene que ir en el propio enlace.
       aria-label={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3.5 py-2.5 text-sm text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
-        active && "border-uva-accent bg-uva-surface text-uva-text",
+        "flex min-h-11 items-center gap-3 rounded-uva-md px-3 text-uva-cuerpo font-medium text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
+        active && "bg-uva-surface-2 font-bold text-uva-text shadow-[inset_3px_0_0_var(--uva-btn)]",
         collapsed && "justify-center px-0",
       )}
     >
-      <Icon className="size-[18px] shrink-0" strokeWidth={1.9} aria-hidden />
+      <Icon className="size-5 shrink-0" strokeWidth={1.8} aria-hidden />
       {!collapsed && (
         <span className="flex-1 truncate">{label}</span>
       )}
       {!collapsed && badge && (
-        <span className="font-mono text-[11px] font-medium tracking-[.1em] text-uva-text-faint tabular-nums">
+        <span className="font-mono text-uva-detalle font-bold text-uva-text-muted">
           {badge}
         </span>
       )}
@@ -91,13 +93,47 @@ function NavLink({
   );
 }
 
+const FORMATO_FECHA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "America/Bogota",
+});
+
+/** "Tu acceso": días que quedan y la fecha de fin, con la barra de lo que resta. */
+function TarjetaAcceso({ acceso }: { acceso: AccesoVigente }) {
+  // "12 nov 2026": día, mes corto y año, sin los "de" de es-CO.
+  const partes = FORMATO_FECHA.formatToParts(new Date(acceso.hasta));
+  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value.replace(".", "") ?? "";
+  const fecha = `${parte("day")} ${parte("month")} ${parte("year")}`;
+  return (
+    <div className="mx-3 mb-3 flex shrink-0 flex-col gap-2 rounded-uva-md border border-uva-divider p-3.5">
+      <p className="flex items-center justify-between text-uva-detalle font-bold text-uva-text">
+        Tu acceso
+        <span className="font-mono text-uva-accent-ink">
+          {acceso.diasRestantes} {acceso.diasRestantes === 1 ? "día" : "días"}
+        </span>
+      </p>
+      <div aria-hidden="true" className="h-[5px] overflow-hidden rounded-full bg-uva-divider">
+        <div className="h-full rounded-full bg-uva-btn" style={{ width: `${Math.round(acceso.restante * 100)}%` }} />
+      </div>
+      <p className="text-uva-detalle text-uva-text-muted">
+        {acceso.esInvitacion ? "Invitación" : "Acceso"} hasta el {fecha}
+      </p>
+    </div>
+  );
+}
+
 export function Sidebar({
   certificadosCount,
   diasGracia,
   colapsadoInicial = false,
+  acceso = null,
 }: {
   certificadosCount: number;
   diasGracia: number | null;
+  /** Días que le quedan a un acceso vigente (tarjeta "Tu acceso"). */
+  acceso?: AccesoVigente | null;
   /** Preferencia guardada (cookie), leída en el servidor para no parpadear. */
   colapsadoInicial?: boolean;
 }) {
@@ -110,26 +146,27 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-uva-sidebar-bg transition-[width] duration-150 md:flex",
-        collapsed ? "w-[76px]" : "w-[248px]",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-uva-surface transition-[width] duration-150 md:flex",
+        collapsed ? "w-[76px]" : "w-64",
       )}
     >
       <div
         className={cn(
-          "flex items-center py-5",
+          "flex h-16 shrink-0 items-center",
           // Mismo esquema de padding que `nav` (px-2.5) para que el botón de
           // colapsar quede centrado exactamente sobre los íconos de abajo —
           // con `px-4` (el de antes) el botón quedaba 6px a la izquierda del
           // centro real de los íconos colapsados.
-          collapsed ? "justify-center px-2.5" : "justify-between px-4",
+          collapsed ? "justify-center px-3" : "justify-between pr-4 pl-5",
         )}
       >
         {!collapsed && (
           <Link
             href="/dashboard"
-            className="font-heading text-[20px] font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline"
+            aria-label="U.V.A., ir al inicio del panel"
+            className="inline-flex min-h-11 items-center text-uva-text no-underline hover:no-underline"
           >
-            U.V.A<span className="text-uva-accent">.</span>
+            <LogoUva className="h-[27px] w-[83px]" />
           </Link>
         )}
         <button
@@ -140,7 +177,7 @@ export function Sidebar({
             guardarSidebarColapsado(siguiente);
           }}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="flex size-8 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-faint hover:bg-uva-hover hover:text-uva-text-muted"
+          className="flex size-11 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-muted hover:bg-uva-hover hover:text-uva-text"
         >
           {collapsed ? (
             <PanelLeft className="size-[18px]" strokeWidth={1.9} />
@@ -151,7 +188,7 @@ export function Sidebar({
       </div>
 
       <TooltipProvider delay={150}>
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5" aria-label="Navegación principal">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2" aria-label="Navegación principal">
           {navPrincipal.map((item) => (
             <NavLink
               key={item.href}
@@ -162,7 +199,7 @@ export function Sidebar({
           ))}
 
           {!collapsed && (
-            <p className="mt-5 mb-1 px-3.5 font-mono text-[10px] font-semibold tracking-[.22em] text-uva-text-muted uppercase">
+            <p className="mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted">
               Tu progreso
             </p>
           )}
@@ -195,7 +232,9 @@ export function Sidebar({
         </div>
       )}
 
-      <div className="shrink-0 border-t border-uva-divider px-2.5 py-2.5">
+      {acceso && diasGracia === null && !collapsed && <TarjetaAcceso acceso={acceso} />}
+
+      <div className="shrink-0 border-t border-uva-divider px-3 py-2">
         <TooltipProvider delay={150}>
           <NavLink
             href="/dashboard/soporte"

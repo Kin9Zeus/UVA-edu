@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
 import { cn } from "@/lib/utils";
+import { LogoUva } from "@/components/home/LogoUva";
 import type { Notificacion } from "@/lib/notificaciones-tipos";
 import {
   DropdownMenu,
@@ -67,16 +68,17 @@ export function Header({
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-uva-divider bg-uva-bg/72 px-6 py-3 backdrop-blur">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
       {mostrarLogo && (
         <Link
           href="/dashboard"
+          aria-label="U.V.A., ir al inicio del panel"
           className={cn(
-            "shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline",
+            "mr-auto inline-flex min-h-11 shrink-0 items-center text-uva-text no-underline hover:no-underline md:mr-0",
             mostrarLogo === "solo-mobile" && "md:hidden",
           )}
         >
-          U.V.A<span className="text-uva-accent">.</span>
+          <LogoUva className="h-[25px] w-[77px]" />
         </Link>
       )}
 
@@ -116,13 +118,13 @@ export function Header({
             aria-label="Menú de usuario"
             className="-my-0.5 flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
           >
-            <Avatar className="bg-uva-divider">
+            <Avatar className="size-9 border-[1.5px] border-uva-line-strong bg-uva-surface-2">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
-              <AvatarFallback className="bg-uva-divider text-uva-text">
+              <AvatarFallback className="bg-uva-surface-2 text-uva-detalle font-extrabold text-uva-text">
                 {iniciales(nombre)}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-[120px] truncate sm:inline">
+            <span className="hidden max-w-[120px] truncate text-uva-cuerpo font-bold sm:inline">
               {primerNombre}
             </span>
             <ChevronDown className="size-4 text-uva-text-faint" />

@@ -24,7 +24,7 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { nombre, fotoUrl, esAdmin, certificadosCount, diasGracia, notificaciones, notificacionesNoLeidas } =
+  const { nombre, fotoUrl, esAdmin, certificadosCount, diasGracia, acceso, notificaciones, notificacionesNoLeidas } =
     await getDashboardChromeData({ user, perfil });
 
   return (
@@ -32,6 +32,7 @@ export default async function DashboardLayout({
       <Sidebar
         certificadosCount={certificadosCount}
         diasGracia={diasGracia}
+        acceso={acceso}
         colapsadoInicial={await leerSidebarColapsado()}
       />
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">

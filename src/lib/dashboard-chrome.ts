@@ -70,13 +70,49 @@ export async function getDashboardChromeData({
       ? calcularDiasGracia(suscripcion.fechaRenovacion)
       : null;
 
+  // Tarjeta "Tu acceso" del menú lateral: días que le quedan a un acceso
+  // vigente con fecha de fin. Sin fecha (acceso sin vencimiento) o fuera de
+  // ACTIVA no hay nada que contar y la tarjeta no aparece; PAST_DUE ya tiene
+  // su propio aviso (diasGracia).
+  const acceso = !esAdmin ? calcularAcceso(suscripcion) : null;
+
   return {
     nombre,
     fotoUrl,
     esAdmin,
     certificadosCount: certificadosCount ?? 0,
     diasGracia,
+    acceso,
     notificaciones,
     notificacionesNoLeidas,
+  };
+}
+
+export type AccesoVigente = {
+  diasRestantes: number;
+  /** Fin del acceso, ISO. */
+  hasta: string;
+  /** Parte del período que todavía queda, de 0 a 1 (para la barra). */
+  restante: number;
+  /** Vino de un código de invitación (la tarjeta dice "Invitación hasta…"). */
+  esInvitacion: boolean;
+};
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+export function calcularAcceso(
+  suscripcion: { estado: string; fechaInicio: string; fechaRenovacion: string | null; tieneCodigoInvitacion: boolean } | null,
+  ahora: Date = new Date(),
+): AccesoVigente | null {
+  if (!suscripcion || suscripcion.estado !== "ACTIVA" || !suscripcion.fechaRenovacion) return null;
+  const inicio = new Date(suscripcion.fechaInicio).getTime();
+  const fin = new Date(suscripcion.fechaRenovacion).getTime();
+  if (!(fin > ahora.getTime())) return null;
+  const total = Math.max(fin - inicio, 1);
+  return {
+    diasRestantes: Math.ceil((fin - ahora.getTime()) / DIA_MS),
+    hasta: suscripcion.fechaRenovacion,
+    restante: Math.min(1, Math.max(0, (fin - ahora.getTime()) / total)),
+    esInvitacion: suscripcion.tieneCodigoInvitacion,
   };
 }

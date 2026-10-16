@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
-import { getCursoDestacado, type CursoDestacado } from "@/lib/cursoDestacado";
+import { getCursoDestacado } from "@/lib/cursoDestacado";
 import { ANCHO_MINIATURA_TARJETA, getMiniaturaUrl } from "@/lib/mux/miniatura";
-import type { CategoriaChip } from "@/lib/categoria";
+import { buscarCatalogoPublico, type CategoriaChip, type CursoDeCategoria } from "@/lib/categoria";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { calcularRacha, hoyEnBogota } from "@/lib/racha";
 import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 
 export type ClaseEnProgreso = {
@@ -13,6 +15,9 @@ export type ClaseEnProgreso = {
   cursoTitulo: string;
   imagenPortada: string;
   moduloTitulo: string;
+  /** La clase a retomar: su título y su número dentro del curso (1 = la primera). */
+  leccionTitulo: string;
+  numeroClase: number;
   /** Todas las categorías del curso — mismo criterio que buscarCatalogoConCliente() (059). */
   categorias: CategoriaChip[];
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
@@ -31,6 +36,19 @@ export type ClaseEnProgreso = {
    * mismo frame que muestra la pantalla de Progreso.
    */
   reanudarEn: { url: string; segundo: number; duracion: number | null } | null;
+};
+
+/**
+ * "Tu obra" del inicio: cuánto ha hecho el estudiante. Cada número es
+ * `null` si no se pudo leer — la tarjeta lo dice en vez de mostrar un 0 que
+ * no es cierto. `cursosTerminados` y `clasesVistas` salen de la misma vista
+ * que el progreso (solo clases con video listo, igual que el certificado).
+ */
+export type ResumenObra = {
+  cursosTerminados: number;
+  clasesVistas: number;
+  notasGuardadas: number | null;
+  racha: number | null;
 };
 
 export type CategoriaConConteo = {
@@ -103,7 +121,7 @@ export async function getInicioData() {
         supabase
           .from("modulos")
           .select(
-            "id_curso, orden, titulo, lecciones(id, slug, orden, duracion, id_video_mux, estado_procesamiento, progreso(completado, segundo_actual, actualizado_en))",
+            "id_curso, orden, titulo, lecciones(id, slug, titulo, orden, duracion, id_video_mux, estado_procesamiento, progreso(completado, segundo_actual, actualizado_en))",
           )
           .in("id_curso", cursoIds),
       ])
@@ -156,6 +174,7 @@ export async function getInicioData() {
           .map((leccion) => ({
             id: leccion.id as string,
             slug: leccion.slug as string,
+            titulo: leccion.titulo as string,
             duracion: leccion.duracion as number | null,
             idVideoMux: (leccion.id_video_mux as string | null) ?? null,
             completada: !!leccion.progreso?.[0]?.completado,
@@ -214,6 +233,8 @@ export async function getInicioData() {
       cursoTitulo: curso.titulo as string,
       imagenPortada: curso.imagen_portada as string,
       moduloTitulo: siguiente.moduloTitulo,
+      leccionTitulo: siguiente.titulo,
+      numeroClase: leccionesOrdenadas.indexOf(siguiente) + 1,
       categorias: categoriasPorCursoMap.get(curso.curso_id as string) ?? [{ id: "general", nombre: "General" }],
       nivel: curso.nivel as ClaseEnProgreso["nivel"],
       duracionTotalCursoSegundos,
@@ -259,11 +280,58 @@ export async function getInicioData() {
     }))
     .filter((categoria) => categoria.cursos > 0);
 
-  // Solo se consulta cuando hace falta: si ya hay cursos en progreso, "Curso
-  // recomendado para ti" no se muestra (ver InicioContent.tsx), así que no
-  // tiene sentido gastar la consulta.
-  const cursoDestacado: CursoDestacado | null =
-    sigueAprendiendo.length === 0 ? await getCursoDestacado() : null;
+  // "Tu obra": terminados y clases vistas salen de la vista ya traída; notas
+  // y días de estudio son datos secundarios — si fallan, la tarjeta dice que
+  // no se pudieron leer, nunca un 0 falso.
+  const cursosTerminados = (progresoCursos ?? []).filter(
+    (curso) =>
+      estadoDeCurso(porcentajeLecciones(curso.lecciones_completadas, curso.lecciones_total), {
+        requerido: curso.examen_requerido === true,
+        aprobado: curso.examen_aprobado === true,
+      }) === "COMPLETADO",
+  ).length;
+  const clasesVistas = (progresoCursos ?? []).reduce((total, curso) => total + (curso.lecciones_completadas ?? 0), 0);
 
-  return { sigueAprendiendo, categorias, cursoDestacado };
+  const idsTocados = new Set((progresoCursos ?? []).map((curso) => curso.curso_id as string));
+  const categoriasEstudiadas = new Set(sigueAprendiendo.flatMap((clase) => clase.categorias.map((c) => c.id)));
+
+  const [{ count: notasGuardadas, error: errorNotas }, { data: dias, error: errorDias }, catalogo, cursoDestacado] =
+    await Promise.all([
+      supabase.from("notas_leccion").select("id", { count: "exact", head: true }),
+      // Una racha de más de un año no cambia lo que se muestra; el tope
+      // acota la lectura.
+      supabase.from("actividad_diaria").select("fecha").order("fecha", { ascending: false }).limit(400),
+      buscarCatalogoPublico({ pagina: 1 }),
+      // Solo se consulta cuando hace falta: con cursos en progreso el bloque
+      // "Para empezar" no se muestra (ver InicioContent.tsx).
+      sigueAprendiendo.length === 0 ? getCursoDestacado() : Promise.resolve(null),
+    ]);
+  const notasFallaron = registrarSiFalla(errorNotas, "dashboard:notas", "no se pudieron contar las notas del estudiante");
+  const diasFallaron = registrarSiFalla(errorDias, "dashboard:racha", "no se pudieron leer los días de estudio");
+
+  const resumenObra: ResumenObra = {
+    cursosTerminados,
+    clasesVistas,
+    notasGuardadas: notasFallaron ? null : (notasGuardadas ?? 0),
+    racha: diasFallaron ? null : calcularRacha((dias ?? []).map((dia) => dia.fecha as string), hoyEnBogota()),
+  };
+
+  // "Recomendados para ti": cursos publicados que no ha tocado, primero los
+  // de categorías que ya estudia. Sale del catálogo público (primera página,
+  // mismo orden que el catálogo); si esa lectura falló, la sección no se
+  // muestra — es complemento, no el contenido de la pantalla.
+  const recomendados: CursoDeCategoria[] = catalogo.fallo
+    ? []
+    : catalogo.cursos
+        .filter((curso) => !idsTocados.has(curso.id))
+        .map((curso, orden) => ({
+          curso,
+          orden,
+          afin: curso.categorias.some((categoria) => categoriasEstudiadas.has(categoria.id)),
+        }))
+        .sort((a, b) => Number(b.afin) - Number(a.afin) || a.orden - b.orden)
+        .slice(0, 3)
+        .map(({ curso }) => curso);
+
+  return { sigueAprendiendo, categorias, cursoDestacado, resumenObra, recomendados };
 }
