@@ -1,46 +1,56 @@
 import { FUNCIONES_PLATAFORMA } from "@/content/marketing";
 
+/** Ícono de cada función, en el mismo orden de FUNCIONES_PLATAFORMA: video,
+ *  marcador de avance, medalla del certificado y descarga de plantillas. */
+const ICONOS = [
+  <g key="video">
+    <rect x="4" y="7" width="24" height="18" rx="2" />
+    <path d="M13 12v8l7-4z" />
+  </g>,
+  <path key="avance" d="M9 4h14v24l-7-6-7 6z" />,
+  <g key="certificado">
+    <circle cx="16" cy="13" r="8" />
+    <path d="M12 20l-2 9 6-3 6 3-2-9" />
+  </g>,
+  <path key="descarga" d="M16 5v16M9 14l7 7 7-7M6 27h20" />,
+];
+
 export function ProductBand() {
   return (
-    <section
-      id="producto"
-      className="border-y border-uva-divider bg-uva-band-bg px-[clamp(20px,4vw,56px)] py-[clamp(56px,8vw,96px)]"
-    >
-      <div className="mx-auto max-w-[1180px]">
-        <div className="mb-11 flex flex-col items-center gap-5 text-center">
-          <h2 className="m-0 text-[clamp(28px,4vw,40px)] font-bold tracking-[-0.02em] text-uva-text">
-            Lo que encuentras al entrar
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 items-center gap-[clamp(32px,6vw,64px)] min-[900px]:grid-cols-2">
-          <ul className="flex flex-col gap-5">
-            {FUNCIONES_PLATAFORMA.map((funcion) => (
-              <li className="flex gap-2.5" key={funcion.titulo}>
-                <span
-                  className="shrink-0 font-bold text-uva-accent-ink"
+    <section id="producto" aria-labelledby="producto-titulo" className="bg-uva-surface-2">
+      <div className="mx-auto w-full max-w-uva px-uva-margen py-uva-seccion">
+        <h2
+          id="producto-titulo"
+          className="mb-9 text-uva-titulo-2 text-uva-text lg:mb-14"
+        >
+          Lo que encuentras al entrar
+        </h2>
+        <ul className="grid gap-7 lg:grid-cols-4 lg:gap-10">
+          {FUNCIONES_PLATAFORMA.map((funcion, i) => (
+            <li key={funcion.titulo} className="flex items-start gap-4 lg:flex-col lg:gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-uva-accent-2 text-uva-on-bright">
+                <svg
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   aria-hidden="true"
+                  className="size-6"
                 >
-                  ▸
-                </span>
-                <div>
-                  <p className="mb-0.5 text-sm font-semibold text-uva-text">
-                    {funcion.titulo}
-                  </p>
-                  <p className="m-0 text-[12.5px] text-uva-text-muted">
-                    {funcion.descripcion}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div
-            role="img"
-            aria-label="Vista previa de la plataforma U.V.A."
-            className="order-[-1] h-[240px] rounded-uva-lg border border-uva-divider bg-uva-surface-2 bg-[repeating-linear-gradient(135deg,var(--uva-stripe)_0_2px,transparent_2px_9px)] min-[900px]:order-none min-[900px]:h-[340px]"
-          />
-        </div>
+                  {ICONOS[i]}
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="mb-1.5 text-uva-titulo-4 text-uva-text">
+                  {funcion.titulo}
+                </h3>
+                <p className="text-uva-cuerpo text-uva-text-muted">{funcion.descripcion}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

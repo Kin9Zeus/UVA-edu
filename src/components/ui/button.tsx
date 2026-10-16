@@ -45,7 +45,7 @@ const buttonVariants = cva(
         "uva-primary":
           "w-full rounded-uva-md border border-transparent text-uva-on-accent bg-uva-btn transition-none hover:bg-uva-btn-hover active:not-aria-[haspopup]:bg-uva-btn-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-secondary":
-          "w-full rounded-uva-md border border-uva-divider bg-transparent text-uva-text transition-none hover:bg-uva-chip active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent text-uva-text transition-none hover:border-uva-text active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-ghost":
           "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent-ink transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-icon":

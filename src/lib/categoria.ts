@@ -50,7 +50,8 @@ export type CursoDeCategoria = {
   examenPendiente?: boolean;
 };
 
-export type CategoriaActiva = { id: string; slug: string; nombre: string };
+/** `totalCursos`: cursos publicados de la categoría (siempre 1 o más). */
+export type CategoriaActiva = { id: string; slug: string; nombre: string; totalCursos: number };
 
 export type CategoriaInfo = { id: string; slug: string; nombre: string; descripcion: string | null };
 
@@ -132,7 +133,14 @@ const categoriasActivasCacheadas = unstable_cache(
       .eq("curso_categorias.curso.mostrado", true)
       .order("nombre");
     lanzarSiFalla(error, "categorias activas");
-    return (data ?? []).map(({ id, slug, nombre }) => ({ id, slug, nombre })) as CategoriaActiva[];
+    // El `!inner` filtrado por `mostrado` deja una fila de curso_categorias
+    // por cada curso publicado: su largo es el conteo que muestra la portada.
+    return (data ?? []).map(({ id, slug, nombre, curso_categorias }) => ({
+      id,
+      slug,
+      nombre,
+      totalCursos: curso_categorias.length,
+    }));
   },
   ["categorias-activas"],
   // TAG_CATALOGO también: publicar u ocultar un curso cambia qué escuelas

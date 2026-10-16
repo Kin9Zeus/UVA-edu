@@ -10,6 +10,7 @@ import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
 import { urlWhatsapp } from "@/lib/contacto";
+import { LogoUva } from "@/components/home/LogoUva";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
@@ -55,10 +56,9 @@ const socials = [
   },
 ];
 
-const headingClass =
-  "mb-3.5 font-mono text-xs tracking-[0.16em] text-uva-accent-ink uppercase";
+const headingClass = "mb-1.5 font-heading text-uva-detalle font-bold text-uva-accent-ink";
 const linkClass =
-  "text-sm text-uva-text-muted no-underline hover:text-uva-text hover:no-underline";
+  "flex min-h-11 items-center text-uva-cuerpo text-uva-text no-underline hover:text-uva-accent-ink hover:no-underline";
 
 /**
  * `conBotonWhatsApp`: la página también monta el botón flotante de WhatsApp
@@ -81,46 +81,44 @@ export async function Footer({
 
   return (
     <footer
-      className={`border-t border-uva-divider bg-uva-band-bg px-[clamp(20px,4vw,56px)] pt-[clamp(48px,6vw,72px)] ${
-        conBotonWhatsApp ? "pb-24" : "pb-9"
-      }`}
+      className={`mt-auto px-uva-margen ${conBotonWhatsApp ? "pb-24" : "pb-12"}`}
     >
-      <div className="mx-auto max-w-[1180px]">
-        <div className="mb-11 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-9">
-          <div>
-            <p className="mb-2 font-heading text-xl font-bold tracking-[0.08em] text-uva-text">
-              U.V.A<span className="text-uva-accent">.</span>
-            </p>
-            <p className="m-0 max-w-[220px] text-[13px] text-uva-text-muted">
+      {/* Banda de lámina: línea gruesa y trama de rayado, de borde a borde. */}
+      <div
+        aria-hidden="true"
+        className="-mx-uva-margen h-4 border-t-2 border-uva-text bg-[repeating-linear-gradient(135deg,var(--uva-line-strong)_0_1px,transparent_1px_10px)]"
+      />
+      <div className="mx-auto w-full max-w-uva pt-9">
+        <div className="mb-9 grid gap-8 md:grid-cols-2 lg:grid-cols-12">
+          <div className="flex flex-col gap-3 lg:col-span-3">
+            <LogoUva etiqueta="U.V.A." className="h-[34px] w-[105px] text-uva-text" />
+            <p className="max-w-[240px] text-uva-cuerpo text-uva-text-muted">
               Formación en línea para el gremio de la construcción en LATAM.
             </p>
           </div>
 
           {/* Sin categorías se omite la columna entera en vez de dejar un
-              encabezado huérfano; el grid auto-fit reacomoda el resto. */}
+              encabezado huérfano. */}
           {escuelas.length > 0 && (
-            <div>
-              <p className={headingClass}>Escuelas</p>
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+            <nav aria-label="Escuelas" className="lg:col-span-2">
+              <h2 className={headingClass}>Escuelas</h2>
+              <ul>
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
-                    <Link
-                      href={`/catalogo/${escuela.slug}`}
-                      className={linkClass}
-                    >
+                    <Link href={`/catalogo/${escuela.slug}`} className={linkClass}>
                       {escuela.nombre}
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           )}
 
           {MOSTRAR_COLUMNA_COMUNIDAD &&
             columns.map((column) => (
               <div key={column.heading}>
-                <p className={headingClass}>{column.heading}</p>
-                <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                <h2 className={headingClass}>{column.heading}</h2>
+                <ul>
                   {column.links.map((link) => (
                     <li key={link}>
                       <a href="#" className={linkClass}>
@@ -134,9 +132,9 @@ export async function Footer({
 
           {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
-          <div>
-            <p className={headingClass}>Soporte</p>
-            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+          <nav aria-label="Soporte" className="lg:col-span-3">
+            <h2 className={headingClass}>Soporte</h2>
+            <ul>
               {TEMAS_SOPORTE.map((tema) => (
                 <li key={tema.id}>
                   <Link href={`/soporte?tema=${tema.id}`} className={linkClass}>
@@ -145,35 +143,34 @@ export async function Footer({
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
-          <div>
-            <p className={headingClass}>Verificar certificado</p>
-            <p className="mb-2.5 text-[13px] text-uva-text-muted">
+          <div className="lg:col-span-4">
+            <h2 className={headingClass}>Verificar certificado</h2>
+            <p className="mb-2.5 text-uva-cuerpo text-uva-text-muted">
               ¿Tienes el código de un certificado U.V.A.? Confirma su validez.
             </p>
             <VerificarCertificadoForm />
           </div>
         </div>
 
-        <div className="flex flex-col flex-wrap items-start justify-between gap-5 border-t border-uva-divider pt-7 min-[640px]:flex-row min-[640px]:items-center">
-          <p className="text-[12.5px] text-uva-text-faint">
-            © 2026 U.V.A. Hecho en obra, para LATAM.
-          </p>
-          <div className="flex gap-2.5">
+        <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
+          <p className="text-uva-detalle text-uva-text-muted">© 2026 U.V.A. Hecho en obra, para LATAM.</p>
+          <ul aria-label="U.V.A. en redes" className="flex gap-2">
             {socials.map(({ label, Icon, href }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={label}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-uva-md border border-uva-divider bg-transparent text-uva-text no-underline transition-[background,color,border-color] duration-[160ms] [transition-timing-function:ease] odd:hover:border-uva-accent odd:hover:bg-uva-accent odd:hover:text-uva-on-bright even:hover:border-uva-accent-2 even:hover:bg-uva-accent-2 even:hover:text-uva-on-bright hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-              >
-                <Icon />
-              </a>
+              <li key={label}>
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="flex size-11 items-center justify-center rounded-uva-sm border-2 border-uva-line-strong text-uva-text no-underline hover:border-uva-text hover:no-underline"
+                >
+                  <Icon />
+                </a>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
     </footer>

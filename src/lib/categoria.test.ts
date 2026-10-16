@@ -192,20 +192,24 @@ describe("buscarCatalogoConProgreso (dashboard, sin caché)", () => {
 
 describe("getCategoriasActivas", () => {
   it("devuelve las categorías y las cachea", async () => {
-    const categorias = [{ id: "c1", slug: "bim", nombre: "BIM" }];
-    servidorFalso.responder("from:categorias", { data: categorias, error: null });
-
-    expect(await getCategoriasActivas()).toEqual(categorias);
-    expect(llamadasA("categorias-activas")[0].resultado).toBe("resolvio");
-  });
-
-  it("solo ofrece escuelas con al menos un curso publicado, sin filtrar el embed hacia la página", async () => {
     servidorFalso.responder("from:categorias", {
       data: [{ id: "c1", slug: "bim", nombre: "BIM", curso_categorias: [{ curso: { id: "k1" } }] }],
       error: null,
     });
 
-    expect(await getCategoriasActivas()).toEqual([{ id: "c1", slug: "bim", nombre: "BIM" }]);
+    expect(await getCategoriasActivas()).toEqual([{ id: "c1", slug: "bim", nombre: "BIM", totalCursos: 1 }]);
+    expect(llamadasA("categorias-activas")[0].resultado).toBe("resolvio");
+  });
+
+  it("solo ofrece escuelas con al menos un curso publicado, sin filtrar el embed hacia la página", async () => {
+    servidorFalso.responder("from:categorias", {
+      data: [
+        { id: "c1", slug: "bim", nombre: "BIM", curso_categorias: [{ curso: { id: "k1" } }, { curso: { id: "k2" } }] },
+      ],
+      error: null,
+    });
+
+    expect(await getCategoriasActivas()).toEqual([{ id: "c1", slug: "bim", nombre: "BIM", totalCursos: 2 }]);
     const filtros = servidorFalso.encadenado("from:categorias", "eq").map((args) => args[0]);
     expect(filtros).toContain("curso_categorias.curso.mostrado");
   });

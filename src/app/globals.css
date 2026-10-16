@@ -63,6 +63,11 @@
   --color-uva-text-disabled: var(--uva-text-disabled);
   --color-uva-divider: var(--uva-divider);
   --color-uva-line-strong: var(--uva-line-strong);
+  --color-uva-maqueta-base: var(--uva-maqueta-base);
+  --color-uva-maqueta-izq: var(--uva-maqueta-izq);
+  --color-uva-maqueta-der: var(--uva-maqueta-der);
+  --color-uva-maqueta-arista: var(--uva-maqueta-arista);
+  --color-uva-maqueta-arista-suave: var(--uva-maqueta-arista-suave);
   --color-uva-muted: var(--uva-muted);
   --color-uva-muted-2: var(--uva-muted-2);
   --color-uva-dim: var(--uva-dim);
@@ -122,6 +127,45 @@
   --color-uva-pair-5-soft: var(--uva-pair-5-soft);
   --color-uva-pair-6: var(--uva-pair-6);
   --color-uva-pair-6-soft: var(--uva-pair-6-soft);
+  /* Escala de letra fluida (CLAUDE.md 3.3): cada tamaño va de su mínimo en
+     360 px de ancho a su máximo en 1440 px, en línea recta, y no pasa de ahí.
+     Fórmula: clamp(mín, mín − (máx − mín)·360/1080 + (máx − mín)/1080·100vw, máx),
+     en rem para que respete la letra que el usuario elija en su navegador. */
+  /* Display: 48 → 88, pero por debajo de 375 px baja con el ancho (13vw)
+     para que «construcción» quepa en una línea hasta en 320 px. */
+  --text-uva-display: clamp(2.5rem, min(13vw, 2.1667rem + 3.7037vw), 5.5rem); /* 48 → 88 */
+  --text-uva-display--line-height: 1;
+  --text-uva-display--letter-spacing: -0.04em;
+  --text-uva-display--font-weight: 800;
+  --text-uva-titulo-1: clamp(2rem, 1.1667rem + 3.7037vw, 4.5rem); /* 32 → 72 */
+  --text-uva-titulo-1--line-height: 1.04;
+  --text-uva-titulo-1--letter-spacing: -0.04em;
+  --text-uva-titulo-1--font-weight: 800;
+  --text-uva-titulo-2: clamp(1.75rem, 1.1667rem + 2.5926vw, 3.5rem); /* 28 → 56 */
+  --text-uva-titulo-2--line-height: 1.08;
+  --text-uva-titulo-2--letter-spacing: -0.035em;
+  --text-uva-titulo-2--font-weight: 800;
+  --text-uva-titulo-3: clamp(1.375rem, 1rem + 1.6667vw, 2.5rem); /* 22 → 40 */
+  --text-uva-titulo-3--line-height: 1.15;
+  --text-uva-titulo-3--letter-spacing: -0.035em;
+  --text-uva-titulo-3--font-weight: 800;
+  --text-uva-titulo-4: clamp(1.1875rem, 1.0833rem + 0.463vw, 1.5rem); /* 19 → 24 */
+  --text-uva-titulo-4--line-height: 1.25;
+  --text-uva-titulo-4--letter-spacing: -0.02em;
+  --text-uva-titulo-4--font-weight: 700;
+  --text-uva-lead: clamp(0.9375rem, 0.8333rem + 0.463vw, 1.25rem); /* 15 → 20 */
+  --text-uva-lead--line-height: 1.6;
+  --text-uva-cuerpo: clamp(0.9375rem, 0.8958rem + 0.1852vw, 1.0625rem); /* 15 → 17 */
+  --text-uva-cuerpo--line-height: 1.55;
+  --text-uva-detalle: clamp(0.8125rem, 0.7917rem + 0.0926vw, 0.875rem); /* 13 → 14 */
+  --text-uva-detalle--line-height: 1.45;
+
+  /* Espacio entre secciones (56 → 112), margen lateral de página (20 → 56)
+     y ancho máximo del contenido: de 1440 px para arriba no crece más. */
+  --spacing-uva-seccion: clamp(3.5rem, 2.3333rem + 5.1852vw, 7rem);
+  --spacing-uva-margen: clamp(1.25rem, 4vw, 3.5rem);
+  --container-uva: 1440px;
+
   --radius-uva-xs: 4px;
   --radius-uva-sm: 8px;
   --radius-uva-md: 10px;
@@ -188,6 +232,12 @@
   --uva-divider: #e4e4e7;
   /* Bordes que deben llegar a 3:1 (botón secundario, campos) */
   --uva-line-strong: #8a8a93;
+  /* Maqueta isométrica de la portada: base, caras y aristas de los edificios */
+  --uva-maqueta-base: #e4e4e7;
+  --uva-maqueta-izq: #d4d4d8;
+  --uva-maqueta-der: #e4e4e7;
+  --uva-maqueta-arista: rgba(24, 24, 27, 0.35);
+  --uva-maqueta-arista-suave: rgba(24, 24, 27, 0.18);
   --uva-muted: #52525b;
   --uva-muted-2: #71717a;
   --uva-dim: #a1a1aa;
@@ -337,6 +387,11 @@
   --uva-text-disabled: rgba(250, 250, 250, 0.32);
   --uva-divider: #27272a;
   --uva-line-strong: #71717a;
+  --uva-maqueta-base: #141417;
+  --uva-maqueta-izq: #27272a;
+  --uva-maqueta-der: #18181b;
+  --uva-maqueta-arista: rgba(250, 250, 250, 0.32);
+  --uva-maqueta-arista-suave: rgba(250, 250, 250, 0.16);
   /* Grises del mockup del panel admin (--muted / --muted-2 / --dim) y su
      superficie de hover; el sitio publico usa los rgba de --uva-text-* */
   --uva-muted: #b4b4bb;
@@ -438,6 +493,33 @@
     linear-gradient(to bottom, color-mix(in srgb, var(--uva-reticula) 25%, transparent) 1px, transparent 1px);
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
+}
+
+/* Maqueta de la portada: al cargar, los tres edificios suben desde la base
+   uno tras otro (izquierda, derecha, adelante, centro) y después aparecen
+   los rótulos y sus líneas guía.
+   Una sola vez y solo si el sistema no pide movimiento reducido: dentro de
+   este media query, para que con movimiento reducido no haya ni retrasos. */
+@media (prefers-reduced-motion: no-preference) {
+  .uva-maqueta-edificio {
+    animation: uva-maqueta-subir 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  /* Orden de los <g> en el SVG: centro, izquierda, derecha, adelante */
+  .uva-maqueta-edificio:nth-of-type(1) { animation-delay: 650ms; }
+  .uva-maqueta-edificio:nth-of-type(2) { animation-delay: 150ms; }
+  .uva-maqueta-edificio:nth-of-type(3) { animation-delay: 300ms; }
+  .uva-maqueta-edificio:nth-of-type(4) { animation-delay: 450ms; }
+  .uva-maqueta-rotulo {
+    animation: uva-maqueta-aparecer 400ms ease-out 1250ms both;
+  }
+}
+@keyframes uva-maqueta-subir {
+  from { opacity: 0; transform: translateY(90px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes uva-maqueta-aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes uva-btn-spinner-spin {

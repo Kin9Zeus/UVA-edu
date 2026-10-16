@@ -22,18 +22,19 @@ export function VerificarCertificadoForm() {
   }
 
   return (
-    <form onSubmit={verificar} className="flex flex-col gap-2.5">
+    <form onSubmit={verificar} className="flex flex-wrap gap-2">
       <input
+        id="verificar-certificado"
         type="text"
         value={codigo}
         onChange={(event) => setCodigo(event.target.value)}
         placeholder="Ej. K7M2Q-XP4TB"
         aria-label="Código de verificación del certificado"
-        className="w-full rounded-uva-md border border-uva-divider bg-transparent px-3 py-2 font-codigo text-[12.5px] text-uva-text placeholder:text-uva-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="h-12 min-w-0 flex-[1_1_12rem] rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3 font-codigo text-base text-uva-text placeholder:text-uva-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       />
       <button
         type="submit"
-        className="w-fit rounded-uva-md border border-uva-divider bg-transparent px-3 py-1.5 text-[12.5px] text-uva-text-muted transition-colors hover:border-uva-accent hover:text-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="h-12 shrink-0 rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent px-4 text-uva-cuerpo font-semibold text-uva-text hover:border-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       >
         Verificar certificado
       </button>
