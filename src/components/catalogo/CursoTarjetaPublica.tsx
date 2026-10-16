@@ -3,7 +3,7 @@ import Image from "next/image";
 import type { CategoriaChip, CursoDeCategoria } from "@/lib/categoria";
 import { esPortadaReal } from "@/lib/media";
 import { formatHoras } from "@/lib/admin/format";
-import { trazoIconoCategoria } from "@/lib/iconosCategoria";
+import { IconoCategoria } from "@/components/categorias/IconoCategoria";
 import { cn } from "@/lib/utils";
 
 const NIVEL = {
@@ -18,22 +18,6 @@ const RETICULA = {
     "linear-gradient(color-mix(in srgb, var(--uva-line-strong) 25%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--uva-line-strong) 25%, transparent) 1px, transparent 1px)",
   backgroundSize: "24px 24px",
 };
-
-function IconoCategoria({ nombre, grosor, className }: { nombre: string; grosor: number; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 96 96"
-      fill="none"
-      strokeWidth={grosor}
-      strokeLinejoin="round"
-      strokeLinecap="round"
-      aria-hidden="true"
-      className={cn("shrink-0 stroke-uva-accent-2-text", className)}
-    >
-      <path d={trazoIconoCategoria(nombre)} />
-    </svg>
-  );
-}
 
 /** Tres barras de alto creciente; se rellenan tantas como el nivel. El texto del nivel va al lado. */
 function BarrasNivel({ nivel, className }: { nivel: CursoDeCategoria["nivel"]; className?: string }) {
@@ -106,7 +90,7 @@ export function CursoTarjetaPublica({
           />
         ) : (
           <span className="absolute inset-0 grid place-items-center">
-            <IconoCategoria nombre={categoria.nombre} grosor={5} className="size-9 md:size-14" />
+            <IconoCategoria clave={categoria.nombre} grosor={5} className="size-9 md:size-14" />
           </span>
         )}
       </div>
@@ -115,7 +99,7 @@ export function CursoTarjetaPublica({
         {/* Categoría y nivel: solo en la tarjeta de cuadrícula. */}
         <span className="hidden items-center justify-between gap-3 md:flex">
           <span className="inline-flex min-w-0 items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
-            <IconoCategoria nombre={categoria.nombre} grosor={6} className="size-4" />
+            <IconoCategoria clave={categoria.nombre} className="size-4" />
             <span className="truncate">{categoria.nombre}</span>
           </span>
           <span className="inline-flex shrink-0 items-center gap-2 text-uva-detalle font-semibold text-uva-text">

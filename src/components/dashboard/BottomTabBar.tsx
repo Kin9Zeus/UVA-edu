@@ -29,7 +29,7 @@ export function BottomTabBar() {
       aria-label="Navegación principal"
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] md:hidden"
     >
-      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-lg shadow-uva-shadow/40 backdrop-blur">
+      <div className="flex items-center gap-0.5 rounded-full border border-uva-line-strong bg-uva-surface p-1.5">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
@@ -38,12 +38,12 @@ export function BottomTabBar() {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center gap-0.5 rounded-[18px] px-3.5 py-1.5 text-uva-text-faint transition-colors",
-                active && "bg-uva-accent/15 text-uva-accent-ink",
+                "grid min-h-[50px] min-w-[66px] content-center justify-items-center gap-0.5 rounded-full px-1.5 py-1 text-uva-text-muted transition-colors min-[360px]:min-w-[74px]",
+                active && "bg-uva-surface-2 text-uva-text shadow-[inset_0_-3px_0_var(--uva-btn)]",
               )}
             >
-              <Icon className="size-5" strokeWidth={active ? 2.2 : 1.9} />
-              <span className="text-[10px] leading-none font-medium">{label}</span>
+              <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
+              <span className={cn("text-xs leading-tight", active ? "font-extrabold" : "font-semibold")}>{label}</span>
             </Link>
           );
         })}

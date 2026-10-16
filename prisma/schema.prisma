@@ -239,6 +239,7 @@ model Perfiles {
   notificaciones                 Notificaciones[]              @relation("NotificacionesDelUsuario")
   notificaciones_generadas       Notificaciones[]              @relation("NotificacionesGeneradasPorActor")
   notas_leccion                  NotasLeccion[]
+  actividad_diaria               ActividadDiaria[]
 
   @@map("perfiles")
 }
@@ -1167,6 +1168,22 @@ model Progreso {
   @@unique([id_usuario, id_leccion])
   @@index([id_leccion])
   @@map("progreso")
+}
+
+/// Un día en que el estudiante avanzó en alguna clase: lo escribe un trigger
+/// sobre `progreso` (supabase/sql/119_actividad_diaria.sql), nunca la app.
+/// Sirve para la racha de días seguidos del inicio del panel. `fecha` es el
+/// día en America/Bogota, no en UTC: estudiar a las 9 p. m. cuenta para ese
+/// día, no para el siguiente.
+model ActividadDiaria {
+  id_usuario String   @db.Uuid
+  fecha      DateTime @db.Date
+  creado_en  DateTime @default(now()) @db.Timestamptz
+
+  usuario Perfiles @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
+
+  @@id([id_usuario, fecha])
+  @@map("actividad_diaria")
 }
 
 /// Nota privada de un estudiante anclada a un segundo del video de una

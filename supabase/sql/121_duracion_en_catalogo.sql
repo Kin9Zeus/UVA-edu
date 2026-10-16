@@ -1,9 +1,8 @@
 -- ============================================================
 -- Duración total de cada curso en `buscar_catalogo`.
 --
--- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-118.
--- Es 121 y no 119: en staging ya figuran aplicados un 119 y un 120 de
--- trabajo que todavía no está en el repo (actividad diaria).
+-- Orden de aplicación (npm run db:rls lo respeta): DESPUÉS de 000-120
+-- (119 y 120 son los de actividad diaria).
 -- Reemplaza la definición de 062_slug_en_vistas_publicas.sql.
 --
 -- Por qué

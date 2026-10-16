@@ -6,7 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
 import { CursoTarjetaPublica } from "@/components/catalogo/CursoTarjetaPublica";
-import { trazoIconoCategoria } from "@/lib/iconosCategoria";
+import { IconoCategoria } from "@/components/categorias/IconoCategoria";
 import { cn } from "@/lib/utils";
 import type {
   CategoriaActiva,
@@ -263,17 +263,10 @@ function CategoriasMovil({
                     : "border-uva-line-strong bg-transparent text-uva-text",
                 )}
               >
-                <svg
-                  viewBox="0 0 96 96"
-                  fill="none"
-                  strokeWidth={6}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  aria-hidden="true"
-                  className={cn("size-5 shrink-0", presionada ? "stroke-uva-bg" : "stroke-uva-accent-2-text")}
-                >
-                  <path d={trazoIconoCategoria(categoria.slug)} />
-                </svg>
+                <IconoCategoria
+                  clave={categoria.slug}
+                  className={cn("size-5", presionada && "stroke-uva-bg")}
+                />
                 {/* Dos columnas solo si caben 9,5 rem por botón (375 px sí, 320 px
                     no, ni con la letra agrandada). Si aun así una palabra no
                     cabe, se parte en vez de montarse sobre el contador. */}

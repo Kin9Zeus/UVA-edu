@@ -996,6 +996,27 @@ async function main() {
         .select(),
     );
 
+    // Racha (119_actividad_diaria.sql): el progreso de arriba la alimentó
+    // por trigger; el estudiante la lee pero no la escribe, y nadie más la ve.
+    const { data: diasPropios } = await clienteConAcceso.from("actividad_diaria").select("fecha");
+    registrar(
+      "racha: guardar progreso registra el día en actividad_diaria (trigger)",
+      (diasPropios?.length ?? 0) > 0,
+      "el estudiante no ve ningún día propio",
+    );
+    await esperarBloqueado(
+      "racha: el estudiante NO puede insertar días en su propia racha",
+      clienteConAcceso
+        .from("actividad_diaria")
+        .insert({ id_usuario: userConAcceso.user!.id, fecha: "2020-01-01" })
+        .select(),
+    );
+    await esperarBloqueado(
+      "racha: otro estudiante NO lee los días ajenos",
+      clienteSinAcceso.from("actividad_diaria").select("fecha").eq("id_usuario", userConAcceso.user!.id),
+    );
+    await esperarBloqueado("racha: anon no lee actividad_diaria", clienteAnonimo.from("actividad_diaria").select("fecha"));
+
     // Regresión de 030_acceso_curso_despublicado.sql: una membresía vigente
     // conserva el acceso a un curso retirado del catálogo si YA tenía
     // progreso en él ("ya lo estaba viendo"). `leccionDespublicada` y la fila
@@ -4090,6 +4111,7 @@ async function main() {
       // `notas_leccion.id_usuario` es RESTRICT (la cuenta se anonimiza, no
       // se borra): una nota superviviente haría fallar el deleteUser.
       await admin.from("notas_leccion").delete().eq("id_usuario", usuario.id);
+      await admin.from("actividad_diaria").delete().eq("id_usuario", usuario.id);
       await admin.from("inscripciones").delete().eq("id_usuario", usuario.id);
       await admin.from("suscripciones").delete().eq("id_usuario", usuario.id);
       // Explícito aunque `comentarios` cascadee desde `lecciones`: la FK a
