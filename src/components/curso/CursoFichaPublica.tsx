@@ -251,17 +251,6 @@ export function CursoFichaPublica({
           </span>
         )
       )}
-      {rutaVistaPrevia && (
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="grid size-14 place-items-center rounded-full bg-uva-btn text-uva-on-accent shadow-lg">
-            <Play
-              className="ml-0.5 size-6 fill-current"
-              strokeWidth={0}
-              aria-hidden
-            />
-          </span>
-        </span>
-      )}
     </figure>
   );
 

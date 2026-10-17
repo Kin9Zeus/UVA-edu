@@ -11,6 +11,7 @@ import { parsearSegundoEnUrl } from "@/lib/notas-validacion";
 import { esUuid } from "@/lib/slug";
 import { SiteHeader } from "@/components/SiteHeader";
 import { PlayerContent } from "@/components/player/PlayerContent";
+import { LeccionSinSesion } from "@/components/player/LeccionSinSesion";
 import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
@@ -96,10 +97,25 @@ export default async function LeccionPlayerPage({
     preconnect("https://stream.mux.com");
   }
 
+  // Sin sesión (solo la clase gratis del curso): la vista «Maqueta» con su
+  // propio encabezado, sin notas, que son privadas de cada cuenta.
+  if (!user) {
+    const comentarios = await getComentariosDeLeccion(data.leccionId, data.cursoId, null);
+    return (
+      <main>
+        <LeccionSinSesion
+          data={data}
+          comentarios={comentarios ?? []}
+          comentariosNoDisponibles={comentarios === null}
+        />
+      </main>
+    );
+  }
+
   // En paralelo: las notas no deben sumar un viaje a Supabase en serie.
   const [comentarios, notas] = await Promise.all([
-    getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null),
-    getNotasDeLeccion(data.leccionId, user?.id ?? null),
+    getComentariosDeLeccion(data.leccionId, data.cursoId, user.id),
+    getNotasDeLeccion(data.leccionId, user.id),
   ]);
 
   return (
@@ -119,7 +135,7 @@ export default async function LeccionPlayerPage({
           comentariosNoDisponibles={comentarios === null}
           notasNoDisponibles={notas === null}
           segundoEnUrl={segundoEnUrl}
-          usuarioActualId={user?.id ?? null}
+          usuarioActualId={user.id}
           esAdmin={perfilActual.perfil?.rol === "ADMINISTRADOR"}
         />
       </main>

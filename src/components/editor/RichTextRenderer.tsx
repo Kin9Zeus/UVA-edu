@@ -14,22 +14,69 @@ import { esUrlSegura } from "@/lib/editor/seguridad";
  * llegue HTML/atributos arbitrarios del autor al DOM del estudiante.
  *
  * No es un componente cliente: puede vivir en un Server Component.
+ *
+ * `escala`: "compacta" es la letra chica del reproductor con sesión;
+ * "lectura" usa la escala fluida (`text-uva-cuerpo`) y las viñetas en rombo
+ * amarillo de la dirección visual «Maqueta» (clase sin sesión).
  */
 export function RichTextRenderer({
   contenido,
   className,
+  escala = "compacta",
 }: {
   contenido: DocumentoContenido | null;
   className?: string;
+  escala?: Escala;
 }) {
   if (!contenido?.content?.length) return null;
+  const gap = escala === "lectura" ? "gap-4" : "gap-3";
 
   return (
-    <div className={className ? `flex flex-col gap-3 ${className}` : "flex flex-col gap-3"}>
-      {contenido.content.map((nodo, i) => renderizarBloque(nodo, i))}
+    <div className={className ? `flex flex-col ${gap} ${className}` : `flex flex-col ${gap}`}>
+      {contenido.content.map((nodo, i) => renderizarBloque(nodo, i, 0, ESTILOS[escala]))}
     </div>
   );
 }
+
+type Escala = "compacta" | "lectura";
+
+type Estilos = {
+  /** Párrafo suelto (fuera de una lista o cita). */
+  parrafo: string;
+  /** Párrafo dentro de una lista o cita: hereda letra y color de ellas. */
+  parrafoAnidado: string;
+  titulos: [string, string, string];
+  vinetas: string;
+  vineta: string;
+  numerada: string;
+  tarea: string;
+  cita: string;
+};
+
+const ESTILOS: Record<Escala, Estilos> = {
+  compacta: {
+    parrafo: "m-0 max-w-[640px] text-[13.5px] leading-relaxed text-uva-muted",
+    parrafoAnidado: "m-0 max-w-[640px] text-[13.5px] leading-relaxed text-uva-muted",
+    titulos: ["text-[19px]", "text-[16.5px]", "text-[14.5px]"],
+    vinetas: "my-0 list-disc space-y-1 pl-5 text-[13.5px] text-uva-muted",
+    vineta: "",
+    numerada: "my-0 list-decimal space-y-1 pl-5 text-[13.5px] text-uva-muted",
+    tarea: "text-[13.5px] text-uva-muted",
+    cita: "text-[13.5px] text-uva-muted",
+  },
+  lectura: {
+    parrafo: "m-0 max-w-[68ch] text-uva-cuerpo text-pretty text-uva-text-muted",
+    parrafoAnidado: "m-0",
+    titulos: ["text-uva-titulo-4", "text-uva-lead", "text-uva-cuerpo"],
+    vinetas: "my-0 flex max-w-[68ch] list-none flex-col gap-2.5 pl-0 text-uva-cuerpo text-uva-text",
+    // Rombo amarillo con borde de texto: el marcador de la dirección visual.
+    vineta:
+      "relative pl-6 before:absolute before:top-[0.55em] before:left-0.5 before:size-2 before:rotate-45 before:border-[1.5px] before:border-uva-text before:bg-uva-accent-2 before:content-['']",
+    numerada: "my-0 flex max-w-[68ch] list-decimal flex-col gap-2.5 pl-6 text-uva-cuerpo text-uva-text",
+    tarea: "text-uva-cuerpo text-uva-text",
+    cita: "max-w-[68ch] text-uva-cuerpo text-uva-text-muted",
+  },
+};
 
 /**
  * P3-10 (AUDIT-2026-09-04.md): `renderizarBloque` se llama a sí misma en
@@ -55,7 +102,8 @@ const PROFUNDIDAD_MAXIMA = 30;
 function renderizarBloque(
   nodo: NodoContenido,
   key: number | string,
-  profundidad = 0,
+  profundidad: number,
+  estilos: Estilos,
 ): ReactNode {
   if (profundidad > PROFUNDIDAD_MAXIMA) return null;
   const profundidadHija = profundidad + 1;
@@ -63,14 +111,14 @@ function renderizarBloque(
   switch (nodo.type) {
     case "paragraph":
       return (
-        <p key={key} className="m-0 max-w-[640px] text-[13.5px] leading-relaxed text-uva-muted">
+        <p key={key} className={profundidad > 0 ? estilos.parrafoAnidado : estilos.parrafo}>
           {renderizarInline(nodo.content)}
         </p>
       );
     case "heading": {
       const nivel = Number(nodo.attrs?.level) === 2 ? 2 : Number(nodo.attrs?.level) === 3 ? 3 : 1;
       const Tag = (`h${nivel}`) as "h1" | "h2" | "h3";
-      const tamano = nivel === 1 ? "text-[19px]" : nivel === 2 ? "text-[16.5px]" : "text-[14.5px]";
+      const tamano = estilos.titulos[nivel - 1];
       return (
         <Tag key={key} className={`m-0 font-heading font-bold tracking-[-0.02em] text-uva-text ${tamano}`}>
           {renderizarInline(nodo.content)}
@@ -79,17 +127,19 @@ function renderizarBloque(
     }
     case "bulletList":
       return (
-        <ul key={key} className="my-0 list-disc space-y-1 pl-5 text-[13.5px] text-uva-muted">
+        <ul key={key} className={estilos.vinetas}>
           {(nodo.content ?? []).map((item, i) => (
-            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}</li>
+            <li key={i} className={estilos.vineta || undefined}>
+              {(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija, estilos))}
+            </li>
           ))}
         </ul>
       );
     case "orderedList":
       return (
-        <ol key={key} className="my-0 list-decimal space-y-1 pl-5 text-[13.5px] text-uva-muted">
+        <ol key={key} className={estilos.numerada}>
           {(nodo.content ?? []).map((item, i) => (
-            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}</li>
+            <li key={i}>{(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija, estilos))}</li>
           ))}
         </ol>
       );
@@ -97,7 +147,7 @@ function renderizarBloque(
       return (
         <ul key={key} className="my-0 flex flex-col gap-1.5 pl-0">
           {(nodo.content ?? []).map((item, i) => (
-            <li key={i} className="flex items-start gap-2 text-[13.5px] text-uva-muted">
+            <li key={i} className={`flex items-start gap-2 ${estilos.tarea}`}>
               <input
                 type="checkbox"
                 checked={Boolean(item.attrs?.checked)}
@@ -105,7 +155,7 @@ function renderizarBloque(
                 className="mt-[3px] size-3.5 shrink-0 accent-uva-accent"
               />
               <div className="flex flex-1 flex-col gap-1.5">
-                {(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija))}
+                {(item.content ?? []).map((hijo, j) => renderizarBloque(hijo, j, profundidadHija, estilos))}
               </div>
             </li>
           ))}
@@ -115,9 +165,9 @@ function renderizarBloque(
       return (
         <blockquote
           key={key}
-          className="my-0 flex flex-col gap-2 border-l-2 border-uva-accent py-0.5 pl-3.5 text-[13.5px] text-uva-muted italic"
+          className={`my-0 flex flex-col gap-2 border-l-2 border-uva-accent py-0.5 pl-3.5 italic ${estilos.cita}`}
         >
-          {(nodo.content ?? []).map((hijo, i) => renderizarBloque(hijo, i, profundidadHija))}
+          {(nodo.content ?? []).map((hijo, i) => renderizarBloque(hijo, i, profundidadHija, estilos))}
         </blockquote>
       );
     case "codeBlock":

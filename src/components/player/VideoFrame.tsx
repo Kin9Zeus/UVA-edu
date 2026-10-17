@@ -116,9 +116,10 @@ export function VideoFrame({
         <div className="h-1 rounded-full bg-white/25">
           <div className="h-full w-0 rounded-full bg-uva-accent" />
         </div>
+        {/* Antes decía también "← → cambia de clase", pero el reproductor no
+            tiene ese atajo de teclado. */}
         <div className="mt-[11px] flex items-center gap-4 text-xs text-uva-text">
           <span className="opacity-70">Video en preparación</span>
-          <span className="ml-auto opacity-55">← → cambia de clase</span>
         </div>
       </div>
     </div>

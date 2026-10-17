@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check, Lock, X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { formatDuracion } from "@/lib/admin/format";
@@ -10,6 +10,11 @@ import type { LeccionPlayerItem } from "@/lib/leccion";
  * Panel lateral "Progreso del curso" que abre el botón `Temario` de la barra
  * superior del reproductor. A diferencia de la tarjeta fija de la derecha,
  * agrupa las clases por módulo y muestra la miniatura de cada una.
+ *
+ * Sin sesión (`sinSesion`, la clase gratis de LeccionSinSesion) no hay
+ * avance que mostrar: se titula "Temario del curso", explica qué se abre con
+ * la cuenta y las demás clases llevan candado (quien las abre pasa por
+ * iniciar sesión, ver `irALeccion` en LeccionSinSesion).
  */
 export function TemarioDrawer({
   abierto,
@@ -20,6 +25,7 @@ export function TemarioDrawer({
   total,
   porcentaje,
   onIrALeccion,
+  sinSesion,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -29,7 +35,10 @@ export function TemarioDrawer({
   total: number;
   porcentaje: number;
   onIrALeccion: (leccionId: string) => void;
+  /** Sin sesión: texto bajo el título en lugar del avance. */
+  sinSesion?: { nota: string };
 }) {
+  const titulo = sinSesion ? "Temario del curso" : "Progreso del curso";
   const modulos: { id: string; titulo: string; lecciones: LeccionPlayerItem[] }[] = [];
   for (const leccion of lecciones) {
     const ultimo = modulos.at(-1);
@@ -42,7 +51,7 @@ export function TemarioDrawer({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Backdrop className="fixed inset-0 z-60 bg-uva-overlay/55" />
         <DialogPrimitive.Popup
-          aria-label="Progreso del curso"
+          aria-label={titulo}
           className="fixed inset-y-0 right-0 z-60 h-full w-full overflow-auto border-l border-uva-divider bg-uva-surface p-[26px] outline-hidden sm:w-[430px]"
         >
         <div className="mb-1.5 flex items-center gap-2.5">
@@ -50,7 +59,7 @@ export function TemarioDrawer({
             render={<h4 />}
             className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text"
           >
-            Progreso del curso
+            {titulo}
           </DialogPrimitive.Title>
           <DialogPrimitive.Close
             aria-label="Cerrar"
@@ -60,12 +69,18 @@ export function TemarioDrawer({
           </DialogPrimitive.Close>
         </div>
 
-        <div className="mb-2.5 text-[12.5px] text-uva-text-muted">
-          {porcentaje}% completado · {completadas} de {total} clases
-        </div>
-        <div className="mb-[22px] h-[7px] overflow-hidden rounded-full bg-uva-text/10">
-          <div className="h-full rounded-full bg-uva-accent" style={{ width: `${porcentaje}%` }} />
-        </div>
+        {sinSesion ? (
+          <p className="m-0 mb-[22px] text-[12.5px] text-uva-text-muted">{sinSesion.nota}</p>
+        ) : (
+          <>
+            <div className="mb-2.5 text-[12.5px] text-uva-text-muted">
+              {porcentaje}% completado · {completadas} de {total} clases
+            </div>
+            <div className="mb-[22px] h-[7px] overflow-hidden rounded-full bg-uva-text/10">
+              <div className="h-full rounded-full bg-uva-accent" style={{ width: `${porcentaje}%` }} />
+            </div>
+          </>
+        )}
 
         {modulos.map((modulo) => (
           <div key={modulo.id}>
@@ -76,6 +91,7 @@ export function TemarioDrawer({
               {modulo.lecciones.map((leccion) => {
                 const esActual = leccion.id === leccionActualId;
                 const completadaSinAbrir = leccion.completado && !esActual;
+                const conCandado = Boolean(sinSesion) && !esActual;
                 return (
                   <button
                     key={leccion.id}
@@ -98,6 +114,11 @@ export function TemarioDrawer({
                           <Check className="size-4 text-uva-accent-2" strokeWidth={3} />
                         </div>
                       ) : null}
+                      {conCandado ? (
+                        <div className="absolute inset-0 grid place-items-center bg-uva-bg/55">
+                          <Lock className="size-4 text-uva-text" strokeWidth={2.4} aria-hidden />
+                        </div>
+                      ) : null}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12.5px] font-semibold text-uva-text">
@@ -112,7 +133,15 @@ export function TemarioDrawer({
                       >
                         {formatDuracion(leccion.duracion)}
                         {leccion.numero === 1 && total > 1 ? " · Introducción" : ""}
-                        {esActual ? " · en curso" : leccion.completado ? " · clase completada" : ""}
+                        {esActual
+                          ? sinSesion
+                            ? " · clase gratis"
+                            : " · en curso"
+                          : conCandado
+                            ? " · entra para verla"
+                            : leccion.completado
+                              ? " · clase completada"
+                              : ""}
                       </div>
                     </div>
                     {completadaSinAbrir ? (
