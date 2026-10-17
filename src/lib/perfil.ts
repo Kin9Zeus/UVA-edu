@@ -77,3 +77,21 @@ export const getPerfilActual = cache(async () => {
 
   return { user, perfil };
 });
+
+/**
+ * Nombre, foto y rol para el menú de cuenta (`MenuCuenta`) de las pantallas
+ * que no cargan el chrome del panel (clase, examen). Misma regla que
+ * `getDashboardChromeData` (lib/dashboard-chrome.ts), para que el avatar diga
+ * lo mismo en todas partes.
+ */
+export function resumenCuenta({
+  user,
+  perfil,
+}: Awaited<ReturnType<typeof getPerfilActual>>): { nombre: string; fotoUrl: string | null; esAdmin: boolean } | null {
+  if (!user) return null;
+  return {
+    nombre: perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante",
+    fotoUrl: perfil?.foto_url ?? null,
+    esAdmin: perfil?.rol === "ADMINISTRADOR",
+  };
+}

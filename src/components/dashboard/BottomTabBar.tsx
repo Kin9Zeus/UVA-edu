@@ -39,7 +39,11 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "grid min-h-[50px] min-w-[66px] content-center justify-items-center gap-0.5 rounded-full px-1.5 py-1 text-uva-text-muted transition-colors min-[360px]:min-w-[74px]",
-                active && "bg-uva-surface-2 text-uva-text shadow-[inset_0_-3px_0_var(--uva-btn)]",
+                // Activa: fondo magenta suave con ícono y texto en magenta.
+                // `accent-text` (no `accent-ink`): en oscuro `accent-ink` es
+                // #FF007A y sobre este fondo da 4,15:1, por debajo de AA para
+                // texto de 12 px; `accent-text` da más de 6:1 en los dos temas.
+                active && "bg-uva-accent-soft text-uva-accent-text",
               )}
             >
               <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />

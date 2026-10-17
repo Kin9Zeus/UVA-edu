@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { iniciarIntento } from "@/actions/examenes/intento";
 
 /**
@@ -43,17 +43,26 @@ export function IniciarExamenButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <Button
+      <button
         type="button"
-        variant="primary"
-        className="w-full sm:w-fit"
         disabled={pending}
         onClick={handleIniciar}
+        className="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2.5 rounded-uva-md border-0 bg-uva-btn px-6 text-uva-lead font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-wait disabled:opacity-80"
       >
-        {pending ? "Preparando examen…" : etiqueta}
-      </Button>
+        {pending ? (
+          <>
+            <Loader2 className="size-5 animate-spin" strokeWidth={2.2} aria-hidden />
+            Preparando examen…
+          </>
+        ) : (
+          <>
+            {etiqueta}
+            <ArrowRight className="size-5" strokeWidth={2} aria-hidden />
+          </>
+        )}
+      </button>
       {error && (
-        <p role="alert" className="text-[13px] text-uva-error">
+        <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">
           {error}
         </p>
       )}

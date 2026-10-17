@@ -1,37 +1,49 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ClipboardCheck } from "lucide-react";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { IniciarExamenButton } from "@/components/examen/IniciarExamenButton";
 import { CuentaRegresiva } from "@/components/examen/CuentaRegresiva";
 import { Uvas } from "@/components/examen/Uvas";
 import { Cota } from "@/components/examen/Cota";
 import { COOLDOWN_REINTENTO_MINUTOS, VIDAS_INICIALES } from "@/lib/examenes/tipos";
-import type { ResultadoIntentoVista, SituacionExamen } from "@/lib/examen";
+import type { ConteoPreguntas, ResultadoIntentoVista, SituacionExamen } from "@/lib/examen";
+import { cn } from "@/lib/utils";
 
 type SituacionVisible = Exclude<SituacionExamen, { situacion: "SIN_EXAMEN" } | { situacion: "EN_CURSO" }>;
 
+/** Cómo se lee cada tipo de pregunta en "Qué evalúa". */
+const TIPO_PREGUNTA: Record<string, string> = {
+  OPCION_UNICA: "Elegir una respuesta",
+  VERDADERO_FALSO: "Verdadero o falso",
+  OPCION_MULTIPLE: "Marcar todas las correctas",
+  RELLENAR_ESPACIO: "Escribir la respuesta",
+  EMPAREJAR: "Relacionar parejas",
+};
+
+const BOTON_SECUNDARIO =
+  "inline-flex min-h-12 items-center justify-center rounded-uva-md px-5 text-center text-uva-cuerpo font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline";
+
 /**
- * Todo lo que el estudiante ve del examen cuando NO está rindiéndolo: la
- * pantalla previa, el resultado del último intento, la espera entre intentos
- * y el estado final aprobado.
+ * Todo lo que el estudiante ve del examen cuando NO está rindiéndolo, con el
+ * diseño "examen" del canvas "UVA Cursos":
  *
- * Es UNA sola pieza, no una pila de tarjetas: un panel con encabezado (el
- * titular cambia según cómo le fue), una franja de métricas, la cota de
- * progreso si ya hubo intento, el mensaje y las acciones al pie. Cada estado
- * rellena las mismas zonas en vez de agregar bloques propios.
+ * - Pantalla previa (puede iniciar): título, datos del examen, qué evalúa y
+ *   la tarjeta "Antes de empezar" con las reglas y "Iniciar examen".
+ * - Resultado (aprobado, se quedó sin uvas o en pausa, o se acabó el
+ *   tiempo): la tarjeta final del diseño, con el sello "Aprobado".
  *
  * Dice cuántas preguntas quedaron resueltas pero no cuáles faltaron ni cuál
  * era la respuesta correcta: con intentos limitados, revelarlo convertiría el
  * reintento en un trámite (docs/functional-spec.md Flujo 14).
  *
- * Es un Server Component: lo interactivo (iniciar, cuenta regresiva) son
- * islas cliente.
+ * Server Component: lo interactivo (iniciar, cuenta regresiva) son islas
+ * cliente.
  */
 export function ExamenIntro({
   situacion,
   resultado,
+  conteo,
   cursoId,
   cursoSlug,
   cursoTitulo,
@@ -40,238 +52,385 @@ export function ExamenIntro({
   situacion: SituacionVisible;
   /** Resultado del último intento cerrado, si hay uno que mostrar. */
   resultado: ResultadoIntentoVista | null;
+  /** Cuántas preguntas tiene, por tipo. `null` = no se pudo saber: no se pinta. */
+  conteo: ConteoPreguntas | null;
   cursoId: string;
   cursoSlug: string;
   cursoTitulo: string;
   /** El intento se cerró solo porque se acabó el tiempo, no porque el
-   * estudiante lo enviara. Cambia el titular del resultado. */
+   * estudiante lo enviara. */
   tiempoAgotado: boolean;
 }) {
-  const { examen } = situacion;
-  const aprobado = situacion.situacion === "APROBADO";
-  const reprobado = resultado !== null && !aprobado;
-  const correctas = resultado ? resultado.preguntas.filter((p) => p.acertada).length : 0;
-  const totalPreguntas = resultado?.preguntas.length ?? 0;
-
-  // ---------- Titular ----------
-  let titular: string;
-  let bajada: string | null;
-  if (aprobado) {
-    titular = "¡Aprobaste!";
-    bajada = situacion.certificadoListo
-      ? "Respondiste todas las preguntas bien. Tu certificado ya está disponible."
-      : "Respondiste todas las preguntas bien. Termina las clases que te falten para recibir tu certificado.";
-  } else if (reprobado) {
-    titular = tiempoAgotado ? "Se acabó el tiempo" : "Te quedaste sin uvas";
-    bajada = tiempoAgotado
-      ? "Quedaron guardadas las preguntas que alcanzaste a resolver."
-      : "Estuviste cerca. Repasa y vuelve por la revancha.";
-  } else {
-    titular = examen.titulo;
-    bajada = null;
-  }
-
-  // Resplandor de fondo del panel: magenta al aprobar, rojo apagado al
-  // perder, un magenta leve antes de empezar.
-  const resplandor = aprobado
-    ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-accent)_22%,transparent),transparent_70%)]"
-    : reprobado
-      ? "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-error)_14%,transparent),transparent_70%)]"
-      : "bg-[radial-gradient(ellipse_70%_60%_at_85%_0%,color-mix(in_srgb,var(--uva-accent)_10%,transparent),transparent_70%)]";
+  const muestraResultado =
+    situacion.situacion === "APROBADO" ||
+    situacion.situacion === "EN_ESPERA" ||
+    (tiempoAgotado && resultado !== null);
 
   return (
-    <div className="relative isolate">
-      <div aria-hidden className="uva-reticula pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px]" />
-
-      <div className="mx-auto flex w-full max-w-[540px] flex-col gap-4 px-4 py-6 sm:px-6 sm:py-12 lg:min-h-[calc(100dvh-65px)] lg:justify-center">
-        <Link
-          href={`/cursos/${cursoSlug}`}
-          className="flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Volver al curso
-        </Link>
-
-        <section
-          className={`relative overflow-hidden rounded-uva-md border bg-uva-surface/90 shadow-[0_24px_60px_-30px_color-mix(in_srgb,var(--uva-shadow)_80%,transparent)] backdrop-blur ${
-            aprobado ? "border-uva-accent/45" : "border-uva-divider"
-          }`}
-          aria-live={resultado ? "polite" : undefined}
-        >
-          <div aria-hidden className={`pointer-events-none absolute inset-0 ${resplandor}`} />
-
-          {/* ---------- Encabezado ---------- */}
-          <header className="relative flex flex-col gap-2 px-5 pb-6 pt-6 sm:px-8 sm:pb-8 sm:pt-8">
-            <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.16em] text-uva-text-faint">
-              {resultado ? `${examen.titulo} · ${cursoTitulo}` : `Examen final · ${cursoTitulo}`}
-            </p>
-            <h1
-              className={`font-heading font-extrabold leading-[1.05] tracking-[-0.03em] text-uva-text ${
-                resultado ? "text-[32px] sm:text-[38px]" : "text-[26px] sm:text-[30px]"
-              } ${aprobado ? "pr-28 sm:pr-40" : ""}`}
-            >
-              {titular}
-            </h1>
-            {bajada && <p className="max-w-[46ch] text-[14px] leading-relaxed text-uva-muted">{bajada}</p>}
-
-            {aprobado && (
-              <div
-                aria-hidden
-                className="absolute right-5 top-7 animate-uva-sello rounded-[6px] border-[3px] border-double border-uva-accent px-2.5 py-1 font-mono text-[13px] font-bold tracking-[0.22em] text-uva-accent-ink sm:right-8 sm:top-9 sm:text-[17px]"
-              >
-                APROBADO
-              </div>
-            )}
-          </header>
-
-          {/* ---------- Métricas ---------- */}
-          <dl className="relative grid grid-cols-3 border-y border-uva-divider bg-uva-bg/50">
-            {resultado ? (
-              <>
-                <Metrica etiqueta="Resueltas">
-                  <span className="text-[22px] leading-none">{correctas}</span>
-                  <span className="text-uva-text-faint">/{totalPreguntas}</span>
-                </Metrica>
-                <Metrica etiqueta="Uvas">
-                  <Uvas vidas={resultado.vidasRestantes} total={VIDAS_INICIALES} className="size-3.5 sm:size-4" />
-                </Metrica>
-              </>
-            ) : (
-              <>
-                <Metrica etiqueta="Uvas">
-                  <Uvas vidas={VIDAS_INICIALES} total={VIDAS_INICIALES} className="size-3.5 sm:size-4" />
-                </Metrica>
-                <Metrica etiqueta="Tiempo">
-                  {examen.minutosLimite === null ? "Libre" : `${examen.minutosLimite} min`}
-                </Metrica>
-              </>
-            )}
-            {situacion.situacion === "EN_ESPERA" ? (
-              <Metrica etiqueta="Próximo intento" destacada>
-                <CuentaRegresiva hasta={situacion.disponibleDesde} />
-              </Metrica>
-            ) : situacion.situacion === "APROBADO" ? (
-              <Metrica etiqueta="Certificado">{situacion.certificadoListo ? "Listo" : "Pendiente"}</Metrica>
-            ) : (
-              <Metrica etiqueta="Intentos">
-                {situacion.intentosRestantes === null ? "Sin límite" : `${situacion.intentosRestantes} más`}
-              </Metrica>
-            )}
-          </dl>
-
-          {resultado && totalPreguntas > 0 && (
-            <div className="relative px-5 pt-5 sm:px-8">
-              <Cota correctas={correctas} total={totalPreguntas} />
-            </div>
-          )}
-
-          {/* ---------- Mensaje ---------- */}
-          {situacion.situacion !== "APROBADO" && (
-            <div className="relative flex flex-col gap-3 px-5 py-5 text-[13.5px] leading-relaxed text-uva-muted sm:px-8 sm:py-6">
-              {situacion.situacion === "EN_ESPERA" ? (
-                <p>
-                  {situacion.esperaLarga ? (
-                    <>
-                      Usaste tus {situacion.intentosUsados}{" "}
-                      {situacion.intentosUsados === 1 ? "intento" : "intentos"} de esta tanda.
-                    </>
-                  ) : (
-                    <>Entre un intento y otro hay una pausa de {COOLDOWN_REINTENTO_MINUTOS} minutos.</>
-                  )}{" "}
-                  Vuelves a las{" "}
-                  <time dateTime={situacion.disponibleDesde} className="font-mono text-uva-text">
-                    {new Date(situacion.disponibleDesde).toLocaleTimeString("es-CO", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: "America/Bogota",
-                    })}
-                  </time>
-                  {situacion.esperaLarga ? " con una tanda nueva de intentos." : "."} Aprovecha para repasar las
-                  clases.
-                </p>
-              ) : reprobado ? (
-                <p>Ya puedes volver a intentarlo. Cada intento empieza con las {VIDAS_INICIALES} uvas completas.</p>
-              ) : (
-                <>
-                  {examen.instrucciones ? (
-                    <RichTextRenderer contenido={examen.instrucciones} />
-                  ) : (
-                    <p>
-                      Una pregunta a la vez. Si fallas una, pierdes una uva y esa pregunta vuelve a aparecer
-                      más adelante: apruebas cuando las respondes todas bien.
-                    </p>
-                  )}
-                  {examen.minutosLimite !== null && (
-                    <p className="flex items-start gap-2 text-[13px]">
-                      <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
-                      El cronómetro arranca al iniciar y no se detiene aunque cierres la página.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ---------- Acciones ---------- */}
-          <footer
-            className={`relative flex flex-col-reverse gap-2.5 border-t border-uva-divider bg-uva-bg/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-8 ${
-              situacion.situacion === "APROBADO" ? "mt-5" : ""
-            }`}
-          >
-            {situacion.situacion === "APROBADO" ? (
-              situacion.certificadoListo ? (
-                <Button variant="primary" className="w-full sm:w-fit" render={<Link href="/dashboard/certificados" />}>
-                  Ver mi certificado
-                </Button>
-              ) : (
-                <Button variant="primary" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-                  Volver al temario
-                </Button>
-              )
-            ) : situacion.situacion === "EN_ESPERA" ? (
-              <Button variant="primary" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-                Repasar el curso
-              </Button>
-            ) : (
-              <>
-                {reprobado && (
-                  <Button variant="ghost" className="w-full sm:w-fit" render={<Link href={`/cursos/${cursoSlug}`} />}>
-                    Repasar el curso
-                  </Button>
-                )}
-                <IniciarExamenButton
-                  cursoId={cursoId}
-                  cursoSlug={cursoSlug}
-                  etiqueta={situacion.intentosUsados > 0 ? "Iniciar nuevo intento" : "Iniciar examen"}
-                />
-              </>
-            )}
-          </footer>
-        </section>
-      </div>
+    <div className="relative isolate flex-1">
+      <div aria-hidden className="uva-reticula pointer-events-none absolute inset-x-0 top-0 -z-10 h-[760px]" />
+      {muestraResultado ? (
+        <Resultado
+          situacion={situacion}
+          resultado={resultado}
+          cursoId={cursoId}
+          cursoSlug={cursoSlug}
+          cursoTitulo={cursoTitulo}
+          tiempoAgotado={tiempoAgotado}
+        />
+      ) : (
+        <Previa
+          situacion={situacion as Extract<SituacionVisible, { situacion: "DISPONIBLE" }>}
+          resultado={resultado}
+          conteo={conteo}
+          cursoId={cursoId}
+          cursoSlug={cursoSlug}
+        />
+      )}
     </div>
   );
 }
 
-function Metrica({
-  etiqueta,
-  destacada = false,
-  children,
+/** Pantalla previa: el estudiante puede iniciar un intento. */
+function Previa({
+  situacion,
+  resultado,
+  conteo,
+  cursoId,
+  cursoSlug,
 }: {
-  etiqueta: string;
-  destacada?: boolean;
-  children: ReactNode;
+  situacion: Extract<SituacionVisible, { situacion: "DISPONIBLE" }>;
+  resultado: ResultadoIntentoVista | null;
+  conteo: ConteoPreguntas | null;
+  cursoId: string;
+  cursoSlug: string;
 }) {
+  const { examen } = situacion;
+  const resueltasUltimo = resultado ? resultado.preguntas.filter((p) => p.acertada).length : 0;
+  const tipos = conteo
+    ? Object.entries(conteo.porTipo)
+        .filter(([, total]) => (total ?? 0) > 0)
+        .map(([tipo, total]) => ({ tipo, total: total ?? 0, nombre: TIPO_PREGUNTA[tipo] ?? "Otras preguntas" }))
+    : [];
+
+  const reglas = [
+    "No necesitas terminar las clases para presentarlo.",
+    `Tienes ${VIDAS_INICIALES} uvas. Cada respuesta incorrecta te quita una.`,
+    "La pregunta que falles vuelve a aparecer más adelante, en una segunda vuelta.",
+    `Si te quedas sin uvas, puedes intentarlo de nuevo después de ${COOLDOWN_REINTENTO_MINUTOS} minutos.`,
+    ...(examen.minutosLimite !== null
+      ? [
+          `Tienes ${examen.minutosLimite} minutos. El cronómetro arranca al iniciar y no se detiene aunque cierres la página.`,
+        ]
+      : []),
+    ...(situacion.intentosRestantes !== null
+      ? [
+          situacion.intentosRestantes === 1
+            ? "Te queda 1 intento en esta tanda."
+            : `Te quedan ${situacion.intentosRestantes} intentos en esta tanda.`,
+        ]
+      : []),
+  ];
+
+  const datos: { valor: string; etiqueta: string }[] = [
+    ...(conteo ? [{ valor: String(conteo.total), etiqueta: conteo.total === 1 ? "pregunta" : "preguntas" }] : []),
+    { valor: String(VIDAS_INICIALES), etiqueta: "uvas para fallar" },
+    examen.minutosLimite !== null
+      ? { valor: `${examen.minutosLimite} min`, etiqueta: "para responder" }
+      : { valor: `${COOLDOWN_REINTENTO_MINUTOS} min`, etiqueta: "de pausa si te quedas sin uvas" },
+  ];
+
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 border-r border-uva-divider px-3 py-3.5 last:border-r-0 sm:px-6 sm:py-4">
-      <dt className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-uva-text-faint">{etiqueta}</dt>
-      <dd
-        className={`flex min-h-[22px] items-baseline font-mono text-[14px] font-semibold ${
-          destacada ? "text-uva-accent-text" : "text-uva-text"
-        }`}
+    <div className="mx-auto grid w-full max-w-uva grid-cols-1 gap-8 px-4 pt-6 pb-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-20 lg:px-[clamp(32px,8vw,120px)] lg:pt-12 lg:pb-16">
+      <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
+        <div className="flex flex-col gap-4">
+          <p className="m-0 inline-flex items-center gap-2 text-uva-detalle font-bold text-uva-accent-ink">
+            <ClipboardCheck className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
+            Examen final
+          </p>
+          <h1 className="m-0 text-uva-titulo-2 text-balance text-uva-text lg:text-uva-titulo-3">{examen.titulo}</h1>
+          <p className="m-0 max-w-[34em] text-uva-lead text-uva-text-muted">
+            Preséntalo cuando te sientas listo, aunque no hayas terminado las clases. Si apruebas, recibes el
+            certificado del curso con un código verificable.
+          </p>
+        </div>
+
+        <dl
+          className={cn(
+            "m-0 grid rounded-uva-md border border-uva-divider bg-uva-surface",
+            datos.length === 3 ? "grid-cols-3" : "grid-cols-2",
+          )}
+        >
+          {datos.map((dato, i) => (
+            <div
+              key={dato.etiqueta}
+              // `flex-col-reverse` pone la cifra arriba (el dt va primero en el
+              // HTML); `justify-end` la alinea arriba en todas las columnas
+              // aunque las etiquetas ocupen distinto número de líneas.
+              className={cn(
+                "flex flex-col-reverse justify-end px-3 py-3.5 sm:px-5.5 sm:py-4.5",
+                i > 0 && "border-l border-uva-divider",
+              )}
+            >
+              <dt className="mt-0.5 text-uva-detalle text-uva-text-muted">{dato.etiqueta}</dt>
+              <dd className="m-0 font-mono text-uva-titulo-4 font-extrabold text-uva-text">{dato.valor}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {(tipos.length > 0 || examen.instrucciones) && (
+          <section aria-labelledby="examen-evalua" className="flex flex-col gap-3">
+            <h2 id="examen-evalua" className="m-0 text-uva-titulo-4 text-uva-text">
+              Qué evalúa
+            </h2>
+            {examen.instrucciones && (
+              <RichTextRenderer contenido={examen.instrucciones} escala="lectura" />
+            )}
+            {tipos.length > 0 && (
+              <ol className="m-0 list-none border-b border-uva-divider p-0">
+                {tipos.map((tipo, i) => (
+                  <li key={tipo.tipo} className="flex items-center gap-4 border-t border-uva-divider py-3.5">
+                    <span
+                      aria-hidden
+                      className="grid size-10 shrink-0 place-items-center rounded-uva-sm border-[1.5px] border-uva-line-strong font-mono text-uva-cuerpo font-extrabold text-uva-text"
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1 text-uva-cuerpo font-semibold text-uva-text">{tipo.nombre}</span>
+                    <span className="shrink-0 font-mono text-uva-detalle text-uva-text-muted">
+                      {tipo.total} {tipo.total === 1 ? "pregunta" : "preguntas"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
+      </div>
+
+      <aside
+        aria-labelledby="examen-antes"
+        className="flex flex-col gap-5.5 rounded-uva-lg border-[1.5px] border-uva-line-strong bg-uva-surface p-5.5 lg:p-8"
       >
-        {children}
-      </dd>
+        <h2 id="examen-antes" className="m-0 text-uva-titulo-4 text-uva-text">
+          Antes de empezar
+        </h2>
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          {reglas.map((regla) => (
+            <li key={regla} className="flex gap-3 text-uva-cuerpo text-uva-text">
+              <span
+                aria-hidden
+                className="mt-[0.55em] size-2 shrink-0 rotate-45 border-[1.5px] border-uva-text bg-uva-accent-2"
+              />
+              <span>{regla}</span>
+            </li>
+          ))}
+        </ul>
+        <dl className="m-0 grid grid-cols-2 border-y border-uva-divider">
+          <div className="py-3.5">
+            <dt className="text-uva-detalle text-uva-text-muted">Uvas para este intento</dt>
+            <dd className="m-0 mt-1.5">
+              <Uvas vidas={VIDAS_INICIALES} total={VIDAS_INICIALES} />
+            </dd>
+          </div>
+          <div className="border-l border-uva-divider py-3.5 pl-4.5">
+            <dt className="text-uva-detalle text-uva-text-muted">Último intento</dt>
+            <dd className="m-0 mt-0.5 font-mono text-uva-cuerpo font-extrabold text-uva-text-muted">
+              {resultado ? `${resueltasUltimo}/${resultado.preguntas.length} resueltas` : "Sin intentos"}
+            </dd>
+          </div>
+        </dl>
+        <div className="flex flex-col gap-2">
+          <IniciarExamenButton
+            cursoId={cursoId}
+            cursoSlug={cursoSlug}
+            etiqueta={situacion.intentosUsados > 0 ? "Iniciar nuevo intento" : "Iniciar examen"}
+          />
+          <Link href={`/cursos/${cursoSlug}`} className={BOTON_SECUNDARIO}>
+            Volver al curso
+          </Link>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/** Tarjeta final: aprobado, sin uvas (en pausa) o se acabó el tiempo. */
+function Resultado({
+  situacion,
+  resultado,
+  cursoId,
+  cursoSlug,
+  cursoTitulo,
+  tiempoAgotado,
+}: {
+  situacion: SituacionVisible;
+  resultado: ResultadoIntentoVista | null;
+  cursoId: string;
+  cursoSlug: string;
+  cursoTitulo: string;
+  tiempoAgotado: boolean;
+}) {
+  const aprobado = situacion.situacion === "APROBADO";
+  const correctas = resultado ? resultado.preguntas.filter((p) => p.acertada).length : 0;
+  const total = resultado?.preguntas.length ?? 0;
+
+  let titulo: string;
+  let texto: string;
+  if (aprobado) {
+    titulo = "¡Aprobaste!";
+    texto = situacion.certificadoListo
+      ? "Respondiste todas las preguntas bien. Tu certificado ya está disponible."
+      : "Respondiste todas las preguntas bien. Tu certificado se está preparando.";
+  } else if (tiempoAgotado) {
+    titulo = "Se acabó el tiempo";
+    texto = "Quedaron guardadas las preguntas que alcanzaste a resolver.";
+  } else if (situacion.situacion === "EN_ESPERA" && situacion.esperaLarga) {
+    titulo = "Sin intentos por ahora";
+    texto = `Usaste tus ${situacion.intentosUsados} ${situacion.intentosUsados === 1 ? "intento" : "intentos"} de esta tanda.`;
+  } else {
+    titulo = "Te quedaste sin uvas";
+    texto = "Estuviste cerca. Repasa y vuelve por la revancha.";
+  }
+
+  const hora = (iso: string) =>
+    new Date(iso).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", timeZone: "America/Bogota" });
+
+  let nota: ReactNode = null;
+  if (aprobado) {
+    nota = situacion.certificadoListo
+      ? "Lo encuentras en Mis certificados, con un código que cualquiera puede verificar."
+      : "Te avisamos cuando esté listo en Mis certificados.";
+  } else if (situacion.situacion === "EN_ESPERA") {
+    nota = (
+      <>
+        {situacion.esperaLarga
+          ? "Tendrás una tanda nueva de intentos"
+          : `Entre un intento y otro hay una pausa de ${COOLDOWN_REINTENTO_MINUTOS} minutos. Vuelves`}{" "}
+        a las{" "}
+        <time dateTime={situacion.disponibleDesde} className="font-mono text-uva-text">
+          {hora(situacion.disponibleDesde)}
+        </time>
+        {/* "9:49 p. m." ya termina en punto: no se repite. */}
+        {hora(situacion.disponibleDesde).endsWith(".") ? "" : "."} Aprovecha para repasar las clases.
+      </>
+    );
+  } else {
+    nota = `Ya puedes volver a intentarlo. Cada intento empieza con las ${VIDAS_INICIALES} uvas completas.`;
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[640px] px-4 pt-8 pb-12 sm:px-6 lg:pt-16">
+      <section
+        aria-labelledby="examen-fin"
+        aria-live="polite"
+        className={cn(
+          "overflow-hidden rounded-uva-lg border bg-uva-surface",
+          aprobado
+            ? "border-uva-accent/70 shadow-[0_0_0_1px_color-mix(in_srgb,var(--uva-accent)_25%,transparent),0_24px_90px_-10px_color-mix(in_srgb,var(--uva-accent)_35%,transparent)]"
+            : "border-uva-divider",
+        )}
+      >
+        <div
+          className={cn(
+            "relative p-5.5 sm:p-8",
+            aprobado &&
+              "bg-[radial-gradient(120%_140%_at_88%_0%,color-mix(in_srgb,var(--uva-accent)_30%,transparent)_0%,color-mix(in_srgb,var(--uva-accent)_10%,transparent)_35%,transparent_65%)]",
+          )}
+        >
+          {aprobado && (
+            <span
+              aria-hidden
+              className="absolute top-12 right-5 animate-uva-sello rounded-uva-xs border-2 border-uva-accent px-3 py-1 font-mono text-uva-detalle font-extrabold tracking-[0.22em] text-uva-accent-text uppercase outline-[1.5px] outline-offset-[3px] outline-uva-accent outline-solid sm:top-14.5 sm:right-8"
+            >
+              Aprobado
+            </span>
+          )}
+          <p className={cn("m-0 text-uva-detalle text-uva-text-muted", aprobado && "pr-32")}>
+            Examen final de {cursoTitulo}
+          </p>
+          <h1 id="examen-fin" className={cn("m-0 mt-3.5 text-uva-titulo-2 text-uva-text", aprobado && "pr-28 sm:pr-0")}>
+            {titulo}
+          </h1>
+          <p className="m-0 mt-3 text-uva-cuerpo text-uva-text-muted">{texto}</p>
+        </div>
+
+        <dl className="m-0 grid grid-cols-3 border-y border-uva-divider">
+          <Dato etiqueta="Resueltas">
+            {resultado ? (
+              <>
+                <span className="text-uva-titulo-4 font-extrabold">{String(correctas).padStart(2, "0")}</span>
+                <span className="text-uva-text-muted">/{String(total).padStart(2, "0")}</span>
+              </>
+            ) : (
+              <span className="text-uva-text-muted">Sin datos</span>
+            )}
+          </Dato>
+          <Dato etiqueta="Uvas" borde>
+            <Uvas vidas={resultado?.vidasRestantes ?? 0} total={VIDAS_INICIALES} className="size-4 sm:size-4.5" />
+          </Dato>
+          {aprobado ? (
+            <Dato etiqueta="Certificado" borde>
+              <span className="text-uva-cuerpo font-extrabold">{situacion.certificadoListo ? "Listo" : "Pendiente"}</span>
+            </Dato>
+          ) : situacion.situacion === "EN_ESPERA" ? (
+            <Dato etiqueta="Próximo intento" borde>
+              <span className="text-uva-cuerpo font-extrabold text-uva-accent-text">
+                <CuentaRegresiva hasta={situacion.disponibleDesde} />
+              </span>
+            </Dato>
+          ) : (
+            <Dato etiqueta="Intentos" borde>
+              <span className="text-uva-cuerpo font-extrabold">
+                {situacion.situacion === "DISPONIBLE" && situacion.intentosRestantes !== null
+                  ? `${situacion.intentosRestantes} más`
+                  : "Sin límite"}
+              </span>
+            </Dato>
+          )}
+        </dl>
+
+        <div className="px-5.5 py-6 sm:px-8">
+          {total > 0 && <Cota correctas={correctas} total={total} />}
+          <p className="m-0 mt-4 text-uva-cuerpo text-uva-text-muted">{nota}</p>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2.5 border-t border-uva-divider px-5.5 py-5 sm:flex-row sm:items-center sm:justify-end sm:px-8">
+          <Link href={`/cursos/${cursoSlug}`} className={BOTON_SECUNDARIO}>
+            Volver al curso
+          </Link>
+          {aprobado ? (
+            situacion.certificadoListo && (
+              <Link
+                href="/dashboard/certificados"
+                className="inline-flex min-h-13 items-center justify-center rounded-uva-md bg-uva-btn px-6 text-uva-cuerpo font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline"
+              >
+                Ver mi certificado
+              </Link>
+            )
+          ) : situacion.situacion === "DISPONIBLE" ? (
+            <div className="sm:w-64">
+              <IniciarExamenButton cursoId={cursoId} cursoSlug={cursoSlug} etiqueta="Iniciar nuevo intento" />
+            </div>
+          ) : (
+            <Link
+              href={`/cursos/${cursoSlug}#temario-titulo`}
+              className="inline-flex min-h-13 items-center justify-center rounded-uva-md bg-uva-btn px-6 text-uva-cuerpo font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline"
+            >
+              Repasar el curso
+            </Link>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Dato({ etiqueta, borde = false, children }: { etiqueta: string; borde?: boolean; children: ReactNode }) {
+  return (
+    <div className={cn("min-w-0 px-3 py-4 sm:px-6 sm:py-4.5", borde && "border-l border-uva-divider")}>
+      <dt className="text-uva-detalle leading-tight font-bold text-uva-text-muted">{etiqueta}</dt>
+      <dd className="m-0 mt-1.5 flex min-h-7 items-center font-mono text-uva-text">{children}</dd>
     </div>
   );
 }

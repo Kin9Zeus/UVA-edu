@@ -97,7 +97,7 @@ function FilaClase({
           className={cn(
             "grid size-7 place-items-center rounded-full font-mono text-xs font-extrabold",
             resaltada
-              ? "bg-uva-btn text-uva-on-accent ring-4 ring-uva-accent-soft"
+              ? "bg-uva-btn text-uva-on-accent"
               : leccion.completado
                 ? "bg-uva-accent-2 text-uva-on-bright"
                 : "border-2 border-uva-line-strong bg-uva-bg text-uva-text",
@@ -180,8 +180,9 @@ function FilaClase({
           href={`/cursos/${cursoSlug}/${leccion.slug}`}
           className={cn(
             clases,
-            "pr-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
-            resaltada ? "bg-uva-accent-soft shadow-[inset_3px_0_0_var(--uva-btn)]" : "hover:bg-uva-hover",
+            // Sin fondo ni barra lateral en la clase resaltada: la marcan el
+            // número en magenta, el borde de la miniatura y "Continúa aquí".
+            "pr-2 hover:bg-uva-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
           )}
         >
           {contenido}

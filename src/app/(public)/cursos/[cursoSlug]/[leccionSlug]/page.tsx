@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { preconnect } from "react-dom";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
-import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
+import { getPerfilActual, getUsuarioActual, resumenCuenta } from "@/lib/perfil";
 import { getLeccionPlayer } from "@/lib/leccion";
 import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { getNotasDeLeccion } from "@/lib/notas";
@@ -103,15 +103,11 @@ export default async function LeccionPlayerPage({
     user ? getNotasDeLeccion(data.leccionId, user.id) : Promise.resolve([]),
   ]);
 
-  // Mismo nombre, foto y rol que muestra el encabezado del panel
-  // (getDashboardChromeData, lib/dashboard-chrome.ts).
-  const { perfil } = perfilActual;
-  const sesion = user
+  const cuenta = resumenCuenta(perfilActual);
+  const sesion = user && cuenta
     ? {
         usuarioId: user.id,
-        nombre: perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante",
-        fotoUrl: perfil?.foto_url ?? null,
-        esAdmin: perfil?.rol === "ADMINISTRADOR",
+        ...cuenta,
         notas: notas ?? [],
         // `null` = no se pudo leer (no es lo mismo que "sin notas"): la clase
         // avisa con Reintentar en vez del vacío. Igual con los comentarios.

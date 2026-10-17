@@ -461,3 +461,32 @@ export async function getResultadoIntento(
     })),
   };
 }
+
+/** Cuántas preguntas tiene el examen, en total y por tipo (sin contenido). */
+export type ConteoPreguntas = {
+  total: number;
+  porTipo: Partial<Record<PreguntaParaEstudiante["tipo"] | string, number>>;
+};
+
+/**
+ * Para la pantalla previa del examen ("10 preguntas"). Sale de
+ * `conteo_preguntas_examen` (supabase/sql/124): una función que solo cuenta,
+ * porque el estudiante no puede leer `preguntas_examen`.
+ *
+ * Es un dato secundario: si la lectura falla (o la base todavía no tiene el
+ * script 124), la pantalla sigue sin el número y el fallo queda registrado.
+ * `null` = no se sabe; nunca un 0 inventado.
+ */
+export async function getConteoPreguntasExamen(cursoId: string): Promise<ConteoPreguntas | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("conteo_preguntas_examen", { p_id_curso: cursoId });
+  if (error) {
+    logError("examen:conteo", "no se pudo contar las preguntas del examen", error, { area: "examen", cursoId });
+    return null;
+  }
+  const filas = (data ?? []) as { tipo: string; total: number }[];
+  if (filas.length === 0) return null;
+  const porTipo: ConteoPreguntas["porTipo"] = {};
+  for (const fila of filas) porTipo[fila.tipo] = Number(fila.total);
+  return { total: filas.reduce((suma, fila) => suma + Number(fila.total), 0), porTipo };
+}

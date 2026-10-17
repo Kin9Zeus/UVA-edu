@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, useTransition, type KeyboardEvent, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Download, FileCheck, List, Loader2, Lock } from "lucide-react";
-import { LogoUva } from "@/components/home/LogoUva";
+import { EncabezadoCurso } from "@/components/curso/EncabezadoCurso";
 import { MenuCuenta } from "@/components/dashboard/MenuCuenta";
 import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
@@ -244,53 +244,41 @@ export function LeccionMaqueta({
 
   return (
     <div className="flex min-h-dvh flex-col bg-uva-bg">
-      <header className="border-b border-uva-divider">
-        <div className="mx-auto flex w-full max-w-uva items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-6 lg:px-8">
-          <Link
-            href={sesion ? "/dashboard" : "/"}
-            aria-label={sesion ? "U.V.A., ir al inicio del panel" : "U.V.A., ir al inicio"}
-            className="hidden min-h-11 items-center text-uva-text lg:inline-flex"
-          >
-            <LogoUva className="h-7.5 w-auto" />
+      <EncabezadoCurso
+        inicio={
+          sesion
+            ? { href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }
+            : { href: "/", etiqueta: "U.V.A., ir al inicio" }
+        }
+        volver={{ href: `/cursos/${data.cursoSlug}`, texto: data.cursoTitulo }}
+      >
+        <button
+          type="button"
+          onClick={abrirTemario}
+          aria-label={`Temario del curso, clase ${data.numero} de ${data.totalClases}`}
+          className={cn(BOTON_SECUNDARIO, "cursor-pointer bg-transparent lg:hidden")}
+        >
+          <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
+          Temario
+          <span className="font-mono text-uva-text-muted">
+            {data.numero}/{data.totalClases}
+          </span>
+        </button>
+        <SelectorTemaBoton className="hidden text-uva-text hover:bg-uva-hover hover:text-uva-text lg:inline-flex" />
+        {sesion ? (
+          <MenuCuenta
+            nombre={sesion.nombre}
+            fotoUrl={sesion.fotoUrl}
+            esAdmin={sesion.esAdmin}
+            mostrarNombre={false}
+            comunidadSiempre
+          />
+        ) : (
+          <Link href={rutaEntrar} className={cn(BOTON_SECUNDARIO, "hidden shrink-0 lg:inline-flex")}>
+            Entra o crea tu cuenta
           </Link>
-          <span aria-hidden className="hidden h-7 w-px bg-uva-divider lg:block" />
-          <Link
-            href={`/cursos/${data.cursoSlug}`}
-            aria-label={`Volver al curso ${data.cursoTitulo}`}
-            className="-ml-2 inline-flex min-h-11 min-w-11 items-center gap-1.5 px-2 font-semibold text-uva-text hover:no-underline lg:ml-0 lg:min-w-0 lg:px-0"
-          >
-            <ChevronLeft className="size-5 shrink-0" strokeWidth={2} aria-hidden />
-            <span className="hidden truncate text-uva-cuerpo lg:inline">{data.cursoTitulo}</span>
-          </Link>
-          <span className="flex-1" />
-          <button
-            type="button"
-            onClick={abrirTemario}
-            aria-label={`Temario del curso, clase ${data.numero} de ${data.totalClases}`}
-            className={cn(BOTON_SECUNDARIO, "cursor-pointer bg-transparent lg:hidden")}
-          >
-            <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
-            Temario
-            <span className="font-mono text-uva-text-muted">
-              {data.numero}/{data.totalClases}
-            </span>
-          </button>
-          <SelectorTemaBoton className="hidden text-uva-text hover:bg-uva-hover hover:text-uva-text lg:inline-flex" />
-          {sesion ? (
-            <MenuCuenta
-              nombre={sesion.nombre}
-              fotoUrl={sesion.fotoUrl}
-              esAdmin={sesion.esAdmin}
-              mostrarNombre={false}
-              comunidadSiempre
-            />
-          ) : (
-            <Link href={rutaEntrar} className={cn(BOTON_SECUNDARIO, "hidden shrink-0 lg:inline-flex")}>
-              Entra o crea tu cuenta
-            </Link>
-          )}
-        </div>
-      </header>
+        )}
+      </EncabezadoCurso>
 
       <div className="mx-auto grid w-full max-w-uva flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_clamp(340px,30vw,440px)]">
         <div className="flex min-w-0 flex-col gap-5 pb-10 lg:gap-6 lg:px-10 lg:pt-7 lg:pb-12">

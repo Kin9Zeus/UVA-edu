@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clock, Flame, RotateCcw, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { PreguntaEmparejar } from "@/components/examen/PreguntaEmparejar";
@@ -97,10 +96,10 @@ type Veredicto = "bien" | "mal" | null;
  * (uvas como vidas, racha, cota de progreso) con el veredicto
  * pintado sobre la propia respuesta elegida, no en un aviso aparte.
  *
- * En móvil ocupa exactamente la pantalla (`h-dvh`): arriba el marcador,
- * al centro la pregunta y abajo, al alcance del pulgar, la acción. Si una
- * pregunta excepcionalmente larga no cabe, solo el bloque central se
- * desplaza — el marcador y el botón nunca se van de la pantalla.
+ * Diseño "examen" del canvas "UVA Cursos": arriba la tarjeta de avance
+ * (resueltas, uvas, cronómetro y la cota por tramos), luego el tipo de
+ * pregunta, el enunciado grande y las opciones con letra; abajo la acción.
+ * En celular la acción queda pegada al borde inferior, al alcance del pulgar.
  *
  * Cada respuesta se califica y persiste al confirmarla (`responderPregunta`)
  * y queda fija: no hay vuelta atrás. Fallar no saca la pregunta del examen —
@@ -136,6 +135,10 @@ export function ExamenRendir({
   // pendiente y se falla, el servidor devuelve la MISMA como siguiente.
   const [turno, setTurno] = useState(0);
   const [falladasSesion, setFalladasSesion] = useState<string[]>([]);
+  // Si la pregunta en pantalla es de "Segunda vuelta", fijado al mostrarla:
+  // fallarla en este turno no la convierte en segunda vuelta todavía (eso
+  // pasa cuando vuelve a aparecer). `null` = primer turno sin fijar aún.
+  const [vueltaEnTurno, setVueltaEnTurno] = useState<boolean | null>(null);
   const router = useRouter();
   const encabezadoRef = useRef<HTMLDivElement>(null);
   const siguienteRef = useRef<HTMLButtonElement>(null);
@@ -245,6 +248,7 @@ export function ExamenRendir({
         setRacha((r) => r + 1);
       } else if (!resultado.porTiempo) {
         setRacha(0);
+        setVueltaEnTurno((actual) => actual ?? falladas.has(preguntaActualId));
         setFalladasSesion((actuales) => [...actuales, preguntaActualId]);
         try {
           sessionStorage.setItem(claveFalladas, JSON.stringify([...falladas, preguntaActualId]));
@@ -269,10 +273,11 @@ export function ExamenRendir({
     const siguienteId = feedback?.siguientePreguntaId ?? preguntaActualId;
     const proxima = intento.preguntas.find((pregunta) => pregunta.id === siguienteId);
     setPreguntaActualId(siguienteId);
+    setVueltaEnTurno(falladas.has(siguienteId));
     setBorrador(proxima ? valorVacioPara(proxima) : "");
     setFeedback(null);
     setTurno((t) => t + 1);
-  }, [feedback, preguntaActualId, intento.preguntas]);
+  }, [feedback, preguntaActualId, intento.preguntas, falladas]);
 
   const verResultado = useCallback(() => {
     router.replace(`/cursos/${cursoSlug}/examen`);
@@ -335,7 +340,7 @@ export function ExamenRendir({
 
   const veredicto: Veredicto = feedback && !feedback.porTiempo ? (feedback.acierto ? "bien" : "mal") : null;
   const tiempoCritico = segundosRestantes !== null && segundosRestantes <= 60;
-  const segundaVuelta = falladas.has(preguntaActual.id);
+  const segundaVuelta = vueltaEnTurno ?? falladas.has(preguntaActual.id);
   const pendientes = total - correctas;
 
   const anuncio = !feedback
@@ -350,35 +355,39 @@ export function ExamenRendir({
           ? "Incorrecto. Te quedaste sin vidas."
           : `Incorrecto. Pierdes una vida; te quedan ${vidas}. Esta pregunta volverá a aparecer más adelante.`;
 
+  const BOTON =
+    "inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-uva-md border-0 bg-uva-btn px-6 text-uva-lead font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:opacity-45";
+  const teclaEnter = (
+    <kbd className="hidden rounded-uva-xs border border-current px-2 py-0.5 font-mono text-uva-detalle font-bold lg:inline">
+      Enter
+    </kbd>
+  );
+
   let accion: ReactNode;
   if (feedback) {
     accion = (
-      <Button
+      <button
         ref={siguienteRef}
         type="button"
-        variant="primary"
-        size="lg"
-        className="w-full"
+        className={BOTON}
         onClick={feedback.cerrado ? verResultado : siguiente}
       >
         {feedback.cerrado ? "Ver resultado" : "Siguiente"}
-        <kbd className="ml-1 hidden rounded border border-white/30 px-1.5 font-mono text-[10.5px] font-normal lg:inline">
-          Enter
-        </kbd>
-      </Button>
+        {teclaEnter}
+      </button>
     );
   } else if (esAtomica(preguntaActual)) {
     // El atajo de teclado (A–D) solo existe para preguntas con `opciones`
     // planas: EMPAREJAR no tiene letras que elegir, tocar es la única forma.
     const conAtajoDeTeclado = (preguntaActual.opciones ?? []).length > 0;
     accion = (
-      <p className="flex h-[46px] items-center justify-center text-[13px] text-uva-text-faint">
+      <p className="m-0 flex min-h-14 items-center justify-center text-center text-uva-detalle text-uva-text-muted">
         {enviando
           ? "Calificando…"
           : preguntaActual.tipo === "EMPAREJAR"
             ? "Relaciona cada elemento con su pareja"
             : "Toca tu respuesta"}
-        {conAtajoDeTeclado && (
+        {conAtajoDeTeclado && !enviando && (
           <span className="hidden lg:inline">
             &nbsp;o usa las teclas A–{LETRAS[(preguntaActual.opciones ?? []).length - 1] ?? "D"}
           </span>
@@ -387,109 +396,117 @@ export function ExamenRendir({
     );
   } else {
     accion = (
-      <Button
+      <button
         type="button"
-        variant="primary"
-        size="lg"
-        className="w-full"
+        className={BOTON}
         disabled={enviando || !borradorCompleto(preguntaActual, borrador)}
         onClick={() => void confirmar(borrador)}
       >
-        {enviando ? "Calificando…" : "Confirmar respuesta"}
-      </Button>
+        {enviando ? "Calificando…" : "Comprobar"}
+        {!enviando && teclaEnter}
+      </button>
     );
   }
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-[600px] flex-col lg:h-auto lg:min-h-[calc(100dvh-65px)] lg:py-6">
-      {/* ---------- Marcador ---------- */}
-      <div className="flex shrink-0 flex-col gap-2.5 border-b border-uva-divider bg-uva-bg/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur sm:px-6 lg:rounded-uva-md lg:border lg:bg-uva-surface/60 lg:pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-col">
-            <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-uva-text-faint">
-              {cursoTitulo}
-            </p>
-            <p className="font-mono text-[13px] text-uva-text">
-              <span className="text-[17px] font-semibold">{String(correctas).padStart(2, "0")}</span>
-              <span className="text-uva-text-faint">/{String(total).padStart(2, "0")}</span>
-              <span className="ml-1.5 font-sans text-[12px] text-uva-muted">resueltas</span>
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3.5">
+    <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-5 px-4 pt-5 sm:px-6 lg:gap-6 lg:px-0 lg:pt-10 lg:pb-16">
+      {/* ---------- Avance ---------- */}
+      <section
+        aria-label="Avance del examen"
+        className="rounded-uva-lg border border-uva-divider bg-uva-surface px-4.5 py-4 sm:px-6 sm:py-5"
+      >
+        <p className="m-0 truncate text-uva-detalle text-uva-text-muted">Examen final de {cursoTitulo}</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <p className="m-0 flex items-baseline font-mono">
+            <span className="text-uva-titulo-4 font-extrabold text-uva-text">{String(correctas).padStart(2, "0")}</span>
+            <span className="font-bold text-uva-text-muted">/{String(total).padStart(2, "0")}</span>
+            <span className="ml-2 font-sans text-uva-detalle text-uva-text-muted">resueltas</span>
+          </p>
+          <div className="flex shrink-0 items-center gap-3">
             {racha >= 2 && (
               <span
                 key={racha}
-                className="flex animate-uva-pop items-center gap-1 rounded-full border border-uva-accent/40 bg-uva-accent-soft px-2 py-0.5 font-mono text-[12px] font-semibold text-uva-accent-text"
+                className="flex animate-uva-pop items-center gap-1 rounded-full border border-uva-accent bg-uva-accent-soft px-2 py-0.5 font-mono text-uva-detalle font-bold text-uva-accent-text"
                 aria-label={`Racha de ${racha} aciertos seguidos`}
               >
                 <Flame className="size-3.5" aria-hidden />×{racha}
               </span>
             )}
-            <Uvas vidas={vidas} total={VIDAS_INICIALES} />
+            <Uvas vidas={vidas} total={VIDAS_INICIALES} className="size-5" />
             {segundosRestantes !== null && (
               <p
-                className={`flex items-center gap-1 font-mono text-[14px] font-semibold tabular-nums ${
-                  tiempoCritico ? "animate-pulse text-uva-error" : "text-uva-text"
+                className={`m-0 flex items-center gap-1 font-mono text-uva-cuerpo font-bold tabular-nums ${
+                  tiempoCritico ? "animate-pulse text-uva-error-text motion-reduce:animate-none" : "text-uva-text"
                 }`}
                 aria-live={tiempoCritico ? "assertive" : "off"}
               >
-                <Clock className="size-3.5" aria-hidden />
+                <Clock className="size-4" aria-hidden />
                 <span className="sr-only">Tiempo restante: </span>
                 {formatearRestante(segundosRestantes)}
               </p>
             )}
           </div>
         </div>
-        <Cota correctas={correctas} total={total} />
-      </div>
+        <div className="mt-4">
+          <Cota correctas={correctas} total={total} />
+        </div>
+      </section>
 
       {/* ---------- Pregunta ---------- */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 sm:px-6 lg:overflow-visible lg:px-0">
-        <div key={turno} className="my-auto flex animate-uva-entrar flex-col gap-4 py-4 lg:py-8">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-uva-divider px-2.5 py-0.5 text-[11.5px] text-uva-muted">
-              {INDICACION[preguntaActual.tipo]}
+      <div key={turno} className="flex animate-uva-entrar flex-col gap-5 motion-reduce:animate-none">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex min-h-7.5 items-center rounded-full border border-uva-line-strong px-3 text-uva-detalle text-uva-text">
+            {INDICACION[preguntaActual.tipo]}
+          </span>
+          {segundaVuelta && (
+            <span className="inline-flex min-h-7.5 items-center gap-1.5 rounded-full border border-uva-accent bg-uva-accent-soft px-3 text-uva-detalle font-semibold text-uva-accent-text">
+              <RotateCcw className="size-3.5" aria-hidden />
+              Segunda vuelta
             </span>
-            {segundaVuelta && (
-              <span className="flex items-center gap-1 rounded-full border border-uva-accent/40 bg-uva-accent-soft px-2.5 py-0.5 text-[11.5px] font-medium text-uva-accent-text">
-                <RotateCcw className="size-3" aria-hidden />
-                Segunda vuelta
-              </span>
-            )}
-            <span className="ml-auto font-mono text-[11.5px] text-uva-text-faint">
-              {pendientes === 1 ? "última" : `faltan ${pendientes}`}
-            </span>
-          </div>
+          )}
+          <span className="ml-auto font-mono text-uva-detalle text-uva-text-muted">
+            {pendientes === 1 ? "última" : `faltan ${pendientes}`}
+          </span>
+        </div>
 
-          <div ref={encabezadoRef} tabIndex={-1} className="outline-none">
-            <h1 className="sr-only">
-              {pendientes === 1 ? "Última pregunta" : `Te faltan ${pendientes} preguntas`}
-            </h1>
-            <RichTextRenderer
-              contenido={preguntaActual.enunciado}
-              className="[&_p]:!max-w-none [&_p]:!font-heading [&_p]:!text-[17px] [&_p]:!font-semibold [&_p]:!leading-snug [&_p]:!text-uva-text lg:[&_p]:!text-[21px]"
-            />
-          </div>
-
-          <PreguntaCuerpo
-            pregunta={preguntaActual}
-            borrador={borrador}
-            onBorrador={setBorrador}
-            disabled={enviando || feedback !== null}
-            veredicto={veredicto}
-            onConfirmar={confirmar}
+        <div ref={encabezadoRef} tabIndex={-1} className="outline-none">
+          <h1 className="sr-only">
+            {pendientes === 1 ? "Última pregunta" : `Te faltan ${pendientes} preguntas`}
+          </h1>
+          <RichTextRenderer
+            contenido={preguntaActual.enunciado}
+            escala="lectura"
+            className="[&_p]:!max-w-none [&_p]:!text-uva-titulo-3 [&_p]:!text-uva-text"
           />
+        </div>
 
+        <PreguntaCuerpo
+          pregunta={preguntaActual}
+          borrador={borrador}
+          onBorrador={setBorrador}
+          disabled={enviando || feedback !== null}
+          veredicto={veredicto}
+          onConfirmar={confirmar}
+        />
+
+        {/* Lo que pasó con la respuesta. Lo anuncia el `role="status"` de
+            abajo (más completo); esta línea es la versión visible. */}
+        <div aria-hidden className="min-h-6.5">
           {veredicto === "mal" && !feedback?.cerrado && (
-            <p className="flex animate-uva-entrar items-center gap-1.5 text-[12.5px] text-uva-muted">
-              <RotateCcw className="size-3.5 shrink-0" aria-hidden />
-              Volverá a aparecer más adelante · −1 uva
+            <p className="m-0 flex animate-uva-entrar items-center gap-2 text-uva-detalle text-uva-text-muted motion-reduce:animate-none">
+              <X className="size-4.5 shrink-0 text-uva-accent-ink" strokeWidth={2.4} />
+              Volverá a aparecer más adelante. Pierdes una uva.
+            </p>
+          )}
+          {veredicto === "bien" && (
+            <p className="m-0 flex animate-uva-entrar items-center gap-2 text-uva-detalle font-semibold text-uva-text motion-reduce:animate-none">
+              <Check className="size-4.5 shrink-0 text-uva-accent-2-text" strokeWidth={2.6} />
+              {feedback?.cerrado ? "¡Bien! Respondiste todas las preguntas." : "¡Bien! Una pregunta menos."}
             </p>
           )}
           {feedback?.porTiempo && (
-            <p className="flex items-center gap-1.5 text-[12.5px] text-uva-muted">
-              <Clock className="size-3.5 shrink-0" aria-hidden />
+            <p className="m-0 flex items-center gap-2 text-uva-detalle text-uva-text-muted">
+              <Clock className="size-4 shrink-0" />
               Se acabó el tiempo: esta respuesta no alcanzó a calificarse.
             </p>
           )}
@@ -497,9 +514,10 @@ export function ExamenRendir({
       </div>
 
       {/* ---------- Acción ---------- */}
-      <div className="shrink-0 border-t border-uva-divider bg-uva-bg/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:px-6 lg:border-t-0 lg:bg-transparent lg:px-0">
+      {/* En celular queda pegada abajo, al alcance del pulgar. */}
+      <div className="sticky bottom-0 -mx-4 mt-auto border-t border-uva-divider bg-uva-bg/95 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mt-0 lg:border-t-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         {error && (
-          <p role="alert" className="mb-2 rounded-uva-md bg-uva-error-soft px-3 py-2 text-[13px] text-uva-error-text">
+          <p role="alert" className="m-0 mb-2 rounded-uva-md bg-uva-error-soft px-3 py-2 text-uva-detalle text-uva-error-text">
             {error}
           </p>
         )}
@@ -512,31 +530,41 @@ export function ExamenRendir({
   );
 }
 
-/** Clases de una opción según su estado. `elegida` = la marcó el
- * estudiante; con veredicto, solo lo elegido se colorea. */
+const OPCION =
+  "group flex min-h-15 w-full items-center gap-3.5 rounded-uva-md border-[1.5px] px-4 py-3 text-left text-uva-cuerpo text-uva-text transition-colors disabled:cursor-default";
+const LETRA =
+  "grid size-7.5 shrink-0 place-items-center rounded-uva-sm border-[1.5px] font-mono text-uva-detalle font-extrabold transition-colors";
+
+/** Clases de una opción según su estado (diseño "examen"): acierto en el
+ * amarillo de marca, fallo en magenta. Con veredicto solo se colorea lo que
+ * el estudiante eligió: nunca se revela cuál era la correcta. */
 function claseOpcion(elegida: boolean, veredicto: Veredicto): string {
   if (veredicto && elegida) {
     return veredicto === "bien"
-      ? "border-uva-valid bg-uva-valid-soft text-uva-text animate-uva-pop"
-      : "border-uva-error bg-uva-error-soft text-uva-text animate-uva-sacudir";
+      ? "border-uva-accent-2 bg-uva-accent-2-soft animate-uva-pop motion-reduce:animate-none"
+      : "border-uva-accent bg-uva-accent-soft animate-uva-sacudir motion-reduce:animate-none";
   }
-  if (veredicto) return "border-uva-divider bg-uva-surface text-uva-text-faint opacity-60";
-  if (elegida) return "border-uva-accent bg-uva-accent-soft text-uva-text";
-  return "border-uva-divider bg-uva-surface text-uva-text hover:border-uva-accent/60 hover:bg-uva-hover";
+  if (veredicto) return "border-uva-divider bg-uva-surface opacity-80";
+  if (elegida) return "border-uva-text bg-uva-surface-2";
+  return "border-uva-divider bg-uva-surface hover:border-uva-line-strong";
 }
 
 function claseLetra(elegida: boolean, veredicto: Veredicto): string {
-  if (veredicto && elegida) return veredicto === "bien" ? "bg-uva-valid text-uva-bg" : "bg-uva-error text-uva-on-accent";
-  if (elegida) return "bg-uva-btn text-uva-on-accent";
-  return "border border-uva-divider text-uva-muted group-hover:border-uva-accent/60 group-hover:text-uva-text";
+  if (veredicto && elegida) {
+    return veredicto === "bien"
+      ? "border-uva-accent-2 bg-uva-accent-2 text-uva-on-bright"
+      : "border-uva-btn bg-uva-btn text-uva-on-accent";
+  }
+  if (elegida) return "border-uva-text bg-uva-text text-uva-bg";
+  return "border-uva-line-strong text-uva-text-muted group-hover:text-uva-text";
 }
 
 function IconoVeredicto({ elegida, veredicto }: { elegida: boolean; veredicto: Veredicto }) {
   if (!veredicto || !elegida) return null;
   return veredicto === "bien" ? (
-    <Check className="ml-auto size-5 shrink-0 text-uva-valid" aria-label="Correcta" />
+    <Check className="ml-auto size-5 shrink-0 text-uva-accent-2-text" strokeWidth={2.6} aria-label="Correcta" />
   ) : (
-    <X className="ml-auto size-5 shrink-0 text-uva-error" aria-label="Incorrecta" />
+    <X className="ml-auto size-5 shrink-0 text-uva-accent-ink" strokeWidth={2.6} aria-label="Incorrecta" />
   );
 }
 
@@ -573,7 +601,7 @@ function PreguntaCuerpo({
     // `borrador` guarda la tocada, para pintarla con el veredicto.
     return (
       <div
-        className={`grid gap-2 ${pregunta.tipo === "VERDADERO_FALSO" ? "grid-cols-2" : "grid-cols-1"}`}
+        className={`grid gap-2.5 ${pregunta.tipo === "VERDADERO_FALSO" ? "grid-cols-2" : "grid-cols-1"}`}
         role="group"
         aria-label="Elige tu respuesta"
       >
@@ -585,21 +613,15 @@ function PreguntaCuerpo({
               type="button"
               disabled={disabled}
               onClick={() => onConfirmar(opcion.id)}
-              className={`group flex min-h-12 items-center gap-3 rounded-uva-md border px-3 py-2.5 text-left text-[14.5px] leading-snug transition-colors disabled:cursor-default ${claseOpcion(
-                elegida,
-                veredicto,
-              )}`}
+              className={`${OPCION} ${claseOpcion(elegida, veredicto)}`}
             >
               <span
-                className={`grid size-7 shrink-0 place-items-center rounded-[6px] font-mono text-[12px] font-semibold transition-colors ${claseLetra(
-                  elegida,
-                  veredicto,
-                )}`}
+                className={`${LETRA} ${claseLetra(elegida, veredicto)}`}
                 aria-hidden
               >
                 {LETRAS[i]}
               </span>
-              <span className="min-w-0">{opcion.texto}</span>
+              <span className="min-w-0 flex-1">{opcion.texto}</span>
               <IconoVeredicto elegida={elegida} veredicto={veredicto} />
             </button>
           );
@@ -611,7 +633,7 @@ function PreguntaCuerpo({
   if (pregunta.tipo === "OPCION_MULTIPLE") {
     const marcadas = Array.isArray(borrador) ? borrador : [];
     return (
-      <div className="flex flex-col gap-2" role="group" aria-label="Marca todas las correctas">
+      <div className="flex flex-col gap-2.5" role="group" aria-label="Marca todas las correctas">
         {(pregunta.opciones ?? []).map((opcion, i) => {
           const marcada = marcadas.includes(opcion.id);
           return (
@@ -624,26 +646,20 @@ function PreguntaCuerpo({
               onClick={() =>
                 onBorrador(marcada ? marcadas.filter((id) => id !== opcion.id) : [...marcadas, opcion.id])
               }
-              className={`group flex min-h-12 items-center gap-3 rounded-uva-md border px-3 py-2.5 text-left text-[14.5px] leading-snug transition-colors disabled:cursor-default ${claseOpcion(
-                marcada,
-                veredicto,
-              )}`}
+              className={`${OPCION} ${claseOpcion(marcada, veredicto)}`}
             >
               <span
-                className={`grid size-7 shrink-0 place-items-center rounded-[6px] font-mono text-[12px] font-semibold transition-colors ${claseLetra(
-                  marcada,
-                  veredicto,
-                )}`}
+                className={`${LETRA} ${claseLetra(marcada, veredicto)}`}
                 aria-hidden
               >
                 {marcada && !veredicto ? <Check className="size-3.5" /> : LETRAS[i]}
               </span>
-              <span className="min-w-0">{opcion.texto}</span>
+              <span className="min-w-0 flex-1">{opcion.texto}</span>
               <IconoVeredicto elegida={marcada} veredicto={veredicto} />
             </button>
           );
         })}
-        <p className="text-[11.5px] text-uva-text-faint">Solo cuenta si marcas todas las correctas y ninguna de más.</p>
+        <p className="m-0 text-uva-detalle text-uva-text-muted">Solo cuenta si marcas todas las correctas y ninguna de más.</p>
       </div>
     );
   }
@@ -688,12 +704,12 @@ function PreguntaCuerpo({
           placeholder="Escribe tu respuesta"
           autoComplete="off"
           enterKeyHint="done"
-          className={`h-12 pr-10 font-mono text-[15px] disabled:opacity-100 ${
+          className={`h-14 rounded-uva-md border-[1.5px] pr-10 font-mono text-base disabled:opacity-100 ${
             veredicto === "bien"
-              ? "border-uva-valid bg-uva-valid-soft"
+              ? "border-uva-accent-2 bg-uva-accent-2-soft"
               : veredicto === "mal"
-                ? "border-uva-error bg-uva-error-soft"
-                : ""
+                ? "border-uva-accent bg-uva-accent-soft"
+                : "border-uva-line-strong"
           }`}
         />
         {veredicto && (
@@ -702,7 +718,7 @@ function PreguntaCuerpo({
           </span>
         )}
       </div>
-      <p className="text-[11.5px] text-uva-text-faint">No importan las mayúsculas ni las tildes.</p>
+      <p className="m-0 text-uva-detalle text-uva-text-muted">No importan las mayúsculas ni las tildes.</p>
     </form>
   );
 }

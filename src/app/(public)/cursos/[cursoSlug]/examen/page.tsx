@@ -1,11 +1,14 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
-import { getPerfilActual } from "@/lib/perfil";
+import { getPerfilActual, resumenCuenta } from "@/lib/perfil";
 import { esUuid } from "@/lib/slug";
-import { getResultadoIntento, getSituacionExamen, getIntentoEnCurso } from "@/lib/examen";
-import { SiteHeader } from "@/components/SiteHeader";
+import { getConteoPreguntasExamen, getResultadoIntento, getSituacionExamen, getIntentoEnCurso } from "@/lib/examen";
+import { EncabezadoCurso } from "@/components/curso/EncabezadoCurso";
+import { MenuCuenta } from "@/components/dashboard/MenuCuenta";
+import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 import { ExamenIntro } from "@/components/examen/ExamenIntro";
 import { ExamenRendir } from "@/components/examen/ExamenRendir";
 
@@ -17,8 +20,9 @@ export const metadata: Metadata = {
  * Examen final del curso.
  *
  * Vive junto a `/cursos/[cursoSlug]/[leccionSlug]` (no bajo el dashboard) por
- * el mismo motivo que el reproductor: es parte de la experiencia del curso y
- * usa el header sin barra lateral, no el chrome del dashboard.
+ * el mismo motivo que la clase: es parte de la experiencia del curso y usa el
+ * encabezado de foco (`EncabezadoCurso`), no el chrome del dashboard. Diseño
+ * "examen" del canvas "UVA Cursos".
  *
  * `examen` es un segmento ESTÁTICO hermano del dinámico `[leccionSlug]`, y en
  * Next.js el estático gana — por eso "examen" está reservado como slug de
@@ -83,17 +87,26 @@ export default async function ExamenPage({
     // un examen que ya no acepta respuestas.
     if (!intento) redirect(`/cursos/${cursoSlug}/examen`);
 
+    // Rindiendo: sin la cuenta ni "← curso" arriba, solo "Examen final" y la
+    // salida. Salir no cierra el intento: queda abierto y se retoma aquí.
     return (
-      <>
-        {/* Sin header en móvil, igual que el reproductor: rendir un examen es
-            una pantalla de foco, no de navegación. */}
-        <div className="hidden lg:block">
-          <SiteHeader {...perfilActual} ocultarBuscador />
-        </div>
-        <main>
+      <div className="flex min-h-dvh flex-col bg-uva-bg">
+        <EncabezadoCurso
+          inicio={{ href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }}
+          titulo="Examen final"
+          logoEnCelular
+        >
+          <Link
+            href={`/cursos/${cursoSlug}`}
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 px-1 text-uva-detalle font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline"
+          >
+            Salir del examen
+          </Link>
+        </EncabezadoCurso>
+        <main className="flex flex-1 flex-col">
           <ExamenRendir intento={intento} cursoSlug={cursoSlug} cursoTitulo={curso.titulo} />
         </main>
-      </>
+      </div>
     );
   }
 
@@ -108,23 +121,42 @@ export default async function ExamenPage({
           ? (situacion.ultimoIntento?.id ?? null)
           : null;
 
-  const resultado = ultimoIntentoId
-    ? await getResultadoIntento(ultimoIntentoId, user.id)
-    : null;
+  const [resultado, conteo] = await Promise.all([
+    ultimoIntentoId ? getResultadoIntento(ultimoIntentoId, user.id) : Promise.resolve(null),
+    // "10 preguntas" de la pantalla previa: dato secundario (ver la función).
+    situacion.situacion === "DISPONIBLE" ? getConteoPreguntasExamen(curso.id) : Promise.resolve(null),
+  ]);
+  const cuenta = resumenCuenta(perfilActual);
 
   return (
-    <>
-      <SiteHeader {...perfilActual} ocultarBuscador />
-      <main>
+    <div className="flex min-h-dvh flex-col bg-uva-bg">
+      <EncabezadoCurso
+        inicio={{ href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }}
+        volver={{ href: `/cursos/${cursoSlug}`, texto: curso.titulo }}
+        logoEnCelular
+      >
+        <SelectorTemaBoton className="hidden text-uva-text hover:bg-uva-hover hover:text-uva-text lg:inline-flex" />
+        {cuenta && (
+          <MenuCuenta
+            nombre={cuenta.nombre}
+            fotoUrl={cuenta.fotoUrl}
+            esAdmin={cuenta.esAdmin}
+            mostrarNombre={false}
+            comunidadSiempre
+          />
+        )}
+      </EncabezadoCurso>
+      <main className="flex flex-1 flex-col">
         <ExamenIntro
           situacion={situacion}
           resultado={resultado}
+          conteo={conteo}
           cursoId={curso.id}
           cursoSlug={cursoSlug}
           cursoTitulo={curso.titulo}
           tiempoAgotado={tiempo === "agotado"}
         />
       </main>
-    </>
+    </div>
   );
 }
