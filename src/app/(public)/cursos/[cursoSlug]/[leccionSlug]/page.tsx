@@ -9,9 +9,7 @@ import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { getNotasDeLeccion } from "@/lib/notas";
 import { parsearSegundoEnUrl } from "@/lib/notas-validacion";
 import { esUuid } from "@/lib/slug";
-import { SiteHeader } from "@/components/SiteHeader";
-import { PlayerContent } from "@/components/player/PlayerContent";
-import { LeccionSinSesion } from "@/components/player/LeccionSinSesion";
+import { LeccionMaqueta } from "@/components/player/LeccionMaqueta";
 import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
@@ -97,48 +95,40 @@ export default async function LeccionPlayerPage({
     preconnect("https://stream.mux.com");
   }
 
-  // Sin sesión (solo la clase gratis del curso): la vista «Maqueta» con su
-  // propio encabezado, sin notas, que son privadas de cada cuenta.
-  if (!user) {
-    const comentarios = await getComentariosDeLeccion(data.leccionId, data.cursoId, null);
-    return (
-      <main>
-        <LeccionSinSesion
-          data={data}
-          comentarios={comentarios ?? []}
-          comentariosNoDisponibles={comentarios === null}
-        />
-      </main>
-    );
-  }
-
-  // En paralelo: las notas no deben sumar un viaje a Supabase en serie.
+  // Sin sesión solo llega la clase gratis del curso (sin notas, que son
+  // privadas de cada cuenta). Con sesión, comentarios y notas en paralelo:
+  // las notas no deben sumar un viaje a Supabase en serie.
   const [comentarios, notas] = await Promise.all([
-    getComentariosDeLeccion(data.leccionId, data.cursoId, user.id),
-    getNotasDeLeccion(data.leccionId, user.id),
+    getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null),
+    user ? getNotasDeLeccion(data.leccionId, user.id) : Promise.resolve([]),
   ]);
 
+  // Mismo nombre, foto y rol que muestra el encabezado del panel
+  // (getDashboardChromeData, lib/dashboard-chrome.ts).
+  const { perfil } = perfilActual;
+  const sesion = user
+    ? {
+        usuarioId: user.id,
+        nombre: perfil?.nombre ?? user.email?.split("@")[0] ?? "Estudiante",
+        fotoUrl: perfil?.foto_url ?? null,
+        esAdmin: perfil?.rol === "ADMINISTRADOR",
+        notas: notas ?? [],
+        // `null` = no se pudo leer (no es lo mismo que "sin notas"): la clase
+        // avisa con Reintentar en vez del vacío. Igual con los comentarios.
+        notasNoDisponibles: notas === null,
+        segundoEnUrl,
+      }
+    : null;
+
+  // Encabezado propio (LeccionMaqueta), sin el header del sitio.
   return (
-    <>
-      {/* Mobile: sin header del sitio — el reproductor pone su propia barra
-          sticky (volver/temario/siguiente), ver PlayerContent.tsx. */}
-      <div className="hidden lg:block">
-        <SiteHeader {...perfilActual} ocultarBuscador />
-      </div>
-      <main>
-        <PlayerContent
-          data={data}
-          comentariosIniciales={comentarios ?? []}
-          notasIniciales={notas ?? []}
-          // `null` = no se pudo leer (no es lo mismo que "sin comentarios" o
-          // "sin notas"): el reproductor avisa con Reintentar en vez del vacío.
-          comentariosNoDisponibles={comentarios === null}
-          notasNoDisponibles={notas === null}
-          segundoEnUrl={segundoEnUrl}
-          usuarioActualId={user.id}
-          esAdmin={perfilActual.perfil?.rol === "ADMINISTRADOR"}
-        />
-      </main>
-    </>
+    <main>
+      <LeccionMaqueta
+        data={data}
+        comentarios={comentarios ?? []}
+        comentariosNoDisponibles={comentarios === null}
+        sesion={sesion}
+      />
+    </main>
   );
 }

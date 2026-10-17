@@ -11,10 +11,10 @@ import type { LeccionPlayerItem } from "@/lib/leccion";
  * superior del reproductor. A diferencia de la tarjeta fija de la derecha,
  * agrupa las clases por módulo y muestra la miniatura de cada una.
  *
- * Sin sesión (`sinSesion`, la clase gratis de LeccionSinSesion) no hay
+ * Sin sesión (`sinSesion`, la clase gratis de LeccionMaqueta) no hay
  * avance que mostrar: se titula "Temario del curso", explica qué se abre con
  * la cuenta y las demás clases llevan candado (quien las abre pasa por
- * iniciar sesión, ver `irALeccion` en LeccionSinSesion).
+ * iniciar sesión, ver `irALeccion` en LeccionMaqueta).
  */
 export function TemarioDrawer({
   abierto,
@@ -71,6 +71,11 @@ export function TemarioDrawer({
 
         {sinSesion ? (
           <p className="m-0 mb-[22px] text-[12.5px] text-uva-text-muted">{sinSesion.nota}</p>
+        ) : total === 0 ? (
+          // Sin clases con video no hay avance que medir: "0 de 0" no dice nada.
+          <p className="m-0 mb-[22px] text-[12.5px] text-uva-text-muted">
+            Tu avance aparece aquí cuando las clases del curso tengan su video.
+          </p>
         ) : (
           <>
             <div className="mb-2.5 text-[12.5px] text-uva-text-muted">

@@ -23,7 +23,7 @@ type Alcance = "clase" | "curso";
  * Pestaña "Notas" del reproductor (docs/notas-leccion.md, fase 1): apuntes
  * privados anclados a un segundo del video.
  *
- * El estado de la lista vive en PlayerContent (`notas`/`onCambiarNotas`),
+ * El estado de la lista vive en LeccionMaqueta (`notas`/`onCambiarNotas`),
  * no acá: cambiar de pestaña desmonta este componente, y perder lo recién
  * guardado al volver a la pestaña sería un bug visible.
  *
@@ -156,12 +156,12 @@ export function NotasTab({
         {aviso}
       </p>
 
-      <p className="m-0 text-[12.5px] text-uva-muted">
+      <p className="m-0 text-uva-detalle text-uva-text-muted">
         Solo tú puedes ver tus notas. Toca el minuto de una nota para volver a ese punto del video.
       </p>
 
       {!videoListo ? (
-        <p className="m-0 rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-[13px] text-uva-muted">
+        <p className="m-0 rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-uva-detalle text-uva-text-muted">
           Podrás agregar notas cuando el video de esta clase esté disponible.
         </p>
       ) : segundoNueva === null ? (
@@ -170,18 +170,18 @@ export function NotasTab({
           type="button"
           onClick={abrirEditor}
           disabled={enTope}
-          className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-uva-md border border-uva-divider bg-uva-surface px-3.5 py-2.5 text-[13px] font-semibold text-uva-text hover:bg-uva-chip disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-12 w-fit cursor-pointer items-center gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent px-4 text-uva-detalle font-bold text-uva-text hover:border-uva-text disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="size-4" strokeWidth={2.5} />
           Agregar nota en
-          <span className="font-mono text-uva-accent-text">{formatearTiempoNota(ahora)}</span>
+          <span className="font-mono text-uva-accent-ink">{formatearTiempoNota(ahora)}</span>
         </button>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-[12.5px] text-uva-muted">
+          <div className="flex items-center gap-2 text-uva-detalle text-uva-text-muted">
             <Clock className="size-3.5" strokeWidth={2.4} />
             Nota en el minuto
-            <span className="font-mono text-uva-accent-text">{formatearTiempoNota(segundoNueva)}</span>
+            <span className="font-mono text-uva-accent-ink">{formatearTiempoNota(segundoNueva)}</span>
             <span className="ml-auto">El video está en pausa</span>
           </div>
           <EditorTextoEnriquecido
@@ -195,7 +195,7 @@ export function NotasTab({
             <button
               type="button"
               onClick={cerrarEditor}
-              className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-semibold text-uva-muted hover:text-uva-text"
+              className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent px-3 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
             >
               Cancelar
             </button>
@@ -203,7 +203,7 @@ export function NotasTab({
               type="button"
               disabled={guardando || vacia}
               onClick={guardar}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-uva-md border-0 bg-uva-btn px-4.5 text-uva-detalle font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-chip disabled:text-uva-text-muted"
             >
               {guardando && <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />}
               {guardando ? "Guardando…" : "Guardar nota"}
@@ -213,19 +213,19 @@ export function NotasTab({
       )}
 
       {enTope && (
-        <p className="m-0 text-[12px] text-uva-muted">
+        <p className="m-0 text-uva-detalle text-uva-text-muted">
           Llegaste al máximo de {MAX_NOTAS_POR_LECCION} notas en esta clase.
         </p>
       )}
       {error && (
-        <p role="alert" className="m-0 text-[12px] text-uva-error-text">
+        <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">
           {error}
         </p>
       )}
 
       <div className="h-px bg-uva-divider" />
 
-      <div role="group" aria-label="Qué notas ver" className="flex gap-1 self-start rounded-full bg-uva-chip p-1">
+      <div role="group" aria-label="Qué notas ver" className="flex gap-1 self-start rounded-full bg-uva-surface-2 p-1">
         {(
           [
             ["clase", "Esta clase"],
@@ -237,8 +237,10 @@ export function NotasTab({
             type="button"
             aria-pressed={alcance === valor}
             onClick={() => verAlcance(valor)}
-            className={`cursor-pointer rounded-full border-0 px-3 py-1.5 text-[12px] font-semibold ${
-              alcance === valor ? "bg-uva-surface text-uva-text" : "bg-transparent text-uva-muted hover:text-uva-text"
+            className={`min-h-11 cursor-pointer rounded-full border-0 px-4 text-uva-detalle ${
+              alcance === valor
+                ? "bg-uva-bg font-bold text-uva-text"
+                : "bg-transparent font-semibold text-uva-text-muted hover:text-uva-text"
             }`}
           >
             {etiqueta}
@@ -250,7 +252,7 @@ export function NotasTab({
         noDisponibles ? (
           <AvisoErrorCarga texto="No pudimos cargar tus notas de esta clase." onReintentar={onReintentar} />
         ) : notas.length === 0 ? (
-          <p className="m-0 text-[13px] text-uva-muted">
+          <p className="m-0 text-uva-detalle text-uva-text-muted">
             Aún no tienes notas en esta clase. Guarda un apunte en el minuto exacto del video.
           </p>
         ) : (
@@ -270,12 +272,12 @@ export function NotasTab({
           </ul>
         )
       ) : cargandoCurso && notasOtrasClases === null ? (
-        <p className="m-0 flex items-center gap-2 text-[13px] text-uva-muted">
+        <p className="m-0 flex items-center gap-2 text-uva-detalle text-uva-text-muted">
           <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />
           Cargando las notas del curso…
         </p>
       ) : errorCurso ? (
-        <p role="alert" className="m-0 text-[12px] text-uva-error-text">
+        <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">
           {errorCurso}
         </p>
       ) : (
@@ -339,7 +341,7 @@ function NotasDelCurso({
     .filter((grupo) => grupo.notas.length > 0);
 
   if (grupos.length === 0) {
-    return <p className="m-0 text-[13px] text-uva-muted">Aún no tienes notas en este curso.</p>;
+    return <p className="m-0 text-uva-detalle text-uva-text-muted">Aún no tienes notas en este curso.</p>;
   }
 
   return (
@@ -356,8 +358,8 @@ function NotasDelCurso({
             }`}
           >
             <span
-              className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-semibold ${
-                esActual ? "bg-uva-btn text-uva-on-accent" : "bg-uva-surface text-uva-muted"
+              className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full font-mono text-uva-detalle font-semibold ${
+                esActual ? "bg-uva-btn text-uva-on-accent" : "bg-uva-surface text-uva-text-muted"
               }`}
             >
               {leccion.numero}
@@ -365,12 +367,12 @@ function NotasDelCurso({
             {/* Sin `truncate`: el panel es angosto (va en el costado del
                 reproductor), pero el título se ve completo aunque ocupe
                 varias líneas, en vez de cortarse con "…". */}
-            <span className="min-w-0 flex-1 break-words text-[12.5px] font-semibold leading-snug text-uva-text">
+            <span className="min-w-0 flex-1 break-words text-uva-detalle font-semibold leading-snug text-uva-text">
               {leccion.titulo}
             </span>
-            <span className="mt-0.5 shrink-0 font-mono text-[10px] text-uva-muted">{notas.length}</span>
+            <span className="mt-0.5 shrink-0 font-mono text-uva-detalle text-uva-text-muted">{notas.length}</span>
             {esActual && (
-              <span className="mt-0.5 shrink-0 rounded-full bg-uva-btn px-2 py-0.5 text-[10px] font-semibold text-uva-on-accent">
+              <span className="mt-0.5 shrink-0 rounded-full bg-uva-btn px-2 py-0.5 text-uva-detalle font-semibold text-uva-on-accent">
                 Esta clase
               </span>
             )}

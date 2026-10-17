@@ -37,7 +37,7 @@ export function LeccionVistaPreviaContent({
 
   // Las URLs llevan el slug de la clase, nunca su id. El Temario (TemarioDrawer,
   // compartido con el reproductor) sigue entregando ids, así que se traducen
-  // acá — mismo patrón que PlayerContent.
+  // acá — mismo patrón que LeccionMaqueta.
   const slugPorLeccionId = new Map(data.lecciones.map((leccion) => [leccion.id, leccion.slug]));
   const hrefLeccion = (leccionSlug: string) => `/vista-previa/${token}/${leccionSlug}`;
 

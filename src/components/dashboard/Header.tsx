@@ -1,31 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LogOut, CreditCard, Award,
-  NotebookPen, User, ShieldCheck, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { NotificacionesBell } from "@/components/dashboard/NotificacionesBell";
+import { MenuCuenta } from "@/components/dashboard/MenuCuenta";
 import { cn } from "@/lib/utils";
 import { LogoUva } from "@/components/home/LogoUva";
 import type { Notificacion } from "@/lib/notificaciones-tipos";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLinkItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { logout } from "@/actions/auth/logout";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { SelectorTemaBoton, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
-
-function iniciales(nombre: string) {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  const letras = partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "");
-  return letras.join("") || "U";
-}
+import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 
 export function Header({
   nombre,
@@ -65,8 +48,6 @@ export function Header({
   notificaciones?: Notificacion[] | null;
   notificacionesNoLeidas?: number;
 }) {
-  const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
-
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
       {mostrarLogo && (
@@ -113,84 +94,7 @@ export function Header({
             Planes
           </Link>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Menú de usuario"
-            className="-my-0.5 flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-          >
-            <Avatar className="size-9 border-[1.5px] border-uva-line-strong bg-uva-surface-2">
-              {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
-              <AvatarFallback className="bg-uva-surface-2 text-uva-detalle font-extrabold text-uva-text">
-                {iniciales(nombre)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="hidden max-w-[120px] truncate text-uva-cuerpo font-bold sm:inline">
-              {primerNombre}
-            </span>
-            <ChevronDown className="size-4 text-uva-text-faint" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            <DropdownMenuLinkItem
-              render={<Link href="/dashboard/perfil" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <User className="size-4" />
-              Ver mi perfil
-            </DropdownMenuLinkItem>
-            {/* En mobile el Sidebar (con su propio ítem de Comunidad) está
-                oculto — BottomTabBar reserva este espacio del dropdown para
-                Comunidad/Perfil/Suscripción, ver el comentario en ese archivo. */}
-            <DropdownMenuLinkItem
-              render={<Link href="/dashboard/comunidad" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text md:hidden"
-            >
-              <Users className="size-4" />
-              Comunidad
-            </DropdownMenuLinkItem>
-            <DropdownMenuLinkItem
-              render={<Link href="/dashboard/suscripcion" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <CreditCard className="size-4" />
-              Mi suscripción
-            </DropdownMenuLinkItem>
-            <DropdownMenuLinkItem
-              render={<Link href="/dashboard/certificados" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <Award className="size-4" />
-              Mis certificados
-            </DropdownMenuLinkItem>
-            <DropdownMenuLinkItem
-              render={<Link href="/dashboard/notas" />}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <NotebookPen className="size-4" />
-              Mis notas
-            </DropdownMenuLinkItem>
-            {esAdmin && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLinkItem
-                  render={<Link href="/admin" />}
-                  className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-                >
-                  <ShieldCheck className="size-4" />
-                  Panel de administración
-                </DropdownMenuLinkItem>
-              </>
-            )}
-            <SelectorTemaSistemaMenuItem className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text" />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => logout()}
-              className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
-            >
-              <LogOut className="size-4" />
-              Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <MenuCuenta nombre={nombre} fotoUrl={fotoUrl} esAdmin={esAdmin} />
       </div>
     </header>
   );

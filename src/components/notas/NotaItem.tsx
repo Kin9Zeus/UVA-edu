@@ -64,7 +64,7 @@ export function NotaItem<T extends NotaLeccion>({
 
   const tiempo = formatearTiempoNota(nota.segundo);
   const claseMinuto =
-    "inline-flex min-h-7 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent-soft px-2.5 py-1 font-mono text-[12px] font-semibold text-uva-accent-text no-underline hover:bg-uva-accent/25";
+    "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent-soft px-2.5 py-1 font-mono text-uva-detalle font-semibold text-uva-accent-ink no-underline hover:bg-uva-accent/25";
   const contenidoMinuto = (
     <>
       <Clock className="size-3" strokeWidth={2.5} aria-hidden />
@@ -128,7 +128,7 @@ export function NotaItem<T extends NotaLeccion>({
             {contenidoMinuto}
           </Link>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-uva-chip px-2.5 py-1 font-mono text-[12px] text-uva-muted">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-uva-chip px-2.5 py-1 font-mono text-uva-detalle text-uva-text-muted">
             <time dateTime={duracionIsoNota(nota.segundo)}>{tiempo}</time>
           </span>
         )}
@@ -145,18 +145,18 @@ export function NotaItem<T extends NotaLeccion>({
               }}
               disabled={pendiente}
               aria-label={`Editar la nota del minuto ${tiempo}`}
-              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
+              className="grid size-11 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-text-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
             >
-              <Pencil className="size-3.5" strokeWidth={2.2} />
+              <Pencil className="size-4" strokeWidth={2.2} />
             </button>
             <button
               type="button"
               onClick={() => setConfirmandoBorrado(true)}
               disabled={pendiente}
               aria-label={`Eliminar la nota del minuto ${tiempo}`}
-              className="grid size-8 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
+              className="grid size-11 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-text-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
             >
-              <Trash2 className="size-3.5" strokeWidth={2.2} />
+              <Trash2 className="size-4" strokeWidth={2.2} />
             </button>
           </div>
         )}
@@ -177,12 +177,12 @@ export function NotaItem<T extends NotaLeccion>({
               <button
                 type="button"
                 onClick={() => setSegundoEdicion(Math.floor(obtenerSegundoActual()))}
-                className="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[12.5px] font-semibold text-uva-muted hover:text-uva-text"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
               >
                 <Clock className="size-3.5" strokeWidth={2.4} />
                 Usar el minuto actual
                 {segundoEdicion !== nota.segundo && (
-                  <span className="font-mono text-uva-accent-text">{formatearTiempoNota(segundoEdicion)}</span>
+                  <span className="font-mono text-uva-accent-ink">{formatearTiempoNota(segundoEdicion)}</span>
                 )}
               </button>
             )}
@@ -193,7 +193,7 @@ export function NotaItem<T extends NotaLeccion>({
                   setEditando(false);
                   requestAnimationFrame(() => botonEditarRef.current?.focus());
                 }}
-                className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-semibold text-uva-muted hover:text-uva-text"
+                className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
               >
                 Cancelar
               </button>
@@ -201,7 +201,7 @@ export function NotaItem<T extends NotaLeccion>({
                 type="button"
                 disabled={vacia}
                 onClick={guardarEdicion}
-                className="inline-flex cursor-pointer items-center rounded-uva-md border-0 bg-uva-btn px-4 py-2 text-[12.5px] font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
+                className="inline-flex min-h-11 cursor-pointer items-center rounded-uva-md border-0 bg-uva-btn px-4 text-uva-detalle font-semibold text-uva-on-accent hover:bg-uva-btn-hover disabled:cursor-not-allowed disabled:bg-uva-text/15 disabled:text-uva-text-faint"
               >
                 Guardar
               </button>
@@ -219,14 +219,14 @@ export function NotaItem<T extends NotaLeccion>({
       )}
 
       {nota.videoCambio && (
-        <p className="m-0 flex items-start gap-1.5 text-[12px] text-uva-muted">
+        <p className="m-0 flex items-start gap-1.5 text-uva-detalle text-uva-text-muted">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} aria-hidden />
           El video de esta clase se actualizó después de que escribiste esta nota; el minuto puede no coincidir.
         </p>
       )}
 
       {confirmandoBorrado && (
-        <div role="group" aria-label="Confirmar eliminación" className="flex items-center gap-3 text-[12.5px]">
+        <div role="group" aria-label="Confirmar eliminación" className="flex items-center gap-3 text-uva-detalle">
           <span className="text-uva-text">¿Eliminar esta nota?</span>
           <button
             type="button"
@@ -235,14 +235,14 @@ export function NotaItem<T extends NotaLeccion>({
               setConfirmandoBorrado(false);
               borrar();
             }}
-            className="cursor-pointer border-0 bg-transparent p-0 font-semibold text-uva-danger-text hover:underline"
+            className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 font-semibold text-uva-danger-text hover:underline"
           >
             Sí, eliminar
           </button>
           <button
             type="button"
             onClick={() => setConfirmandoBorrado(false)}
-            className="cursor-pointer border-0 bg-transparent p-0 font-semibold text-uva-muted hover:text-uva-text"
+            className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 font-semibold text-uva-text-muted hover:text-uva-text"
           >
             No
           </button>
@@ -250,7 +250,7 @@ export function NotaItem<T extends NotaLeccion>({
       )}
 
       {error && (
-        <p role="alert" className="m-0 text-[12px] text-uva-error-text">
+        <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">
           {error}
         </p>
       )}

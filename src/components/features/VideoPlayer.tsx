@@ -102,7 +102,7 @@ export function VideoPlayer({
   const mediaRef = useRef<MuxPlayerElement | null>(null);
   // Congela el punto de partida en el primer render: `segundoActual` sigue
   // llegando como prop en cada re-render de este componente (mismo `key`,
-  // nunca se remonta) porque `PlayerContent` llama `router.refresh()` al
+  // nunca se remonta) porque `LeccionMaqueta` llama `router.refresh()` al
   // marcar la clase completada, y eso trae un `data.segundoActual` nuevo
   // del servidor — hasta 10s más viejo que la posición real (el guardado
   // periódico tiene throttle, ver INTERVALO_GUARDADO_MS). Si `startTime` se
