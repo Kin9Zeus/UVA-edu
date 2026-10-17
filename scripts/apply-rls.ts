@@ -210,94 +210,120 @@ async function main() {
     process.exit(1);
   }
 
+  // Un deadlock (40P01) o un bloqueo que no se consiguió (55P03) no es un
+  // error de los scripts: otra conexión (la app, otro job de CI) estaba
+  // usando las mismas tablas justo en ese momento. Como todo va en UNA
+  // transacción, Postgres revierte el lote completo y es seguro reintentarlo.
+  // Pasó en CI el 2026-10-17 (083_comunidad.sql, "deadlock detected") y el
+  // mismo lote aplicó limpio un minuto después.
+  const REINTENTABLES = new Set(["40P01", "55P03"]);
+  const MAX_INTENTOS = 3;
+
   let aplicados = 0;
   try {
-    await client.query("BEGIN");
-
-    // Dentro de la misma transacción que los scripts: si el lote se revierte,
-    // el registro se revierte con él y nunca afirma algo que no pasó.
-    await client.query(DDL_REGISTRO);
-
-    // Las dependencias declaradas se comprueban TODAS antes de aplicar nada:
-    // más vale un mensaje claro al principio que un fallo de sintaxis a mitad
-    // del lote, aunque la transacción lo revierta igual.
-    const requeridas = scripts
-      .map((s) => ({ nombre: s.nombre, migracion: migracionRequerida(s.sql) }))
-      .filter((s): s is { nombre: string; migracion: string } => s.migracion !== null);
-
-    if (requeridas.length > 0) {
-      const { rows: aplicadasEnPrisma } = await client.query<{ migration_name: string }>(
-        `select migration_name from public._prisma_migrations where finished_at is not null`,
-      );
-      const nombresPrisma = new Set(aplicadasEnPrisma.map((f) => f.migration_name));
-      const faltantes = requeridas.filter((r) => !nombresPrisma.has(r.migracion));
-
-      if (faltantes.length > 0) {
-        console.error("\n❌ Faltan migraciones de Prisma que estos scripts necesitan:\n");
-        for (const { nombre, migracion } of faltantes) {
-          console.error(`   ${nombre} requiere ${migracion}`);
-        }
-        console.error("\n   Corre `npm run prisma:deploy` primero.\n");
-        throw new Error("Dependencias de migración sin cumplir.");
-      }
-    }
-
-    for (const { nombre, orden, sql } of scripts) {
+    for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+      aplicados = 0;
       try {
-        await client.query(sql);
-        await client.query(
-          `insert into private.rls_aplicados (nombre, orden, sha256, aplicado_en)
-           values ($1, $2, $3, now())
-           on conflict (nombre) do update
-             set orden = excluded.orden,
-                 sha256 = excluded.sha256,
-                 aplicado_en = excluded.aplicado_en`,
-          [nombre, orden, sha256(sql)],
+        await client.query("BEGIN");
+
+        // Dentro de la misma transacción que los scripts: si el lote se revierte,
+        // el registro se revierte con él y nunca afirma algo que no pasó.
+        await client.query(DDL_REGISTRO);
+
+        // Las dependencias declaradas se comprueban TODAS antes de aplicar nada:
+        // más vale un mensaje claro al principio que un fallo de sintaxis a mitad
+        // del lote, aunque la transacción lo revierta igual.
+        const requeridas = scripts
+          .map((s) => ({ nombre: s.nombre, migracion: migracionRequerida(s.sql) }))
+          .filter((s): s is { nombre: string; migracion: string } => s.migracion !== null);
+
+        if (requeridas.length > 0) {
+          const { rows: aplicadasEnPrisma } = await client.query<{ migration_name: string }>(
+            `select migration_name from public._prisma_migrations where finished_at is not null`,
+          );
+          const nombresPrisma = new Set(aplicadasEnPrisma.map((f) => f.migration_name));
+          const faltantes = requeridas.filter((r) => !nombresPrisma.has(r.migracion));
+
+          if (faltantes.length > 0) {
+            console.error("\n❌ Faltan migraciones de Prisma que estos scripts necesitan:\n");
+            for (const { nombre, migracion } of faltantes) {
+              console.error(`   ${nombre} requiere ${migracion}`);
+            }
+            console.error("\n   Corre `npm run prisma:deploy` primero.\n");
+            throw new Error("Dependencias de migración sin cumplir.");
+          }
+        }
+
+        for (const { nombre, orden, sql } of scripts) {
+          try {
+            await client.query(sql);
+            await client.query(
+              `insert into private.rls_aplicados (nombre, orden, sha256, aplicado_en)
+               values ($1, $2, $3, now())
+               on conflict (nombre) do update
+                 set orden = excluded.orden,
+                     sha256 = excluded.sha256,
+                     aplicado_en = excluded.aplicado_en`,
+              [nombre, orden, sha256(sql)],
+            );
+            aplicados += 1;
+            console.log(`✅ ${nombre}`);
+          } catch (error) {
+            const e = error as { message?: string; position?: string; hint?: string };
+            console.error(`❌ ${nombre}${lineaDelError(sql, e.position)} — ${e.message ?? error}`);
+            if (e.hint) console.error(`   pista: ${e.hint}`);
+            throw error;
+          }
+        }
+
+        // Archivos que la base recuerda y el repositorio ya no tiene. No es un
+        // error —un script puede haberse renombrado o consolidado— pero sí algo
+        // que nadie debería descubrir por casualidad: lo que ese script creó
+        // sigue vivo en la base sin nada versionado que lo describa.
+        const { rows: huerfanos } = await client.query<{ nombre: string }>(
+          `select nombre from private.rls_aplicados
+            where nombre <> all($1::text[])
+            order by orden`,
+          [scripts.map((s) => s.nombre)],
         );
-        aplicados += 1;
-        console.log(`✅ ${nombre}`);
+        if (huerfanos.length > 0) {
+          console.log(
+            `\n⚠️  ${huerfanos.length} script(s) figuran aplicados en la base pero ya no están en ${DIRECTORIO_VISIBLE}/:`,
+          );
+          for (const { nombre } of huerfanos) console.log(`   - ${nombre}`);
+          console.log("   Lo que crearon sigue en la base. Revisa si es intencional.");
+        }
+
+        if (SOLO_VERIFICAR) {
+          await client.query("ROLLBACK");
+          console.log(`\n✅ Los ${scripts.length} scripts aplican limpio. Revertido, la base quedó intacta.\n`);
+        } else {
+          await client.query("COMMIT");
+          console.log(`\n✅ ${scripts.length} scripts aplicados.`);
+          console.log("   Siguiente paso: npm run test:rls\n");
+        }
+        break;
       } catch (error) {
-        const e = error as { message?: string; position?: string; hint?: string };
-        console.error(`❌ ${nombre}${lineaDelError(sql, e.position)} — ${e.message ?? error}`);
-        if (e.hint) console.error(`   pista: ${e.hint}`);
-        throw error;
+        await client.query("ROLLBACK").catch(() => {});
+        const codigo = (error as { code?: string }).code;
+        if (codigo && REINTENTABLES.has(codigo) && intento < MAX_INTENTOS) {
+          const espera = 3000 * intento;
+          console.error(
+            `\n⚠️  Choque de bloqueos con otra conexión (${codigo}). Se revirtió todo;` +
+              ` reintento ${intento + 1} de ${MAX_INTENTOS} en ${espera / 1000} s.\n`,
+          );
+          await new Promise((resolver) => setTimeout(resolver, espera));
+          continue;
+        }
+        console.error(
+          `\n❌ Falló en el script #${aplicados + 1} de ${scripts.length}.` +
+            `\n   Se revirtió la transacción completa: la base quedó como estaba,` +
+            `\n   sin ningún script a medio aplicar.\n`,
+        );
+        process.exitCode = 1;
+        break;
       }
     }
-
-    // Archivos que la base recuerda y el repositorio ya no tiene. No es un
-    // error —un script puede haberse renombrado o consolidado— pero sí algo
-    // que nadie debería descubrir por casualidad: lo que ese script creó
-    // sigue vivo en la base sin nada versionado que lo describa.
-    const { rows: huerfanos } = await client.query<{ nombre: string }>(
-      `select nombre from private.rls_aplicados
-        where nombre <> all($1::text[])
-        order by orden`,
-      [scripts.map((s) => s.nombre)],
-    );
-    if (huerfanos.length > 0) {
-      console.log(
-        `\n⚠️  ${huerfanos.length} script(s) figuran aplicados en la base pero ya no están en ${DIRECTORIO_VISIBLE}/:`,
-      );
-      for (const { nombre } of huerfanos) console.log(`   - ${nombre}`);
-      console.log("   Lo que crearon sigue en la base. Revisa si es intencional.");
-    }
-
-    if (SOLO_VERIFICAR) {
-      await client.query("ROLLBACK");
-      console.log(`\n✅ Los ${scripts.length} scripts aplican limpio. Revertido, la base quedó intacta.\n`);
-    } else {
-      await client.query("COMMIT");
-      console.log(`\n✅ ${scripts.length} scripts aplicados.`);
-      console.log("   Siguiente paso: npm run test:rls\n");
-    }
-  } catch {
-    await client.query("ROLLBACK").catch(() => {});
-    console.error(
-      `\n❌ Falló en el script #${aplicados + 1} de ${scripts.length}.` +
-        `\n   Se revirtió la transacción completa: la base quedó como estaba,` +
-        `\n   sin ningún script a medio aplicar.\n`,
-    );
-    process.exitCode = 1;
   } finally {
     await client.end();
   }

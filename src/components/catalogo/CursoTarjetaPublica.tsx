@@ -42,13 +42,30 @@ export function BarrasNivel({ nivel, className }: { nivel: CursoDeCategoria["niv
 }
 
 /**
+ * Nivel del curso como se lee en las tarjetas: las tres barras y la etiqueta
+ * ("Básico", "Intermedio", "Avanzado"). Va a la derecha del instructor, en su
+ * misma fila. El lector de pantalla oye "Nivel Básico".
+ */
+export function NivelCurso({ nivel, className }: { nivel: CursoDeCategoria["nivel"]; className?: string }) {
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-2 text-uva-detalle font-semibold text-uva-text", className)}>
+      <BarrasNivel nivel={nivel} />
+      <span>
+        <span className="sr-only">Nivel </span>
+        {NIVEL[nivel].etiqueta}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Tarjeta de curso del catálogo público (dirección visual "Maqueta").
  *
- * - En celular es una fila: miniatura de 112×84 a la izquierda; título, nivel,
- *   clases y duración a la derecha.
+ * - En celular es una fila: miniatura de 112×84 a la izquierda; a la derecha
+ *   el título, el instructor con el nivel a su derecha, y clases y duración.
  * - Desde 768 px es una tarjeta de cuadrícula: portada 16:9 arriba; debajo, la
- *   categoría con su ícono y el nivel, el título, el instructor y la cifra de
- *   clases y duración.
+ *   categoría con su ícono y la cifra de clases y duración, el título, y el
+ *   instructor con el nivel (las tres barras) a su derecha.
  *
  * La duración se oculta si es 0 o desconocida (`null`): nunca "0 min". Mismo
  * formato que la ficha del curso (`formatHoras`).
@@ -76,7 +93,6 @@ export function CursoTarjetaPublica({
 }) {
   const tarjeta = disposicion === "tarjeta";
   const conPortada = esPortadaReal(curso.imagenPortada);
-  const nivel = NIVEL[curso.nivel];
   const clases = `${curso.totalClases} ${curso.totalClases === 1 ? "clase" : "clases"}`;
   const duracion = curso.duracionTotalSegundos ? formatHoras(curso.duracionTotalSegundos) : null;
 
@@ -119,15 +135,15 @@ export function CursoTarjetaPublica({
       </div>
 
       <div className={cn("flex min-w-0 flex-1 flex-col", tarjeta ? "gap-2 pt-3.5" : "gap-1.5 md:gap-2 md:pt-3.5")}>
-        {/* Categoría y nivel: solo en la tarjeta de cuadrícula. */}
+        {/* Categoría, y clases y duración: solo en la tarjeta de cuadrícula. */}
         <span className={cn("items-center justify-between gap-3", tarjeta ? "flex" : "hidden md:flex")}>
           <span className="inline-flex min-w-0 items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
             <IconoCategoria clave={categoria.nombre} className="size-4" />
             <span className="truncate">{categoria.nombre}</span>
           </span>
-          <span className="inline-flex shrink-0 items-center gap-2 text-uva-detalle font-semibold text-uva-text">
-            <BarrasNivel nivel={curso.nivel} />
-            {nivel.etiqueta}
+          <span className="flex shrink-0 gap-2.5 font-mono text-uva-detalle text-uva-text-muted">
+            <span>{clases}</span>
+            {duracion && <span>{duracion}</span>}
           </span>
         </span>
 
@@ -135,31 +151,26 @@ export function CursoTarjetaPublica({
           {curso.titulo}
         </h2>
 
-        {/* Fila de celular: nivel, clases y duración en una línea. */}
+        {/* Instructor a la izquierda y nivel a la derecha, en la misma fila. */}
+        {/* En la cuadrícula va al fondo (`mt-auto`): las tarjetas de una fila
+            quedan alineadas aunque los títulos tengan distinto largo. */}
+        <span
+          className={cn(
+            "flex items-center justify-between gap-3 text-uva-detalle text-uva-text-muted",
+            tarjeta ? "mt-auto" : "md:mt-auto",
+          )}
+        >
+          <span className="min-w-0 truncate">{curso.instructorNombre}</span>
+          <NivelCurso nivel={curso.nivel} />
+        </span>
+
+        {/* Fila de celular: clases y duración (en la cuadrícula van arriba). */}
         {!tarjeta && (
-          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-uva-detalle text-uva-text-muted md:hidden">
-            <span className="inline-flex items-center gap-1.5">
-              <BarrasNivel nivel={curso.nivel} />
-              {nivel.etiqueta}
-            </span>
+          <span className="flex flex-wrap gap-x-2.5 font-mono text-uva-detalle text-uva-text-muted md:hidden">
             <span>{clases}</span>
             {duracion && <span>{duracion}</span>}
           </span>
         )}
-
-        {/* Cuadrícula: instructor a la izquierda, clases y duración a la derecha. */}
-        <span
-          className={cn(
-            "mt-auto items-baseline justify-between gap-3 text-uva-detalle text-uva-text-muted",
-            tarjeta ? "flex" : "hidden md:flex",
-          )}
-        >
-          <span className="min-w-0 truncate">{curso.instructorNombre}</span>
-          <span className="flex shrink-0 gap-2.5 font-mono">
-            <span>{clases}</span>
-            {duracion && <span>{duracion}</span>}
-          </span>
-        </span>
       </div>
     </Link>
   );

@@ -4,6 +4,7 @@ import { ArrowRight, ChevronRight, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { Button } from "@/components/ui/button";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
+import { NivelCurso } from "@/components/catalogo/CursoTarjetaPublica";
 import { TuObra } from "@/components/dashboard/TuObra";
 import { formatDuracion, formatHoras } from "@/lib/admin/format";
 import { esPortadaReal } from "@/lib/media";
@@ -262,23 +263,28 @@ function Recomendados({ cursos }: { cursos: CursoDeCategoria[] }) {
                   />
                 </span>
                 <span className="flex flex-1 flex-col gap-2 pt-3.5">
-                  {categoria && (
-                    <span className="inline-flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
-                      <IconoCategoria clave={categoria.nombre} className="size-4" />
-                      {categoria.nombre}
+                  {/* Categoría a la izquierda y cuántas clases a la derecha. */}
+                  <span className="flex items-center justify-between gap-3 text-uva-detalle text-uva-text-muted">
+                    {categoria ? (
+                      <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold">
+                        <IconoCategoria clave={categoria.nombre} className="size-4" />
+                        <span className="truncate">{categoria.nombre}</span>
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="shrink-0 font-mono">
+                      {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
                     </span>
-                  )}
+                  </span>
                   <span className="text-uva-cuerpo font-bold text-uva-text group-hover:text-uva-accent-ink">
                     {curso.titulo}
                   </span>
-                  {curso.instructorNombre && (
-                    <span className="text-uva-detalle text-uva-text-muted">{curso.instructorNombre}</span>
-                  )}
-                  <span className="mt-auto flex justify-between border-t border-uva-divider pt-2.5 text-uva-detalle text-uva-text-muted">
-                    <span>{NIVEL_LABEL[curso.nivel]}</span>
-                    <span className="font-mono">
-                      {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
-                    </span>
+                  {/* Instructor a la izquierda y nivel (las tres barras) a la
+                      derecha, en la misma fila, como en el catálogo. */}
+                  <span className="mt-auto flex items-center justify-between gap-3 border-t border-uva-divider pt-2.5 text-uva-detalle text-uva-text-muted">
+                    <span className="min-w-0 truncate">{curso.instructorNombre}</span>
+                    <NivelCurso nivel={curso.nivel} />
                   </span>
                 </span>
               </Link>
