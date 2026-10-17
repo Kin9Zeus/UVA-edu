@@ -14,6 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import {
   PREGUNTAS_CENTRO_AYUDA,
   TEMAS_SOPORTE,
@@ -41,20 +42,28 @@ const PANEL =
   "h-[var(--accordion-panel-height)] overflow-hidden transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0";
 
 /**
- * Soporte sin sesión (tablero "Soporte sin sesion" del lienzo "UVA Cursos"):
+ * Centro de soporte (tablero "Soporte sin sesion" del lienzo "UVA Cursos"):
  * buscador de dudas, tres accesos directos (WhatsApp, reportar un problema y
  * verificar un certificado), los temas de soporte en acordeón con las
  * preguntas frecuentes adentro y, sin sesión, la invitación a entrar.
  *
- * El contenido es el de src/lib/soporte.tsx (el mismo de /dashboard/soporte
- * y del pie de página); `temaAbierto` viene de `?tema=` y abre ese tema.
+ * Lo usan `/soporte` (con el encabezado y el pie del sitio) y
+ * `/dashboard/soporte` (dentro del panel, con el mismo diseño). El panel no
+ * tiene el pie con el formulario de verificar certificados, así que ahí va
+ * en la página (`verificacionEnPagina`) y "Verifica un certificado" baja a él.
+ *
+ * El contenido es el de src/lib/soporte.tsx (el mismo del pie de página);
+ * `temaAbierto` viene de `?tema=` y abre ese tema.
  */
-export function SoportePublico({
+export function SoporteCentro({
   temaAbierto,
   conSesion,
+  verificacionEnPagina = false,
 }: {
   temaAbierto?: TemaSoporte;
   conSesion: boolean;
+  /** Pinta aquí el formulario de verificar certificados (el panel no tiene pie). */
+  verificacionEnPagina?: boolean;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [temas, setTemas] = useState<string[]>(() =>
@@ -191,6 +200,23 @@ export function SoportePublico({
         Los textos de Términos y Privacidad están en preparación.
       </p>
 
+      {verificacionEnPagina && (
+        <section
+          aria-labelledby="soporte-verificar"
+          className="flex scroll-mt-6 flex-col gap-3 rounded-uva-lg border border-uva-divider bg-uva-surface p-6"
+        >
+          <div>
+            <h2 id="soporte-verificar" className="text-uva-titulo-4 text-uva-text">
+              Verifica un certificado
+            </h2>
+            <p className="mt-1 text-uva-cuerpo text-uva-text-muted">
+              Escribe el código que aparece en el PDF para confirmar que es válido.
+            </p>
+          </div>
+          <VerificarCertificadoForm />
+        </section>
+      )}
+
       {!conSesion && (
         <section
           aria-labelledby="soporte-cuenta"
@@ -242,8 +268,9 @@ function Acceso({
       <a
         href={href}
         {...(externo ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        // "Verifica un certificado" baja al formulario del pie: además de
-        // desplazarse, deja el foco en el campo para escribir el código.
+        // "Verifica un certificado" baja al formulario (el del pie en /soporte,
+        // el de la página en el panel): además de desplazarse, deja el foco
+        // en el campo para escribir el código.
         onClick={
           externo
             ? undefined

@@ -9,9 +9,8 @@ import { urlWhatsapp } from "@/lib/contacto";
 // rompe enlaces ya compartidos.
 //
 // Archivo .tsx (no .ts): el contenido de cada tema es JSX, no texto plano —
-// necesita negritas (ver `centro-de-ayuda` abajo). Se renderiza en un
-// componente servidor (`SoporteContent`) y se pasa como `children` al
-// `Accordion` cliente, patrón normal de RSC.
+// necesita negritas (ver `centro-de-ayuda` abajo). Lo pinta `SoporteCentro`
+// (components/soporte), en /soporte y en /dashboard/soporte.
 export type TemaSoporte =
   "centro-de-ayuda" | "contacto" | "terminos" | "privacidad";
 

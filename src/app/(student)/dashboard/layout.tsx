@@ -46,7 +46,11 @@ export default async function DashboardLayout({
           notificaciones={notificaciones}
           notificacionesNoLeidas={notificacionesNoLeidas}
         />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+        {/* `relative`: el contenedor que desplaza también es la referencia de
+            lo que va en posición absoluta. Sin esto, un `sr-only` (absoluto)
+            hacia el final de una página se salía del `overflow` y estiraba
+            el documento: dos barras de desplazamiento (pasaba en Soporte). */}
+        <main className="relative flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
         <BottomTabBar />
       </div>
     </div>
