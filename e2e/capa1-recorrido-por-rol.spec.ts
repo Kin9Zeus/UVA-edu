@@ -132,6 +132,7 @@ function construirRutas(datos: {
     "/acceso-denegado",
     "/auth/confirm",
     "/auth/confirm?token_hash=basura&type=signup",
+    "/verificar-certificado",
     ...(codigoCertificado ? [`/verificar-certificado/${codigoCertificado}`] : []),
     // Un código inexistente responde 200 A PROPÓSITO: la página es un
     // verificador y "no encontrado" es un resultado, no una ruta rota.

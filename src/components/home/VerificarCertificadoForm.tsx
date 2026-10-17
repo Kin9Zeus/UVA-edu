@@ -2,30 +2,86 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { buttonVariants } from "@/components/ui/button";
+import { normalizarCodigoCertificado } from "@/lib/certificados/codigo";
+import { cn } from "@/lib/utils";
+
+type Props =
+  | { variante?: "compacto" }
+  | {
+      /** La página /verificar-certificado: campo con etiqueta visible y botón a lo ancho. */
+      variante: "pagina";
+      /** El código que no se encontró, ya escrito para corregirlo. */
+      valorInicial?: string;
+      /** Marca el campo como inválido (el código buscado no existe). */
+      invalido?: boolean;
+      textoBoton: string;
+      /** id de la caja "Dónde encontrar el código", que describe el campo. */
+      ayudaId: string;
+    };
 
 /**
- * "¿Ingresé en el Home la opción de verificar un código?" — sí: hasta ahora
- * la única forma de llegar a /verificar-certificado/[codigo] era el QR o
- * pegar la URL completa. Certificado.md pide una URL "corta y legible"
- * precisamente para que alguien pueda teclearla, así que este formulario le
- * da un punto de entrada visible en el sitio público, sin sesión.
+ * Formulario para verificar un código de certificado. Va en el pie del sitio,
+ * en Soporte y en la propia página de verificación.
+ *
+ * Es un GET real a /verificar-certificado?codigo=…, que redirige a
+ * /verificar-certificado/[codigo]: sin JavaScript también funciona. Con
+ * JavaScript se navega directo, con el código ya normalizado.
  */
-export function VerificarCertificadoForm() {
+export function VerificarCertificadoForm(props: Props) {
   const router = useRouter();
-  const [codigo, setCodigo] = useState("");
+  const pagina = props.variante === "pagina" ? props : null;
+  const [codigo, setCodigo] = useState(pagina?.valorInicial ?? "");
 
   function verificar(event: React.FormEvent) {
     event.preventDefault();
-    const limpio = codigo.trim();
+    const limpio = normalizarCodigoCertificado(codigo);
     if (!limpio) return;
     router.push(`/verificar-certificado/${encodeURIComponent(limpio)}`);
   }
 
+  if (pagina) {
+    return (
+      <form action="/verificar-certificado" method="get" onSubmit={verificar} className="grid gap-5.5">
+        <div>
+          <label htmlFor="codigo-certificado" className="mb-1.5 block text-uva-cuerpo font-semibold text-uva-text">
+            Código del certificado
+          </label>
+          <input
+            id="codigo-certificado"
+            name="codigo"
+            type="text"
+            required
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            value={codigo}
+            onChange={(event) => setCodigo(event.target.value)}
+            placeholder="XXXXX-XXXXX"
+            aria-invalid={pagina.invalido || undefined}
+            aria-describedby={pagina.ayudaId}
+            className="h-14 w-full min-w-0 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-bg px-4 font-codigo text-base tracking-[0.08em] text-uva-text uppercase placeholder:text-uva-text-faint aria-invalid:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          />
+        </div>
+        <button
+          type="submit"
+          className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "min-h-13 text-uva-cuerpo")}
+        >
+          {pagina.textoBoton}
+        </button>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={verificar} className="flex flex-wrap gap-2">
+    <form action="/verificar-certificado" method="get" onSubmit={verificar} className="flex flex-wrap gap-2">
       <input
         id="verificar-certificado"
+        name="codigo"
         type="text"
+        required
+        autoComplete="off"
+        spellCheck={false}
         value={codigo}
         onChange={(event) => setCodigo(event.target.value)}
         placeholder="Ej. K7M2Q-XP4TB"
