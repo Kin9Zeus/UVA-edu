@@ -1,89 +1,125 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
+import { LineCapStyle, PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import QRCode from "qrcode";
+import { COTAS, CURVAS } from "@/lib/certificados/curvas";
 
 /**
- * Certificado UVA — diseño real enviado por el cliente en Canva
- * (https://www.canva.com/design/DAHUiNVjhZE, página 4 del handoff:
- * "Certificado Diploma de Reconocimiento Profesional Orgánico Verde").
+ * Certificado U.V.A. — diseño «Finalista 2» (curvas de nivel) del artifact
+ * «U.V.A. — Direcciones visuales», dirección visual Maqueta. El mismo para
+ * todos los cursos.
  *
- * El fondo decorativo (ondas verdes), el logo "UVA", los rótulos fijos
- * ("CERTIFICADO DE PARTICIPACIÓN", "otorgado a", "por participar y aprobar
- * el curso de"), las firmas y sus cargos ("CEO") se exportan tal cual desde
- * Canva como una sola imagen de fondo a página completa — son 100%
- * estáticos en el diseño aprobado, así que se reproducen pixel a pixel sin
- * reinterpretarlos a mano (ver `assets/fondo-certificado.png`, exportado a
- * 3369×2382 — 3x — desde esa misma página). Solo los campos que varían por
- * certificado (nombre del estudiante, curso, fecha, duración, código de
- * verificación, URL y QR) se borran de su posición original y se dibujan
- * encima como texto vectorial, en las coordenadas y tipografías exactas
- * medidas sobre el diseño original (JSON de Canva + muestreo de píxeles
- * sobre la exportación en alta resolución, para las cajas de texto en
- * fuentes cursivas cuya métrica visual no coincide con la del archivo).
+ * Todo es vectorial: las curvas de nivel (curvas.ts), el logo de trazo, las
+ * firmas y el texto; solo el QR va como imagen. Se dibuja en las unidades
+ * del lienzo de diseño (1123×794, px a 96 dpi ≈ A4 horizontal) y SCALE las
+ * lleva a puntos PDF (72 dpi).
  *
- * Conversión de unidades: el lienzo de Canva mide 1123×794 en sus unidades
- * de diseño (px a 96dpi ≈ A4 horizontal). SCALE = 0.75 las lleva a puntos
- * PDF (72dpi) sin distorsión, y PAGE_W/PAGE_H quedan a milímetros de A4.
+ * El nombre del estudiante y el título del curso tienen largo variable: el
+ * nombre se achica hasta un mínimo y luego parte en dos líneas; el curso
+ * parte en líneas. El bloque de texto se arma de abajo hacia arriba desde
+ * las firmas, así un nombre o un curso largo crece hacia arriba sin pisar
+ * el pie.
  *
- * Fuentes:
- *   - Great Vibes (nombre, curso y firmas si se llegan a redibujar) y
- *     Belleza (fecha) — Google Fonts, licencia OFL, igual que las que ya
- *     usaba este archivo.
- *   - Garet (título y bloque de verificación) — no está en Google Fonts;
- *     se descargó de 1001fonts bajo su licencia "Free For Commercial Use"
- *     (FFC), que permite explícitamente incrustarla en un PDF generado por
- *     una aplicación (no así redistribuir el .ttf suelto — ver
- *     `fonts/Garet-EULA.pdf`).
+ * Fuentes (Google Fonts, licencia OFL — ver fonts/OFL-*.txt):
+ * Plus Jakarta Sans Bold (nombre, curso), Inter (texto) y JetBrains Mono
+ * (rótulo, código y URL).
  */
 
 const FONTS_DIR = path.join(process.cwd(), "src/lib/certificados/fonts");
-const ASSETS_DIR = path.join(process.cwd(), "src/lib/certificados/assets");
 
-/** Unidades de diseño Canva (px @96dpi, lienzo 1123×794) -> puntos PDF (72dpi). */
+/** Unidades de diseño (px @96dpi, lienzo 1123×794) -> puntos PDF (72dpi). */
 const SCALE = 0.75;
-const PAGE_W = 1123 * SCALE;
-const PAGE_H = 794 * SCALE;
+const ANCHO = 1123;
+const ALTO = 794;
+const PAGE_W = ANCHO * SCALE;
+const PAGE_H = ALTO * SCALE;
 
-const NEGRO = rgb(0, 0, 0);
-const VERDE_OSCURO = rgb(0x24 / 255, 0x34 / 255, 0x1c / 255); // #24341C (texto del pie y de la fecha)
-const ROSA_PASTILLA = rgb(253 / 255, 125 / 255, 185 / 255); // #FD7DB9 (muestreado de la píldora de fecha)
-const FONDO = rgb(0xfa / 255, 0xfd / 255, 0xf8 / 255); // #FAFDF8 (fondo del certificado)
+const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
+const TEXTO = hex("#18181B");
+const TENUE = hex("#52525B");
+const MAGENTA = hex("#C2005B");
+const CURVA = hex("#E4E4E7");
+const CURVA_FUERTE = hex("#C8C8CE");
+const COTA = hex("#A1A1AA");
+const BLANCO = rgb(1, 1, 1);
 
-function u(unidadesDisenio: number) {
-  return unidadesDisenio * SCALE;
-}
+/** Margen del contenido: arriba 60, lados 72, abajo 52 (como el artboard). */
+const IZQ = 72;
+const DER = ANCHO - 72;
+const ABAJO = ALTO - 52;
 
-function centrarX(texto: string, font: PDFFont, size: number, centroXPt: number) {
-  return centroXPt - font.widthOfTextAtSize(texto, size) / 2;
-}
+/** Logo U.V.A. de trazo, viewBox 0 0 128 48, trazo 3.2. */
+const LOGO =
+  "M2.4 5.6H12.6M41.6 5.6H31.8M3.8 4V26A18.6 17.4 0 0 0 41 26V4M2.2 23.6H42.6M50.2 4V43.4M50.2 42.4L88.6 4.6M64.2 42.6L89.6 17.2M86.6 42L122.8 5.2M124.2 4V43.6M85.6 42.4H125.8M86.6 30.4H125.8";
 
-/** `y` (desde abajo, como pide pdf-lib) para que el CENTRO vertical del texto caiga en `centroYDisenio` (medido desde arriba, en unidades Canva). */
-function baselineParaCentroVertical(centroYDisenio: number, font: PDFFont, size: number) {
-  const centroYPt = PAGE_H - u(centroYDisenio);
-  const ascent = font.heightAtSize(size, { descender: false });
-  const descent = font.heightAtSize(size) - ascent;
-  return centroYPt - (ascent - descent) / 2;
-}
+/** Firmas: trazo de cada una (viewBox 0 0 150 44), nombre y cargo. */
+const FIRMAS = [
+  {
+    trazo: "M4 34c10-22 18-30 22-24s-8 26-2 24 14-26 20-22-6 20 0 18 10-14 16-14 4 10 10 8 12-10 20-8",
+    nombre: "Sebastián Arias",
+    cargo: "CEO",
+  },
+  {
+    trazo: "M4 30c8-6 12-26 20-24s-10 28-4 26 10-18 16-16-2 14 4 12 8-10 14-9 6 8 12 6 10-6 18-6",
+    nombre: "Felipe Cuartas",
+    cargo: "CEO",
+  },
+];
 
-function borrar(pagina: PDFPage, x0Disenio: number, x1Disenio: number, y0Disenio: number, y1Disenio: number, color: ReturnType<typeof rgb> = FONDO) {
-  pagina.drawRectangle({
-    x: u(x0Disenio),
-    y: PAGE_H - u(y1Disenio),
-    width: u(x1Disenio - x0Disenio),
-    height: u(y1Disenio - y0Disenio),
-    color,
+const u = (v: number) => v * SCALE;
+
+type Texto = { font: PDFFont; size: number; color: ReturnType<typeof rgb> };
+
+/**
+ * Dibuja una línea de texto dentro de una "caja de línea" de CSS: `top` es
+ * el borde superior de la línea y `alto` su line-height, en unidades de
+ * diseño. La línea base queda donde la pondría el navegador (contenido
+ * centrado en el alto de línea).
+ */
+function linea(pagina: PDFPage, texto: string, x: number, top: number, alto: number, estilo: Texto, alinear: "izq" | "der" = "izq") {
+  const ascenso = estilo.font.heightAtSize(estilo.size, { descender: false });
+  const total = estilo.font.heightAtSize(estilo.size);
+  const base = top + (alto - total) / 2 + ascenso;
+  const ancho = estilo.font.widthOfTextAtSize(texto, estilo.size);
+  pagina.drawText(texto, {
+    x: u(alinear === "der" ? x - ancho : x),
+    y: PAGE_H - u(base),
+    size: u(estilo.size),
+    font: estilo.font,
+    color: estilo.color,
   });
 }
 
-/** Píldora tipo cápsula (rectángulo + dos semicírculos), centrada en (centroXPt, centroYPt). */
-function dibujarPastilla(pagina: PDFPage, centroXPt: number, centroYPt: number, anchoPt: number, altoPt: number, color: ReturnType<typeof rgb>) {
-  const r = altoPt / 2;
-  const anchoRecto = Math.max(0, anchoPt - altoPt);
-  pagina.drawRectangle({ x: centroXPt - anchoRecto / 2, y: centroYPt - r, width: anchoRecto, height: altoPt, color });
-  pagina.drawEllipse({ x: centroXPt - anchoRecto / 2, y: centroYPt, xScale: r, yScale: r, color });
-  pagina.drawEllipse({ x: centroXPt + anchoRecto / 2, y: centroYPt, xScale: r, yScale: r, color });
+/** Parte un texto en líneas que caben en `anchoMax` (unidades de diseño). */
+function partir(texto: string, font: PDFFont, size: number, anchoMax: number): string[] {
+  const lineas: string[] = [];
+  let actual = "";
+  for (const palabra of texto.split(/\s+/).filter(Boolean)) {
+    const prueba = actual ? `${actual} ${palabra}` : palabra;
+    if (actual && font.widthOfTextAtSize(prueba, size) > anchoMax) {
+      lineas.push(actual);
+      actual = palabra;
+    } else {
+      actual = prueba;
+    }
+  }
+  if (actual) lineas.push(actual);
+  return lineas;
+}
+
+/** Trazo SVG con su origen en (x, y) de diseño (desde arriba); `escala` lleva las
+ *  unidades del trazo a unidades de diseño y `grosor` va en unidades del trazo. */
+function trazo(pagina: PDFPage, d: string, x: number, y: number, escala: number, color: ReturnType<typeof rgb>, grosor: number) {
+  pagina.drawSvgPath(d, {
+    x: u(x),
+    y: PAGE_H - u(y),
+    scale: u(escala),
+    borderColor: color,
+    // pdf-lib escala el grosor junto con el trazo: va en unidades del trazo.
+    borderWidth: grosor,
+    borderLineCap: LineCapStyle.Round,
+  });
 }
 
 export async function construirCertificadoPdf({
@@ -101,159 +137,179 @@ export async function construirCertificadoPdf({
   /** Texto ya formado, p.ej. "14 horas de teoría y práctica", o null si no hay duración registrada. */
   duracionTexto: string | null;
   codigoVerificacion: string;
-  /** Texto a imprimir (sin protocolo, como en el diseño: "uva.co/verificar/..."). */
+  /** Texto a imprimir (sin protocolo). */
   urlVerificacion: string;
   /** URL completa (con https://) que codifica el QR — tiene que ser la que de verdad resuelve al escanearla. */
   urlVerificacionQr: string;
 }): Promise<Uint8Array> {
-  const [fondoBytes, greatVibesBytes, bellezaBytes, garetBytes] = await Promise.all([
-    readFile(path.join(ASSETS_DIR, "fondo-certificado.png")),
-    readFile(path.join(FONTS_DIR, "GreatVibes-Regular.ttf")),
-    readFile(path.join(FONTS_DIR, "Belleza-Regular.ttf")),
-    readFile(path.join(FONTS_DIR, "Garet-Book.ttf")),
-  ]);
+  const [jakartaBytes, interBytes, interSemiBytes, monoBytes, monoMedioBytes] = await Promise.all(
+    ["PlusJakartaSans-Bold", "Inter-Regular", "Inter-SemiBold", "JetBrainsMono-Regular", "JetBrainsMono-Medium"].map(
+      (nombre) => readFile(path.join(FONTS_DIR, `${nombre}.ttf`)),
+    ),
+  );
 
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
-  // calt/liga deshabilitados: pdf-lib no aplica shaping OpenType completo
-  // (sin GPOS de contexto), y con esas features activas fontkit sustituye
-  // algunos glifos de Great Vibes por variantes de ancho erróneo — se ve
-  // como un hueco a mitad de palabra (p.ej. "Interiores" -> "Interior es").
-  const sinLigaduras = { features: { calt: false, liga: false } };
-  const greatVibes = await pdfDoc.embedFont(greatVibesBytes, sinLigaduras);
-  const belleza = await pdfDoc.embedFont(bellezaBytes, sinLigaduras);
-  const garet = await pdfDoc.embedFont(garetBytes, sinLigaduras);
-  const fondoImagen = await pdfDoc.embedPng(fondoBytes);
+  // calt/liga deshabilitados: pdf-lib no aplica shaping OpenType completo y
+  // con esas features fontkit puede sustituir glifos con un ancho erróneo.
+  // `subset`: solo las letras que se usan, no la fuente entera.
+  const sinLigaduras = { subset: true, features: { calt: false, liga: false } };
+  // Inter va completa: el recorte de fontkit le pierde glifos (se veían
+  // letras sueltas en el PDF). Las otras dos sí se recortan sin problema.
+  const completa = { features: { calt: false, liga: false } };
+  const [jakarta, inter, interSemi, mono, monoMedio] = await Promise.all([
+    pdfDoc.embedFont(jakartaBytes, sinLigaduras),
+    pdfDoc.embedFont(interBytes, completa),
+    pdfDoc.embedFont(interSemiBytes, completa),
+    pdfDoc.embedFont(monoBytes, sinLigaduras),
+    pdfDoc.embedFont(monoMedioBytes, sinLigaduras),
+  ]);
 
   const pagina = pdfDoc.addPage([PAGE_W, PAGE_H]);
-  const cx = PAGE_W / 2;
+  pagina.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: BLANCO });
 
-  pagina.drawImage(fondoImagen, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+  // --- Curvas de nivel, con sus cotas y el punto de la cima ---------------
+  for (const curva of CURVAS) {
+    trazo(pagina, curva.d, 0, 0, 1, curva.fuerte ? CURVA_FUERTE : CURVA, curva.fuerte ? 1.4 : 1);
+  }
+  const cota: Texto = { font: mono, size: 11, color: COTA };
+  for (const { x, y, texto } of COTAS) {
+    // Halo blanco detrás de la cota (en el diseño, un trazo blanco de 4 px).
+    const ancho = mono.widthOfTextAtSize(texto, cota.size);
+    pagina.drawRectangle({ x: u(x - 2), y: PAGE_H - u(y + 3), width: u(ancho + 4), height: u(13), color: BLANCO });
+    pagina.drawText(texto, { x: u(x), y: PAGE_H - u(y), size: u(cota.size), font: mono, color: COTA });
+  }
+  pagina.drawCircle({ x: u(870), y: PAGE_H - u(300), size: u(6), color: TEXTO });
 
-  // --- Nombre del estudiante (reemplaza "[Nombre Estudiante]") ----------
-  // Caja original (Canva): top=333.65 left=209.16 width=704.20 height=79.67.
-  // Centro visual real medido sobre la exportación en alta resolución
-  // (fuente cursiva: la caja del JSON no coincide con la tinta visible).
-  borrar(pagina, 175, 950, 310, 415);
-  {
-    const tamanoBase = u(66.6667);
-    const anchoMaximo = PAGE_W - u(120);
-    const anchoBase = greatVibes.widthOfTextAtSize(nombreEstudiante, tamanoBase);
-    const tamano = anchoBase > anchoMaximo ? tamanoBase * (anchoMaximo / anchoBase) : tamanoBase;
-    pagina.drawText(nombreEstudiante, {
-      x: centrarX(nombreEstudiante, greatVibes, tamano, cx),
-      y: baselineParaCentroVertical(365.8, greatVibes, tamano),
-      size: tamano,
-      font: greatVibes,
-      color: NEGRO,
-    });
+  // --- Encabezado: logo de trazo + nombre de la institución ---------------
+  // Logo de 25.3 de alto (1.15em de 22 px); el texto, en su línea base.
+  const altoLogo = 25.3;
+  trazo(pagina, LOGO, IZQ, 60, altoLogo / 48, TEXTO, 3.2);
+  linea(pagina, "Unidad Vectorial de Arquitectura", IZQ + (128 * altoLogo) / 48 + 12, 60 + 3, 19.5, {
+    font: inter,
+    size: 13,
+    color: TENUE,
+  });
+
+  // --- Pie: firmas a la izquierda, código y QR a la derecha ---------------
+  // Cada firma: trazo de 44, línea, nombre (14/1.3) y cargo (12/1.4).
+  const altoFirma = 44 + 1 + 8 + 18.2 + 16.8;
+  const topFirma = ABAJO - altoFirma;
+  FIRMAS.forEach((firma, i) => {
+    const x = IZQ + i * (200 + 32);
+    trazo(pagina, firma.trazo, x, topFirma, 1, TEXTO, 2);
+    pagina.drawRectangle({ x: u(x), y: PAGE_H - u(topFirma + 45), width: u(200), height: u(1), color: TEXTO });
+    linea(pagina, firma.nombre, x, topFirma + 53, 18.2, { font: interSemi, size: 14, color: TEXTO });
+    linea(pagina, firma.cargo, x, topFirma + 71.2, 16.8, { font: inter, size: 12, color: TENUE });
+  });
+
+  const ladoQr = 64;
+  const xQr = DER - 10 - ladoQr;
+  const topQr = ABAJO - 10 - ladoQr;
+  const qrPng = await QRCode.toBuffer(urlVerificacionQr, {
+    margin: 0,
+    width: 512, // más resolución que puntos PDF para que no se vea pixelado al imprimir
+    color: { dark: "#18181B", light: "#FFFFFF" },
+  });
+  const qrImagen = await pdfDoc.embedPng(qrPng);
+  pagina.drawRectangle({ x: u(xQr - 10), y: PAGE_H - u(ABAJO), width: u(ladoQr + 20), height: u(ladoQr + 20), color: BLANCO });
+  pagina.drawImage(qrImagen, { x: u(xQr), y: PAGE_H - u(topQr + ladoQr), width: u(ladoQr), height: u(ladoQr) });
+  const centroQr = topQr + ladoQr / 2;
+  const xTextoQr = xQr - 12;
+  const anchoUrl = mono.widthOfTextAtSize(urlVerificacion, 11);
+  pagina.drawRectangle({
+    x: u(xTextoQr - anchoUrl - 8),
+    y: PAGE_H - u(centroQr + 22),
+    width: u(anchoUrl + 8),
+    height: u(44),
+    color: BLANCO,
+  });
+  linea(pagina, codigoVerificacion, xTextoQr, centroQr - 16.8, 18.2, { font: monoMedio, size: 13, color: TEXTO }, "der");
+  linea(pagina, urlVerificacion, xTextoQr, centroQr + 1.4, 15.4, { font: mono, size: 11, color: TENUE }, "der");
+
+  // --- Bloque principal, armado de abajo hacia arriba ---------------------
+  // Caja de 600 de ancho máximo con padding 20/24/20/0 y fondo blanco al 88%.
+  const anchoTexto = 600 - 24;
+  const fechaTexto = fechaEmision.toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Bogota",
+  });
+  const datos = duracionTexto ? `${fechaTexto}, ${duracionTexto}` : fechaTexto;
+
+  // Nombre: 84 px; si no cabe se achica hasta 56 y, si aun así no cabe, parte.
+  let tamanoNombre = 84;
+  const anchoNombre = jakarta.widthOfTextAtSize(nombreEstudiante, tamanoNombre);
+  if (anchoNombre > anchoTexto) tamanoNombre = Math.max(56, (tamanoNombre * anchoTexto) / anchoNombre);
+  const lineasNombre = partir(nombreEstudiante, jakarta, tamanoNombre, anchoTexto);
+
+  // Curso: 26 px en las líneas que haga falta; con más de 3 se achica.
+  let tamanoCurso = 26;
+  let lineasCurso = partir(cursoTitulo, jakarta, tamanoCurso, anchoTexto);
+  while (lineasCurso.length > 3 && tamanoCurso > 18) {
+    tamanoCurso -= 2;
+    lineasCurso = partir(cursoTitulo, jakarta, tamanoCurso, anchoTexto);
   }
 
-  // --- Título del curso (reemplaza "[Nombre Curso]") ---------------------
-  // Caja original: top=441.09 left=373.37 width=375.77 height=48. La línea
-  // divisoria bajo el bloque de nombre está en y=483.09 — no se puede tocar.
-  borrar(pagina, 150, 975, 434, 481.5);
-  {
-    const tamanoBase = u(40);
-    const anchoMaximo = PAGE_W - u(160);
-    const anchoBase = greatVibes.widthOfTextAtSize(cursoTitulo, tamanoBase);
-    const tamano = anchoBase > anchoMaximo ? tamanoBase * (anchoMaximo / anchoBase) : tamanoBase;
-    pagina.drawText(cursoTitulo, {
-      x: centrarX(cursoTitulo, greatVibes, tamano, cx),
-      y: baselineParaCentroVertical(460.5, greatVibes, tamano),
-      size: tamano,
-      font: greatVibes,
-      color: NEGRO,
-    });
-  }
+  const lhNombre = tamanoNombre * 0.98;
+  const lhCurso = tamanoCurso * 1.2;
+  const bloques: { alto: number; antes: number; dibujar: (top: number) => void }[] = [
+    {
+      alto: 16.8,
+      antes: 0,
+      dibujar: (top) => linea(pagina, "Certificado de aprobación", IZQ, top, 16.8, { font: mono, size: 12, color: MAGENTA }),
+    },
+    {
+      alto: 24,
+      antes: 18,
+      dibujar: (top) => linea(pagina, "U.V.A. certifica que", IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
+    },
+    {
+      alto: lhNombre * lineasNombre.length,
+      antes: 8,
+      dibujar: (top) =>
+        lineasNombre.forEach((texto, i) =>
+          linea(pagina, texto, IZQ, top + i * lhNombre, lhNombre, { font: jakarta, size: tamanoNombre, color: TEXTO }),
+        ),
+    },
+    {
+      alto: 24,
+      antes: 24,
+      dibujar: (top) =>
+        linea(pagina, "llegó a la cota más alta del curso", IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
+    },
+    {
+      alto: lhCurso * lineasCurso.length,
+      antes: 6,
+      dibujar: (top) =>
+        lineasCurso.forEach((texto, i) =>
+          linea(pagina, texto, IZQ, top + i * lhCurso, lhCurso, { font: jakarta, size: tamanoCurso, color: TEXTO }),
+        ),
+    },
+    {
+      alto: 22.5,
+      antes: 14,
+      dibujar: (top) => linea(pagina, datos, IZQ, top, 22.5, { font: inter, size: 15, color: TEXTO }),
+    },
+  ];
 
-  // --- Píldora de fecha (reemplaza "xx de xx de xxxx") -------------------
-  // Píldora original medida sobre la imagen: alto 33.5u, ancho 157u,
-  // centro en (561.5, 533.25). Se reconstruye del mismo alto/color pero con
-  // ancho dinámico (el padding se deriva del propio diseño para que quede
-  // proporcionado sin importar cuántos caracteres tenga la fecha real).
-  borrar(pagina, 450, 675, 505, 562);
-  {
-    const fechaTexto = fechaEmision.toLocaleDateString("es-CO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "America/Bogota",
-    });
-    const tamano = u(17.3336);
-    const altoPastilla = u(33.5);
-    const centroYPt = PAGE_H - u(533.25);
-
-    const textoPlaceholderOriginal = "xx de xx de xxxx";
-    const anchoPlaceholderOriginal = belleza.widthOfTextAtSize(textoPlaceholderOriginal, tamano);
-    const paddingHorizontal = Math.max(0, u(157) - anchoPlaceholderOriginal);
-
-    const anchoTexto = belleza.widthOfTextAtSize(fechaTexto, tamano);
-    const anchoPastilla = Math.max(altoPastilla, anchoTexto + paddingHorizontal);
-
-    dibujarPastilla(pagina, cx, centroYPt, anchoPastilla, altoPastilla, ROSA_PASTILLA);
-    pagina.drawText(fechaTexto, {
-      x: centrarX(fechaTexto, belleza, tamano, cx),
-      y: baselineParaCentroVertical(533.25, belleza, tamano),
-      size: tamano,
-      font: belleza,
-      color: VERDE_OSCURO,
-    });
-  }
-
-  // --- Bloque de verificación (pie) --------------------------------------
-  // Caja original: top=683.78 left=354.87 width=412.78 height=50.35,
-  // fontSize=7.7857, lineHeight=1.4 -> 4 líneas espaciadas cada u(10.9).
-  borrar(pagina, 330, 795, 678, 742);
-  {
-    const tamano = u(7.785714);
-    const alturaLinea = 7.785714 * 1.4;
-    const topCaja = 683.78;
-
-    const fechaTexto = fechaEmision.toLocaleDateString("es-CO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "America/Bogota",
-    });
-
-    const lineas = [
-      "Certificación de aprobación online:",
-      duracionTexto ? `Aprobado el ${fechaTexto} con ${duracionTexto}` : `Aprobado el ${fechaTexto}`,
-      urlVerificacion,
-      `Código: ${codigoVerificacion}`,
-    ];
-
-    lineas.forEach((linea, i) => {
-      const centroYDisenio = topCaja + alturaLinea * (i + 0.5);
-      pagina.drawText(linea, {
-        x: centrarX(linea, garet, tamano, cx),
-        y: baselineParaCentroVertical(centroYDisenio, garet, tamano),
-        size: tamano,
-        font: garet,
-        color: NEGRO,
-      });
-    });
-  }
-
-  // --- QR de verificación --------------------------------------------------
-  // Caja original: top=666.72 left=995.54 width=110.95 height=110.95.
-  borrar(pagina, 985, 1118, 660, 790);
-  {
-    const qrLadoDisenio = 110.95;
-    const qrLadoPt = u(qrLadoDisenio);
-    const qrPng = await QRCode.toBuffer(urlVerificacionQr, {
-      margin: 0,
-      width: Math.round(qrLadoPt * 4), // más resolución que puntos PDF para que no se vea pixelado al imprimir
-      color: { dark: "#201E1D", light: "#FFFFFF" },
-    });
-    const qrImagen = await pdfDoc.embedPng(qrPng);
-    pagina.drawImage(qrImagen, {
-      x: u(995.54),
-      y: PAGE_H - u(666.72 + qrLadoDisenio),
-      width: qrLadoPt,
-      height: qrLadoPt,
-    });
+  const altoContenido = bloques.reduce((total, bloque) => total + bloque.antes + bloque.alto, 0);
+  const finCaja = topFirma - 8 - 32; // padding-top del pie y su margen
+  const inicioCaja = finCaja - 20 - altoContenido - 20;
+  pagina.drawRectangle({
+    x: u(IZQ),
+    y: PAGE_H - u(finCaja),
+    width: u(600),
+    height: u(finCaja - inicioCaja),
+    color: BLANCO,
+    opacity: 0.88,
+  });
+  let top = inicioCaja + 20;
+  for (const bloque of bloques) {
+    top += bloque.antes;
+    bloque.dibujar(top);
+    top += bloque.alto;
   }
 
   return pdfDoc.save();

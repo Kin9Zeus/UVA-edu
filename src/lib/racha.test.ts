@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularRacha, hoyEnBogota } from "@/lib/racha";
+import { calcularRacha, hoyEnBogota, semanasDeActividad } from "@/lib/racha";
 
 describe("calcularRacha", () => {
   it("cuenta los días seguidos que terminan hoy", () => {
@@ -27,5 +27,21 @@ describe("calcularRacha", () => {
 describe("hoyEnBogota", () => {
   it("a las 11 p. m. de Bogotá ya es el día siguiente en UTC, pero cuenta el de Bogotá", () => {
     expect(hoyEnBogota(new Date("2026-10-17T04:00:00Z"))).toBe("2026-10-16");
+  });
+});
+
+describe("semanasDeActividad", () => {
+  // 2026-10-16 es viernes: la semana actual empieza el lunes 12.
+  const hoy = "2026-10-16";
+
+  it("devuelve 4 semanas de lunes, la última es la actual", () => {
+    const semanas = semanasDeActividad([], hoy);
+    expect(semanas.map((s) => s.inicio)).toEqual(["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"]);
+    expect(semanas.map((s) => s.esActual)).toEqual([false, false, false, true]);
+  });
+
+  it("cuenta los días con avance de cada semana", () => {
+    const semanas = semanasDeActividad(["2026-10-12", "2026-10-14", "2026-10-16", "2026-10-11", "2026-09-21"], hoy);
+    expect(semanas.map((s) => s.dias)).toEqual([1, 0, 1, 3]);
   });
 });

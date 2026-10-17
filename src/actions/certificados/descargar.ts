@@ -3,11 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/perfil";
 import { construirCertificadoPdf } from "@/lib/certificados/pdf";
+import { duracionCertificadoTexto } from "@/lib/certificados/duracion";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 
 const BUCKET_CERTIFICADOS = "certificados";
 const DURACION_URL_SEGUNDOS = 300;
+/** Sube al cambiar el diseño del PDF (lib/certificados/pdf.ts). v2: «curvas de nivel». */
+const VERSION_DISENO_CERTIFICADO = "v2";
 
 export type DescargarCertificadoResult = { url?: string; error?: string };
 
@@ -36,9 +39,13 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
     return { error: "No encontramos ese certificado." };
   }
 
-  const rutaArchivo = `${user.id}/${certificado.id}.pdf`;
+  // La versión del diseño va en el nombre del archivo: al cambiar el diseño
+  // del certificado, un PDF guardado con otra versión (o ninguno) se vuelve
+  // a generar en la próxima descarga, así todos quedan con el diseño vigente.
+  // El código, la fecha y los datos no cambian: solo el dibujo.
+  const rutaArchivo = `${user.id}/${certificado.id}-${VERSION_DISENO_CERTIFICADO}.pdf`;
 
-  if (!certificado.archivo_pdf) {
+  if (certificado.archivo_pdf !== rutaArchivo) {
     // El origen sale de la configuración del despliegue, nunca del header
     // `Host` (P1-1, AUDIT-2026-09-04.md). Aquí importa más que en los correos:
     // el PDF se cachea en Storage y se descarga durante años, así que un
@@ -67,8 +74,7 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
       return { error: "No pudimos generar tu certificado. Intenta de nuevo." };
     }
     const totalSegundos = (lecciones ?? []).reduce((acc, fila) => acc + (fila.duracion ?? 0), 0);
-    const horas = Math.round(totalSegundos / 3600);
-    const duracionTexto = horas > 0 ? `${horas} ${horas === 1 ? "hora" : "horas"} de teoría y práctica` : null;
+    const duracionTexto = duracionCertificadoTexto(totalSegundos);
 
     let pdfBytes: Uint8Array;
     try {
@@ -101,7 +107,7 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
     });
     if (errorRegistro) {
       // El PDF ya quedó subido y es descargable — no perder la descarga
-      // por esto. La próxima vez `archivo_pdf` seguirá null y se
+      // por esto. La próxima vez `archivo_pdf` seguirá sin esta ruta y se
       // regenerará (mismo resultado, solo repite el trabajo de armar el
       // PDF una vez más).
       logError("descargarCertificadoPdf", "No se pudo registrar archivo_pdf", errorRegistro, { area: "certificados" });

@@ -39,20 +39,20 @@ export function ExportarDatosButton() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col items-start gap-2">
       <Button
         type="button"
-        variant="outline"
-        size="sm"
-        className="w-auto"
+        variant="uva-secondary"
+        size="uva"
+        className="min-h-12 w-auto px-[22px] text-base"
         onClick={handleClick}
         disabled={pending}
       >
-        <Download className="size-4" aria-hidden />
+        <Download className="size-[18px]" strokeWidth={1.8} aria-hidden />
         {pending ? "Preparando…" : "Descargar mis datos"}
       </Button>
       {error && (
-        <p role="alert" className="text-xs text-uva-danger-text">
+        <p role="alert" className="text-uva-detalle text-uva-danger-text">
           {error}
         </p>
       )}

@@ -83,16 +83,10 @@ export function EstadoAccesoCard({
   const linea = lineaVigencia(vigencia, fechaVigencia, diasRestantes);
 
   return (
-    <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-[22px]">
-      <div className="flex items-center gap-2.5">
-        <h4 className="font-heading text-[17px] text-uva-text">Tu acceso</h4>
-        <span
-          className={
-            vencido
-              ? "ml-auto shrink-0 rounded-full bg-uva-hover px-2.5 py-1 text-[11px] text-uva-text-muted"
-              : "ml-auto shrink-0 rounded-full bg-uva-accent-soft px-2.5 py-1 text-[11px] text-uva-accent-text"
-          }
-        >
+    <div className="flex flex-col gap-2 rounded-uva-lg border border-uva-divider bg-uva-surface p-[18px]">
+      <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Tu acceso</h2>
+      <p className="flex flex-wrap items-baseline justify-between gap-x-2.5 text-uva-cuerpo font-bold text-uva-text">
+        <span className={vencido ? "text-uva-text-muted" : undefined}>
           {/* Antes decía "Acceso otorgado"/"Invitación gratuita" (el
               ORIGEN del acceso) incluso ya terminado, y la línea de abajo
               decía "estuvo vigente hasta X, ya terminó" justo debajo — dos
@@ -101,18 +95,23 @@ export function EstadoAccesoCard({
               de descripción. */}
           {vencido ? "Acceso finalizado" : ETIQUETA_TIPO_ACCESO[tipo]}
         </span>
-      </div>
+        {!vencido && diasRestantes !== null && (
+          <b className="font-mono text-uva-accent-ink">
+            {diasRestantes} {diasRestantes === 1 ? "día" : "días"}
+          </b>
+        )}
+      </p>
 
-      <p className="text-sm text-uva-text-muted">{DESCRIPCION_TIPO[tipo]}</p>
+      <p className="text-uva-cuerpo text-uva-text-muted">{DESCRIPCION_TIPO[tipo]}</p>
 
-      {linea && <p className="text-[12.5px] text-uva-text">{linea}</p>}
+      {linea && <p className="text-uva-cuerpo text-uva-text-muted">{linea}</p>}
 
       {aviso && (
         <div
           className={
             vencido
-              ? "rounded-[10px] bg-uva-hover px-3 py-2.5 text-[12.5px] text-uva-text-muted"
-              : "rounded-[10px] bg-uva-accent-soft px-3 py-2.5 text-[12.5px] text-uva-accent-text"
+              ? "rounded-uva-md bg-uva-surface-2 px-3.5 py-2.5 text-uva-detalle text-uva-text-muted"
+              : "rounded-uva-md bg-uva-accent-soft px-3.5 py-2.5 text-uva-detalle text-uva-accent-text"
           }
         >
           {aviso}

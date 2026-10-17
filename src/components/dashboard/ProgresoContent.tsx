@@ -3,24 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Award, Check, Flame, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { AnilloProgreso } from "@/components/dashboard/AnilloProgreso";
+import { Button } from "@/components/ui/button";
+import { IconoCategoria } from "@/components/categorias/IconoCategoria";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { esPortadaReal } from "@/lib/media";
-import { formatDuracion } from "@/lib/admin/format";
-import type { ProgresoData } from "@/lib/progreso";
-
-const PORTADA_TRAMA = {
-  backgroundColor: "var(--uva-surface-2)",
-  backgroundImage:
-    "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
-};
+import type { CursoConProgreso, ProgresoData } from "@/lib/progreso";
 
 type Filtro = "todos" | "en_progreso" | "completados";
 type Orden = "recientes" | "porcentaje";
@@ -31,17 +20,254 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
   { valor: "completados", etiqueta: "Completados" },
 ];
 
-/**
- * Qué porcentaje del video lleva visto. Acotado a 100 porque el reproductor
- * puede guardar un segundo mayor que la duración declarada por un redondeo.
- */
-function porcentajeVisto(reanudar: { segundo: number; duracion: number | null }): number {
-  if (!reanudar.duracion || reanudar.duracion <= 0) return 0;
-  return Math.min(100, Math.round((reanudar.segundo / reanudar.duracion) * 100));
+const ZONA = "America/Bogota";
+const DIA = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA });
+const FECHA_CORTA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", timeZone: ZONA });
+const FECHA_LARGA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: ZONA });
+
+/** "18 sept 2026" (sin los "de" ni el punto de es-CO). */
+function fechaLarga(iso: string) {
+  const partes = FECHA_LARGA.formatToParts(new Date(iso));
+  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value.replace(".", "") ?? "";
+  return `${parte("day")} ${parte("month")} ${parte("year")}`;
 }
 
-export function ProgresoContent({ data }: { data: ProgresoData }) {
-  const { cursos } = data;
+/** "21 sep" para el lunes de una semana ("AAAA-MM-DD"). */
+function fechaCorta(dia: string) {
+  return FECHA_CORTA.format(new Date(`${dia}T12:00:00Z`)).replace(".", "").replace(" de ", " ");
+}
+
+/** "hoy", "ayer" o "hace N días", contando días de Bogotá respecto a `hoy`. */
+function haceCuanto(iso: string, hoy: string) {
+  const dias = Math.round(
+    (new Date(`${hoy}T12:00:00Z`).getTime() - new Date(`${DIA.format(new Date(iso))}T12:00:00Z`).getTime()) / 86_400_000,
+  );
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "ayer";
+  return `hace ${dias} días`;
+}
+
+/** "3 h 20 min", "45 min" o "0 min". */
+function duracionTexto(segundos: number) {
+  const minutos = Math.round(segundos / 60);
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
+const RETICULA =
+  "bg-uva-surface-2 bg-[linear-gradient(color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px)] bg-[size:24px_24px]";
+
+function Cifra({ valor, etiqueta }: { valor: string; etiqueta: string }) {
+  return (
+    <div className="flex flex-col-reverse px-[22px] py-[18px]">
+      <dt className="mt-0.5 text-uva-detalle text-uva-text-muted">{etiqueta}</dt>
+      <dd className="font-mono text-uva-titulo-3 text-uva-text">{valor}</dd>
+    </div>
+  );
+}
+
+function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["actividad"]> }) {
+  const { racha, semanas } = actividad;
+  const actual = semanas[semanas.length - 1];
+  const promedio = semanas.reduce((total, semana) => total + semana.dias, 0) / semanas.length;
+  const promedioTexto = Number.isInteger(promedio)
+    ? String(promedio)
+    : promedio.toLocaleString("es-CO", { maximumFractionDigits: 1 });
+  const etiqueta = (semana: (typeof semanas)[number]) => (semana.esActual ? "Esta semana" : fechaCorta(semana.inicio));
+
+  return (
+    <section
+      aria-labelledby="progreso-actividad"
+      className="flex flex-col gap-5 border-t border-uva-divider py-5 lg:flex-row lg:items-center lg:gap-12"
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <h2 id="progreso-actividad" className="text-uva-titulo-4 text-uva-text">
+          Tu actividad
+        </h2>
+        <p className="text-uva-detalle text-uva-text-muted">Días por semana en que viste al menos una clase.</p>
+        <p className="mt-1.5 flex items-center gap-2 text-uva-cuerpo font-bold text-uva-text">
+          <Flame className="size-5 text-uva-accent-2-text" aria-hidden="true" />
+          {racha === 0 ? "Sin racha por ahora" : `Racha de ${racha} ${racha === 1 ? "día" : "días"}`}
+        </p>
+        <p className="text-uva-detalle text-uva-text-muted">
+          {actual.dias === 0 ? (
+            "Esta semana todavía no has visto clases."
+          ) : (
+            <>
+              Esta semana llevas{" "}
+              <strong className="text-uva-text">
+                {actual.dias} {actual.dias === 1 ? "día" : "días"}
+              </strong>
+              .
+            </>
+          )}{" "}
+          En el último mes, tu promedio es de {promedioTexto} {promedio === 1 ? "día" : "días"} por semana.
+        </p>
+      </div>
+      <div className="w-full lg:w-[400px] lg:shrink-0">
+        <div
+          role="img"
+          aria-label={`Días con clases por semana en el último mes: ${semanas
+            .map((semana) => `${etiqueta(semana)}: ${semana.dias} de 7`)
+            .join("; ")}`}
+          className="flex items-end gap-3 lg:gap-5"
+        >
+          {semanas.map((semana) => (
+            <div key={semana.inicio} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+              <span
+                className={`font-mono text-uva-detalle ${semana.esActual ? "font-extrabold text-uva-text" : "font-semibold text-uva-text-muted"}`}
+              >
+                {semana.dias} <span className="font-normal text-uva-text-muted">de 7</span>
+              </span>
+              <span className="relative h-28 w-full max-w-[52px] rounded-uva-sm bg-[color-mix(in_srgb,var(--uva-divider)_60%,transparent)]">
+                <span
+                  className={`absolute inset-x-0 bottom-0 rounded-uva-sm ${semana.esActual ? "bg-uva-accent-2 shadow-[inset_0_0_0_1px_var(--uva-maqueta-arista)]" : "bg-uva-line-strong"}`}
+                  style={{ height: `${(semana.dias / 7) * 100}%` }}
+                />
+              </span>
+              <span
+                className={`text-center text-uva-detalle whitespace-nowrap ${semana.esActual ? "font-bold text-uva-text" : "text-uva-text-muted"}`}
+              >
+                {etiqueta(semana)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-uva-detalle text-uva-text-muted">
+          Último mes. Cada barra es una semana: la parte llena son los días en que viste al menos una clase.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function Estado({ curso }: { curso: CursoConProgreso }) {
+  if (curso.completado) {
+    return (
+      <span className="inline-flex min-h-[26px] items-center gap-1.5 rounded-full bg-uva-accent-2 px-2.5 text-uva-detalle font-bold text-uva-on-bright">
+        <Check className="size-3" strokeWidth={3} aria-hidden="true" />
+        Completado
+      </span>
+    );
+  }
+  if (curso.porcentaje === 100 && curso.examenRequerido) {
+    return (
+      <span className="inline-flex min-h-[26px] items-center rounded-full bg-uva-badge-warn-bg px-2.5 text-uva-detalle font-bold text-uva-badge-warn-fg">
+        Examen pendiente
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex min-h-[26px] items-center rounded-full bg-uva-accent-soft px-2.5 text-uva-detalle font-bold text-uva-accent-ink">
+      En progreso
+    </span>
+  );
+}
+
+function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
+  const hrefCurso = `/cursos/${curso.cursoSlug}`;
+  const hrefSeguir = curso.siguienteLeccionSlug ? `${hrefCurso}/${curso.siguienteLeccionSlug}` : hrefCurso;
+
+  return (
+    <li className="flex flex-col gap-[18px] border-t border-uva-divider pt-[18px] pb-4 md:flex-row md:items-center">
+      <Link
+        href={curso.completado ? hrefCurso : hrefSeguir}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="relative block aspect-video w-full overflow-hidden rounded-uva-md border border-uva-divider md:w-[200px] md:shrink-0"
+      >
+        {curso.reanudarEn ? (
+          <MiniaturaMux src={curso.reanudarEn.url} className="absolute inset-0 size-full object-cover" />
+        ) : esPortadaReal(curso.imagenPortada) ? (
+          <Image src={curso.imagenPortada} alt="" fill sizes="(max-width: 767px) 100vw, 200px" className="object-cover" />
+        ) : (
+          <span className={`absolute inset-0 grid place-items-center ${RETICULA}`}>
+            {curso.categoria && <IconoCategoria clave={curso.categoria} className="size-14" />}
+          </span>
+        )}
+        {!curso.completado && curso.porcentaje > 0 && (
+          <span className="absolute inset-x-0 bottom-0 h-1 bg-uva-overlay/35">
+            <span className="block h-full bg-uva-btn" style={{ width: `${curso.porcentaje}%` }} />
+          </span>
+        )}
+      </Link>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Estado curso={curso} />
+          {curso.categoria && (
+            <span className="inline-flex items-center gap-1.5 text-uva-detalle text-uva-text-muted">
+              <IconoCategoria clave={curso.categoria} className="size-3.5" />
+              {curso.categoria}
+            </span>
+          )}
+        </div>
+        <h3 className="text-uva-cuerpo leading-snug font-extrabold text-uva-text">{curso.titulo}</h3>
+        <div className="flex items-center gap-3">
+          <div
+            role="progressbar"
+            aria-label={`${curso.leccionesCompletadas} de ${curso.leccionesTotal} clases`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={curso.porcentaje}
+            className="h-1.5 flex-1 overflow-hidden rounded-full bg-uva-divider"
+          >
+            <div className="h-full rounded-full bg-uva-btn" style={{ width: `${curso.porcentaje}%` }} />
+          </div>
+          <span className="font-mono text-uva-detalle font-bold text-uva-text">
+            {curso.leccionesCompletadas}/{curso.leccionesTotal} clases
+          </span>
+        </div>
+        {curso.certificadoEmitido ? (
+          <p className="font-mono text-uva-detalle text-uva-text-muted">Terminado el {fechaLarga(curso.certificadoEmitido)}</p>
+        ) : (
+          curso.ultimaActividad && (
+            <p className="font-mono text-uva-detalle text-uva-text-muted">
+              Última clase {haceCuanto(curso.ultimaActividad, hoy)}
+            </p>
+          )
+        )}
+      </div>
+
+      <div className="md:shrink-0">
+        {curso.completado ? (
+          <Button
+            render={<Link href={curso.certificadoEmitido ? "/dashboard/certificados" : hrefCurso} />}
+            nativeButton={false}
+            variant="uva-secondary"
+            size="uva"
+            className="min-h-11 gap-2 text-uva-cuerpo max-md:w-full md:w-auto"
+          >
+            {curso.certificadoEmitido ? (
+              <>
+                <Award className="size-[18px]" aria-hidden="true" />
+                Ver certificado
+              </>
+            ) : (
+              "Ver curso"
+            )}
+          </Button>
+        ) : (
+          <Button
+            render={<Link href={hrefSeguir} />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-11 gap-2 text-uva-cuerpo max-md:w-full md:w-auto"
+          >
+            <Play className="size-4 fill-current" aria-hidden="true" />
+            Continuar
+          </Button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string }) {
+  const { cursos, actividad } = data;
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [orden, setOrden] = useState<Orden>("recientes");
 
@@ -54,31 +280,55 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
       if (filtro === "completados") return curso.completado;
       return true;
     });
-    // `cursos` ya llega ordenado por actividad reciente (order de la vista
-    // progreso_cursos_estudiante) — "recientes" no reordena nada; solo se
-    // copia el arreglo para "porcentaje" antes de mutarlo con sort().
-    return orden === "porcentaje"
-      ? [...filtrados].sort((a, b) => b.porcentaje - a.porcentaje)
-      : filtrados;
+    // `cursos` ya llega ordenado por actividad reciente (vista
+    // progreso_cursos_estudiante): "recientes" no reordena nada.
+    return orden === "porcentaje" ? [...filtrados].sort((a, b) => b.porcentaje - a.porcentaje) : filtrados;
   }, [cursos, filtro, orden]);
 
-  return (
-    <div className="flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
-      <h1 className="text-2xl text-uva-text">Tu progreso</h1>
+  const terminados = cursos.filter((curso) => curso.completado).length;
+  const clasesVistas = cursos.reduce((total, curso) => total + curso.leccionesCompletadas, 0);
+  const segundosVistos = cursos.reduce((total, curso) => total + curso.segundosVistos, 0);
 
+  return (
+    <div className="mx-auto flex w-full max-w-uva flex-col gap-9 px-uva-margen py-7 lg:py-9">
       <div>
+        <h1 className="text-uva-titulo-3 text-uva-text">Tu progreso</h1>
+        <p className="mt-2 text-uva-lead text-uva-text-muted">Lo que llevas, lo que terminaste y tu ritmo de estudio.</p>
+      </div>
+
+      <dl className="-mt-3 grid grid-cols-2 border-t border-uva-divider pt-5 lg:grid-cols-4 [&>div:nth-child(even)]:border-l lg:[&>div:not(:first-child)]:border-l [&>div]:border-uva-divider">
+        <Cifra valor={String(cursos.length)} etiqueta={cursos.length === 1 ? "curso inscrito" : "cursos inscritos"} />
+        <Cifra valor={String(terminados)} etiqueta={terminados === 1 ? "terminado" : "terminados"} />
+        <Cifra valor={String(clasesVistas)} etiqueta={clasesVistas === 1 ? "clase vista" : "clases vistas"} />
+        <Cifra valor={duracionTexto(segundosVistos)} etiqueta="de clases vistas" />
+      </dl>
+
+      {actividad ? (
+        <Actividad actividad={actividad} />
+      ) : (
+        <p className="border-t border-uva-divider pt-5 text-uva-detalle text-uva-text-muted">
+          No pudimos cargar tu actividad de estudio. Recarga la página para intentarlo de nuevo.
+        </p>
+      )}
+
+      <section aria-labelledby="progreso-cursos" className="flex flex-col gap-3.5">
+        <h2 id="progreso-cursos" className="text-uva-titulo-4 text-uva-text">
+          Tus cursos
+        </h2>
+
         {cursos.length > 0 && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <div className="flex gap-1 rounded-full border border-uva-divider p-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div role="group" aria-label="Filtrar cursos" className="inline-flex gap-0.5 rounded-full border border-uva-divider bg-uva-surface p-1">
               {FILTROS.map((opcion) => (
                 <button
                   key={opcion.valor}
                   type="button"
+                  aria-pressed={filtro === opcion.valor}
                   onClick={() => setFiltro(opcion.valor)}
-                  className={`rounded-full px-3 py-1 text-[12.5px] transition-colors ${
+                  className={`min-h-11 rounded-full px-4 text-uva-detalle transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent ${
                     filtro === opcion.valor
-                      ? "bg-uva-btn text-uva-on-accent"
-                      : "text-uva-text-muted hover:text-uva-text"
+                      ? "bg-uva-btn font-bold text-uva-on-accent"
+                      : "font-semibold text-uva-text-muted hover:text-uva-text"
                   }`}
                 >
                   {opcion.etiqueta}
@@ -90,7 +340,10 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
               onValueChange={(valor) => setOrden(valor as Orden)}
               items={{ recientes: "Más recientes", porcentaje: "Más avanzados" }}
             >
-              <SelectTrigger className="h-8 bg-uva-bg text-[12.5px]" size="sm" aria-label="Ordenar cursos">
+              <SelectTrigger
+                className="min-h-11 rounded-uva-md border-uva-divider bg-uva-surface text-uva-detalle font-semibold"
+                aria-label="Ordenar cursos"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -102,173 +355,32 @@ export function ProgresoContent({ data }: { data: ProgresoData }) {
         )}
 
         {cursos.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-uva-md border border-uva-divider bg-uva-surface px-6 py-12 text-center">
-            <p className="text-sm text-uva-text-muted">
+          <div className="flex flex-col items-start gap-3 rounded-uva-lg border border-uva-divider bg-uva-surface p-6">
+            <p className="text-uva-cuerpo text-uva-text-muted">
               Todavía no has empezado ningún curso. Explora el catálogo para arrancar.
             </p>
-            <Link
-              href="/dashboard/catalogo"
-              className="inline-flex h-10 items-center justify-center rounded-uva-md bg-uva-btn px-5 text-sm font-semibold text-uva-on-accent no-underline hover:bg-uva-btn-hover hover:no-underline"
+            <Button
+              render={<Link href="/dashboard/catalogo" />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-11 text-uva-cuerpo sm:w-auto"
             >
               Ver catálogo
-            </Link>
+            </Button>
           </div>
         ) : cursosVisibles.length === 0 ? (
-          <p className="py-6 text-center text-sm text-uva-text-muted">
+          <p className="py-6 text-uva-cuerpo text-uva-text-muted">
             No tienes cursos {filtro === "completados" ? "completados" : "en progreso"} todavía.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="flex flex-col border-b border-uva-divider">
             {cursosVisibles.map((curso) => (
-              <Link
-                key={curso.cursoId}
-                href={`/cursos/${curso.cursoSlug}`}
-                className="group flex flex-col gap-2.5"
-              >
-                {/* El frame donde quedó manda sobre la portada: una rejilla
-                    de portadas identifica cursos, una de frames identifica
-                    MOMENTOS — "voy por acá". Un curso terminado no tiene
-                    lección a medias, así que `reanudarEn` viene null y vuelve
-                    sola a su portada. */}
-                <div
-                  className="relative aspect-video overflow-hidden rounded-uva-md bg-uva-surface-2 ring-1 ring-uva-divider transition-[box-shadow] group-hover:ring-uva-text-faint"
-                  style={
-                    !curso.reanudarEn && !esPortadaReal(curso.imagenPortada)
-                      ? PORTADA_TRAMA
-                      : undefined
-                  }
-                >
-                  {curso.reanudarEn ? (
-                    <MiniaturaMux
-                      src={curso.reanudarEn.url}
-                      className="absolute inset-0 size-full object-cover"
-                      respaldo={
-                        esPortadaReal(curso.imagenPortada) && (
-                          <Image
-                            src={curso.imagenPortada}
-                            alt=""
-                            fill
-                            sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 320px"
-                            className="object-cover"
-                          />
-                        )
-                      }
-                    />
-                  ) : (
-                    esPortadaReal(curso.imagenPortada) && (
-                      <Image
-                        src={curso.imagenPortada}
-                        alt=""
-                        fill
-                        sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 320px"
-                        className="object-cover"
-                      />
-                    )
-                  )}
-                  {/* Franja negra de siempre abajo de la portada (mismo
-                      recurso que tenía la tarjeta vieja del catálogo): "Completado" en
-                      una esquina sin fondo se perdía sobre una portada clara
-                      — acá el badge tiene garantizado el contraste debajo. La
-                      franja es oscura en los dos temas, así que el badge usa
-                      los tokens oscuros (`dark` local) también en tema claro. */}
-                  {curso.completado && (
-                    <div className="dark absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
-                      <span className="rounded-uva-xs bg-uva-valid-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-valid uppercase">
-                        Completado
-                      </span>
-                    </div>
-                  )}
-                  {!curso.completado && curso.porcentaje === 100 && curso.examenRequerido && (
-                    // Tercer estado, el que hacía falta al agregar exámenes:
-                    // terminó las clases pero le falta aprobar el examen. Sin
-                    // esto la tarjeta se veía igual que un curso a medias, sin
-                    // pista de qué le falta para el certificado.
-                    <div className="dark absolute inset-x-0 bottom-0 flex items-center bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-5 pb-2">
-                      <span className="rounded-uva-xs bg-uva-badge-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-[.12em] text-uva-badge-warn-fg uppercase">
-                        Examen pendiente
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Dónde va DENTRO del video, igual que la barra del
-                      reproductor: posición y duración. Va arriba a la derecha
-                      para no chocar con el badge de estado ni con la barra.
-
-                      Ojo con la distinción: esto NO es el avance del curso
-                      —ese es "2/7 · 28%" en la línea de abajo— sino el minuto
-                      exacto de la clase que dejó a medias. Un "00:22" suelto
-                      no dice nada si no se sabe si el video dura uno o
-                      cuarenta minutos, de ahí el "/ 04:15". */}
-                  {curso.reanudarEn && (
-                    <span className="absolute top-2 right-2 rounded-uva-xs bg-black/75 px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums text-white">
-                      {formatDuracion(curso.reanudarEn.segundo)}
-                      {curso.reanudarEn.duracion
-                        ? ` / ${formatDuracion(curso.reanudarEn.duracion)}`
-                        : ""}
-                    </span>
-                  )}
-
-                  {/* La barra del reproductor, a ras de la miniatura: de
-                      borde a borde y pegada abajo, como en un reproductor de
-                      verdad. El `overflow-hidden` del contenedor le recorta
-                      las puntas con el mismo radio del frame, así que sigue
-                      la forma de la imagen en vez de sobresalir. */}
-                  {curso.reanudarEn && !!curso.reanudarEn.duracion && (
-                    <div
-                      className="absolute inset-x-0 bottom-0 h-[5px] bg-black/55"
-                      role="progressbar"
-                      aria-valuenow={porcentajeVisto(curso.reanudarEn)}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`Vas en el ${porcentajeVisto(curso.reanudarEn)}% de la clase`}
-                    >
-                      <div
-                        className="h-full bg-uva-accent"
-                        style={{ width: `${porcentajeVisto(curso.reanudarEn)}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-                {/* Sin chip de categoría, a propósito. La categoría sirve
-                    para DECIDIR qué tomar, que es el trabajo del Catálogo;
-                    aquí ya son tus cursos y no estás eligiendo, estás
-                    retomando. Además era el magenta más grande de la tarjeta
-                    sin ser ni acción, ni estado activo, ni progreso — los
-                    tres únicos usos que CLAUDE.md §3.3 le permite al acento. */}
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <p className="line-clamp-2 text-[13.5px] leading-snug font-bold text-uva-text transition-colors group-hover:text-uva-accent-ink">
-                      {curso.titulo}
-                    </p>
-                    {/* Sin anillo en los completados: el badge COMPLETADO de
-                        la miniatura ya lo dice, y un aro lleno de magenta al
-                        lado repetía el mismo dato gritando. Misma razón por la
-                        que tampoco llevan barra. */}
-                    {curso.leccionesTotal > 0 && !curso.completado && (
-                      <AnilloProgreso
-                        porcentaje={curso.porcentaje}
-                        etiqueta={`${curso.leccionesCompletadas} de ${curso.leccionesTotal} clases`}
-                      />
-                    )}
-                  </div>
-
-                  {/* Sin el "%": lo dice el anillo de al lado. Lo que el
-                      anillo NO puede decir es de cuántas clases van, ni que
-                      falta el examen. */}
-                  {/* Pegado al título, sin `mt-auto`: ya no hace falta
-                      empujarlo al fondo para alinear tarjetas vecinas —sin
-                      marco, un borde inferior desparejo no se ve— y el conteo
-                      pertenece al título, no al pie. */}
-                  <p className="-mt-0.5 font-mono text-[11px] text-uva-text-faint tabular-nums">
-                    {curso.leccionesCompletadas}/{curso.leccionesTotal} clases
-                    {curso.examenRequerido && !curso.examenAprobado && " · falta el examen"}
-                  </p>
-                </div>
-              </Link>
+              <FilaCurso key={curso.cursoId} curso={curso} hoy={hoy} />
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }

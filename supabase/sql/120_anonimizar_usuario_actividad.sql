@@ -103,6 +103,7 @@ begin
          celular        = null,
          pais           = null,
          especialidad   = null,
+         rol_gremio     = null,
          foto_url       = null,
          estado         = 'SUSPENDIDO',
          anonimizado_en = now()

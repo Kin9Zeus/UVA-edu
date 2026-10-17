@@ -35,7 +35,8 @@ export function EditorFotoPerfil({
 }: {
   nombre: string;
   fotoUrl: string | null;
-  size?: "default" | "lg";
+  /** "carne": foto del carné de "Mi perfil" (estudiante), más grande y con borde. */
+  size?: "default" | "lg" | "carne";
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +45,7 @@ export function EditorFotoPerfil({
   const [error, setError] = useState<string | null>(null);
 
   const fotoMostrada = preview ?? fotoUrl;
+  const carne = size === "carne";
 
   function limpiarPreview() {
     if (preview) URL.revokeObjectURL(preview);
@@ -90,7 +92,7 @@ export function EditorFotoPerfil({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex flex-col gap-1.5", carne && "items-start gap-2")}>
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -98,14 +100,23 @@ export function EditorFotoPerfil({
         aria-label="Cambiar foto de perfil"
         className={cn(
           "group relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-uva-accent disabled:pointer-events-none disabled:opacity-70",
+          carne && "self-start",
         )}
       >
-        <Avatar className={cn("bg-uva-divider", size === "lg" ? "size-[68px]" : "size-10")}>
+        <Avatar
+          className={cn(
+            "bg-uva-divider",
+            size === "lg" ? "size-[68px]" : "size-10",
+            carne &&
+              "size-[72px] border-2 border-uva-text bg-uva-surface-2 @min-[900px]:size-[88px]",
+          )}
+        >
           {fotoMostrada && <AvatarImage src={fotoMostrada} alt="" />}
           <AvatarFallback
             className={cn(
               "bg-uva-divider font-heading font-bold text-uva-text",
               size === "lg" ? "text-[22px]" : "text-sm",
+              carne && "bg-uva-surface-2 text-uva-titulo-3 font-extrabold",
             )}
           >
             {iniciales(nombre)}
@@ -114,22 +125,37 @@ export function EditorFotoPerfil({
         {/* Overlay de cámara: siempre visible en touch (no hay hover), y
             aparece con hover/focus en desktop para no ensuciar la foto de
             por sí. */}
-        <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
-          <Camera className="size-[18px] text-white" strokeWidth={2} />
-        </span>
+        {carne ? (
+          // En el carné la cámara va como círculo en la esquina,
+          // siempre visible: dice que la foto se puede cambiar sin taparla.
+          <span className="pointer-events-none absolute -right-1.5 -bottom-1.5 grid size-10 place-items-center rounded-full border-[3px] border-uva-surface bg-uva-text text-uva-bg group-hover:bg-uva-btn group-hover:text-uva-on-accent">
+            <Camera className="size-[18px]" strokeWidth={1.8} aria-hidden />
+          </span>
+        ) : (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
+            <Camera className="size-[18px] text-white" strokeWidth={2} />
+          </span>
+        )}
       </button>
 
       {fotoUrl && !pending && (
         <button
           type="button"
           onClick={handleQuitar}
-          className="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-uva-muted-2 hover:text-uva-text"
+          className={cn(
+            "cursor-pointer border-0 bg-transparent p-0 text-[11px] text-uva-muted-2 hover:text-uva-text",
+            carne && "min-h-11 text-uva-detalle font-semibold text-uva-text-muted underline underline-offset-3",
+          )}
         >
           Quitar foto
         </button>
       )}
 
-      {error && <p className="max-w-[160px] text-[11px] text-uva-error-text">{error}</p>}
+      {error && (
+        <p role="alert" className={cn("max-w-[160px] text-[11px] text-uva-error-text", carne && "text-uva-detalle")}>
+          {error}
+        </p>
+      )}
 
       <input
         ref={inputRef}

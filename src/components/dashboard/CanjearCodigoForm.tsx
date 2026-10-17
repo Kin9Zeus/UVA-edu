@@ -37,16 +37,10 @@ export function CanjearCodigoForm({
 }: {
   tieneSuscripcion: boolean;
   /**
-   * `true` cuando esto ya vive DENTRO de otra sección con su propio marco y
-   * su propio encabezado — hoy, "¿Cómo quieres recuperar el acceso?" en
-   * SuscripcionContent.
-   *
-   * Un componente no debería decidir su propio marco: el borde y el relleno
-   * dicen "esto es un objeto aparte", y eso solo lo sabe quien lo coloca.
-   * Enmarcado dentro de otro marco, el canje leía como una tercera cosa
-   * independiente en vez de como una de las dos salidas de una misma
-   * decisión. Además baja el título a `h3`, que es el nivel que le
-   * corresponde bajo el de la sección.
+   * `true` cuando esto ya vive DENTRO de otra sección con su propio
+   * encabezado — hoy, "¿Cómo quieres recuperar el acceso?" en
+   * SuscripcionContent. Baja el título a `h3`, el nivel que le corresponde
+   * bajo el de la sección.
    */
   embebido?: boolean;
 }) {
@@ -117,21 +111,26 @@ export function CanjearCodigoForm({
 
   const contenido = (
     <>
-      <Titulo className={cn("flex items-center gap-2 text-uva-text", embebido ? "text-sm font-semibold" : "text-base")}>
-        <Ticket className="size-4 text-uva-accent-ink" aria-hidden />
+      <Titulo
+        className={cn(
+          "flex items-center gap-2.5 font-extrabold text-uva-text",
+          embebido ? "text-uva-cuerpo" : "text-uva-titulo-4",
+        )}
+      >
+        <Ticket className="size-5 text-uva-accent-ink" strokeWidth={1.8} aria-hidden />
         {tieneSuscripcion ? "¿Tienes un código?" : "¿Tienes un código de invitación?"}
       </Titulo>
-      <p className="mt-1 text-[13px] text-uva-text-muted">
+      <p className="mt-2 max-w-[56ch] text-uva-cuerpo text-uva-text-muted">
         {tieneSuscripcion
           ? "Canjéalo y recuperas el acceso, sin ningún cobro."
           : "Canjéalo aquí y tendrás acceso completo al catálogo, sin ningún cobro."}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3.5">
         {error && (
           <div
             role="alert"
-            className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+            className="max-w-[56ch] rounded-uva-md bg-uva-error-soft px-3.5 py-3 text-uva-cuerpo font-semibold text-uva-error-text"
           >
             {error}
             {bloqueado && (
@@ -143,8 +142,10 @@ export function CanjearCodigoForm({
         )}
 
         <div>
-          <Label htmlFor="codigo-invitacion">Código</Label>
-          <div className="flex flex-wrap items-center gap-2">
+          <Label htmlFor="codigo-invitacion" className="mb-1.5 text-uva-cuerpo font-semibold text-uva-text">
+            Código
+          </Label>
+          <div className="flex flex-wrap items-center gap-2.5">
             <Input
               id="codigo-invitacion"
               value={codigo}
@@ -156,7 +157,7 @@ export function CanjearCodigoForm({
               autoComplete="off"
               spellCheck={false}
               maxLength={13}
-              className="max-w-[220px] font-codigo tracking-[0.08em] uppercase"
+              className="h-13 w-[min(100%,260px)] border-[1.5px] border-uva-line-strong font-codigo text-uva-titulo-4 font-bold tracking-[0.08em] uppercase placeholder:font-medium placeholder:text-uva-text-muted sm:text-uva-titulo-4"
               disabled={bloqueado}
               required
             />
@@ -164,7 +165,7 @@ export function CanjearCodigoForm({
               type="submit"
               variant="uva-primary"
               size="uva"
-              className="w-auto px-5"
+              className="min-h-13 w-auto px-[22px] text-base"
               disabled={pending || bloqueado || codigo.trim() === ""}
             >
               {pending ? "Canjeando…" : bloqueado ? "Bloqueado" : "Canjear"}
@@ -175,9 +176,7 @@ export function CanjearCodigoForm({
     </>
   );
 
-  if (embebido) return contenido;
-
-  return (
-    <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-6">{contenido}</div>
-  );
+  // Sin marco propio: quien lo coloca decide la sección (una raya arriba en
+  // «Mi suscripción»), no el formulario.
+  return <div>{contenido}</div>;
 }

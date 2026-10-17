@@ -66,10 +66,10 @@ export function ComunidadFiltros() {
   }
 
   return (
-    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="relative sm:max-w-[280px] sm:flex-1">
+    <div className="grid gap-2.5 @min-[620px]:grid-cols-[minmax(0,1fr)_auto] @min-[620px]:items-center @min-[620px]:gap-4">
+      <div className="relative min-w-0">
         <Search
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-uva-text-faint"
+          className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-uva-text-muted"
           strokeWidth={2}
         />
         <input
@@ -78,14 +78,14 @@ export function ComunidadFiltros() {
           onChange={(event) => alEscribir(event.target.value)}
           placeholder="Buscar publicaciones o personas"
           aria-label="Buscar publicaciones o personas en Comunidad"
-          className="h-10 w-full rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-9 pl-9 text-sm text-uva-text outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (
           <button
             type="button"
             onClick={limpiarTexto}
             aria-label="Limpiar búsqueda"
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-uva-text-faint hover:text-uva-text"
+            className="absolute top-1/2 right-0.5 grid size-10 -translate-y-1/2 place-items-center text-uva-text-muted hover:text-uva-text"
           >
             <X className="size-3.5" strokeWidth={2} />
           </button>
@@ -95,7 +95,7 @@ export function ComunidadFiltros() {
       <div
         role="group"
         aria-label="Ordenar por"
-        className="inline-flex shrink-0 gap-0.5 self-start rounded-uva-md border border-uva-divider bg-uva-surface p-0.5"
+        className="flex shrink-0 flex-wrap items-center gap-1.5"
       >
         {OPCIONES_ORDEN.map((opcion) => (
           <button
@@ -104,8 +104,8 @@ export function ComunidadFiltros() {
             aria-pressed={ordenActual === opcion.valor}
             onClick={() => actualizarUrl({ orden: opcion.valor === "reciente" ? undefined : opcion.valor })}
             className={cn(
-              "rounded-uva-sm px-3 py-1.5 text-[12.5px] font-semibold text-uva-text-muted transition-colors hover:text-uva-text",
-              ordenActual === opcion.valor && "bg-uva-hover text-uva-text",
+              "min-h-11 rounded-full border border-uva-line-strong bg-transparent px-3.5 text-uva-cuerpo font-semibold text-uva-text transition-colors hover:border-uva-text",
+              ordenActual === opcion.valor && "border-uva-text bg-uva-text text-uva-bg hover:border-uva-text",
             )}
           >
             {opcion.label}

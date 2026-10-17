@@ -62,7 +62,7 @@ describe("un error de la base lanza en vez de mostrarse como vacío", () => {
 
   it("Progreso: sin cursos y sin error devuelve la lista vacía", async () => {
     servidorFalso.responder("from:progreso_cursos_estudiante", { data: [], error: null });
-    await expect(getProgresoData()).resolves.toEqual({ cursos: [] });
+    await expect(getProgresoData()).resolves.toMatchObject({ cursos: [] });
   });
 
   it("Certificados: la página", async () => {

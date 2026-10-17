@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { eliminarMiCuenta, type EliminarCuentaState } from "@/actions/perfil/eliminar-cuenta";
+import { CLASE_BLOQUE_PERFIL } from "@/components/dashboard/PerfilForm";
 
 /**
  * "Zona de peligro" de Mi perfil (P2-11, AUDIT-2026-09-15.md). Diálogo
@@ -40,12 +41,12 @@ export function EliminarCuentaCard({
   const correoCoincide = correoEscrito.trim().toLowerCase() === correo.toLowerCase();
 
   return (
-    <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-danger-soft bg-uva-surface p-6">
-      <h2 className="flex items-center gap-2 text-base text-uva-text">
-        <TriangleAlert className="size-4 text-uva-danger-text" aria-hidden />
+    <section aria-labelledby="perfil-eliminar-titulo" className={CLASE_BLOQUE_PERFIL}>
+      <h2 id="perfil-eliminar-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
+        <TriangleAlert className="size-5 text-uva-danger-text" strokeWidth={1.8} aria-hidden />
         Eliminar cuenta
       </h2>
-      <p className="text-sm text-uva-text-muted">
+      <p className="max-w-[68ch] text-uva-cuerpo text-uva-text-muted">
         Suprime tus datos personales de la plataforma (nombre, correo,
         celular, foto, comentarios y publicaciones) y cierra tu sesión en
         todas partes. No se puede deshacer. El registro de pagos se
@@ -53,7 +54,7 @@ export function EliminarCuentaCard({
         Los certificados que hayas obtenido siguen siendo válidos y
         conservan el nombre con el que se emitieron, para que cualquiera
         pueda seguir verificándolos con su código — ver{" "}
-        <a href="/dashboard/soporte?tema=privacidad" className="text-uva-accent-text underline underline-offset-2">
+        <a href="/dashboard/soporte?tema=privacidad" className="font-bold text-uva-accent-ink underline underline-offset-3">
           nuestra política de datos
         </a>
         .
@@ -62,9 +63,9 @@ export function EliminarCuentaCard({
       <div>
         <Button
           type="button"
-          variant="destructive"
-          size="sm"
-          className="w-auto"
+          variant="uva-secondary"
+          size="uva"
+          className="min-h-12 w-auto border-uva-danger-text px-[22px] text-base text-uva-danger-text hover:border-uva-danger-text hover:bg-uva-danger-soft"
           onClick={() => setOpen(true)}
         >
           Eliminar mi cuenta
@@ -128,6 +129,6 @@ export function EliminarCuentaCard({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }

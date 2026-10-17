@@ -19,6 +19,7 @@ export default async function PerfilPage() {
     { data: certificadosRows, error: errorCertificados },
     suscripcion,
     { data: usuarioAuth, error: errorAuth },
+    { data: datosCarne, error: errorCarne },
   ] = await Promise.all([
     supabase
       .from("certificados")
@@ -33,6 +34,10 @@ export default async function PerfilPage() {
     // contraseña —y por lo tanto puede reautenticarse con ella antes de
     // eliminarse— hace falta el `User` completo, con su propio roundtrip.
     supabase.auth.getUser(),
+    // Solo esta página lee `rol_gremio` (no `getPerfilActual`, que cuelga de
+    // todo el panel): si el código llega antes que la migración, falla aquí
+    // y no el panel entero.
+    supabase.from("perfiles").select("rol_gremio").eq("id", user!.id).single(),
   ]);
 
   // Un fallo de cualquiera de las dos no puede mostrarse como "sin
@@ -40,6 +45,9 @@ export default async function PerfilPage() {
   // para eliminar la cuenta): lanza y error.tsx ofrece Reintentar.
   lanzarSiFalla(errorCertificados, "perfil:certificados");
   lanzarSiFalla(errorAuth, "perfil:auth-getUser");
+  // Sin el valor guardado, el campo saldría vacío y "Guardar cambios" lo
+  // borraría: falla cerrado.
+  if (errorCarne && errorCarne.code !== "PGRST116") lanzarSiFalla(errorCarne, "perfil:rol-gremio");
 
   // Una cuenta que entró solo con "Continuar con Google" nunca creó
   // contraseña: EliminarCuentaCard no debe pedir un campo que no puede
@@ -100,11 +108,12 @@ export default async function PerfilPage() {
             : null;
 
   return (
-    <div className="px-[clamp(20px,3vw,44px)] py-8">
+    <div className="mx-auto w-full max-w-uva px-uva-margen py-7 lg:py-9">
       <PerfilForm
         nombre={perfil?.nombre ?? "Estudiante"}
         correo={perfil?.correo ?? user!.email ?? ""}
         celular={perfil?.celular ?? null}
+        rolGremio={datosCarne?.rol_gremio ?? null}
         fotoUrl={perfil?.foto_url ?? null}
         insignia={insignia}
         tienePassword={tienePassword}

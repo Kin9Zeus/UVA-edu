@@ -57,7 +57,7 @@ export const CATEGORIA_ESTILO: Record<CategoriaComunidad, string> = {
  * de 12 px medían 16 px de alto, por debajo de los 24 px mínimos de un
  * objetivo táctil (WCAG 2.5.8). */
 export const CLASE_BOTON_ACCION_COMUNIDAD =
-  "inline-flex min-h-6 cursor-pointer items-center border-0 bg-transparent p-0 hover:text-uva-text-muted disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-uva-sm border-0 bg-transparent px-2 font-semibold whitespace-nowrap text-uva-text-muted hover:text-uva-text disabled:cursor-not-allowed disabled:opacity-60";
 
 /** Viven acá (no en comunidad-adjuntos.ts, que importa `sharp`/`file-type`,
  * paquetes de Node) para que el composer — un componente cliente — pueda

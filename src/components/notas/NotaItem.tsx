@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Clock, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Clock, Pencil, Play, Trash2 } from "lucide-react";
 import {
   EditorTextoEnriquecido,
   type EditorTextoEnriquecidoHandle,
@@ -12,6 +12,7 @@ import { eliminarNota } from "@/actions/notas/eliminar";
 import type { NotaLeccion } from "@/lib/notas";
 import { duracionIsoNota, formatearTiempoNota } from "@/lib/notas-validacion";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
+import { cn } from "@/lib/utils";
 
 /** Orden por segundo; `sort` es estable, así que a igual segundo se respeta el orden previo. */
 export function ordenarNotas<T extends NotaLeccion>(notas: T[]): T[] {
@@ -42,6 +43,7 @@ export function NotaItem<T extends NotaLeccion>({
   onCambiarNotas,
   onAviso,
   onEliminada,
+  cuaderno = false,
 }: {
   nota: T;
   salto: SaltoNota;
@@ -51,6 +53,9 @@ export function NotaItem<T extends NotaLeccion>({
   onAviso: (mensaje: string) => void;
   /** Para devolver el foco a un punto estable una vez que la nota desaparece. */
   onEliminada: () => void;
+  /** "Mis notas": desde 760 px de contenedor, minuto a la izquierda, texto
+   *  al centro y acciones a la derecha (necesita un `@container` arriba). */
+  cuaderno?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
   const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
@@ -64,13 +69,17 @@ export function NotaItem<T extends NotaLeccion>({
 
   const tiempo = formatearTiempoNota(nota.segundo);
   const claseMinuto =
-    "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-uva-accent-soft px-2.5 py-1 font-mono text-uva-detalle font-semibold text-uva-accent-ink no-underline hover:bg-uva-accent/25";
+    "inline-flex min-h-11 cursor-pointer items-center gap-1.5 justify-self-start rounded-full border border-uva-line-strong bg-uva-surface px-3.5 font-mono text-uva-cuerpo font-bold whitespace-nowrap text-uva-accent-ink no-underline hover:border-uva-accent-ink";
   const contenidoMinuto = (
     <>
-      <Clock className="size-3" strokeWidth={2.5} aria-hidden />
+      <Play className="size-3.5 fill-current" strokeWidth={0} aria-hidden />
       <time dateTime={duracionIsoNota(nota.segundo)}>{tiempo}</time>
     </>
   );
+  const claseIcono =
+    "grid size-11 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-text-muted hover:bg-uva-surface-2 hover:text-uva-text disabled:opacity-50";
+  // En el cuaderno, todo lo que no es la cabecera va en la columna central.
+  const columnaTexto = cuaderno ? "@min-[760px]:col-start-2" : "";
 
   function guardarEdicion() {
     const texto = editorRef.current?.obtenerTexto() ?? "";
@@ -112,8 +121,13 @@ export function NotaItem<T extends NotaLeccion>({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        "grid gap-2",
+        cuaderno && "@min-[760px]:grid-cols-[110px_minmax(0,1fr)_auto] @min-[760px]:items-start @min-[760px]:gap-x-4 @min-[760px]:gap-y-1",
+      )}
+    >
+      <div className={cn("flex items-center gap-2", cuaderno && "@min-[760px]:contents")}>
         {salto && "onSaltar" in salto ? (
           <button
             type="button"
@@ -128,13 +142,13 @@ export function NotaItem<T extends NotaLeccion>({
             {contenidoMinuto}
           </Link>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-uva-chip px-2.5 py-1 font-mono text-uva-detalle text-uva-text-muted">
+          <span className="inline-flex min-h-11 items-center justify-self-start rounded-full border border-uva-line-strong bg-uva-surface px-3.5 font-mono text-uva-cuerpo font-bold text-uva-text-muted">
             <time dateTime={duracionIsoNota(nota.segundo)}>{tiempo}</time>
           </span>
         )}
 
         {!editando && !confirmandoBorrado && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className={cn("ml-auto flex items-center gap-0.5", cuaderno && "@min-[760px]:col-start-3 @min-[760px]:row-start-1")}>
             <button
               ref={botonEditarRef}
               type="button"
@@ -145,25 +159,25 @@ export function NotaItem<T extends NotaLeccion>({
               }}
               disabled={pendiente}
               aria-label={`Editar la nota del minuto ${tiempo}`}
-              className="grid size-11 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-text-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
+              className={claseIcono}
             >
-              <Pencil className="size-4" strokeWidth={2.2} />
+              <Pencil className="size-[18px]" strokeWidth={2} aria-hidden />
             </button>
             <button
               type="button"
               onClick={() => setConfirmandoBorrado(true)}
               disabled={pendiente}
               aria-label={`Eliminar la nota del minuto ${tiempo}`}
-              className="grid size-11 cursor-pointer place-items-center rounded-uva-md border-0 bg-transparent text-uva-text-muted hover:bg-uva-chip hover:text-uva-text disabled:opacity-50"
+              className={claseIcono}
             >
-              <Trash2 className="size-4" strokeWidth={2.2} />
+              <Trash2 className="size-[18px]" strokeWidth={2} aria-hidden />
             </button>
           </div>
         )}
       </div>
 
       {editando ? (
-        <div className="flex flex-col gap-2">
+        <div className={cn("flex flex-col gap-2", cuaderno && "@min-[760px]:col-start-2 @min-[760px]:row-start-1")}>
           <EditorTextoEnriquecido
             ref={editorRef}
             placeholder="Escribe tu nota…"
@@ -179,21 +193,21 @@ export function NotaItem<T extends NotaLeccion>({
                 onClick={() => setSegundoEdicion(Math.floor(obtenerSegundoActual()))}
                 className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
               >
-                <Clock className="size-3.5" strokeWidth={2.4} />
+                <Clock className="size-4" strokeWidth={2.2} aria-hidden />
                 Usar el minuto actual
                 {segundoEdicion !== nota.segundo && (
                   <span className="font-mono text-uva-accent-ink">{formatearTiempoNota(segundoEdicion)}</span>
                 )}
               </button>
             )}
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setEditando(false);
                   requestAnimationFrame(() => botonEditarRef.current?.focus());
                 }}
-                className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
+                className="min-h-11 cursor-pointer rounded-uva-md border-0 bg-transparent px-4 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-text"
               >
                 Cancelar
               </button>
@@ -213,20 +227,29 @@ export function NotaItem<T extends NotaLeccion>({
         // ejemplo) se corta dentro del recuadro en vez de desbordarlo —
         // pasaba tanto en "Mis notas" como en "Todo el curso" del
         // reproductor porque los dos comparten este componente.
-        <div className="min-w-0 text-sm leading-6 break-words text-uva-text opacity-90">
+        <div
+          className={cn(
+            "min-w-0 text-uva-cuerpo leading-relaxed break-words text-uva-text",
+            cuaderno && "@min-[760px]:col-start-2 @min-[760px]:row-start-1 @min-[760px]:pt-[9px]",
+          )}
+        >
           {renderizarTextoFormateado(nota.contenido)}
         </div>
       )}
 
       {nota.videoCambio && (
-        <p className="m-0 flex items-start gap-1.5 text-uva-detalle text-uva-text-muted">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.2} aria-hidden />
+        <p className={cn("m-0 flex items-start gap-2 text-uva-detalle text-uva-text-muted", columnaTexto)}>
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" strokeWidth={2} aria-hidden />
           El video de esta clase se actualizó después de que escribiste esta nota; el minuto puede no coincidir.
         </p>
       )}
 
       {confirmandoBorrado && (
-        <div role="group" aria-label="Confirmar eliminación" className="flex items-center gap-3 text-uva-detalle">
+        <div
+          role="group"
+          aria-label="Confirmar eliminación"
+          className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 text-uva-detalle", columnaTexto)}
+        >
           <span className="text-uva-text">¿Eliminar esta nota?</span>
           <button
             type="button"
@@ -235,14 +258,14 @@ export function NotaItem<T extends NotaLeccion>({
               setConfirmandoBorrado(false);
               borrar();
             }}
-            className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 font-semibold text-uva-danger-text hover:underline"
+            className="min-h-11 cursor-pointer rounded-uva-md border-[1.5px] border-uva-danger-text bg-transparent px-3.5 font-bold text-uva-danger-text"
           >
             Sí, eliminar
           </button>
           <button
             type="button"
             onClick={() => setConfirmandoBorrado(false)}
-            className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 font-semibold text-uva-text-muted hover:text-uva-text"
+            className="min-h-11 cursor-pointer rounded-uva-md border-0 bg-transparent px-3.5 font-bold text-uva-text-muted hover:text-uva-text"
           >
             No
           </button>
@@ -250,7 +273,7 @@ export function NotaItem<T extends NotaLeccion>({
       )}
 
       {error && (
-        <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">
+        <p role="alert" className={cn("m-0 text-uva-detalle text-uva-error-text", columnaTexto)}>
           {error}
         </p>
       )}

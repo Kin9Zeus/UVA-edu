@@ -26,9 +26,9 @@ export function ComunidadVolverBoton() {
     <button
       type="button"
       onClick={volver}
-      className="inline-flex items-center gap-1.5 text-sm text-uva-text-muted hover:text-uva-text"
+      className="inline-flex min-h-11 items-center gap-1.5 self-start text-uva-cuerpo font-semibold text-uva-text-muted hover:text-uva-text"
     >
-      <ArrowLeft className="size-4" strokeWidth={2} />
+      <ArrowLeft className="size-[18px]" strokeWidth={2} aria-hidden="true" />
       Volver
     </button>
   );

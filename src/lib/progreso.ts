@@ -4,6 +4,8 @@ import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { logError } from "@/lib/log";
 import { ANCHO_MINIATURA_TARJETA, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { calcularRacha, hoyEnBogota, semanasDeActividad, type SemanaActividad } from "@/lib/racha";
 
 export type CursoConProgreso = {
   cursoId: string;
@@ -22,6 +24,17 @@ export type CursoConProgreso = {
    * Centralizada acá para que la tarjeta, el filtro y el badge no la
    * recombinen cada uno por su cuenta. */
   completado: boolean;
+  /** Primera categoría del curso, para la fila (ícono y nombre). */
+  categoria: string | null;
+  /** Última vez que tocó una clase del curso (ISO). */
+  ultimaActividad: string | null;
+  /** Fecha de emisión del certificado (ISO): "Terminado el…" se mide con él. */
+  certificadoEmitido: string | null;
+  /** Clase a retomar (la primera sin completar con video listo); null si no queda ninguna. */
+  siguienteLeccionSlug: string | null;
+  /** Segundos de clase vistos: lo que duran las clases terminadas más lo
+   *  avanzado en las que van a medias. No es tiempo real de estudio. */
+  segundosVistos: number;
   /**
    * Dónde quedó: el frame firmado y el segundo exacto. `null` cuando no hay
    * nada que reanudar —curso terminado, o empezado sin llegar a darle play—
@@ -40,6 +53,8 @@ export type CursoConProgreso = {
 
 export type ProgresoData = {
   cursos: CursoConProgreso[];
+  /** Ritmo de estudio desde `actividad_diaria`; null si no se pudo leer. */
+  actividad: { racha: number; semanas: SemanaActividad[] } | null;
 };
 
 /**
@@ -56,7 +71,7 @@ export async function getProgresoData(): Promise<ProgresoData> {
   const { data: filas, error } = await supabase
     .from("progreso_cursos_estudiante")
     .select(
-      "curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total, examen_requerido, examen_aprobado",
+      "curso_id, curso_slug, titulo, imagen_portada, lecciones_completadas, lecciones_total, examen_requerido, examen_aprobado, ultima_actividad",
     )
     .order("ultima_actividad", { ascending: false });
   // Un fallo no es "no tienes cursos": lanza para que lo atrape error.tsx.
@@ -103,6 +118,11 @@ export async function getProgresoData(): Promise<ProgresoData> {
       // La regla vive solo en `estadoDeCurso`: copiarla acá fue lo que dejó
       // al catálogo del dashboard con la versión vieja (P2-4).
       completado: estadoDeCurso(porcentaje, examen) === "COMPLETADO",
+      categoria: null as string | null,
+      ultimaActividad: (fila.ultima_actividad as string | null) ?? null,
+      certificadoEmitido: null as string | null,
+      siguienteLeccionSlug: null as string | null,
+      segundosVistos: 0,
       reanudarEn: null as CursoConProgreso["reanudarEn"],
     };
   });
@@ -117,7 +137,9 @@ export async function getProgresoData(): Promise<ProgresoData> {
     curso.reanudarEn = reanudar.get(curso.cursoId) ?? null;
   }
 
-  return { cursos };
+  const [, actividad] = await Promise.all([completarDetalle(supabase, cursos), leerActividad(supabase)]);
+
+  return { cursos, actividad };
 }
 
 /**
@@ -231,4 +253,89 @@ async function resolverReanudacion(
     if (url) vacio.set(cursoId, { url, segundo, duracion });
   }
   return vacio;
+}
+
+/**
+ * Lo que completa cada fila: categoría, certificado, clase a retomar y
+ * segundos vistos. Todo secundario: si una lectura falla se registra y la
+ * fila queda con menos detalle (sin categoría, "Continuar" lleva a la ficha
+ * del curso), nunca con un dato falso.
+ */
+async function completarDetalle(supabase: SupabaseClient, cursos: CursoConProgreso[]) {
+  if (cursos.length === 0) return;
+  const ids = cursos.map((curso) => curso.cursoId);
+  const porId = new Map(cursos.map((curso) => [curso.cursoId, curso]));
+
+  const [
+    { data: categorias, error: errorCategorias },
+    { data: certificados, error: errorCertificados },
+    { data: modulos, error: errorModulos },
+  ] = await Promise.all([
+    supabase.from("curso_categorias").select("id_curso, categoria:categorias(nombre)").in("id_curso", ids),
+    supabase.from("certificados").select("id_curso, fecha_emision").in("id_curso", ids),
+    supabase
+      .from("modulos")
+      .select("id_curso, orden, lecciones(slug, orden, duracion, estado_procesamiento, progreso(completado, segundo_actual))")
+      .in("id_curso", ids),
+  ]);
+
+  if (!registrarSiFalla(errorCategorias, "progreso:categorias", "no se pudieron leer las categorías de los cursos")) {
+    for (const fila of categorias ?? []) {
+      const curso = porId.get(fila.id_curso as string);
+      const categoria = Array.isArray(fila.categoria) ? fila.categoria[0] : fila.categoria;
+      if (curso && !curso.categoria && categoria) curso.categoria = categoria.nombre as string;
+    }
+  }
+
+  if (!registrarSiFalla(errorCertificados, "progreso:certificados", "no se pudieron leer los certificados")) {
+    for (const fila of certificados ?? []) {
+      const curso = porId.get(fila.id_curso as string);
+      if (curso) curso.certificadoEmitido = fila.fecha_emision as string;
+    }
+  }
+
+  if (registrarSiFalla(errorModulos, "progreso:temario", "no se pudo leer el temario de los cursos")) return;
+  const porCurso = new Map<string, NonNullable<typeof modulos>>();
+  for (const modulo of modulos ?? []) {
+    const lista = porCurso.get(modulo.id_curso as string) ?? [];
+    lista.push(modulo);
+    porCurso.set(modulo.id_curso as string, lista);
+  }
+  for (const [cursoId, lista] of porCurso) {
+    const curso = porId.get(cursoId);
+    if (!curso) continue;
+    // Mismo temario que cuenta el progreso: solo clases con video listo.
+    const lecciones = lista
+      .slice()
+      .sort((a, b) => a.orden - b.orden)
+      .flatMap((modulo) =>
+        (modulo.lecciones ?? [])
+          .filter((leccion) => leccion.estado_procesamiento === "LISTO")
+          .slice()
+          .sort((a, b) => a.orden - b.orden),
+      );
+    let segundos = 0;
+    for (const leccion of lecciones) {
+      const avance = leccion.progreso?.[0];
+      const duracion = (leccion.duracion as number | null) ?? 0;
+      if (avance?.completado) segundos += duracion;
+      else if (avance) segundos += duracion > 0 ? Math.min(avance.segundo_actual as number, duracion) : 0;
+    }
+    curso.segundosVistos = segundos;
+    curso.siguienteLeccionSlug =
+      (lecciones.find((leccion) => !leccion.progreso?.[0]?.completado)?.slug as string | undefined) ?? null;
+  }
+}
+
+/** Racha y semanas del último mes, desde `actividad_diaria` (supabase/sql/119). */
+async function leerActividad(supabase: SupabaseClient): Promise<ProgresoData["actividad"]> {
+  const { data, error } = await supabase
+    .from("actividad_diaria")
+    .select("fecha")
+    .order("fecha", { ascending: false })
+    .limit(400);
+  if (registrarSiFalla(error, "progreso:actividad", "no se pudieron leer los días de estudio")) return null;
+  const fechas = (data ?? []).map((fila) => fila.fecha as string);
+  const hoy = hoyEnBogota();
+  return { racha: calcularRacha(fechas, hoy), semanas: semanasDeActividad(fechas, hoy) };
 }

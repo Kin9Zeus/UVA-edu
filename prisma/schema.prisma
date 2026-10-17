@@ -188,9 +188,13 @@ model Perfiles {
   /// `curso_instructores_publico` (supabase/sql/053_curso_instructores.sql),
   /// porque RLS es por fila y abrir la fila abriría también correo y celular.
   especialidad   String?
+  /// Cómo se presenta el estudiante en el gremio ("Residente de obra"), lo
+  /// escribe él mismo en "Mi perfil" y sale en su carné. Privado: a
+  /// diferencia de `especialidad`, no lo expone ninguna vista pública.
+  rol_gremio     String?      @db.VarChar(60)
   estado         EstadoPerfil @default(ACTIVO)
   /// Sello de supresión bajo Ley 1581 (Habeas Data). No null significa que
-  /// `nombre`, `correo`, `celular`, `pais` y `especialidad` ya no son datos
+  /// `nombre`, `correo`, `celular`, `pais`, `especialidad` y `rol_gremio` ya no son datos
   /// del titular sino marcadores, y que la fila de `auth.users` ya no existe.
   ///
   /// La fila NO se borra: diez tablas referencian `perfiles` con ON DELETE

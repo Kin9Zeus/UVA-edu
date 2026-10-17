@@ -120,28 +120,46 @@ describe("cambiarPassword", () => {
 });
 
 describe("actualizarPerfil", () => {
-  it("el UPDATE solo lleva nombre, celular y país — `rol` o `estado` colados en el formulario no llegan", async () => {
+  it("el UPDATE solo lleva nombre, celular, país y rol en el gremio — `rol` o `estado` colados en el formulario no llegan", async () => {
     const resultado = await actualizarPerfil(
       null,
-      formulario({ nombre: " Ana ", celular: "300 123 4567", pais: "CO", rol: "ADMINISTRADOR", estado: "ACTIVO", id: "otra" }),
+      formulario({
+        nombre: " Ana ",
+        celular: "300 123 4567",
+        pais: "CO",
+        rol_gremio: " Residente de obra ",
+        rol: "ADMINISTRADOR",
+        estado: "ACTIVO",
+        id: "otra",
+      }),
     );
 
     expect(resultado).toEqual({ success: true });
     expect(servidorFalso.encadenado("from:perfiles", "update")).toEqual([
-      [{ nombre: "Ana", celular: "+57 300 123 4567", pais: "Colombia" }],
+      [{ nombre: "Ana", celular: "+57 300 123 4567", pais: "Colombia", rol_gremio: "Residente de obra" }],
     ]);
     expect(servidorFalso.encadenado("from:perfiles", "eq")).toEqual([["id", ESTUDIANTE.id]]);
   });
 
-  it("sin celular guarda país y celular en null", async () => {
-    await actualizarPerfil(null, formulario({ nombre: "Ana", celular: "", pais: "CO" }));
+  it("sin celular ni rol en el gremio guarda los tres en null", async () => {
+    await actualizarPerfil(null, formulario({ nombre: "Ana", celular: "", pais: "CO", rol_gremio: "  " }));
 
-    expect(servidorFalso.encadenado("from:perfiles", "update")[0][0]).toEqual({ nombre: "Ana", celular: null, pais: null });
+    expect(servidorFalso.encadenado("from:perfiles", "update")[0][0]).toEqual({
+      nombre: "Ana",
+      celular: null,
+      pais: null,
+      rol_gremio: null,
+    });
   });
 
   it.each([
     ["nombre vacío", { nombre: "  ", celular: "" }, "El nombre no puede estar vacío."],
     ["celular con letras", { nombre: "Ana", celular: "300-abc" }, "El celular no es válido. Usa solo dígitos, espacios y guiones."],
+    [
+      "rol en el gremio de más de 60",
+      { nombre: "Ana", celular: "", rol_gremio: "a".repeat(61) },
+      "El rol en el gremio no puede superar los 60 caracteres.",
+    ],
   ])("%s: no escribe", async (_caso, campos, mensaje) => {
     expect(await actualizarPerfil(null, formulario(campos))).toEqual({ error: mensaje });
     expect(servidorFalso.clientesCreados.sesion).toBe(0);

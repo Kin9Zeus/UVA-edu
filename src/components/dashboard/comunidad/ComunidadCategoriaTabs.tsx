@@ -11,11 +11,10 @@ function CategoriaTab({ href, label, active }: { href: string; label: string; ac
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        // Móvil: pestaña subrayada, como las del panel admin. Desde `lg`: ítem
-        // del riel vertical, marcado con el borde izquierdo — ese borde en
-        // chips sueltos que bajaban de línea se veía como un error.
-        "shrink-0 border-b-2 border-transparent px-1 py-2.5 text-sm whitespace-nowrap text-uva-text-muted transition-colors hover:text-uva-text lg:rounded-uva-md lg:border-b-0 lg:border-l-[3px] lg:px-3.5 lg:py-2 lg:hover:bg-uva-hover",
-        active && "border-uva-accent text-uva-text lg:bg-uva-surface",
+        // Pestaña subrayada en todos los anchos (Cartelera): la activa, en
+        // negrita y con la línea del color del botón.
+        "inline-flex min-h-11 shrink-0 items-center border-b-[3px] border-transparent px-1 text-uva-cuerpo font-semibold whitespace-nowrap text-uva-text-muted transition-colors hover:text-uva-text",
+        active && "border-uva-btn font-extrabold text-uva-text",
       )}
     >
       {label}
@@ -24,9 +23,8 @@ function CategoriaTab({ href, label, active }: { href: string; label: string; ac
 }
 
 /**
- * Navegación de Comunidad: categorías + "Mis publicaciones". Una sola fila
- * con scroll horizontal en mobile/tablet y columna vertical (riel izquierdo)
- * desde `lg` — mismo componente y mismas rutas.
+ * Navegación de Comunidad: categorías + "Mis publicaciones", en una fila de
+ * pestañas arriba del muro (con scroll horizontal si no caben).
  *
  * Antes la fila hacía `flex-wrap`: a 375 px las seis pestañas ocupaban 4
  * filas (162 px) y el primer post empezaba pasada la mitad de la pantalla.
@@ -88,7 +86,7 @@ export function ComunidadCategoriaTabs({
     <div className="relative">
       <nav
         ref={navRef}
-        className="flex gap-4 overflow-x-auto border-b border-uva-divider [scrollbar-width:none] lg:flex-col lg:gap-1 lg:overflow-visible lg:border-b-0 [&::-webkit-scrollbar]:hidden"
+        className="flex gap-[18px] overflow-x-auto border-b border-uva-divider [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Navegación de la comunidad"
       >
         <CategoriaTab href="/dashboard/comunidad" label="Todas" active={!sinActivo && !categoriaActiva && !soloPropios} />
@@ -100,19 +98,18 @@ export function ComunidadCategoriaTabs({
             active={!sinActivo && categoriaActiva === categoria}
           />
         ))}
-        <div className="my-1 hidden border-t border-uva-divider lg:block" />
         <CategoriaTab href="/dashboard/comunidad?mias=1" label="Mis publicaciones" active={!sinActivo && !!soloPropios} />
       </nav>
       {hayAntes && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-uva-bg to-transparent lg:hidden"
+          className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-uva-bg to-transparent"
         />
       )}
       {hayDespues && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent lg:hidden"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent"
         />
       )}
     </div>

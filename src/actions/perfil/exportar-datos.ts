@@ -53,7 +53,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
   ] = await Promise.all([
     supabase
       .from("perfiles")
-      .select("nombre, correo, celular, pais, especialidad, rol, creado_en")
+      .select("nombre, correo, celular, pais, especialidad, rol_gremio, rol, creado_en")
       .eq("id", user.id)
       .single(),
     supabase

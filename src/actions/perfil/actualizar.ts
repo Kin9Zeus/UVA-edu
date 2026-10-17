@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { buscarPaisPorCodigo } from "@/lib/paises";
 import { getUsuarioActual } from "@/lib/perfil";
 
+const MAXIMO_ROL_GREMIO = 60;
+
 export type ActualizarPerfilState = { error: string; success?: never } | { error?: never; success: true } | null;
 
 export async function actualizarPerfil(
@@ -17,9 +19,16 @@ export async function actualizarPerfil(
   // texto libre: siempre resuelve a un país conocido.
   const pais = buscarPaisPorCodigo(String(formData.get("pais") ?? ""));
   const celular = numeroCelular ? `${pais.indicativo} ${numeroCelular}` : "";
+  const rolGremio = String(formData.get("rol_gremio") ?? "").trim();
 
   if (!nombre) {
     return { error: "El nombre no puede estar vacío." };
+  }
+
+  // Mismo tope que la columna (VARCHAR(60)): mejor un mensaje claro que el
+  // error genérico de la base.
+  if (rolGremio.length > MAXIMO_ROL_GREMIO) {
+    return { error: `El rol en el gremio no puede superar los ${MAXIMO_ROL_GREMIO} caracteres.` };
   }
 
   if (numeroCelular && !/^[0-9\s-]{5,15}$/.test(numeroCelular)) {
@@ -35,7 +44,12 @@ export async function actualizarPerfil(
 
   const { error } = await supabase
     .from("perfiles")
-    .update({ nombre, celular: celular || null, pais: numeroCelular ? pais.nombre : null })
+    .update({
+      nombre,
+      celular: celular || null,
+      pais: numeroCelular ? pais.nombre : null,
+      rol_gremio: rolGremio || null,
+    })
     .eq("id", user.id);
 
   if (error) {

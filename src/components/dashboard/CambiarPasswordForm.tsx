@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { KeyRound } from "lucide-react";
+import { CLASE_BLOQUE_PERFIL, CLASE_CAMPO_PERFIL, CLASE_ETIQUETA_PERFIL } from "@/components/dashboard/PerfilForm";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
@@ -41,36 +42,48 @@ export function CambiarPasswordForm() {
   }
 
   return (
-    <div className="flex flex-col gap-[18px] rounded-uva-md border border-uva-divider bg-uva-surface p-6">
-      <h2 className="flex items-center gap-2 text-base text-uva-text">
-        <KeyRound className="size-4 text-uva-accent-ink" aria-hidden />
+    <section aria-labelledby="perfil-clave-titulo" className={CLASE_BLOQUE_PERFIL}>
+      <h2 id="perfil-clave-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
+        <KeyRound className="size-5 text-uva-text-muted" strokeWidth={1.8} aria-hidden />
         Contraseña
       </h2>
 
-      <form ref={formRef} action={handleAction} className="flex flex-col gap-3.5" noValidate>
+      {/* Plegado hasta que se pide: casi nadie cambia la contraseña y los tres
+          campos empujaban el resto del perfil. Se queda abierto mientras haya
+          un error o un aviso que leer. */}
+      <details className="group/clave" open={Boolean(state?.error || state?.success) || undefined}>
+        <summary className="inline-flex min-h-12 cursor-pointer list-none items-center rounded-uva-md border-[1.5px] border-uva-line-strong px-[22px] text-base font-semibold text-uva-text hover:border-uva-text group-open/clave:hidden [&::-webkit-details-marker]:hidden">
+          Cambiar contraseña
+        </summary>
+      <form ref={formRef} action={handleAction} className="flex flex-col gap-4" noValidate>
         {state?.error && (
           <div
             role="alert"
-            className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-sm text-uva-danger-text"
+            className="rounded-uva-md bg-uva-danger-soft px-3.5 py-2.5 text-uva-detalle text-uva-danger-text"
           >
             {state.error}
           </div>
         )}
 
         <div>
-          <Label htmlFor="perfil-password-actual">Contraseña actual</Label>
+          <Label htmlFor="perfil-password-actual" className={CLASE_ETIQUETA_PERFIL}>
+            Contraseña actual
+          </Label>
           <PasswordInput
             id="perfil-password-actual"
             name="password_actual"
             placeholder="••••••••"
             autoComplete="current-password"
             required
+            inputClassName={CLASE_CAMPO_PERFIL}
           />
         </div>
 
-        <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
           <div>
-            <Label htmlFor="perfil-password-nueva">Nueva contraseña</Label>
+            <Label htmlFor="perfil-password-nueva" className={CLASE_ETIQUETA_PERFIL}>
+              Nueva contraseña
+            </Label>
             <PasswordInput
               id="perfil-password-nueva"
               name="password_nueva"
@@ -79,10 +92,13 @@ export function CambiarPasswordForm() {
               value={passwordNueva}
               onChange={(event) => setPasswordNueva(event.target.value)}
               required
+              inputClassName={CLASE_CAMPO_PERFIL}
             />
           </div>
           <div>
-            <Label htmlFor="perfil-password-nueva2">Repite la contraseña</Label>
+            <Label htmlFor="perfil-password-nueva2" className={CLASE_ETIQUETA_PERFIL}>
+              Repite la contraseña
+            </Label>
             <PasswordInput
               id="perfil-password-nueva2"
               name="password_nueva2"
@@ -91,14 +107,15 @@ export function CambiarPasswordForm() {
               value={passwordNueva2}
               onChange={(event) => setPasswordNueva2(event.target.value)}
               required
+              inputClassName={CLASE_CAMPO_PERFIL}
             />
             {passwordNueva2.length > 0 && !passwordsMatch && (
-              <p className="mt-1.5 text-xs text-uva-danger-text">Las contraseñas no coinciden</p>
+              <p className="mt-1.5 text-uva-detalle text-uva-danger-text">Las contraseñas no coinciden</p>
             )}
           </div>
         </div>
 
-        <ul className="grid grid-cols-2 gap-x-2.5 gap-y-1">
+        <ul className="grid grid-cols-1 gap-x-3 gap-y-1 min-[420px]:grid-cols-2">
           {passwordRules.map((rule) => {
             const met = rule.test(passwordNueva);
             const colorClass = met
@@ -109,7 +126,7 @@ export function CambiarPasswordForm() {
             return (
               <li
                 key={rule.id}
-                className={`flex items-center gap-1.5 text-[11px] leading-[1.3] transition-colors duration-150 [transition-timing-function:ease] [&_svg]:size-3 [&_svg]:shrink-0 ${colorClass}`}
+                className={`flex items-center gap-1.5 text-uva-detalle leading-[1.3] transition-colors duration-150 [transition-timing-function:ease] motion-reduce:transition-none [&_svg]:size-3.5 [&_svg]:shrink-0 ${colorClass}`}
               >
                 {met ? <CheckIcon /> : <DotIcon />}
                 {rule.label}
@@ -118,26 +135,24 @@ export function CambiarPasswordForm() {
           })}
         </ul>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             type="submit"
             variant="uva-primary"
             size="uva"
             disabled={!canSubmit || pending}
-            className="w-auto px-6"
+            className="min-h-12 w-auto px-[22px] text-base"
           >
             {pending ? "Guardando…" : "Cambiar contraseña"}
           </Button>
           {state?.success && (
-            <span
-              role="status"
-              className="rounded-full bg-uva-accent-2-soft px-2.5 py-1 text-[11px] text-uva-accent-2-text"
-            >
+            <span role="status" className="text-uva-cuerpo font-bold text-uva-text">
               Contraseña actualizada
             </span>
           )}
         </div>
       </form>
-    </div>
+      </details>
+    </section>
   );
 }

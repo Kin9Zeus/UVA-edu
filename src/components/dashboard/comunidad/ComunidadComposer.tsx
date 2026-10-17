@@ -71,7 +71,7 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
         id="comunidad-composer-trigger"
         type="button"
         onClick={() => setExpandido(true)}
-        className="w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-3 text-left text-sm text-uva-text-faint transition-colors hover:border-uva-text-faint"
+        className="flex min-h-14 w-full items-center rounded-uva-lg border border-uva-line-strong bg-uva-surface px-3.5 text-left text-uva-cuerpo text-uva-text-muted transition-colors hover:border-uva-text"
       >
         ¿Qué quieres compartir con la comunidad?
       </button>
@@ -79,7 +79,7 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
+    <div className="flex flex-col gap-3 rounded-uva-lg border border-uva-line-strong bg-uva-surface p-4">
       <span
         className={cn(
           "inline-flex h-5 w-fit items-center rounded-4xl px-2 text-xs font-semibold",

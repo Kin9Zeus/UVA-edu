@@ -3,20 +3,16 @@ import { ComunidadSidebarDerecho } from "@/components/dashboard/comunidad/Comuni
 import { cn } from "@/lib/utils";
 
 /**
- * Grid de Comunidad (nav | contenido | contexto), compartido por el feed y
- * el detalle de un post — un solo lugar de layout, ningún sidebar distinto
- * duplicado entre las dos páginas.
+ * Armazón de Comunidad (dirección visual Maqueta, «Cartelera»), compartido
+ * por el feed y el detalle de un post: las categorías como pestañas arriba
+ * del contenido y, desde `xl`, el riel de actividad a la derecha.
  *
- * Las columnas entran por etapas porque el Sidebar del dashboard ya ocupa
- * 248 px a la izquierda: con las tres desde `lg`, a 1024 px al feed le
- * quedaban ~170 px, menos que en un teléfono. El riel izquierdo entra en
- * `lg` (feed de ~480 px a 1024) y el derecho recién en `xl`. Por debajo de
- * `lg` va todo en una columna, con la nav como fila con scroll (ver
- * `ComunidadCategoriaTabs`).
+ * El contenido es un contenedor (`@container`): la cartelera decide sus
+ * columnas por el ancho que le queda, no por el de la ventana — el menú
+ * lateral del panel y el riel ya se llevan buena parte.
  *
- * `ocultarNavEnMovil`: en el detalle de un post la nav no marca nada activo
- * y ya está "Volver"; en una sola columna solo empujaba la publicación
- * hacia abajo.
+ * `ocultarNavEnMovil`: en el detalle de un post las pestañas no marcan nada
+ * activo y ya está "Volver"; en celular solo empujaban la publicación.
  */
 export function ComunidadLayout({
   nav,
@@ -28,18 +24,22 @@ export function ComunidadLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-[1280px] px-[clamp(20px,3vw,44px)] py-8">
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl text-uva-text">Comunidad</h1>
-        <p className="mt-1 text-sm text-uva-text-muted">Comparte proyectos, resuelve dudas y conecta con otros estudiantes.</p>
+    <div className="mx-auto flex w-full max-w-uva flex-col gap-[22px] px-uva-margen py-7 lg:gap-7 lg:py-9">
+      <div>
+        <h1 className="text-uva-titulo-3 text-uva-text">Comunidad</h1>
+        <p className="mt-2 text-uva-lead text-uva-text-muted">
+          Comparte proyectos, resuelve dudas y conecta con otros estudiantes.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8 xl:grid-cols-[200px_minmax(0,1fr)_280px]">
-        <div className={cn("min-w-0 lg:sticky lg:top-8", ocultarNavEnMovil && "hidden lg:block")}>{nav}</div>
-        <div className="min-w-0">{children}</div>
-        <div className="hidden xl:sticky xl:top-8 xl:flex xl:flex-col xl:gap-5">
-          <ComunidadSidebarDerecho />
+      <div className="grid grid-cols-1 items-start gap-[22px] xl:grid-cols-[minmax(0,1fr)_268px] xl:gap-x-11">
+        <div className="@container flex min-w-0 flex-col gap-[18px]">
+          <div className={cn("min-w-0", ocultarNavEnMovil && "hidden lg:block")}>{nav}</div>
+          {children}
         </div>
+        <aside aria-label="Actividad de la comunidad" className="hidden xl:sticky xl:top-8 xl:grid xl:gap-[22px]">
+          <ComunidadSidebarDerecho />
+        </aside>
       </div>
     </div>
   );

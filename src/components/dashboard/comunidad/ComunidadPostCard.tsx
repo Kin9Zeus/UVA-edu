@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pin, Building2, MapPin, ExternalLink } from "lucide-react";
+import { Pin, Building2, MapPin, ExternalLink, Megaphone, PencilRuler, MessageCircleQuestion, Briefcase, Paperclip, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
@@ -18,11 +18,18 @@ import { fijarPostComunidad } from "@/actions/comunidad/fijar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
 import {
   CATEGORIA_LABEL,
-  CATEGORIA_ESTILO,
   CLASE_BOTON_ACCION_COMUNIDAD,
   type ComunidadPostResumen,
 } from "@/lib/comunidad-tipos";
 import { cn } from "@/lib/utils";
+
+/** Ícono de cada categoría (en amarillo, al lado de su nombre). */
+const ICONO_CATEGORIA = {
+  ANUNCIOS: Megaphone,
+  PROYECTOS: PencilRuler,
+  PREGUNTAS: MessageCircleQuestion,
+  EMPLEO: Briefcase,
+} as const;
 
 function iniciales(nombre: string) {
   return (
@@ -66,8 +73,6 @@ export function ComunidadPostCard({
   // para el resto, que no tiene ninguna otra forma de escalar algo.
   const puedeReportar = Boolean(usuarioActualId) && !esAutor && !esAdmin;
   const hayAcciones = esAdmin || puedeEditar || puedeEliminar || puedeReportar;
-  // Si esta publicación lleva marco propio — ver el comentario del `article`.
-  const enmarcado = !truncar || post.fijado;
 
   async function confirmarReporte(motivo: string) {
     const resultado = await reportarComunidad({ idPost: post.id }, motivo);
@@ -127,7 +132,12 @@ export function ComunidadPostCard({
     const adjunto = adjuntosPorId.get(id);
     if (!adjunto) return null;
     if (!truncar) return <ComunidadAdjuntoVista adjunto={adjunto} />;
-    return <span className="text-uva-text-faint">📎 {adjunto.nombre}</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
+        <Paperclip className="size-4" aria-hidden="true" />
+        {adjunto.nombre}
+      </span>
+    );
   }
 
   // `wrap-break-word` (título y contenido): una palabra larga sin espacios
@@ -135,74 +145,48 @@ export function ComunidadPostCard({
   const Titulo = truncar ? (
     <Link
       href={`/dashboard/comunidad/${post.slug}`}
-      className="font-heading text-base wrap-break-word text-uva-text hover:underline"
+      className="line-clamp-2 min-h-11 py-0.5 font-heading text-uva-cuerpo leading-snug font-extrabold tracking-[-0.015em] wrap-break-word text-uva-text hover:text-uva-accent-ink"
     >
       {post.titulo}
     </Link>
   ) : (
-    <h1 className="font-heading text-xl wrap-break-word text-uva-text">{post.titulo}</h1>
+    <h1 className="text-uva-titulo-3 wrap-break-word text-uva-text">{post.titulo}</h1>
   );
+  const IconoCategoria = ICONO_CATEGORIA[post.categoria];
 
   return (
     <article
       className={cn(
-        "flex flex-col gap-3",
-        // El feed es una corriente, no una rejilla: sus publicaciones son
-        // hermanas de una misma lista, así que van como filas separadas por
-        // una línea (el `divide-y` lo pone el contenedor, en
-        // ComunidadFeedContent) y no como tarjetas sueltas. Enmarcadas, la
-        // pantalla eran diez rectángulos idénticos —buscador, orden,
-        // composer, cada post, los dos bloques del riel— y ninguno pesaba
-        // más que otro.
-        //
-        // Dos excepciones conservan el marco, porque sí son objetos aparte:
-        // el detalle (`!truncar`), donde la publicación es el sujeto de la
-        // pantalla y no hay corriente a la que pertenecer, y el post fijado,
-        // que existe justamente para salirse de la corriente.
-        enmarcado ? "rounded-uva-md border p-4" : "py-4",
-        enmarcado &&
-          // Antes el fijado solo cambiaba unos puntos el fondo (#141417 vs
-          // uva-surface) y un texto gris apenas visible — se perdía en el
-          // feed en vez de destacar. Usa el mismo tratamiento de "destacado"
-          // que la tarjeta de plan resaltado (Pricing.tsx): borde y fondo con
-          // tinte del acento de marca.
-          (post.fijado
-            ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
-            : "border-uva-divider bg-uva-surface"),
+        "relative flex flex-col gap-2 rounded-uva-lg bg-uva-surface",
+        // Cartelera (feed): cada publicación es una nota clavada, con su
+        // chinche arriba al centro; la fijada lleva borde grueso y chinche
+        // amarillo. El detalle es la misma ficha, sin chinche.
+        truncar ? "h-full px-4 pt-[34px] pb-1.5" : "p-5",
+        post.fijado ? "border-2 border-uva-text" : "border border-uva-line-strong",
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      {truncar && (
         <span
+          aria-hidden="true"
           className={cn(
-            "inline-flex h-5 w-fit items-center rounded-4xl px-2 text-xs font-semibold",
-            CATEGORIA_ESTILO[post.categoria],
+            "absolute top-2.5 left-1/2 size-3.5 -translate-x-1/2 rounded-full border-2 border-uva-text",
+            post.fijado ? "bg-uva-accent-2" : "bg-uva-line-strong",
           )}
-        >
+        />
+      )}
+      <div className="flex items-center justify-between gap-2.5">
+        <span className="inline-flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
+          <IconoCategoria className="size-4 text-uva-accent-2-text" aria-hidden="true" />
           {CATEGORIA_LABEL[post.categoria]}
         </span>
         {post.fijado && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-uva-accent-soft px-2 py-0.5 text-xs font-semibold text-uva-accent-text">
-            <Pin className="size-3" strokeWidth={2.4} />
+          <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-uva-btn px-2.5 text-uva-detalle font-bold text-uva-on-accent">
+            <Pin className="size-3" strokeWidth={2.4} aria-hidden="true" />
             Fijado
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <Avatar className="size-8 shrink-0 bg-uva-divider">
-          {post.autorFotoUrl && <AvatarImage src={post.autorFotoUrl} alt="" />}
-          <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
-            {iniciales(post.autorNombre)}
-          </AvatarFallback>
-        </Avatar>
-        {/* La causa real del desalineado no era la altura de línea: `<p>`
-            trae un margin-bottom de 14px (~1em) que no queda reseteado en
-            este proyecto, y ese margen SÍ cuenta para el centrado de un
-            flex item — `m-0` lo confirma (medido con getBoundingClientRect
-            contra el avatar: diferencia de 0px). `leading-8` iguala la
-            altura de línea a la del avatar (`size-8`, 32px). */}
-        <p className="m-0 min-w-0 flex-1 truncate text-sm leading-8 text-uva-text">{post.autorNombre}</p>
-      </div>
 
       {editando ? (
         <ComunidadPostEditor
@@ -218,24 +202,24 @@ export function ComunidadPostCard({
         <>
           {Titulo}
           {post.datosEmpleo && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-uva-text-muted">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-uva-detalle text-uva-text-muted">
               <span className="inline-flex items-center gap-1.5">
-                <Building2 className="size-3.5 shrink-0 text-uva-text-faint" strokeWidth={2} />
+                <Building2 className="size-4 shrink-0" strokeWidth={2} aria-hidden="true" />
                 {post.datosEmpleo.empresa}
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <MapPin className="size-3.5 shrink-0 text-uva-text-faint" strokeWidth={2} />
+                <MapPin className="size-4 shrink-0" strokeWidth={2} aria-hidden="true" />
                 {MODALIDAD_LABEL[post.datosEmpleo.modalidad]}
-                {post.datosEmpleo.ubicacion && ` · ${post.datosEmpleo.ubicacion}`}
+                {post.datosEmpleo.ubicacion && `, ${post.datosEmpleo.ubicacion}`}
               </span>
               <a
                 href={post.datosEmpleo.enlace}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-uva-accent-text hover:underline"
+                className="inline-flex min-h-11 items-center gap-1.5 text-uva-cuerpo font-bold text-uva-accent-ink hover:underline"
               >
                 Postularme
-                <ExternalLink className="size-3.5" strokeWidth={2.2} />
+                <ExternalLink className="size-4" strokeWidth={2.2} aria-hidden="true" />
               </a>
             </div>
           )}
@@ -245,7 +229,7 @@ export function ComunidadPostCard({
               forzaban a `inline` y cada salto de línea desaparecía — "para la
               casa" + "INK: Empresa…" se leía "casaINK: Empresa…". */}
           <div
-            className={`text-sm wrap-break-word text-uva-text-muted ${truncar ? "line-clamp-3" : "flex flex-col gap-2"}`}
+            className={`text-uva-cuerpo wrap-break-word text-uva-text-muted ${truncar ? "line-clamp-3" : "flex flex-col gap-2"}`}
           >
             {renderizarTextoFormateado(post.contenido, resolverAdjunto)}
           </div>
@@ -254,8 +238,19 @@ export function ComunidadPostCard({
               (admin y autora, en el detalle) "hace 3 horas" quedaba en 32 px
               de ancho y 3 líneas. Ahora lo que no cabe baja entero a la
               línea siguiente, y las acciones van juntas a la derecha. */}
-          <div className="flex flex-wrap items-center gap-x-4 text-xs text-uva-text-faint">
-            <span className="whitespace-nowrap">{post.tiempo}</span>
+          {/* Pie: quién y cuándo, y debajo las acciones. `mt-auto` lo baja al
+              fondo de la nota para que las de una misma fila coincidan. */}
+          <div className="mt-auto flex min-w-0 items-center gap-2.5 pt-1">
+            <Avatar className="size-8 shrink-0 border-[1.5px] border-uva-line-strong bg-uva-surface-2">
+              {post.autorFotoUrl && <AvatarImage src={post.autorFotoUrl} alt="" />}
+              <AvatarFallback className="bg-uva-surface-2 text-xs font-extrabold text-uva-text">
+                {iniciales(post.autorNombre)}
+              </AvatarFallback>
+            </Avatar>
+            <p className="m-0 min-w-0 truncate text-uva-detalle font-bold text-uva-text">{post.autorNombre}</p>
+            <span className="text-uva-detalle whitespace-nowrap text-uva-text-muted">{post.tiempo}</span>
+          </div>
+          <div className="-ml-2 flex flex-wrap items-center gap-x-0.5 text-uva-detalle">
             <ComunidadReactionButton
               tipo="post"
               objetivoId={post.id}
@@ -265,19 +260,17 @@ export function ComunidadPostCard({
               usuarioActualId={usuarioActualId}
             />
             {truncar ? (
-              <Link
-                href={`/dashboard/comunidad/${post.slug}`}
-                className={cn(CLASE_BOTON_ACCION_COMUNIDAD, "whitespace-nowrap")}
-              >
+              <Link href={`/dashboard/comunidad/${post.slug}`} className={CLASE_BOTON_ACCION_COMUNIDAD}>
+                <MessageCircle className="size-[18px]" aria-hidden="true" />
                 {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
               </Link>
             ) : (
-              <span className="whitespace-nowrap">
+              <span className="inline-flex min-h-11 items-center px-2 font-semibold whitespace-nowrap text-uva-text-muted">
                 {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
               </span>
             )}
             {hayAcciones && (
-              <div className="ml-auto flex items-center gap-4">
+              <div className="-mr-2 ml-auto flex flex-wrap items-center">
                 {esAdmin && (
                   <button
                     type="button"
