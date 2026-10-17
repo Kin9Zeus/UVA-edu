@@ -8,8 +8,7 @@ import { getCursoPublico } from "@/lib/curso";
 import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
 import { esPortadaReal } from "@/lib/media";
-import { CursoDetalleContent } from "@/components/curso/CursoDetalleContent";
-import { CursoFichaPublica } from "@/components/curso/CursoFichaPublica";
+import { CursoFicha } from "@/components/curso/CursoFicha";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
 import { metadataPublica } from "@/lib/seo/metadata";
@@ -85,8 +84,6 @@ export default async function CursoDetallePage({
     getCalificacionesCurso(curso.id, user?.id ?? null),
   ]);
 
-  const basePath = user ? "/dashboard/catalogo" : "/catalogo";
-
   // P2-5 (AUDIT-2026-09-15.md). Se construye una vez y se imprime en las dos
   // ramas: a un usuario con sesión no le aporta nada —ningún rastreador ve
   // esa versión—, pero mantenerlo en una sola rama significaría que la ficha
@@ -100,9 +97,9 @@ export default async function CursoDetallePage({
         <JsonLd data={jsonLd} />
         <SiteHeader {...perfilActual} />
         <main>
-          {/* Sin sesión: ficha con la dirección visual "Maqueta". Sin examen
-              (no es contenido público) y con reseñas de solo lectura. */}
-          <CursoFichaPublica curso={curso} calificaciones={calificaciones} />
+          {/* Sin sesión: sin examen (no es contenido público) y con reseñas
+              de solo lectura. */}
+          <CursoFicha curso={curso} calificaciones={calificaciones} sesion={null} />
         </main>
         <Footer />
       </>
@@ -136,14 +133,10 @@ export default async function CursoDetallePage({
           notificacionesNoLeidas={notificacionesNoLeidas}
         />
         <main className="pb-20 md:pb-0">
-          <CursoDetalleContent
+          <CursoFicha
             curso={curso}
-            basePath={basePath}
-            sesionActiva
-            situacionExamen={situacionExamen}
             calificaciones={calificaciones}
-            usuarioActualId={user.id}
-            esAdmin={esAdmin}
+            sesion={{ usuarioId: user.id, esAdmin, situacionExamen }}
           />
         </main>
         <BottomTabBar />

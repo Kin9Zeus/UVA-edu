@@ -19,7 +19,7 @@ export type CalificacionCursoResultado = { error: string } | { success: true };
  * `revalidatePath`. Una Server Action es un endpoint público: cualquiera con
  * sesión podía llamarla con la ruta que quisiera e invalidar la caché de
  * otras páginas del sitio. Las reseñas solo se ven en
- * `(public)/cursos/[cursoSlug]` (CursoDetalleContent), así que la ruta la
+ * `(public)/cursos/[cursoSlug]` (CursoFicha), así que la ruta la
  * decide el servidor. Se usa el patrón porque las acciones que reciben un
  * id de reseña no conocen el slug, y buscarlo costaría una consulta por
  * clic; la ficha lee la sesión en cada petición (no hay caché de datos que
@@ -85,7 +85,7 @@ export async function calificarCurso(
 
   // El caso más común de error acá es RLS rechazando el INSERT porque el
   // usuario no tiene acceso vigente al curso (private.tiene_acceso_vigente_curso)
-  // — la UI ya oculta el formulario sin acceso (CursoDetalleContent solo lo
+  // — la UI ya oculta el formulario sin acceso (CursoFicha solo lo
   // renderiza si curso.tieneAcceso), así que llegar hasta acá sin acceso
   // solo pasa si el acceso venció justo entre cargar la página y enviar.
   if (error) return { error: "No pudimos guardar tu calificación. Verifica que tengas acceso vigente al curso." };

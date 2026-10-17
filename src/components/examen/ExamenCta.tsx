@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { CheckCircle2, Clock, FileText, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { SituacionExamen } from "@/lib/examen";
+import { cn } from "@/lib/utils";
 
 /**
- * Tarjeta del examen final en la ficha del curso, debajo del CTA principal.
+ * Tarjeta del examen final en la ficha del curso (artboard "Curso",
+ * dirección visual «Maqueta»), en la columna del instructor.
  *
  * Solo aparece si el curso tiene examen publicado y el estudiante tiene
- * acceso: para todos los demás (`SIN_EXAMEN`) no se renderiza nada, y la
- * ficha queda exactamente como estaba antes de esta funcionalidad.
+ * acceso: para todos los demás (`SIN_EXAMEN`) no se renderiza nada.
  *
- * Existe porque, sin ella, un estudiante que termina la última clase ve el
- * curso al 100% y no tiene forma de saber que todavía le falta algo para el
- * certificado. El examen tiene que anunciarse desde el temario, no solo
- * cuando ya llegó al final.
+ * Existe porque, sin ella, quien termina la última clase ve el curso al 100 %
+ * y no sabe que todavía le falta algo para el certificado: el examen se
+ * anuncia desde la ficha, no solo al llegar al final.
  */
 export function ExamenCta({
   situacion,
@@ -25,12 +24,13 @@ export function ExamenCta({
   if (situacion.situacion === "SIN_EXAMEN") return null;
 
   const href = `/cursos/${cursoSlug}/examen`;
+  const { minutosLimite, intentosMaximos } = situacion.examen;
 
   const { icono, titulo, detalle, etiquetaBoton } = (() => {
     switch (situacion.situacion) {
       case "APROBADO":
         return {
-          icono: <CheckCircle2 className="size-4 text-uva-success-text" aria-hidden />,
+          icono: <CheckCircle2 className="size-5 text-uva-success-text" aria-hidden />,
           titulo: "Examen aprobado",
           detalle: situacion.certificadoListo
             ? "Completaste el curso. Tu certificado está listo."
@@ -39,7 +39,7 @@ export function ExamenCta({
         };
       case "EN_CURSO":
         return {
-          icono: <Clock className="size-4 text-uva-warning-text" aria-hidden />,
+          icono: <Clock className="size-5 text-uva-warning-text" aria-hidden />,
           titulo: "Tienes un examen en curso",
           detalle: "Retómalo donde lo dejaste.",
           etiquetaBoton: "Continuar examen",
@@ -47,50 +47,70 @@ export function ExamenCta({
       case "EN_ESPERA":
         return situacion.esperaLarga
           ? {
-              icono: <Lock className="size-4 text-uva-error" aria-hidden />,
+              icono: <Lock className="size-5 text-uva-error-text" aria-hidden />,
               titulo: "Sin intentos por ahora",
               detalle: "Agotaste tu tanda de intentos. Tendrás una nueva más tarde.",
               etiquetaBoton: "Ver cuándo",
             }
           : {
-              icono: <Clock className="size-4 text-uva-warning-text" aria-hidden />,
+              icono: <Clock className="size-5 text-uva-warning-text" aria-hidden />,
               titulo: "Examen pendiente",
               detalle: "Puedes volver a intentarlo en un rato.",
               etiquetaBoton: "Ver cuándo",
             };
       default:
         return {
-          icono: <FileText className="size-4 text-uva-accent-ink" aria-hidden />,
-          titulo: "Examen final disponible",
+          icono: <FileText className="size-5 text-uva-accent-ink" aria-hidden />,
+          titulo: "Examen final",
           detalle:
-            "Responde bien todas las preguntas sin quedarte sin vidas para completar el curso y recibir tu certificado.",
+            "Preséntalo cuando te sientas listo. Responde bien todas las preguntas sin quedarte sin vidas para completar el curso y recibir tu certificado.",
           etiquetaBoton: situacion.intentosUsados > 0 ? "Reintentar examen" : "Presentar examen",
         };
     }
   })();
 
   const destacado = situacion.situacion === "DISPONIBLE" || situacion.situacion === "EN_CURSO";
+  // Solo datos que el examen trae de verdad: sin límite de tiempo o de
+  // intentos, no se pinta la cifra.
+  const datos = [
+    minutosLimite ? { etiqueta: "Tiempo", valor: `${minutosLimite} min` } : null,
+    intentosMaximos ? { etiqueta: "Intentos", valor: String(intentosMaximos) } : null,
+  ].filter((dato) => dato !== null);
 
   return (
-    <div
-      className={`mt-3 rounded-uva-md border p-3.5 ${
-        destacado ? "border-uva-accent bg-uva-accent-soft" : "border-uva-divider bg-uva-surface"
-      }`}
+    <section
+      aria-labelledby="examen-titulo"
+      className={cn(
+        "flex flex-col gap-3 rounded-uva-lg border p-5",
+        destacado ? "border-uva-accent bg-uva-accent-soft" : "border-uva-divider bg-uva-surface",
+      )}
     >
-      <p className="flex items-center gap-2 text-[13.5px] font-semibold text-uva-text">
+      <h2 id="examen-titulo" className="m-0 flex items-center gap-2.5 text-uva-titulo-4 text-uva-text">
         {icono}
         {titulo}
-      </p>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-uva-muted">{detalle}</p>
-      <Button
-        render={<Link href={href} />}
-        nativeButton={false}
-        variant={destacado ? "uva-primary" : "uva-secondary"}
-        size="uva"
-        className="mt-3 min-h-10"
+      </h2>
+      <p className="m-0 text-uva-detalle text-uva-text-muted">{detalle}</p>
+      {datos.length > 0 && situacion.situacion !== "APROBADO" && (
+        <dl className="m-0 flex flex-wrap gap-x-6 gap-y-1">
+          {datos.map((dato) => (
+            <div key={dato.etiqueta} className="flex items-baseline gap-2">
+              <dt className="text-uva-detalle text-uva-text-muted">{dato.etiqueta}</dt>
+              <dd className="m-0 font-mono text-uva-cuerpo font-bold text-uva-text">{dato.valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <Link
+        href={href}
+        className={cn(
+          "mt-1 inline-flex min-h-12 w-full items-center justify-center rounded-uva-md px-5 text-center text-uva-cuerpo font-semibold hover:no-underline",
+          destacado
+            ? "bg-uva-btn text-uva-on-accent hover:bg-uva-btn-hover"
+            : "border-[1.5px] border-uva-line-strong text-uva-text hover:border-uva-text",
+        )}
       >
         {etiquetaBoton}
-      </Button>
-    </div>
+      </Link>
+    </section>
   );
 }

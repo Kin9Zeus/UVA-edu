@@ -21,7 +21,7 @@ export type CalificacionCurso = {
 
 /** Reseñas por tanda: la primera la pinta el servidor y cada "Ver más
  * reseñas" trae otra. 9 llena tres filas de la cuadrícula de 3 columnas
- * (CursoCalificaciones). */
+ * (ResenasCurso). */
 export const RESENAS_POR_TANDA = 9;
 
 /** Tope de `desde` que acepta cargarMasCalificacionesCurso: un offset enorme
@@ -171,7 +171,7 @@ export async function getTandaCalificacionesCurso(
 /**
  * Reseñas públicas de un curso (estrellas + comentario opcional) — visibles
  * sin sesión, a diferencia de Comunidad: el catálogo ya es público
- * (CursoDetalleContent con basePath="/catalogo"). `curso_calificaciones_resumen`
+ * (CursoFicha sin sesión). `curso_calificaciones_resumen`
  * y `curso_calificacion_autor_publico` (102_curso_calificaciones.sql)
  * resuelven el promedio y el nombre del autor sin exponer `perfiles` directo.
  *

@@ -118,7 +118,7 @@ async function firmarPlaybackToken(
 /**
  * La lección introductoria es la de menor `orden` dentro del módulo de
  * menor `orden` del curso — misma noción posicional que `primeraLeccionId`
- * en CursoDetalleContent.tsx, no un flag guardado por lección.
+ * en CursoFicha.tsx, no un flag guardado por lección.
  *
  * Exige AL MENOS DOS lecciones en el curso: un curso de una sola clase no
  * tiene "introducción" separada del contenido pagado — esa única lección

@@ -7,8 +7,21 @@
  */
 export const IMAGEN_PORTADA_PLACEHOLDER = "placeholder://curso-sin-portada";
 
+/**
+ * Si la portada se puede pintar con `next/image`: una ruta propia ("/…") o
+ * una URL http(s). Cualquier otro valor (el placeholder, o basura como "x"
+ * escrita a mano en la base) rompía el componente con «Failed to parse src»;
+ * así cae al recuadro sin portada.
+ */
 export function esPortadaReal(url: string | null | undefined): url is string {
-  return !!url && url !== IMAGEN_PORTADA_PLACEHOLDER;
+  if (!url || url === IMAGEN_PORTADA_PLACEHOLDER) return false;
+  if (url.startsWith("/") && !url.startsWith("//")) return true;
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -26,6 +26,9 @@ export type LeccionPublica = {
    * cuadro queda oscuro, sin imagen.
    */
   miniaturaUrl: string | null;
+  /** Video LISTO en Mux: solo estas clases cuentan para el avance, como en el
+   * reproductor y el certificado (`clasesConVideo` en lib/leccion.ts). */
+  videoListo: boolean;
 };
 
 export type ModuloPublico = {
@@ -212,7 +215,7 @@ async function armarCursoPublico(
   // progreso, más abajo— y la página responde 500 con "Reintentar": mostrar el
   // candado a quien paga, o el temario sin ✓, es peor que no mostrar nada.
   // Lo accesorio se degrada, queda registrado y OCULTA el dato en vez de
-  // inventarlo: sin recursos no se pinta el contador (CursoDetalleContent solo
+  // inventarlo: sin recursos no se pinta el contador (CursoFicha solo
   // lo muestra si es > 0), y los instructores ya se registran y degradan en
   // lib/instructores.ts. Lanzar también por esto convertiría un permiso roto
   // en una sola vista —una migración, no una caída— en un 500 de todas las
@@ -275,6 +278,7 @@ async function armarCursoPublico(
           ...leccion,
           completado: completadoIds.has(leccion.id),
           miniaturaUrl: idVideoMuxListo ? await getMiniaturaUrl(idVideoMuxListo, ANCHO_MINIATURA_TEMARIO) : null,
+          videoListo: idVideoMuxListo !== null,
         })),
       ),
     })),

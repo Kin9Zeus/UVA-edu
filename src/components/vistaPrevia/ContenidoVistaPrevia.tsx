@@ -17,7 +17,7 @@ const PORTADA_TRAMA = {
 
 /**
  * Ficha del curso con la MISMA maqueta que ve un estudiante con acceso
- * vigente en `/cursos/[slug]` (CursoDetalleContent.tsx) — mismas clases de
+ * de la ficha de curso anterior (CursoDetalleContent, ya reemplazada por CursoFicha.tsx) — mismas clases de
  * Tailwind, mismo orden de bloques, misma barra de estadísticas y tarjeta de
  * instructor. Solo cambian tres cosas, todas intencionales:
  *
@@ -43,7 +43,7 @@ export function ContenidoVistaPrevia({
 
   return (
     <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-8 px-[clamp(20px,4vw,56px)] py-[clamp(32px,5vw,56px)] lg:grid-cols-[minmax(0,1fr)_340px]">
-      {/* Mismo truco de `contents`/`order-N` que CursoDetalleContent.tsx: en
+      {/* Mismo truco de `contents`/`order-N` que tenía CursoDetalleContent: en
           mobile intercala portada y CTA justo después de la presentación en
           vez de dejarlos hasta el final del temario; en desktop el `order`
           no pinta nada y manda el orden del DOM. */}

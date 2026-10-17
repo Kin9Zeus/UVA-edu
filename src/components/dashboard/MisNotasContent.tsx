@@ -55,7 +55,15 @@ function agrupar(
     });
 }
 
-export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: MisNotas) {
+export function MisNotasContent({
+  notas: notasIniciales,
+  lecciones,
+  cursos,
+  filtro = null,
+}: MisNotas & {
+  /** Solo las notas de este curso ("Mis notas del curso" en la ficha). */
+  filtro?: { slug: string; titulo: string } | null;
+}) {
   const [notas, setNotas] = useState(notasIniciales);
   const [aviso, setAviso] = useState("");
   const tituloRef = useRef<HTMLHeadingElement>(null);
@@ -73,7 +81,8 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
     });
   }
 
-  const grupos = agrupar(notas, lecciones, cursos);
+  const todos = agrupar(notas, lecciones, cursos);
+  const grupos = filtro ? todos.filter((grupo) => grupo.curso?.slug === filtro.slug) : todos;
 
   return (
     <div className="flex max-w-[1080px] flex-col gap-6 px-[clamp(20px,3vw,44px)] py-8">
@@ -82,8 +91,18 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
           Mis notas
         </h1>
         <p className="m-0 text-sm text-uva-text-muted">
-          Tus apuntes de todas las clases, en el minuto exacto del video. Solo tú puedes verlos.
+          {filtro
+            ? `Tus apuntes de ${filtro.titulo}, en el minuto exacto del video. Solo tú puedes verlos.`
+            : "Tus apuntes de todas las clases, en el minuto exacto del video. Solo tú puedes verlos."}
         </p>
+        {filtro && (
+          <Link
+            href="/dashboard/notas"
+            className="inline-flex min-h-11 w-fit items-center text-uva-detalle font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline"
+          >
+            Ver las notas de todos mis cursos
+          </Link>
+        )}
       </div>
 
       {/* Anuncios para lectores de pantalla (WCAG 4.1.3). */}
@@ -95,8 +114,8 @@ export function MisNotasContent({ notas: notasIniciales, lecciones, cursos }: Mi
         <div className="rounded-uva-md border border-uva-divider bg-uva-surface p-8 text-center">
           <NotebookPen className="mx-auto size-8 text-uva-text-faint" strokeWidth={1.6} />
           <p className="mt-3 text-sm text-uva-text-muted">
-            Aún no tienes notas. Mientras ves una clase, abre la pestaña Notas para guardar un apunte en el
-            minuto exacto.
+            {filtro ? "Aún no tienes notas en este curso." : "Aún no tienes notas."} Mientras ves una clase,
+            abre la pestaña Notas para guardar un apunte en el minuto exacto.
           </p>
         </div>
       ) : (
