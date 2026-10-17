@@ -28,10 +28,11 @@ export const RESENAS_POR_TANDA = 9;
  * no es un uso real, solo una consulta cara a pedido de cualquiera. */
 export const DESDE_MAXIMO_RESENAS = 5_000;
 
-/** Por debajo de esto el promedio no se muestra (ni en la ficha ni en el
- * JSON-LD): con 2 o 3 opiniones es ruido, y si son del propio equipo, una
- * cifra que resta credibilidad. Las reseñas sí se listan. */
-export const MINIMO_RESENAS_PROMEDIO = 5;
+/** Reseñas desde las que se muestra el promedio (en la ficha y en el
+ * JSON-LD). Era 5, para no mostrar una cifra apoyada en dos o tres
+ * opiniones; desde el 2026-10-17 se muestra desde la primera (decisión del
+ * equipo): al lado siempre va cuántas reseñas lo respaldan ("1 reseña"). */
+export const MINIMO_RESENAS_PROMEDIO = 1;
 
 export type CalificacionesCurso = {
   promedio: number | null;

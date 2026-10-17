@@ -5,6 +5,7 @@ import { getPerfilActual } from "@/lib/perfil";
 import { construirCertificadoPdf } from "@/lib/certificados/pdf";
 import { duracionCertificadoTexto } from "@/lib/certificados/duracion";
 import { siteUrl } from "@/lib/site-url";
+import { urlsVerificacion } from "@/lib/certificados/diseno";
 import { logError } from "@/lib/log";
 
 const BUCKET_CERTIFICADOS = "certificados";
@@ -56,8 +57,10 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
     // ("uva.co/verificar/@daniela" en el mockup) — esa es la que se
     // imprime como texto. El QR necesita la URL completa y real para que
     // escanearla funcione.
-    const urlVerificacionQr = `${origin}/verificar-certificado/${certificado.codigo_verificacion}`;
-    const urlVerificacion = urlVerificacionQr.replace(/^https?:\/\//, "");
+    const { qr: urlVerificacionQr, impresa: urlVerificacion } = urlsVerificacion(
+      origin,
+      certificado.codigo_verificacion,
+    );
 
     const { data: lecciones, error: errorLecciones } = await supabase
       .from("lecciones")

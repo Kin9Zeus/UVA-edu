@@ -112,8 +112,9 @@ export function ResenasCurso({
         <h2 id="reseñas-titulo" className="m-0 text-uva-titulo-4 text-uva-text">
           Reseñas
         </h2>
-        {/* `promedio` llega null por debajo del mínimo de reseñas: con pocas
-            opiniones la cifra no dice nada, así que solo se cuenta cuántas hay. */}
+        {/* `promedio` llega null sin reseñas (o por debajo de
+            MINIMO_RESENAS_PROMEDIO, lib/curso-calificaciones.ts): entonces
+            solo se cuenta cuántas hay. */}
         {datos.promedio !== null ? (
           <>
             <EstrellasCalificacion puntuacion={datos.promedio} size={16} />

@@ -4,6 +4,12 @@ import { LineCapStyle, PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import QRCode from "qrcode";
 import { COTAS, CURVAS } from "@/lib/certificados/curvas";
+import {
+  FIRMAS_CERTIFICADO,
+  LOGO_CERTIFICADO,
+  TEXTOS_CERTIFICADO,
+  lineaDatosCertificado,
+} from "@/lib/certificados/diseno";
 
 /**
  * Certificado U.V.A. — diseño «Finalista 2» (curvas de nivel) del artifact
@@ -49,23 +55,8 @@ const IZQ = 72;
 const DER = ANCHO - 72;
 const ABAJO = ALTO - 52;
 
-/** Logo U.V.A. de trazo, viewBox 0 0 128 48, trazo 3.2. */
-const LOGO =
-  "M2.4 5.6H12.6M41.6 5.6H31.8M3.8 4V26A18.6 17.4 0 0 0 41 26V4M2.2 23.6H42.6M50.2 4V43.4M50.2 42.4L88.6 4.6M64.2 42.6L89.6 17.2M86.6 42L122.8 5.2M124.2 4V43.6M85.6 42.4H125.8M86.6 30.4H125.8";
-
-/** Firmas: trazo de cada una (viewBox 0 0 150 44), nombre y cargo. */
-const FIRMAS = [
-  {
-    trazo: "M4 34c10-22 18-30 22-24s-8 26-2 24 14-26 20-22-6 20 0 18 10-14 16-14 4 10 10 8 12-10 20-8",
-    nombre: "Sebastián Arias",
-    cargo: "CEO",
-  },
-  {
-    trazo: "M4 30c8-6 12-26 20-24s-10 28-4 26 10-18 16-16-2 14 4 12 8-10 14-9 6 8 12 6 10-6 18-6",
-    nombre: "Felipe Cuartas",
-    cargo: "CEO",
-  },
-];
+const LOGO = LOGO_CERTIFICADO;
+const FIRMAS = FIRMAS_CERTIFICADO;
 
 const u = (v: number) => v * SCALE;
 
@@ -185,7 +176,7 @@ export async function construirCertificadoPdf({
   // Logo de 25.3 de alto (1.15em de 22 px); el texto, en su línea base.
   const altoLogo = 25.3;
   trazo(pagina, LOGO, IZQ, 60, altoLogo / 48, TEXTO, 3.2);
-  linea(pagina, "Unidad Vectorial de Arquitectura", IZQ + (128 * altoLogo) / 48 + 12, 60 + 3, 19.5, {
+  linea(pagina, TEXTOS_CERTIFICADO.institucion, IZQ + (128 * altoLogo) / 48 + 12, 60 + 3, 19.5, {
     font: inter,
     size: 13,
     color: TENUE,
@@ -230,13 +221,7 @@ export async function construirCertificadoPdf({
   // --- Bloque principal, armado de abajo hacia arriba ---------------------
   // Caja de 600 de ancho máximo con padding 20/24/20/0 y fondo blanco al 88%.
   const anchoTexto = 600 - 24;
-  const fechaTexto = fechaEmision.toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "America/Bogota",
-  });
-  const datos = duracionTexto ? `${fechaTexto}, ${duracionTexto}` : fechaTexto;
+  const datos = lineaDatosCertificado(fechaEmision, duracionTexto);
 
   // Nombre: 84 px; si no cabe se achica hasta 56 y, si aun así no cabe, parte.
   let tamanoNombre = 84;
@@ -258,12 +243,12 @@ export async function construirCertificadoPdf({
     {
       alto: 16.8,
       antes: 0,
-      dibujar: (top) => linea(pagina, "Certificado de aprobación", IZQ, top, 16.8, { font: mono, size: 12, color: MAGENTA }),
+      dibujar: (top) => linea(pagina, TEXTOS_CERTIFICADO.tipo, IZQ, top, 16.8, { font: mono, size: 12, color: MAGENTA }),
     },
     {
       alto: 24,
       antes: 18,
-      dibujar: (top) => linea(pagina, "U.V.A. certifica que", IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
+      dibujar: (top) => linea(pagina, TEXTOS_CERTIFICADO.antesDelNombre, IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
     },
     {
       alto: lhNombre * lineasNombre.length,
@@ -277,7 +262,7 @@ export async function construirCertificadoPdf({
       alto: 24,
       antes: 24,
       dibujar: (top) =>
-        linea(pagina, "llegó a la cota más alta del curso", IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
+        linea(pagina, TEXTOS_CERTIFICADO.antesDelCurso, IZQ, top, 24, { font: inter, size: 16, color: TENUE }),
     },
     {
       alto: lhCurso * lineasCurso.length,

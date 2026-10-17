@@ -154,16 +154,24 @@ describe("getCalificacionesCurso", () => {
     expect(logError).toHaveBeenCalled();
   });
 
-  it("por debajo del mínimo no hay promedio, pero sí total y reseñas", async () => {
+  it("sin reseñas no hay promedio", async () => {
     servidorFalso.responder("from:curso_calificaciones_resumen", {
-      data: { promedio: 4.67, total: MINIMO_RESENAS_PROMEDIO - 1 },
+      data: { promedio: null, total: 0 },
     });
-    servidorFalso.responder("from:curso_calificaciones", { data: filas(0, 3) });
+    servidorFalso.responder("from:curso_calificaciones", { data: [] });
 
     const datos = await getCalificacionesCurso(CURSO, null);
 
-    expect(datos).toMatchObject({ promedio: null, total: MINIMO_RESENAS_PROMEDIO - 1 });
-    expect(datos.reseñas).toHaveLength(3);
+    expect(datos).toMatchObject({ promedio: null, total: 0 });
+    expect(datos.reseñas).toHaveLength(0);
+  });
+
+  it("con una sola reseña ya muestra el promedio", async () => {
+    servidorFalso.responder("from:curso_calificaciones_resumen", {
+      data: { promedio: 5, total: 1 },
+    });
+
+    expect(await getCalificacionesCurso(CURSO, null)).toMatchObject({ promedio: 5, total: 1 });
   });
 
   it("con exactamente el mínimo ya muestra el promedio", async () => {

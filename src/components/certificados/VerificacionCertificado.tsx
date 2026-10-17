@@ -289,6 +289,9 @@ function Valido({
           <MiniaturaCertificado
             nombre={resultado.nombreEstudiante}
             curso={resultado.nombreCurso}
+            fechaEmision={resultado.fechaEmision}
+            duracionTexto={resultado.duracionTexto}
+            codigo={codigo}
             className="block h-auto w-full"
           />
           <span className="absolute top-3.5 right-3.5 inline-flex items-center gap-1.5 rounded-full bg-uva-accent-2 px-2.5 py-1 text-uva-detalle font-extrabold text-uva-on-bright">

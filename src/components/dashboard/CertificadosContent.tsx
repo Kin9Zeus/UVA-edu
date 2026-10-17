@@ -86,6 +86,9 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
                   <MiniaturaCertificado
                     nombre={certificado.nombreEstudiante}
                     curso={certificado.cursoTitulo}
+                    fechaEmision={certificado.fechaEmision}
+                    duracionTexto={certificado.duracionTexto}
+                    codigo={certificado.codigoVerificacion}
                     className="block h-auto w-full"
                   />
                 </div>
