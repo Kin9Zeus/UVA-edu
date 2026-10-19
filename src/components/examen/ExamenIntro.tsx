@@ -327,7 +327,7 @@ function Resultado({
         className={cn(
           "overflow-hidden rounded-uva-lg border bg-uva-surface",
           aprobado
-            ? "border-uva-accent/70 shadow-[0_0_0_1px_color-mix(in_srgb,var(--uva-accent)_25%,transparent),0_24px_90px_-10px_color-mix(in_srgb,var(--uva-accent)_35%,transparent)]"
+            ? "border-uva-accent/70 shadow-uva-acento"
             : "border-uva-divider",
         )}
       >

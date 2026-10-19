@@ -70,7 +70,7 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                 key={plan.id}
                 className={
                   featured
-                    ? "flex flex-col gap-3.5 rounded-uva-md border border-uva-accent/55 bg-uva-accent/12 p-6 shadow-lg"
+                    ? "flex flex-col gap-3.5 rounded-uva-md border border-uva-accent/55 bg-uva-accent/12 p-6 shadow-uva-acento"
                     : "flex flex-col gap-3.5 rounded-uva-md border border-uva-divider bg-uva-surface p-6"
                 }
               >

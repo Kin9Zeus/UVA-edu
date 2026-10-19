@@ -114,7 +114,7 @@ export function ComentariosClase({
                 aria-label="Ordenar comentarios"
                 value={orden}
                 onChange={(evento) => setOrden(evento.target.value as Orden)}
-                className="min-h-11 cursor-pointer rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 text-uva-detalle text-uva-text-muted hover:text-uva-text"
+                className="min-h-11 cursor-pointer rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 text-uva-detalle text-uva-text-muted hover:text-uva-text"
               >
                 {(Object.keys(ORDEN_LABEL) as Orden[]).map((valor) => (
                   <option key={valor} value={valor}>

@@ -46,7 +46,8 @@
     "audit:lighthouse:compare": "tsx scripts/audit/lighthouse-audit.ts --compare",
     "audit:screenshots": "tsx scripts/audit/viewport-screenshots.ts",
     "audit:overflow": "tsx scripts/audit/overflow-detector.ts",
-    "audit:latencia": "tsx scripts/audit/latencia.ts"
+    "audit:latencia": "tsx scripts/audit/latencia.ts",
+    "audit:contraste": "tsx scripts/audit/contraste.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

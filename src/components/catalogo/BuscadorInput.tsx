@@ -95,7 +95,7 @@ export function BuscadorInput({
           // nadie escribe algo que después se recorte en silencio.
           maxLength={LARGO_MAXIMO_BUSQUEDA}
           className={cn(
-            "h-10 w-full min-w-0 rounded-uva-md border border-uva-divider bg-uva-surface py-2 pr-3 pl-9 text-base text-uva-text caret-uva-accent outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm",
+            "h-10 w-full min-w-0 rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-3 pl-9 text-base text-uva-text caret-uva-accent outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm",
             // Espacio para la ✕ de limpiar solo cuando se ve: vacío, el
             // texto de ayuda usa todo el ancho (a 320 px se cortaba).
             texto && "pr-11",
@@ -117,7 +117,7 @@ export function BuscadorInput({
 
       <Autocomplete.Portal>
         <Autocomplete.Positioner className="isolate z-[60] outline-none" sideOffset={6}>
-          <Autocomplete.Popup className="w-(--anchor-width) max-w-(--available-width) max-h-[min(320px,var(--available-height))] overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface py-1 shadow-lg data-empty:p-0">
+          <Autocomplete.Popup className="w-(--anchor-width) max-w-(--available-width) max-h-[min(320px,var(--available-height))] overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface py-1 shadow-uva-menu data-empty:p-0">
             <Autocomplete.Empty className="px-3.5 py-3 text-sm text-uva-text-faint">
               {mensajeVacio}
             </Autocomplete.Empty>
