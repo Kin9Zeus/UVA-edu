@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { canjearCodigoInvitacion } from "@/actions/codigos-invitacion/canjear";
 import { formatearCodigoMientrasEscribe, normalizarCodigo } from "@/lib/codigoInvitacion";
+import { avisarPestanas } from "@/lib/sesion/pestanas";
 
 function formatearEspera(segundos: number): string {
   const minutos = Math.ceil(segundos / 60);
@@ -103,6 +104,8 @@ export function CanjearCodigoForm({
 
     setCodigo("");
     router.refresh();
+    // Otras pestañas con un curso bloqueado o "sin acceso" se refrescan solas.
+    avisarPestanas({ tipo: "acceso-cambio" });
   }
 
   // Capitalizada para que JSX la trate como componente y no como etiqueta

@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/site-url";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
 import { TemaProvider } from "@/components/tema/TemaProvider";
+import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -67,6 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <TemaProvider>{children}</TemaProvider>
+        <SincronizarPestanas />
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
+import { logError } from "@/lib/log";
 
 export type CrearComentarioResultado = { error: string } | { success: true; id: string };
 
@@ -18,7 +19,7 @@ const contenidoSchema = z
  * de una lección.
  *
  * `id_usuario` sale de la sesión, nunca del cliente — la policy
- * `comentarios_insert_propio` (052_comentarios.sql) ya lo exige con
+ * `comentarios_insert_propio` (última versión: 125) ya lo exige con
  * `auth.uid() = id_usuario`, esto es la misma regla aplicada antes de
  * intentar el INSERT, para devolver un mensaje claro en vez de un error
  * crudo de RLS.
@@ -65,7 +66,16 @@ export async function crearComentario(
     .select("id")
     .single();
 
-  if (error || !data) return { error: "No pudimos publicar tu comentario." };
+  if (error || !data) {
+    // 42501: la policy de INSERT lo rechazó (sin acceso vigente a la clase).
+    // No es un fallo del sistema: decir "no pudimos" haría reintentar en vano.
+    if (error?.code === "42501") {
+      return { error: "No tienes acceso para comentar en esta clase." };
+    }
+    // Nunca el contenido en el log: es texto del usuario.
+    logError("comentarios:crear", "no se pudo crear el comentario", error, { area: "comentarios", leccionId });
+    return { error: "No pudimos publicar tu comentario. Intenta de nuevo." };
+  }
 
   revalidatePath(ruta);
   return { success: true, id: data.id };

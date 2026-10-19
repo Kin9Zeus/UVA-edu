@@ -41,8 +41,9 @@ export function BottomTabBar() {
                 "grid min-h-[50px] min-w-[66px] content-center justify-items-center gap-0.5 rounded-full px-1.5 py-1 text-uva-text-muted transition-colors min-[360px]:min-w-[74px]",
                 // Activa: fondo magenta suave con ícono y texto en magenta.
                 // `accent-text` (no `accent-ink`): en oscuro `accent-ink` es
-                // #FF007A y sobre este fondo da 4,15:1, por debajo de AA para
-                // texto de 12 px; `accent-text` da más de 6:1 en los dos temas.
+                // un magenta casi puro y sobre este fondo queda por debajo de
+                // AA para texto de 12 px; `accent-text` da más de 6:1 en los
+                // dos temas.
                 active && "bg-uva-accent-soft text-uva-accent-text",
               )}
             >

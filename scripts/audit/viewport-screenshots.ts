@@ -20,6 +20,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import { crawlRoutes, assertBaseUrlReachable, sanitizeRouteForFilename } from "./lib/route-crawler";
+import { TEMA_STORAGE_KEY } from "../../src/lib/tema";
 
 const DEFAULT_BASE_URL = "https://uva-edu-production.up.railway.app";
 const ANCHOS = [320, 375, 768, 1024, 1440, 2560];
@@ -35,8 +36,10 @@ function leerArg(nombre: string): string | undefined {
 const baseUrl = leerArg("base-url") ?? DEFAULT_BASE_URL;
 const depth = Number(leerArg("depth") ?? 3);
 const routesArg = leerArg("routes");
-// --tema=oscuro emula prefers-color-scheme: dark (el tema por defecto sigue
-// al sistema, ver src/lib/tema.ts) y agrega el sufijo -oscuro al archivo.
+// --tema=oscuro captura en oscuro y agrega el sufijo -oscuro al archivo; sin
+// la bandera, en claro. El tema se fija guardando la preferencia en
+// localStorage antes de cargar: emular prefers-color-scheme ya no basta,
+// porque sin nada guardado la app es oscura (ver src/lib/tema.ts).
 const oscuro = leerArg("tema") === "oscuro";
 
 function fechaHoy(): string {
@@ -75,6 +78,16 @@ async function main() {
 
   const browser = await chromium.launch();
   const page = await browser.newPage({ colorScheme: oscuro ? "dark" : "light" });
+  await page.addInitScript(
+    ([clave, valor]) => {
+      try {
+        window.localStorage.setItem(clave, valor);
+      } catch {
+        // Sin almacenamiento la página queda en su tema por defecto.
+      }
+    },
+    [TEMA_STORAGE_KEY, oscuro ? "oscuro" : "claro"] as const,
+  );
 
   let capturadas = 0;
   const fallidas: { ruta: string; ancho: number; error: string }[] = [];

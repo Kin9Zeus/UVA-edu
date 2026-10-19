@@ -25,6 +25,7 @@ import {
   leerCorreoConfirmado,
 } from "@/lib/correo-confirmado";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import { AvisarPestanas } from "@/components/sesion/AvisarPestanas";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -95,6 +96,8 @@ export default async function ConfirmarEnlacePage({
           Iniciar sesión
         </Link>
         <p className={ACCESO_NOTA}>Entra con el correo y la contraseña que acabas de crear.</p>
+        {/* La pestaña del registro sigue en "¡Ya casi!": que pase sola al login. */}
+        <AvisarPestanas aviso={{ tipo: "correo-confirmado", correo: confirmado.correo }} />
       </PantallaCorreo>
     );
   }

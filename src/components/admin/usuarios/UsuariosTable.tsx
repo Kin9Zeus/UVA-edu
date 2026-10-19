@@ -234,7 +234,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("desde") ?? ""}
             onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
             aria-label="Registrados desde"
           />
           <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
@@ -242,7 +242,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("hasta") ?? ""}
             onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-divider bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
             aria-label="Registrados hasta"
           />
         </div>

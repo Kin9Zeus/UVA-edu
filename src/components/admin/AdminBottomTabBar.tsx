@@ -87,7 +87,7 @@ export function AdminBottomTabBar() {
       aria-label="Navegación del panel admin"
       className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+14px)] sm:px-6 md:hidden"
     >
-      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-lg shadow-uva-shadow/40 backdrop-blur">
+      <div className="flex items-center gap-1 rounded-[26px] border border-uva-divider bg-uva-surface/95 p-1.5 shadow-uva-flotante backdrop-blur">
         {principales.map((item) => (
           <Burbuja key={item.href} {...item} active={isActive(item.href)} />
         ))}

@@ -164,9 +164,12 @@
   --text-uva-titulo-4--line-height: 1.25;
   --text-uva-titulo-4--letter-spacing: -0.02em;
   --text-uva-titulo-4--font-weight: 700;
-  --text-uva-lead: clamp(0.9375rem, 0.875rem + 0.2778vw, 1.125rem); /* 15 → 18 */
+  /* Entradilla y cuerpo nunca bajan de 16 px: es el piso de texto base en
+     celular (por debajo cuesta leer y el iPhone hace zoom en los campos).
+     El máximo es bajo a propósito: en monitores grandes el texto no crece. */
+  --text-uva-lead: clamp(1rem, 0.9583rem + 0.1852vw, 1.125rem); /* 16 → 18 */
   --text-uva-lead--line-height: 1.6;
-  --text-uva-cuerpo: clamp(0.9375rem, 0.9167rem + 0.0926vw, 1rem); /* 15 → 16 */
+  --text-uva-cuerpo: 1rem; /* 16 */
   --text-uva-cuerpo--line-height: 1.55;
   --text-uva-detalle: clamp(0.8125rem, 0.7917rem + 0.0926vw, 0.875rem); /* 13 → 14 */
   --text-uva-detalle--line-height: 1.45;
@@ -181,13 +184,30 @@
   --radius-uva-sm: 8px;
   --radius-uva-md: 10px;
   --radius-uva-lg: 16px;
+
+  /* Sombras: tres niveles, uno por papel. Lo que está en el flujo de la página
+     (tarjetas, paneles) no lleva sombra: lo separa el borde.
+     - menu: lo que se despliega sobre la página (menús, selects, tooltips,
+       sugerencias del buscador, notificaciones).
+     - flotante: lo que queda fijo encima del contenido (avisos, barra inferior
+       del admin, botón de WhatsApp).
+     - acento: el único elemento destacado de una pantalla, con halo magenta.
+     `inline` para que `--uva-shadow` se resuelva en cada elemento y siga a las
+     zonas con `.dark` local. */
+  --shadow-uva-menu: 0 1px 2px color-mix(in srgb, var(--uva-shadow) 12%, transparent),
+    0 10px 28px -6px color-mix(in srgb, var(--uva-shadow) 30%, transparent);
+  --shadow-uva-flotante: 0 12px 30px color-mix(in srgb, var(--uva-shadow) 40%, transparent);
+  --shadow-uva-acento: 0 0 0 1px color-mix(in srgb, var(--uva-accent) 25%, transparent),
+    0 24px 90px -10px color-mix(in srgb, var(--uva-accent) 35%, transparent);
 }
 
 /*
- * Temas. `:root` es el tema CLARO y `.dark` (en <html>, puesta por el layout
- * raíz según la cookie `uva-tema`, ver src/lib/tema.ts) el OSCURO, que es el
- * de siempre y el que se ve sin cookie. Regla para tokens nuevos: si el valor
+ * Temas. `:root` es el tema CLARO y `.dark` (en <html>, puesta por el script
+ * del tema según la preferencia guardada en localStorage, ver src/lib/tema.ts)
+ * el OSCURO, que es el de por defecto. Regla para tokens nuevos: si el valor
  * es igual en los dos temas va solo en `:root`; si cambia, va en los dos.
+ * La tabla de contrastes de todos los pares está en docs/contrastes.md
+ * (`npm run audit:contraste` la regenera).
  *
  * Paleta clara: misma escala Zinc del oscuro, invertida. Nunca blanco puro de
  * fondo de página (#FAFAFA) ni negro puro de texto (#18181B). Los colores que
@@ -250,7 +270,9 @@
   --uva-maqueta-arista: rgba(24, 24, 27, 0.35);
   --uva-maqueta-arista-suave: rgba(24, 24, 27, 0.18);
   --uva-muted: #52525b;
-  --uva-muted-2: #71717a;
+  /* #66666E y no el Zinc 500 (#71717A): este gris es de texto de ayuda y
+     #71717A da 4,4:1 sobre el fondo y 4:1 sobre --uva-surface-2. */
+  --uva-muted-2: #66666e;
   --uva-dim: #a1a1aa;
   --uva-hover: #f4f4f5;
   /* Fondo de chips, burbujas y bloques de código (antes `#27272A` suelto) */
@@ -268,9 +290,10 @@
      transparencia para que el mismo /60 no ensucie la página blanca. */
   --uva-overlay: rgba(24, 24, 27, 0.7);
   --uva-shadow: rgba(24, 24, 27, 0.3);
-  /* Magenta usado COMO TEXTO (rótulos, enlaces, cifras): en oscuro es el
-     mismo #FF007A del acento; en claro baja a #C2005B para pasar AA. El
-     relleno de los CTA sigue siendo --uva-accent en los dos temas. */
+  /* Magenta usado COMO TEXTO (rótulos, enlaces, cifras): en oscuro sube un
+     punto sobre el #FF007A del acento (#FF1A87) para pasar AA también sobre
+     --uva-hover; en claro baja a #C2005B. El relleno de los CTA sigue siendo
+     --uva-accent en los dos temas. */
   --uva-accent-ink: #c2005b;
   --uva-link: var(--uva-accent-ink);
   --uva-link-hover: #9e004a;
@@ -307,14 +330,16 @@
   --uva-success-soft: rgba(255, 196, 0, 0.2);
   --uva-success-text: #8a5b00;
   /* Verde más oscuro que en el tema oscuro: se usa de relleno con
-     `text-uva-bg` encima (#FAFAFA sobre #15803D ≈ 5:1) y como texto. */
-  --uva-valid: #15803d;
+     `text-uva-bg` encima y como texto. #137536 y no el Green 700 (#15803D):
+     como texto da 4,8:1 sobre --uva-surface-2, donde #15803D daba 4,1:1. */
+  --uva-valid: #137536;
   --uva-valid-soft: rgba(22, 163, 74, 0.12);
 
   /* U.V.A — semáforo de estado del panel admin */
   --uva-warning: #d97706;
   --uva-warning-soft: rgba(245, 158, 11, 0.14);
-  --uva-warning-text: #b45309;
+  /* #A14A07 y no el Amber 700 (#B45309): 4,9:1 sobre --uva-surface-2. */
+  --uva-warning-text: #a14a07;
   --uva-error: #dc2626;
   --uva-error-soft: rgba(239, 68, 68, 0.1);
   --uva-error-text: #b91c1c;
@@ -323,7 +348,7 @@
   --uva-badge-success-bg: rgba(16, 185, 129, 0.14);
   --uva-badge-success-fg: #065f46;
   --uva-badge-warn-bg: rgba(245, 158, 11, 0.16);
-  --uva-badge-warn-fg: #92400e;
+  --uva-badge-warn-fg: #a14a07; /* el de --uva-warning-text: #B45309 daba 4,4:1 */
   --uva-badge-danger-bg: rgba(239, 68, 68, 0.12);
   --uva-badge-danger-fg: #b91c1c;
   --uva-badge-neutral-bg: #f4f4f5;
@@ -417,7 +442,7 @@
   --uva-scrollbar: #27272a;
   --uva-overlay: #000000;
   --uva-shadow: #000000;
-  --uva-accent-ink: #ff007a;
+  --uva-accent-ink: #ff1a87;
   --uva-link-hover: #ff4d9e;
   --uva-accent-soft: rgba(255, 0, 122, 0.16);
   --uva-accent-text: #ff7ab8;
@@ -554,7 +579,9 @@
     background: linear-gradient(168deg, var(--uva-bg-gradient-start) 0%, var(--uva-bg) 52%, var(--uva-bg) 100%);
     background-attachment: fixed;
     color: var(--uva-text);
-    font-size: 15px;
+    /* 16 px en rem: es el piso del texto base y sigue a la letra que el
+       usuario elija en su navegador (15px fijos no crecían). */
+    font-size: 1rem;
     line-height: 1.55;
   }
   /* Scrollbar del tema, no la gris de sistema por defecto — aplica a

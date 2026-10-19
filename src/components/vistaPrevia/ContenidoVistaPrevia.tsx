@@ -165,7 +165,10 @@ export function ContenidoVistaPrevia({
               Comenzar curso
             </Link>
           ) : (
-            <div className="flex min-h-12 w-full items-center justify-center rounded-uva-md bg-uva-accent/40 px-4 text-center text-[14px] font-semibold text-uva-on-accent/70">
+            // Aviso y no botón apagado: borde punteado y texto suave, que se
+            // leen en los dos temas (el magenta transparente con texto blanco
+            // al 70 % no llegaba a AA y parecía un botón roto).
+            <div className="flex min-h-12 w-full items-center justify-center rounded-uva-md border border-dashed border-uva-line-strong px-4 text-center text-uva-detalle font-semibold text-uva-text-muted">
               El curso todavía no tiene clases
             </div>
           )}

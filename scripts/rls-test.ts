@@ -1880,6 +1880,54 @@ async function main() {
       clienteAdmin.from("notas_leccion").select("id").eq("id", idNotaPrueba),
     );
 
+    // 125: el admin entra a cualquier clase sin suscripción propia
+    // (obtenerAccesoAlCurso), así que también puede tomar notas y comentar
+    // ahí. Este admin de prueba no tiene suscripción ni cortesía: la lección
+    // de pago solo se abre por ser administrador.
+    const notaAdmin = await esperarPermitido(
+      "notas: el admin SIN suscripción SÍ crea una nota propia en una lección de pago (125)",
+      clienteAdmin
+        .from("notas_leccion")
+        .insert({ id_usuario: userAdmin.user!.id, id_leccion: idLeccionDePago, segundo: 3, contenido: "Nota admin RLS test" })
+        .select("id")
+        .single(),
+    );
+    registrar("notas: el admin lee su propia nota", !!(notaAdmin as { id?: string } | null)?.id);
+    await esperarBloqueado(
+      "notas: el admin NO crea notas a nombre de otro usuario",
+      clienteAdmin
+        .from("notas_leccion")
+        .insert({ id_usuario: userConAcceso.user!.id, id_leccion: idLeccionDePago, segundo: 4, contenido: "x" })
+        .select(),
+    );
+    await esperarPermitido(
+      "comentarios: el admin SIN suscripción SÍ comenta en una lección de pago (125)",
+      clienteAdmin
+        .from("comentarios")
+        .insert({ id_leccion: idLeccionDePago, id_usuario: userAdmin.user!.id, contenido: "Comentario admin RLS test" })
+        .select("id")
+        .single(),
+    );
+    await esperarBloqueado(
+      "comentarios: el admin NO comenta a nombre de otro usuario",
+      clienteAdmin
+        .from("comentarios")
+        .insert({ id_leccion: idLeccionDePago, id_usuario: userConAcceso.user!.id, contenido: "x" })
+        .select(),
+    );
+    // No-regresión de 125: abrirle la puerta al admin no se la abre a nadie más.
+    await esperarBloqueado(
+      "comentarios: sin acceso NO comenta en una lección de pago",
+      clienteSinAcceso
+        .from("comentarios")
+        .insert({ id_leccion: idLeccionDePago, id_usuario: userSinAcceso.user!.id, contenido: "x" })
+        .select(),
+    );
+    // Fuera antes de seguir: el conteo de 117 de aquí abajo espera
+    // exactamente un estudiante con notas en la lección de pago.
+    await admin.from("notas_leccion").delete().eq("id_usuario", userAdmin.user!.id);
+    await admin.from("comentarios").delete().eq("id_usuario", userAdmin.user!.id);
+
     // 117: la única ventana del admin hacia las notas es un conteo agregado
     // para el aviso de borrado del CMS — sin contenido ni ids de usuario.
     const { data: conteoNotas, error: errConteoNotas } = await clienteAdmin.rpc("admin_notas_por_leccion", {

@@ -1,16 +1,10 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Preview,
-  Row,
-  Column,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Boton, Enlace, Ficha, MarcoCorreo, Parrafo, Recuadro, Titulo } from "./marco/marco";
+import { primerNombre } from "./marco/nombres";
+import { CORREO_SOPORTE } from "./marco/paleta";
+
+export function asuntoReciboPago(vigenteHasta: string): string {
+  return `Recibimos tu pago: acceso activo hasta el ${vigenteHasta}`;
+}
 
 type ReciboPagoEmailProps = {
   nombre: string;
@@ -26,189 +20,39 @@ type ReciboPagoEmailProps = {
   urlSuscripcion: string;
 };
 
-/**
- * Recibo de un pago aprobado.
- *
- * No es "gracias por tu compra" y ya: un recibo tiene que poder usarse como
- * comprobante, así que lleva monto, fecha, qué se compró, hasta cuándo vale y
- * la referencia con la que soporte puede encontrar la transacción.
- *
- * `vigenteHasta` es la línea que hace falta en el modelo prepagado: el
- * estudiante compró un período, no una suscripción que se renueva sola, y el
- * recibo es el primer sitio donde se le dice con todas las letras.
- */
-export function ReciboPagoEmail({
-  nombre,
-  planNombre,
-  montoFormateado,
-  fechaPago,
-  vigenteHasta,
-  referencia,
-  urlSuscripcion,
-}: ReciboPagoEmailProps) {
+/** Hoja 08. Recibo de un pago aprobado (el cobro está apagado mientras el acceso sea por invitación). */
+export function ReciboPagoEmail({ nombre, planNombre, montoFormateado, fechaPago, vigenteHasta, referencia, urlSuscripcion }: ReciboPagoEmailProps) {
+  const corto = primerNombre(nombre);
   return (
-    <Html>
-      <Head />
-      <Preview>
-        Recibimos tu pago de {montoFormateado} — tu acceso está activo hasta el {vigenteHasta}
-      </Preview>
-      <Body style={main}>
-        <Container style={container}>
-          <Section>
-            <Text style={logo}>U.V.A</Text>
-          </Section>
-
-          <Section style={content}>
-            <Text style={heading}>Listo, {nombre}. Tu acceso está activo.</Text>
-            <Text style={paragraph}>
-              Recibimos tu pago y ya puedes entrar a todo el catálogo.
-            </Text>
-
-            <Section style={caja}>
-              <Row style={fila}>
-                <Column style={etiqueta}>Plan</Column>
-                <Column style={valor}>{planNombre}</Column>
-              </Row>
-              <Row style={fila}>
-                <Column style={etiqueta}>Monto</Column>
-                <Column style={valorFuerte}>{montoFormateado}</Column>
-              </Row>
-              <Row style={fila}>
-                <Column style={etiqueta}>Fecha</Column>
-                <Column style={valor}>{fechaPago}</Column>
-              </Row>
-              <Row style={fila}>
-                <Column style={etiqueta}>Acceso hasta</Column>
-                <Column style={valorFuerte}>{vigenteHasta}</Column>
-              </Row>
-            </Section>
-
-            <Text style={aviso}>
-              Tu acceso no se renueva solo. Te avisamos por correo unos días
-              antes de que termine, para que decidas si sigues.
-            </Text>
-
-            <Button href={urlSuscripcion} style={button}>
-              Ver mi suscripción
-            </Button>
-
-            <Text style={codigo}>Referencia: {referencia}</Text>
-          </Section>
-
-          <Hr style={hr} />
-
-          <Section>
-            <Text style={footer}>U.V.A. — Unidad Vectorial de Arquitectura</Text>
-            <Text style={footer}>¿Algo no cuadra? Escríbenos a soporte@uva.edu</Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+    <MarcoCorreo
+      vistaPrevia={`Recibimos tu pago de ${montoFormateado}.`}
+      seccion="Pagos"
+      nombre="Recibo de pago"
+      hoja="08"
+      motivo="Guarda este correo como comprobante."
+      ayuda={
+        <>
+          ¿Algo no cuadra? Escríbenos a <Enlace href={`mailto:${CORREO_SOPORTE}`}>{CORREO_SOPORTE}</Enlace> con la referencia del pago.
+        </>
+      }
+    >
+      <Titulo>{corto ? `Listo, ${corto}. Tu acceso está activo` : "Listo. Tu acceso está activo"}</Titulo>
+      <Parrafo>Recibimos tu pago y ya puedes entrar a todo el catálogo.</Parrafo>
+      <Ficha
+        filas={[
+          { etiqueta: "Plan", valor: planNombre },
+          { etiqueta: "Monto", valor: montoFormateado, codigo: true },
+          { etiqueta: "Fecha de pago", valor: fechaPago },
+          { etiqueta: "Acceso hasta", valor: vigenteHasta },
+          { etiqueta: "Referencia", valor: referencia, codigo: true },
+        ]}
+      />
+      <Recuadro icono="listo">
+        Tu acceso no se renueva solo. Te avisamos por correo unos días antes de que termine para que decidas si sigues.
+      </Recuadro>
+      <Boton href={urlSuscripcion} pad="4px 0 0">
+        Ver mi suscripción
+      </Boton>
+    </MarcoCorreo>
   );
 }
-
-const main = {
-  backgroundColor: "#09090B",
-  padding: "32px 0",
-  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
-
-const container = {
-  backgroundColor: "#18181B",
-  border: "1px solid #27272A",
-  borderRadius: "6px",
-  padding: "32px",
-  maxWidth: "480px",
-  margin: "0 auto",
-};
-
-const logo = {
-  color: "#FAFAFA",
-  fontSize: "20px",
-  fontWeight: 700,
-  letterSpacing: "1px",
-  margin: 0,
-};
-
-const content = { marginTop: "24px" };
-
-const heading = {
-  color: "#FAFAFA",
-  fontSize: "18px",
-  fontWeight: 600,
-  margin: "0 0 12px",
-};
-
-const paragraph = {
-  color: "#A1A1AA",
-  fontSize: "14px",
-  lineHeight: "1.5",
-  margin: "0 0 16px",
-};
-
-const caja = {
-  backgroundColor: "#141417",
-  border: "1px solid #27272A",
-  borderRadius: "6px",
-  padding: "16px",
-  margin: "0 0 16px",
-};
-
-const fila = { marginBottom: "8px" };
-
-const etiqueta = {
-  color: "#71717A",
-  fontSize: "13px",
-  width: "40%",
-};
-
-const valor = {
-  color: "#A1A1AA",
-  fontSize: "13px",
-  textAlign: "right" as const,
-};
-
-const valorFuerte = {
-  color: "#FAFAFA",
-  fontSize: "13px",
-  fontWeight: 600,
-  fontFamily: "'JetBrains Mono', monospace",
-  textAlign: "right" as const,
-};
-
-const aviso = {
-  color: "#A1A1AA",
-  fontSize: "13px",
-  lineHeight: "1.5",
-  margin: "0 0 20px",
-};
-
-const button = {
-  backgroundColor: "#FF007A",
-  color: "#FAFAFA",
-  borderRadius: "6px",
-  padding: "12px 24px",
-  fontSize: "14px",
-  fontWeight: 600,
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const codigo = {
-  color: "#71717A",
-  fontSize: "11px",
-  fontFamily: "'JetBrains Mono', monospace",
-  letterSpacing: "0.04em",
-  margin: "20px 0 0",
-};
-
-const hr = { borderColor: "#27272A", margin: "24px 0" };
-
-const footer = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "0 0 4px",
-};
-
-export default ReciboPagoEmail;

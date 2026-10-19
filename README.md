@@ -36,7 +36,15 @@ Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+
    GEMINI_API_KEY=
    NEXT_PUBLIC_SITE_URL=
    NEXT_PUBLIC_PRICING_ENABLED=
+   CORREO_ORIGEN_IMAGENES=
    ```
+
+   **`CORREO_ORIGEN_IMAGENES`** (opcional) es el origen público del que los
+   correos cargan sus imágenes (el logo de `public/correo/`). Vacía, se usa
+   `NEXT_PUBLIC_SITE_URL`. En local conviene ponerle la URL de producción: si
+   no, un correo enviado desde `next dev` pide el logo a `localhost`, que
+   ningún buzón alcanza, y sale roto. Solo sirve para archivos que ya estén
+   desplegados.
 
    **`NEXT_PUBLIC_PRICING_ENABLED`** (opcional) activa la sección de precios,
    el enlace "Precios" del menú y la página `/planes`. Vacía o distinta de
