@@ -63,6 +63,7 @@ try {
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { asuntoCertificadoEmitido, CertificadoEmitidoEmail } from "../src/emails/certificado-emitido";
+import { conTextoPlano } from "../src/emails/marco/texto-plano";
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -128,7 +129,7 @@ async function main() {
       continue;
     }
 
-    const { error: errorEnvio } = await resend.emails.send({
+    const { error: errorEnvio } = await resend.emails.send(await conTextoPlano({
       // Mismo remitente que src/lib/resend.ts: uvarq.com está verificado
       // en Resend (SPF/DKIM/DMARC OK).
       from: "U.V.A <noreply@uvarq.com>",
@@ -141,7 +142,7 @@ async function main() {
         urlCertificados: URL_CERTIFICADOS,
         urlVerificacion: `${URL_VERIFICACION}/${encodeURIComponent(fila.codigo_verificacion)}`,
       }),
-    });
+    }));
 
     if (errorEnvio) {
       fallidos += 1;

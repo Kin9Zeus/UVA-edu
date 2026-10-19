@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Body, Head, Html, Img, Preview } from "@react-email/components";
 import { siteUrl } from "@/lib/site-url";
 import { ESTILOS_CORREO } from "./estilos";
-import { CLARO, CORREO_SOPORTE, FIJOS, LETRA, LETRA_CODIGO } from "./paleta";
+import { BASE, CORREO_SOPORTE, FIJOS, LETRA, LETRA_CODIGO } from "./paleta";
 
 /*
  * Marco común de los correos de U.V.A. (rediseño "carné"): cabecera con logo,
@@ -19,17 +19,37 @@ function texto(estilo: CSSProperties): CSSProperties {
   return { fontFamily: LETRA, margin: 0, ...estilo };
 }
 
-/** Logo de trazo. `gruesa` para tamaños chicos (rótulo). */
+/**
+ * Logo de trazo. `gruesa` para tamaños chicos (rótulo).
+ *
+ * El PNG trae fondo opaco del color de la tarjeta: Gmail en el celular
+ * recolorea los fondos del correo pero nunca las imágenes, y un logo
+ * transparente de un solo color desaparece cuando el fondo cambia. Con su
+ * propio fondo se lee en cualquier cliente. Se ve el de tema oscuro; el de
+ * tema claro solo donde el cliente aplica `prefers-color-scheme: light`.
+ */
+/**
+ * Origen público de las imágenes del correo. Por defecto es el del sitio,
+ * pero un correo enviado desde `next dev` las pediría a localhost, que ningún
+ * buzón alcanza: `CORREO_ORIGEN_IMAGENES` (opcional, ver README) las apunta a
+ * un sitio desplegado que ya tenga /public/correo.
+ */
+export function origenImagenesCorreo(): string {
+  const configurado = process.env.CORREO_ORIGEN_IMAGENES?.trim().replace(/\/+$/, "");
+  return configurado || siteUrl();
+}
+
 function Logo({ ancho, gruesa = false }: { ancho: number; gruesa?: boolean }) {
   const alto = Math.round((ancho * 23) / 70);
-  const base = `${siteUrl()}/correo/logo-${gruesa ? "%s-gruesa" : "%s"}.png`;
+  const archivo = (tema: "oscuro" | "claro") =>
+    `${origenImagenesCorreo()}/correo/logo-sobre-${tema}${gruesa ? "-gruesa" : ""}.png`;
   const estilo: CSSProperties = { display: "block", border: 0, outline: "none", width: ancho, height: alto };
   return (
     <>
-      <Img className="c-logo-claro" src={base.replace("%s", "tinta")} width={ancho} height={alto} alt="U.V.A." style={estilo} />
+      <Img className="c-logo-base" src={archivo("oscuro")} width={ancho} height={alto} alt="U.V.A." style={estilo} />
       <Img
-        className="c-logo-oscuro"
-        src={base.replace("%s", "claro")}
+        className="c-logo-alterno"
+        src={archivo("claro")}
         width={ancho}
         height={alto}
         alt=""
@@ -53,7 +73,7 @@ export function Titulo({ children }: { children: ReactNode }) {
     <Fila pad="0 0 12px">
       <h1
         className="c-h1 c-tinta"
-        style={texto({ fontSize: 28, lineHeight: "34px", fontWeight: 800, letterSpacing: "-0.6px", color: CLARO.tinta })}
+        style={texto({ fontSize: 28, lineHeight: "34px", fontWeight: 800, letterSpacing: "-0.6px", color: BASE.tinta })}
       >
         {children}
       </h1>
@@ -64,7 +84,7 @@ export function Titulo({ children }: { children: ReactNode }) {
 /** Texto en tinta y negrita dentro de un párrafo suave (nombres, correos, fechas). */
 export function Fuerte({ children }: { children: ReactNode }) {
   return (
-    <strong className="c-tinta" style={{ color: CLARO.tinta, fontWeight: 700 }}>
+    <strong className="c-tinta" style={{ color: BASE.tinta, fontWeight: 700 }}>
       {children}
     </strong>
   );
@@ -73,7 +93,7 @@ export function Fuerte({ children }: { children: ReactNode }) {
 export function Parrafo({ children, pad }: { children: ReactNode; pad?: string }) {
   return (
     <Fila pad={pad}>
-      <p className="c-suave" style={texto({ fontSize: 16, lineHeight: "26px", color: CLARO.suave })}>
+      <p className="c-suave" style={texto({ fontSize: 16, lineHeight: "26px", color: BASE.suave })}>
         {children}
       </p>
     </Fila>
@@ -84,7 +104,7 @@ export function Parrafo({ children, pad }: { children: ReactNode; pad?: string }
 export function Nota({ children, pad = "0 0 14px" }: { children: ReactNode; pad?: string }) {
   return (
     <Fila pad={pad}>
-      <p className="c-suave" style={texto({ fontSize: 13, lineHeight: "21px", color: CLARO.suave })}>
+      <p className="c-suave" style={texto({ fontSize: 13, lineHeight: "21px", color: BASE.suave })}>
         {children}
       </p>
     </Fila>
@@ -97,7 +117,7 @@ export function Enlace({ href, children, quebrar = false }: { href: string; chil
       className="c-enlace"
       href={href}
       target="_blank"
-      style={{ color: CLARO.enlace, textDecoration: "underline", wordBreak: quebrar ? "break-all" : "normal" }}
+      style={{ color: BASE.enlace, textDecoration: "underline", wordBreak: quebrar ? "break-all" : "normal" }}
     >
       {children}
     </a>
@@ -106,7 +126,7 @@ export function Enlace({ href, children, quebrar = false }: { href: string; chil
 
 export function Codigo({ children }: { children: ReactNode }) {
   return (
-    <span className="c-tinta" style={{ fontFamily: LETRA_CODIGO, fontSize: 14, letterSpacing: "0.5px", color: CLARO.tinta }}>
+    <span className="c-tinta" style={{ fontFamily: LETRA_CODIGO, fontSize: 14, letterSpacing: "0.5px", color: BASE.tinta }}>
       {children}
     </span>
   );
@@ -117,6 +137,7 @@ export function Boton({ href, children, pad = "4px 0 14px" }: { href: string; ch
   return (
     <Fila pad={pad}>
       <a
+        className="c-boton"
         href={href}
         target="_blank"
         style={texto({
@@ -147,13 +168,13 @@ export function BotonSecundario({ href, children, pad = "0" }: { href: string; c
         target="_blank"
         style={texto({
           display: "block",
-          border: `1.5px solid ${CLARO.tinta}`,
+          border: `1.5px solid ${BASE.tinta}`,
           borderRadius: 10,
           padding: "14px 20px",
           fontSize: 16,
           lineHeight: "20px",
           fontWeight: 700,
-          color: CLARO.tinta,
+          color: BASE.tinta,
           textAlign: "center",
           textDecoration: "none",
         })}
@@ -167,7 +188,7 @@ export function BotonSecundario({ href, children, pad = "0" }: { href: string; c
 export function Separador() {
   return (
     <Fila pad="6px 0 16px">
-      <div className="c-separador" style={{ height: 1, lineHeight: "1px", fontSize: 0, background: CLARO.linea }}>
+      <div className="c-separador" style={{ height: 1, lineHeight: "1px", fontSize: 0, background: BASE.linea }}>
         &nbsp;
       </div>
     </Fila>
@@ -195,14 +216,14 @@ export function Recuadro({ icono, children }: { icono: "alerta" | "listo"; child
   const marca =
     icono === "alerta" ? (
       <span
-        className="c-enlace"
+        className="c-enlace c-borde-magenta"
         style={texto({
           display: "inline-block",
           width: 20,
           height: 20,
           borderRadius: 11,
           border: `2px solid ${FIJOS.magenta}`,
-          color: CLARO.enlace,
+          color: BASE.enlace,
           fontSize: 13,
           lineHeight: "20px",
           fontWeight: 800,
@@ -213,6 +234,7 @@ export function Recuadro({ icono, children }: { icono: "alerta" | "listo"; child
       </span>
     ) : (
       <span
+        className="c-amarillo"
         style={texto({
           display: "inline-block",
           width: 22,
@@ -231,13 +253,13 @@ export function Recuadro({ icono, children }: { icono: "alerta" | "listo"; child
     );
   return (
     <Fila>
-      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${CLARO.linea}`, borderRadius: 10 }}>
+      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${BASE.linea}`, borderRadius: 10 }}>
         <tbody>
           <tr>
             <td width={34} valign="top" style={{ width: 34, padding: "14px 0 14px 16px" }}>
               {marca}
             </td>
-            <td className="c-tinta" style={texto({ padding: "14px 16px 14px 10px", fontSize: 15, lineHeight: "23px", color: CLARO.tinta })}>
+            <td className="c-tinta" style={texto({ padding: "14px 16px 14px 10px", fontSize: 15, lineHeight: "23px", color: BASE.tinta })}>
               {children}
             </td>
           </tr>
@@ -254,17 +276,17 @@ export function Ficha({ filas }: { filas: FilaFicha[] }) {
   const celda: CSSProperties = { padding: "11px 16px", fontFamily: LETRA, fontSize: 14, lineHeight: "20px", verticalAlign: "top" };
   return (
     <Fila>
-      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${CLARO.linea}`, borderRadius: 10 }}>
+      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${BASE.linea}`, borderRadius: 10 }}>
         <tbody>
           {filas.map((fila, i) => {
-            const borde: CSSProperties = i === 0 ? {} : { borderTop: `1px solid ${CLARO.linea}` };
+            const borde: CSSProperties = i === 0 ? {} : { borderTop: `1px solid ${BASE.linea}` };
             return (
               <tr key={fila.etiqueta}>
-                <td className="c-linea c-suave" style={{ ...celda, ...borde, width: "38%", color: CLARO.suave }}>
+                <td className="c-linea c-suave" style={{ ...celda, ...borde, width: "38%", color: BASE.suave }}>
                   {fila.etiqueta}
                 </td>
                 <td className="c-linea" style={{ ...celda, ...borde, fontWeight: 600, textAlign: "right" }}>
-                  {fila.codigo ? <Codigo>{fila.valor}</Codigo> : <span className="c-tinta" style={{ color: CLARO.tinta }}>{fila.valor}</span>}
+                  {fila.codigo ? <Codigo>{fila.valor}</Codigo> : <span className="c-tinta" style={{ color: BASE.tinta }}>{fila.valor}</span>}
                 </td>
               </tr>
             );
@@ -281,16 +303,16 @@ export function Cita({ titulo, children }: { titulo: string; children: ReactNode
     <Fila>
       <table
         {...tabla}
-        className="c-fondo-suave"
-        style={{ borderCollapse: "separate", borderLeft: `4px solid ${FIJOS.amarillo}`, background: CLARO.fondoSuave, borderRadius: "0 10px 10px 0" }}
+        className="c-fondo-suave c-borde-amarillo"
+        style={{ borderCollapse: "separate", borderLeft: `4px solid ${FIJOS.amarillo}`, background: BASE.fondoSuave, borderRadius: "0 10px 10px 0" }}
       >
         <tbody>
           <tr>
             <td style={{ padding: "14px 16px 14px 18px" }}>
-              <p className="c-suave" style={texto({ margin: "0 0 4px", fontSize: 13, lineHeight: "18px", fontWeight: 700, color: CLARO.suave })}>
+              <p className="c-suave" style={texto({ margin: "0 0 4px", fontSize: 13, lineHeight: "18px", fontWeight: 700, color: BASE.suave })}>
                 {titulo}
               </p>
-              <p className="c-tinta" style={texto({ fontSize: 15, lineHeight: "24px", fontStyle: "italic", color: CLARO.tinta })}>
+              <p className="c-tinta" style={texto({ fontSize: 15, lineHeight: "24px", fontStyle: "italic", color: BASE.tinta })}>
                 {children}
               </p>
             </td>
@@ -320,12 +342,12 @@ export function Carne({
   correo: string;
   sello: { texto: string; tono: "pendiente" | "activo" };
 }) {
-  const etiqueta = texto({ fontSize: 11, fontWeight: 600, color: CLARO.suave });
-  const dato = texto({ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: CLARO.tinta });
+  const etiqueta = texto({ fontSize: 11, fontWeight: 600, color: BASE.suave });
+  const dato = texto({ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: BASE.tinta });
   const estiloSello: CSSProperties =
     sello.tono === "pendiente"
-      ? { border: `2px solid ${FIJOS.magenta}`, color: CLARO.enlace }
-      : { border: `2px solid ${CLARO.tinta}`, background: FIJOS.amarillo, color: FIJOS.sobreAmarillo };
+      ? { border: `2px solid ${FIJOS.magenta}`, color: BASE.enlace }
+      : { border: `2px solid ${BASE.tinta}`, background: FIJOS.amarillo, color: FIJOS.sobreAmarillo };
   return (
     <Fila pad="2px 0 22px">
       <table
@@ -333,7 +355,7 @@ export function Carne({
         align="center"
         width={300}
         className="c-carne c-borde c-fondo-tarjeta"
-        style={{ borderCollapse: "separate", border: `2px solid ${CLARO.tinta}`, borderRadius: 14, overflow: "hidden", background: CLARO.tarjeta }}
+        style={{ borderCollapse: "separate", border: `2px solid ${BASE.tinta}`, borderRadius: 14, overflow: "hidden", background: BASE.tarjeta }}
       >
         <tbody>
           <tr>
@@ -344,7 +366,7 @@ export function Carne({
                     <td>
                       <Logo ancho={58} />
                     </td>
-                    <td className="c-suave" align="right" style={texto({ fontSize: 12, fontWeight: 600, color: CLARO.suave })}>
+                    <td className="c-suave" align="right" style={texto({ fontSize: 12, fontWeight: 600, color: BASE.suave })}>
                       Carné de obra
                     </td>
                   </tr>
@@ -365,12 +387,12 @@ export function Carne({
                       style={texto({
                         width: 60,
                         height: 72,
-                        border: `2px solid ${CLARO.tinta}`,
+                        border: `2px solid ${BASE.tinta}`,
                         borderRadius: 7,
-                        background: CLARO.fondoSuave,
+                        background: BASE.fondoSuave,
                         fontSize: 24,
                         fontWeight: 800,
-                        color: CLARO.tinta,
+                        color: BASE.tinta,
                       })}
                     >
                       {iniciales(nombre)}
@@ -381,7 +403,7 @@ export function Carne({
                       </p>
                       <p
                         className="c-tinta"
-                        style={texto({ margin: "2px 0 0", fontSize: 20, lineHeight: "24px", fontWeight: 800, letterSpacing: "-0.4px", color: CLARO.tinta })}
+                        style={texto({ margin: "2px 0 0", fontSize: 20, lineHeight: "24px", fontWeight: 800, letterSpacing: "-0.4px", color: BASE.tinta })}
                       >
                         {nombre}
                       </p>
@@ -410,7 +432,7 @@ export function Carne({
           <tr>
             <td align="right" style={{ padding: "14px 16px 12px" }}>
               <span
-                className={sello.tono === "pendiente" ? "c-enlace" : undefined}
+                className={sello.tono === "pendiente" ? "c-enlace c-borde-magenta" : "c-amarillo c-borde"}
                 style={texto({
                   display: "inline-block",
                   padding: "4px 10px",
@@ -428,10 +450,10 @@ export function Carne({
           </tr>
           <tr>
             <td
-              className="c-borde"
+              className="c-borde c-amarillo"
               style={texto({
                 background: FIJOS.amarillo,
-                borderTop: `2px solid ${CLARO.tinta}`,
+                borderTop: `2px solid ${BASE.tinta}`,
                 padding: "9px 18px",
                 fontSize: 12,
                 fontWeight: 700,
@@ -449,11 +471,11 @@ export function Carne({
 
 /** Los días que faltan, dibujados como una cota de plano de hoy al último día. */
 export function Cota({ etiqueta, desde, hasta }: { etiqueta: string; desde: string; hasta: string }) {
-  const extremo: CSSProperties = { width: 2, background: CLARO.tinta, fontSize: 0, lineHeight: 0 };
-  const lado = texto({ fontSize: 13, color: CLARO.suave });
+  const extremo: CSSProperties = { width: 2, background: BASE.tinta, fontSize: 0, lineHeight: 0 };
+  const lado = texto({ fontSize: 13, color: BASE.suave });
   return (
     <Fila>
-      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${CLARO.linea}`, borderRadius: 12 }}>
+      <table {...tabla} className="c-linea" style={{ borderCollapse: "separate", border: `1px solid ${BASE.linea}`, borderRadius: 12 }}>
         <tbody>
           <tr>
             <td style={{ padding: "18px 18px 16px" }}>
@@ -462,6 +484,7 @@ export function Cota({ etiqueta, desde, hasta }: { etiqueta: string; desde: stri
                   <tr>
                     <td colSpan={3} align="center" style={{ padding: "0 0 8px" }}>
                       <span
+                        className="c-amarillo"
                         style={texto({
                           display: "inline-block",
                           padding: "4px 12px",
@@ -481,7 +504,7 @@ export function Cota({ etiqueta, desde, hasta }: { etiqueta: string; desde: stri
                       &nbsp;
                     </td>
                     <td style={{ height: 16 }}>
-                      <div className="c-borde" style={{ height: 0, borderTop: `2px solid ${CLARO.tinta}`, marginTop: 7, fontSize: 0, lineHeight: 0 }}>
+                      <div className="c-borde" style={{ height: 0, borderTop: `2px solid ${BASE.tinta}`, marginTop: 7, fontSize: 0, lineHeight: 0 }}>
                         &nbsp;
                       </div>
                     </td>
@@ -536,13 +559,13 @@ export type MarcoCorreoProps = {
 };
 
 export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda, children }: MarcoCorreoProps) {
-  const etiquetaRotulo = texto({ fontSize: 10, fontWeight: 700, color: CLARO.suave });
-  const valorRotulo = texto({ margin: "2px 0 0", fontSize: 13, lineHeight: "17px", fontWeight: 700, color: CLARO.tinta });
+  const etiquetaRotulo = texto({ fontSize: 10, fontWeight: 700, color: BASE.suave });
+  const valorRotulo = texto({ margin: "2px 0 0", fontSize: 13, lineHeight: "17px", fontWeight: 700, color: BASE.tinta });
   return (
     <Html lang="es">
       <Head>
-        <meta name="color-scheme" content="light dark" />
-        <meta name="supported-color-schemes" content="light dark" />
+        <meta name="color-scheme" content="dark light" />
+        <meta name="supported-color-schemes" content="dark light" />
         {/* Correo, no página de Next: la regla de fuentes de _document no aplica.
             Gmail ignora la hoja y usa Arial; Apple Mail e iOS cargan la letra. */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -553,8 +576,8 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
         <style dangerouslySetInnerHTML={{ __html: ESTILOS_CORREO }} />
       </Head>
       <Preview>{vistaPrevia}</Preview>
-      <Body className="c-pagina" style={{ margin: 0, padding: 0, background: CLARO.pagina }}>
-        <table {...tabla} className="c-pagina" style={{ background: CLARO.pagina }}>
+      <Body className="c-pagina" style={{ margin: 0, padding: 0, background: BASE.pagina }}>
+        <table {...tabla} className="c-pagina" style={{ background: BASE.pagina }}>
           <tbody>
             <tr>
               <td align="center" style={{ padding: "28px 12px" }}>
@@ -563,8 +586,8 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                   className="c-tarjeta"
                   style={{
                     maxWidth: 560,
-                    background: CLARO.tarjeta,
-                    border: `2px solid ${CLARO.tinta}`,
+                    background: BASE.tarjeta,
+                    border: `2px solid ${BASE.tinta}`,
                     borderRadius: 14,
                     borderCollapse: "separate",
                     overflow: "hidden",
@@ -579,7 +602,7 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                               <td>
                                 <Logo ancho={70} />
                               </td>
-                              <td className="c-suave" align="right" style={texto({ fontSize: 13, fontWeight: 600, color: CLARO.suave })}>
+                              <td className="c-suave" align="right" style={texto({ fontSize: 13, fontWeight: 600, color: BASE.suave })}>
                                 {seccion}
                               </td>
                             </tr>
@@ -589,12 +612,12 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                     </tr>
                     <tr>
                       <td
-                        className="c-borde"
+                        className="c-borde c-amarillo"
                         style={{
                           height: 8,
                           background: FIJOS.amarillo,
-                          borderTop: `2px solid ${CLARO.tinta}`,
-                          borderBottom: `2px solid ${CLARO.tinta}`,
+                          borderTop: `2px solid ${BASE.tinta}`,
+                          borderBottom: `2px solid ${BASE.tinta}`,
                           fontSize: 0,
                           lineHeight: 0,
                         }}
@@ -614,17 +637,17 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                         <table
                           {...tabla}
                           className="c-rot c-borde"
-                          style={{ border: `1.5px solid ${CLARO.tinta}`, borderRadius: 4, borderCollapse: "separate" }}
+                          style={{ border: `1.5px solid ${BASE.tinta}`, borderRadius: 4, borderCollapse: "separate" }}
                         >
                           <tbody>
                             <tr>
                               <td className="c-rc c-rc0" style={{ padding: "9px 12px", width: "40%" }}>
                                 <Logo ancho={48} gruesa />
-                                <p className="c-suave" style={texto({ margin: "4px 0 0", fontSize: 11, lineHeight: "14px", fontWeight: 600, color: CLARO.suave })}>
+                                <p className="c-suave" style={texto({ margin: "4px 0 0", fontSize: 11, lineHeight: "14px", fontWeight: 600, color: BASE.suave })}>
                                   Unidad Vectorial de Arquitectura
                                 </p>
                               </td>
-                              <td className="c-rc c-borde" style={{ padding: "9px 12px", borderLeft: `1.5px solid ${CLARO.tinta}`, width: "34%" }}>
+                              <td className="c-rc c-borde" style={{ padding: "9px 12px", borderLeft: `1.5px solid ${BASE.tinta}`, width: "34%" }}>
                                 <p className="c-suave" style={etiquetaRotulo}>
                                   Correo
                                 </p>
@@ -632,7 +655,7 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                                   {nombre}
                                 </p>
                               </td>
-                              <td className="c-rc c-borde" style={{ padding: "9px 12px", borderLeft: `1.5px solid ${CLARO.tinta}`, width: "26%" }}>
+                              <td className="c-rc c-borde" style={{ padding: "9px 12px", borderLeft: `1.5px solid ${BASE.tinta}`, width: "26%" }}>
                                 <p className="c-suave" style={etiquetaRotulo}>
                                   Hoja
                                 </p>
@@ -646,7 +669,7 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                       </td>
                     </tr>
                     <tr>
-                      <td className="c-pad c-suave" style={texto({ padding: "14px 32px 24px", fontSize: 12, lineHeight: "19px", color: CLARO.suave })}>
+                      <td className="c-pad c-suave" style={texto({ padding: "14px 32px 24px", fontSize: 12, lineHeight: "19px", color: BASE.suave })}>
                         {ayuda ?? (
                           <>
                             ¿Necesitas ayuda? Escríbenos a <Enlace href={`mailto:${CORREO_SOPORTE}`}>{CORREO_SOPORTE}</Enlace>.

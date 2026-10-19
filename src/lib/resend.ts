@@ -6,6 +6,7 @@ import { asuntoComunidadModerada, ComunidadModeradaEmail } from "@/emails/comuni
 import { asuntoReciboPago, ReciboPagoEmail } from "@/emails/recibo-pago";
 import { formatFechaHora } from "@/lib/admin/format";
 import { siteUrl } from "@/lib/site-url";
+import { conTextoPlano } from "@/emails/marco/texto-plano";
 
 export { resend };
 
@@ -19,12 +20,12 @@ export async function enviarCorreoBienvenida(
   urlAcceso: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send(await conTextoPlano({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: ASUNTO_BIENVENIDA,
       react: WelcomeEmail({ nombre, correo: destinatario, urlAcceso }),
-    });
+    }));
 
     if (error) {
       return { success: false, error: error.message };
@@ -59,7 +60,7 @@ export async function enviarCorreoCertificadoEmitido(
   urlCertificados: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send(await conTextoPlano({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoCertificadoEmitido(cursoTitulo),
@@ -70,7 +71,7 @@ export async function enviarCorreoCertificadoEmitido(
         urlCertificados,
         urlVerificacion: `${siteUrl()}/verificar-certificado/${encodeURIComponent(codigoVerificacion)}`,
       }),
-    });
+    }));
 
     if (error) {
       return { success: false, error: error.message };
@@ -92,7 +93,7 @@ export async function enviarCorreoPasswordActualizada(
   destinatario: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send(await conTextoPlano({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: ASUNTO_PASSWORD_ACTUALIZADA,
@@ -103,7 +104,7 @@ export async function enviarCorreoPasswordActualizada(
         fechaCambio: formatFechaHora(new Date().toISOString()),
         urlLogin: `${siteUrl()}/login`,
       }),
-    });
+    }));
 
     if (error) {
       return { success: false, error: error.message };
@@ -136,12 +137,12 @@ export async function enviarCorreoComunidadModerada(
   urlComunidad: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send(await conTextoPlano({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoComunidadModerada(tipoContenido),
       react: ComunidadModeradaEmail({ nombre, tipoContenido, tituloPost, motivo, urlComunidad }),
-    });
+    }));
 
     if (error) {
       return { success: false, error: error.message };
@@ -181,12 +182,12 @@ export async function enviarCorreoReciboPago(
   },
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send(await conTextoPlano({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoReciboPago(datos.vigenteHasta),
       react: ReciboPagoEmail(datos),
-    });
+    }));
 
     if (error) {
       return { success: false, error: error.message };

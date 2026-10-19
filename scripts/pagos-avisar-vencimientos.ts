@@ -39,6 +39,7 @@ try {
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { asuntoVencimientoProximo, VencimientoProximoEmail } from "@/emails/vencimiento-proximo";
+import { conTextoPlano } from "@/emails/marco/texto-plano";
 import { calcularDiasVigencia } from "@/lib/estadoAcceso";
 import { formatFecha } from "@/lib/admin/format";
 
@@ -148,7 +149,7 @@ async function main() {
       continue;
     }
 
-    const { error: errorEnvio } = await resend.emails.send({
+    const { error: errorEnvio } = await resend.emails.send(await conTextoPlano({
       from: FROM,
       to: perfil.correo,
       subject: asuntoVencimientoProximo(dias),
@@ -160,7 +161,7 @@ async function main() {
         fechaVencimiento: formatFecha(suscripcion.fecha_renovacion!),
         urlPlanes: `${SITE_URL}/dashboard/planes`,
       }),
-    });
+    }));
 
     if (errorEnvio) {
       console.error(`  FALLA ${perfil.correo} — ${errorEnvio.message}`);

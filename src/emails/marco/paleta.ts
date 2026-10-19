@@ -3,12 +3,15 @@
  *
  * Los clientes de correo no entienden variables CSS, así que aquí los colores
  * van escritos (es la excepción a la regla de tokens de CLAUDE.md 3.3). Son los
- * mismos valores de src/app/globals.css: claro como base, en estilos en línea,
- * y oscuro solo donde el cliente respeta `prefers-color-scheme` (Apple Mail,
- * Outlook nuevo), vía las clases de estilos.ts. Gmail ignora esa media query
- * y muestra el claro.
+ * mismos valores de src/app/globals.css.
  *
- * paleta.test.ts mide cada par de texto/fondo con la misma regla AA de la app.
+ * El OSCURO es la base, igual que en la plataforma: va en los estilos en línea
+ * y es lo que se ve en Gmail, que ignora las media queries de tema y además
+ * oscurece por su cuenta los correos claros en el celular. El claro solo
+ * aparece donde el cliente respeta `prefers-color-scheme: light` (Apple Mail,
+ * Outlook para Mac), vía las clases de estilos.ts.
+ *
+ * src/emails/correos.test.ts mide cada par de texto/fondo con la misma regla AA de la app.
  */
 
 export const CLARO = {
@@ -34,6 +37,11 @@ export const OSCURO = {
   fondoSuave: "#0D0D10",
   enlace: "#FF7AB8",
 } as const;
+
+/** Lo que va en los estilos en línea. */
+export const BASE = OSCURO;
+/** Lo que aplica la media query de tema claro. */
+export const ALTERNO = CLARO;
 
 /** Iguales en los dos temas. */
 export const FIJOS = {

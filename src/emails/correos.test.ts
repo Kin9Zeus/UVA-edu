@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@react-email/components";
 import { aRgba, razon } from "@/lib/diseno/contraste";
@@ -12,6 +14,7 @@ import { asuntoCertificadoEmitido, CertificadoEmitidoEmail } from "./certificado
 import { asuntoVencimientoProximo, VencimientoProximoEmail } from "./vencimiento-proximo";
 import { asuntoReciboPago, ReciboPagoEmail } from "./recibo-pago";
 import { asuntoConfirmarAccion, ConfirmarAccionEmail } from "./confirmar-accion";
+import { conTextoPlano } from "./marco/texto-plano";
 
 const ENLACE = "https://uva.test/auth/confirm?token_hash=abc&type=signup";
 
@@ -70,8 +73,27 @@ describe("las nueve plantillas", () => {
 
       it("llevan el logo PNG alojado en el sitio, con texto alternativo", async () => {
         const html = await render(crear());
-        expect(html).toContain(`src="${siteUrl()}/correo/logo-tinta.png"`);
+        expect(html).toContain(`src="${siteUrl()}/correo/logo-sobre-oscuro.png"`);
         expect(html).toContain('alt="U.V.A."');
+      });
+
+      it("salen en oscuro por defecto y en claro solo si el cliente lo pide", async () => {
+        const html = await render(crear());
+        expect(html).toMatch(/class="c-pagina"[^>]*background:#09090B/i);
+        expect(html).toContain("@media (prefers-color-scheme:light)");
+      });
+
+      it("fijan sus colores para que el modo oscuro del cliente no los recoloree", async () => {
+        const html = await render(crear());
+        // Oscuro repetido: el cliente ve que el correo ya está pensado para oscuro.
+        const oscuro = html.slice(html.indexOf("@media (prefers-color-scheme:dark)"));
+        expect(oscuro.indexOf(".c-pagina{background-color:#09090B!important;}")).toBeGreaterThan(0);
+        expect(oscuro.indexOf(".c-pagina{background-color:#09090B!important;}")).toBeLessThan(oscuro.indexOf("}\n"));
+        // Outlook marca lo que recolorea con data-ogsb / data-ogsc.
+        expect(html).toContain("[data-ogsb] .c-tarjeta{background-color:#18181B!important;");
+        expect(html).toContain("[data-ogsc] .c-tinta{color:#FAFAFA!important;}");
+        expect(html).toContain("[data-ogsb] .c-amarillo{background-color:#FFC400!important;");
+        expect(html).toContain('class="c-boton"');
       });
 
       it("pintan el botón con el magenta de la app (AA), no con el magenta puro", async () => {
@@ -184,6 +206,46 @@ describe("asuntos", () => {
     expect(asuntoConfirmarAccion("reauthentication")).toBe("Confirma que eres tú en U.V.A.");
     expect(asuntoConfirmarAccion("desconocido")).toBe("Confirma tu acción en U.V.A.");
   });
+});
+
+describe("texto plano", () => {
+  it("conTextoPlano agrega la versión en texto de la misma plantilla", async () => {
+    const envio = await conTextoPlano({ to: "a@uva.test", react: correos.confirmar() });
+    expect(envio.text).toContain("Confirma tu correo");
+    expect(envio.text).toContain(ENLACE);
+    expect(envio.react).toBeDefined();
+  });
+
+  it("respeta un texto que ya venga escrito", async () => {
+    const envio = await conTextoPlano({ react: correos.confirmar(), text: "propio" });
+    expect(envio.text).toBe("propio");
+  });
+});
+
+describe("origen de las imágenes", () => {
+  it("usa CORREO_ORIGEN_IMAGENES si está definida, sin barra final", async () => {
+    const antes = process.env.CORREO_ORIGEN_IMAGENES;
+    process.env.CORREO_ORIGEN_IMAGENES = "https://uva.test/";
+    try {
+      const html = await render(correos.confirmar());
+      expect(html).toContain('src="https://uva.test/correo/logo-sobre-oscuro.png"');
+    } finally {
+      if (antes === undefined) delete process.env.CORREO_ORIGEN_IMAGENES;
+      else process.env.CORREO_ORIGEN_IMAGENES = antes;
+    }
+  });
+});
+
+describe("logos del correo", () => {
+  // Gmail en el celular recolorea los fondos y nunca las imágenes: un logo
+  // con transparencia desaparece sobre el fondo recoloreado. Tipo de color 2
+  // en la cabecera PNG = RGB sin canal alfa.
+  for (const archivo of ["logo-sobre-oscuro", "logo-sobre-oscuro-gruesa", "logo-sobre-claro", "logo-sobre-claro-gruesa"]) {
+    it(`${archivo}.png es opaco`, () => {
+      const png = readFileSync(join(process.cwd(), "public/correo", `${archivo}.png`));
+      expect(png[25]).toBe(2);
+    });
+  }
 });
 
 describe("paleta del correo", () => {

@@ -1,5 +1,5 @@
 import { Boton, BotonSecundario, Ficha, Fila, Fuerte, MarcoCorreo, Recuadro, Separador, Titulo } from "./marco/marco";
-import { CLARO, CORREO_SOPORTE, LETRA } from "./marco/paleta";
+import { BASE, CORREO_SOPORTE, LETRA } from "./marco/paleta";
 
 export const ASUNTO_PASSWORD_ACTUALIZADA = "Tu contraseña de U.V.A. cambió";
 
@@ -33,7 +33,7 @@ export function ContrasenaActualizadaEmail({ correo, fechaCambio, urlLogin }: Co
       <Boton href={urlLogin}>Iniciar sesión</Boton>
       <Separador />
       <Fila pad="0 0 14px">
-        <p className="c-suave" style={{ margin: 0, fontFamily: LETRA, fontSize: 15, lineHeight: "24px", color: CLARO.suave }}>
+        <p className="c-suave" style={{ margin: 0, fontFamily: LETRA, fontSize: 15, lineHeight: "24px", color: BASE.suave }}>
           <Fuerte>¿No fuiste tú?</Fuerte> Alguien más podría estar usando tu cuenta. Escríbenos de inmediato para protegerla.
         </p>
       </Fila>
