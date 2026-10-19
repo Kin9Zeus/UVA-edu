@@ -31,7 +31,7 @@ export function EncabezadoCurso({
   children?: ReactNode;
 }) {
   return (
-    <header className="border-b border-uva-divider">
+    <header className="sticky top-0 z-40 border-b border-uva-divider bg-uva-bg lg:static">
       <div className="mx-auto flex w-full max-w-uva items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-6 lg:px-8">
         <Link
           href={inicio.href}

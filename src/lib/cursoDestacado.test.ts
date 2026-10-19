@@ -52,15 +52,24 @@ describe("getCursoDestacado", () => {
     });
   });
 
-  it("pide curso y lecciones en UNA consulta, con el cliente público", async () => {
+  it("pide curso y lecciones en UNA consulta (más la del profesor), con el cliente público", async () => {
     servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
 
     await getCursoDestacado();
 
-    expect(servidorFalso.operaciones()).toEqual(["from:cursos"]);
+    expect(servidorFalso.operaciones()).toEqual(["from:cursos", "from:curso_instructores_publico"]);
     expect(servidorFalso.llamadas[0].cliente).toBe("publico");
     const [seleccion] = servidorFalso.encadenado("from:cursos", "select")[0] as [string];
     expect(seleccion).toContain("modulos(lecciones(");
+  });
+
+  it("trae el nombre del profesor, o null si el curso no tiene", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+    servidorFalso.responder("from:curso_instructores_publico", {
+      data: [{ id_curso: "k1", id_instructor: "p1", nombre: "Ana Ruiz", especialidad: null, foto_url: null }],
+      error: null,
+    });
+    expect(await getCursoDestacado()).toMatchObject({ instructorNombre: "Ana Ruiz" });
   });
 
   it("sin curso destacado: null, y no es un error", async () => {

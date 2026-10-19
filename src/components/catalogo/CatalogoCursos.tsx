@@ -6,7 +6,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
 import { CursoTarjetaPublica } from "@/components/catalogo/CursoTarjetaPublica";
-import { IconoCategoria } from "@/components/categorias/IconoCategoria";
 import { cn } from "@/lib/utils";
 import { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
 import type {
@@ -20,9 +19,6 @@ import type {
 
 // Revf3: no disparar una consulta al servidor por cada tecla.
 const DEBOUNCE_MS = 300;
-
-/** Botones de categoría visibles en celular antes de "Ver las N categorías". */
-const CATEGORIAS_VISIBLES = 6;
 
 /** Botones de estado del catálogo del panel, en el orden del diseño. */
 const ESTADOS: { valor: string | undefined; etiqueta: string }[] = [
@@ -217,9 +213,8 @@ export function CatalogoCursos({
               <SelectTrigger
                 aria-label="Filtrar por categoría"
                 className={cn(
-                  "min-h-11 gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text dark:bg-uva-surface dark:hover:bg-uva-surface",
-                  // En el público, el celular filtra con los botones de categoría.
-                  panel ? "flex max-md:w-full" : "hidden md:flex",
+                  "min-h-11.25 gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:h-9 md:min-h-9 md:border md:text-uva-detalle md:font-medium dark:bg-uva-surface dark:hover:bg-uva-surface",
+                  "flex max-md:w-full",
                 )}
               >
                 <SelectValue placeholder="Categoría" />
@@ -242,7 +237,7 @@ export function CatalogoCursos({
             onBuscar={alSeleccionarSugerencia}
             onTextoChange={alEscribir}
             className="w-full md:w-[340px]"
-            inputClassName="h-13 border-[1.5px] border-uva-line-strong pl-11 text-base hover:border-uva-text md:h-11 sm:text-base"
+            inputClassName="h-11.25 border-[1.5px] border-uva-line-strong pl-11 text-base hover:border-uva-text md:h-9 md:border sm:text-base md:text-uva-detalle"
           />
           {/* Con `fallo` el total no es 0: es desconocido. */}
           {!resultado.fallo && (
@@ -252,11 +247,6 @@ export function CatalogoCursos({
             >
               {resultado.totalResultados} {resultado.totalResultados === 1 ? "curso" : "cursos"}
             </p>
-          )}
-          {/* En celular las categorías van entre el buscador y el total, que
-              queda justo encima de la lista (`order-last`). */}
-          {!panel && categorias.length > 0 && (
-            <CategoriasMovil categorias={categorias} activa={categoriaActiva?.slug} onElegir={elegirCategoria} />
           )}
         </div>
 
@@ -271,7 +261,7 @@ export function CatalogoCursos({
                     aria-pressed={presionado}
                     onClick={() => navegar(hrefCon({ estado: valor }))}
                     className={cn(
-                      "inline-flex min-h-11 items-center rounded-full border-[1.5px] px-4 text-uva-detalle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+                      "inline-flex min-h-11 items-center rounded-full border-[1.5px] px-4 text-uva-detalle md:min-h-9 md:border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
                       presionado
                         ? "border-uva-text bg-uva-text font-bold text-uva-bg"
                         : "border-uva-line-strong font-medium text-uva-text hover:border-uva-text",
@@ -299,77 +289,6 @@ export function CatalogoCursos({
         onReintentar={() => startTransition(() => router.refresh())}
         onLimpiar={limpiarFiltros}
       />
-    </div>
-  );
-}
-
-/**
- * Botones de categoría en dos columnas, solo en celular (desde 768 px filtra
- * el selector). Muestran las primeras CATEGORIAS_VISIBLES y el resto detrás
- * de "Ver las N categorías"; si la activa está entre las ocultas, se abren
- * todas para que se vea cuál filtra.
- */
-function CategoriasMovil({
-  categorias,
-  activa,
-  onElegir,
-}: {
-  categorias: CategoriaActiva[];
-  activa: string | undefined;
-  onElegir: (slug: string | undefined) => void;
-}) {
-  const indiceActiva = categorias.findIndex((c) => c.slug === activa);
-  const [abiertas, setAbiertas] = useState(indiceActiva >= CATEGORIAS_VISIBLES);
-  const visibles = abiertas ? categorias : categorias.slice(0, CATEGORIAS_VISIBLES);
-  const ocultas = categorias.length - CATEGORIAS_VISIBLES;
-
-  return (
-    <div className="w-full md:hidden">
-      <ul id="categorias-catalogo" aria-label="Categorías" className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">
-        {visibles.map((categoria) => {
-          const presionada = categoria.slug === activa;
-          return (
-            <li key={categoria.id}>
-              <button
-                type="button"
-                aria-pressed={presionada}
-                onClick={() => onElegir(presionada ? undefined : categoria.slug)}
-                className={cn(
-                  "flex min-h-13 w-full items-center gap-1.5 rounded-uva-md border-[1.5px] px-2.5 py-1.5 text-left text-uva-detalle font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
-                  presionada
-                    ? "border-uva-text bg-uva-text text-uva-bg"
-                    : "border-uva-line-strong bg-transparent text-uva-text",
-                )}
-              >
-                <IconoCategoria
-                  clave={categoria.slug}
-                  className={cn("size-5", presionada && "stroke-uva-bg")}
-                />
-                {/* Dos columnas solo si caben 9,5 rem por botón (375 px sí, 320 px
-                    no, ni con la letra agrandada). Si aun así una palabra no
-                    cabe, se parte en vez de montarse sobre el contador. */}
-                <span className="min-w-0 flex-1 hyphens-auto [overflow-wrap:anywhere]">{categoria.nombre}</span>
-                <span className="shrink-0 font-mono opacity-70">
-                  <span className="sr-only">, </span>
-                  {categoria.totalCursos}
-                  <span className="sr-only">{categoria.totalCursos === 1 ? " curso" : " cursos"}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {ocultas > 0 && (
-        <button
-          type="button"
-          aria-expanded={abiertas}
-          aria-controls="categorias-catalogo"
-          onClick={() => setAbiertas((valor) => !valor)}
-          className="mt-1.5 inline-flex min-h-11 items-center px-0.5 text-uva-cuerpo font-semibold text-uva-text underline underline-offset-4 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-        >
-          {abiertas ? "Ver menos categorías" : `Ver las ${categorias.length} categorías`}
-        </button>
-      )}
     </div>
   );
 }

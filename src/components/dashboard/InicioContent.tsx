@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ChevronRight, Play } from "lucide-react";
+import { ArrowRight, ChevronRight, CirclePlay, Clock, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { Button } from "@/components/ui/button";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
@@ -12,7 +12,6 @@ import type { CursoDeCategoria } from "@/lib/categoria";
 import type { ClaseEnProgreso, CategoriaConConteo, ResumenObra } from "@/lib/dashboard";
 import type { CursoDestacado } from "@/lib/cursoDestacado";
 
-const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
 /** Fondo de una portada sin imagen: la retícula de lámina. */
 const RETICULA =
@@ -65,7 +64,7 @@ function ContinuaDondeQuedaste({ clase }: { clase: ClaseEnProgreso }) {
   return (
     <section
       aria-labelledby="inicio-continua"
-      className="grid min-w-0 gap-5 rounded-uva-lg border border-uva-divider bg-uva-surface p-4 sm:p-[22px] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
+      className="grid min-w-0 gap-5 lg:self-start xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
     >
       <Link
         href={href}
@@ -102,7 +101,7 @@ function ContinuaDondeQuedaste({ clase }: { clase: ClaseEnProgreso }) {
         )}
       </Link>
 
-      <div className="flex min-w-0 flex-col justify-between gap-5 py-1">
+      <div className="flex min-w-0 flex-col justify-center gap-3 py-1">
         <div className="flex flex-col gap-2">
           <p className="text-uva-cuerpo font-semibold text-uva-text-muted">Continúa donde quedaste</p>
           <h2 id="inicio-continua" className="text-uva-titulo-4 font-extrabold text-balance text-uva-text sm:text-uva-titulo-3 xl:text-uva-titulo-4">
@@ -128,7 +127,7 @@ function ContinuaDondeQuedaste({ clase }: { clase: ClaseEnProgreso }) {
             nativeButton={false}
             variant="uva-primary"
             size="uva"
-            className="min-h-13 gap-2 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto"
+            className="min-h-13 lg:min-h-12 gap-2 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto"
           >
             <Play className="size-4 fill-current" aria-hidden="true" />
             Seguir la clase
@@ -149,29 +148,43 @@ function ParaEmpezar({ curso }: { curso: CursoDestacado }) {
   return (
     <section
       aria-labelledby="inicio-empezar"
-      className="grid min-w-0 gap-5 rounded-uva-lg border border-uva-divider bg-uva-surface p-4 sm:p-[22px] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
+      className="grid min-w-0 gap-5 lg:self-start xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] xl:gap-7"
     >
-      <div className="relative aspect-video self-center overflow-hidden rounded-uva-md border border-uva-divider">
+      <div className="relative aspect-video self-start overflow-hidden rounded-uva-md border border-uva-divider">
         <Portada imagen={curso.imagenPortada} sizes="(max-width: 1279px) 100vw, 480px" />
       </div>
-      <div className="flex min-w-0 flex-col justify-between gap-5 py-1">
+      <div className="flex min-w-0 flex-col justify-between gap-3 xl:h-0 xl:min-h-full">
         <div className="flex flex-col gap-2">
-          <p className="text-uva-cuerpo font-semibold text-uva-text-muted">Para empezar</p>
           <h2 id="inicio-empezar" className="text-uva-titulo-4 font-extrabold text-balance text-uva-text sm:text-uva-titulo-3 xl:text-uva-titulo-4">
+            <span className="sr-only">Para empezar: </span>
             {curso.titulo}
           </h2>
-          <p className="line-clamp-3 text-uva-cuerpo text-uva-text-muted">{curso.descripcion}</p>
+          <p className="line-clamp-2 text-uva-cuerpo text-uva-text-muted">{curso.descripcion}</p>
+          {curso.instructorNombre && (
+            <p className="m-0 text-uva-cuerpo text-uva-text-muted">
+              Dicta <span className="font-semibold text-uva-text">{curso.instructorNombre}</span>
+            </p>
+          )}
+          <p className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-uva-detalle font-semibold text-uva-text">
+            <NivelCurso nivel={curso.nivel} />
+            <span className="inline-flex items-center gap-2">
+              <CirclePlay className="size-4 text-uva-text-muted" aria-hidden="true" />
+              {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
+            </span>
+            {curso.duracionTotalSegundos > 0 && (
+              <span className="inline-flex items-center gap-2">
+                <Clock className="size-4 text-uva-text-muted" aria-hidden="true" />
+                {formatHoras(curso.duracionTotalSegundos)}
+              </span>
+            )}
+          </p>
         </div>
-        <p className="text-uva-cuerpo text-uva-text-muted">
-          {NIVEL_LABEL[curso.nivel]}, {curso.totalClases} {curso.totalClases === 1 ? "clase" : "clases"}
-          {curso.duracionTotalSegundos > 0 ? `, ${formatHoras(curso.duracionTotalSegundos)}` : ""}
-        </p>
         <Button
           render={<Link href={`/cursos/${curso.slug}`} />}
           nativeButton={false}
           variant="uva-primary"
           size="uva"
-          className="min-h-13 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto sm:self-start"
+          className="min-h-13 lg:min-h-12 px-[30px] text-uva-cuerpo max-sm:w-full sm:w-auto sm:self-start"
         >
           Ver el curso
         </Button>
@@ -305,7 +318,7 @@ function ExploraCategorias({ categorias }: { categorias: CategoriaConConteo[] })
         </h2>
         <Link
           href="/dashboard/catalogo"
-          className="inline-flex min-h-11 items-center gap-1.5 text-uva-cuerpo font-bold text-uva-accent-ink"
+          className="inline-flex min-h-11 items-center gap-1.5 text-uva-detalle font-bold text-uva-accent-ink"
         >
           Ver catálogo
           <ArrowRight className="size-4" aria-hidden="true" />

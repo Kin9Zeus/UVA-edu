@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
+import { SelectorTemaMenuItem, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
 import { logout } from "@/actions/auth/logout";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export function MenuCuenta({
   esAdmin = false,
   mostrarNombre = true,
   comunidadSiempre = false,
+  temaEnMenu = false,
 }: {
   nombre: string;
   fotoUrl?: string | null;
@@ -43,6 +44,9 @@ export function MenuCuenta({
   /** En el panel, Comunidad sale en el menú solo en celular (en escritorio ya
    * está en el Sidebar). La clase no tiene Sidebar: va siempre. */
   comunidadSiempre?: boolean;
+  /** Tema claro/oscuro en el menú, solo en celular: donde la cabecera no tiene
+   * el botón sol/luna (clase y examen). */
+  temaEnMenu?: boolean;
 }) {
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
@@ -99,6 +103,7 @@ export function MenuCuenta({
             </DropdownMenuLinkItem>
           </>
         )}
+        {temaEnMenu && <SelectorTemaMenuItem className={cn(ITEM, "lg:hidden")} />}
         <SelectorTemaSistemaMenuItem className={ITEM} />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => logout()} className={ITEM}>

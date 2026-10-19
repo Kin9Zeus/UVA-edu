@@ -31,7 +31,7 @@ type PanelLateral = "notas" | "comentarios";
 const ESCRITORIO = "(min-width: 1024px)";
 
 const BOTON_PRIMARIO =
-  "inline-flex min-h-12 items-center justify-center gap-2.5 rounded-uva-md bg-uva-btn px-5 text-center text-uva-cuerpo font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline";
+  "inline-flex min-h-12 lg:min-h-11 items-center justify-center gap-2.5 rounded-uva-md bg-uva-btn px-5 text-center text-uva-cuerpo font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline";
 const BOTON_SECUNDARIO =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-uva-md border-[1.5px] border-uva-line-strong px-4 text-center text-uva-detalle font-semibold text-uva-text hover:border-uva-text hover:no-underline";
 
@@ -272,6 +272,7 @@ export function LeccionMaqueta({
             esAdmin={sesion.esAdmin}
             mostrarNombre={false}
             comunidadSiempre
+            temaEnMenu
           />
         ) : (
           <Link href={rutaEntrar} className={cn(BOTON_SECUNDARIO, "hidden shrink-0 lg:inline-flex")}>

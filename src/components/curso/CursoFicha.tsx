@@ -25,7 +25,7 @@ const formatPromedio = new Intl.NumberFormat("es-CO", {
 const BOTON_PRIMARIO =
   "flex w-full flex-col items-center justify-center gap-0.5 rounded-uva-md bg-uva-btn px-4.5 py-2.5 text-center text-uva-cuerpo leading-tight font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 const BOTON_SECUNDARIO =
-  "flex min-h-13 w-full items-center justify-center rounded-uva-md border-[1.5px] border-uva-line-strong px-5 text-center text-uva-cuerpo font-semibold text-uva-text hover:border-uva-text hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
+  "flex min-h-13 w-full lg:min-h-12 items-center justify-center rounded-uva-md border-[1.5px] border-uva-line-strong px-5 text-center text-uva-cuerpo font-semibold text-uva-text hover:border-uva-text hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 
 /** Duración de una clase como se lee en un reproductor: `3:20`, `1:02:05`. `null` si no hay video listo. */
 function duracionClase(segundos: number | null): string | null {
@@ -385,7 +385,7 @@ export function CursoFicha({
           {conAcceso ? (
             <>
               {rutaDestino && destino ? (
-                <Link href={rutaDestino} className={cn(BOTON_PRIMARIO, "min-h-16")}>
+                <Link href={rutaDestino} className={cn(BOTON_PRIMARIO, "min-h-16 lg:min-h-14")}>
                   {siguiendo ? "Seguir viendo" : completado ? "Repasar curso" : "Comenzar curso"}
                   {destino.titulo && !completado && (
                     <small className="block w-full min-w-0 truncate text-uva-detalle font-medium">
@@ -405,7 +405,7 @@ export function CursoFicha({
           ) : (
             <>
               {rutaVistaPrevia && vistaPrevia && (
-                <Link href={rutaVistaPrevia} className={cn(BOTON_PRIMARIO, "min-h-16")}>
+                <Link href={rutaVistaPrevia} className={cn(BOTON_PRIMARIO, "min-h-16 lg:min-h-14")}>
                   Ver la primera clase gratis
                   <small className="block w-full min-w-0 truncate text-uva-detalle font-medium">
                     Clase 1, {vistaPrevia.titulo}
@@ -589,7 +589,7 @@ function AccesoSinCurso({
   conVistaPrevia: boolean;
 }) {
   const clase = cn(
-    conVistaPrevia ? BOTON_SECUNDARIO : cn(BOTON_PRIMARIO, "min-h-13"),
+    conVistaPrevia ? BOTON_SECUNDARIO : cn(BOTON_PRIMARIO, "min-h-13 lg:min-h-12"),
     conVistaPrevia && "-mt-2",
   );
   if (!conSesion) {

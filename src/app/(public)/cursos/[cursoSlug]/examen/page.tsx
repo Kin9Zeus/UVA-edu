@@ -143,6 +143,7 @@ export default async function ExamenPage({
             esAdmin={cuenta.esAdmin}
             mostrarNombre={false}
             comunidadSiempre
+            temaEnMenu
           />
         )}
       </EncabezadoCurso>

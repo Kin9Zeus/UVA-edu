@@ -7,7 +7,13 @@ import { Award, Check, Flame, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { Button } from "@/components/ui/button";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { esPortadaReal } from "@/lib/media";
 import type { CursoConProgreso, ProgresoData } from "@/lib/progreso";
 
@@ -22,25 +28,39 @@ const FILTROS: { valor: Filtro; etiqueta: string }[] = [
 
 const ZONA = "America/Bogota";
 const DIA = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA });
-const FECHA_CORTA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", timeZone: ZONA });
-const FECHA_LARGA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: ZONA });
+const FECHA_CORTA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "short",
+  timeZone: ZONA,
+});
+const FECHA_LARGA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: ZONA,
+});
 
 /** "18 sept 2026" (sin los "de" ni el punto de es-CO). */
 function fechaLarga(iso: string) {
   const partes = FECHA_LARGA.formatToParts(new Date(iso));
-  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value.replace(".", "") ?? "";
+  const parte = (tipo: string) =>
+    partes.find((p) => p.type === tipo)?.value.replace(".", "") ?? "";
   return `${parte("day")} ${parte("month")} ${parte("year")}`;
 }
 
 /** "21 sep" para el lunes de una semana ("AAAA-MM-DD"). */
 function fechaCorta(dia: string) {
-  return FECHA_CORTA.format(new Date(`${dia}T12:00:00Z`)).replace(".", "").replace(" de ", " ");
+  return FECHA_CORTA.format(new Date(`${dia}T12:00:00Z`))
+    .replace(".", "")
+    .replace(" de ", " ");
 }
 
 /** "hoy", "ayer" o "hace N días", contando días de Bogotá respecto a `hoy`. */
 function haceCuanto(iso: string, hoy: string) {
   const dias = Math.round(
-    (new Date(`${hoy}T12:00:00Z`).getTime() - new Date(`${DIA.format(new Date(iso))}T12:00:00Z`).getTime()) / 86_400_000,
+    (new Date(`${hoy}T12:00:00Z`).getTime() -
+      new Date(`${DIA.format(new Date(iso))}T12:00:00Z`).getTime()) /
+      86_400_000,
   );
   if (dias <= 0) return "hoy";
   if (dias === 1) return "ayer";
@@ -62,20 +82,28 @@ const RETICULA =
 function Cifra({ valor, etiqueta }: { valor: string; etiqueta: string }) {
   return (
     <div className="flex flex-col-reverse px-[22px] py-[18px]">
-      <dt className="mt-0.5 text-uva-detalle text-uva-text-muted">{etiqueta}</dt>
+      <dt className="mt-0.5 text-uva-detalle text-uva-text-muted">
+        {etiqueta}
+      </dt>
       <dd className="font-mono text-uva-titulo-3 text-uva-text">{valor}</dd>
     </div>
   );
 }
 
-function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["actividad"]> }) {
+function Actividad({
+  actividad,
+}: {
+  actividad: NonNullable<ProgresoData["actividad"]>;
+}) {
   const { racha, semanas } = actividad;
   const actual = semanas[semanas.length - 1];
-  const promedio = semanas.reduce((total, semana) => total + semana.dias, 0) / semanas.length;
+  const promedio =
+    semanas.reduce((total, semana) => total + semana.dias, 0) / semanas.length;
   const promedioTexto = Number.isInteger(promedio)
     ? String(promedio)
     : promedio.toLocaleString("es-CO", { maximumFractionDigits: 1 });
-  const etiqueta = (semana: (typeof semanas)[number]) => (semana.esActual ? "Esta semana" : fechaCorta(semana.inicio));
+  const etiqueta = (semana: (typeof semanas)[number]) =>
+    semana.esActual ? "Esta semana" : fechaCorta(semana.inicio);
 
   return (
     <section
@@ -86,10 +114,14 @@ function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["activid
         <h2 id="progreso-actividad" className="text-uva-titulo-4 text-uva-text">
           Tu actividad
         </h2>
-        <p className="text-uva-detalle text-uva-text-muted">Días por semana en que viste al menos una clase.</p>
+        <p className="text-uva-detalle text-uva-text-muted">
+          Días por semana en que viste al menos una clase.
+        </p>
         <p className="mt-1.5 flex items-center gap-2 text-uva-cuerpo font-bold text-uva-text">
           <Flame className="size-5 text-uva-accent-2-text" aria-hidden="true" />
-          {racha === 0 ? "Sin racha por ahora" : `Racha de ${racha} ${racha === 1 ? "día" : "días"}`}
+          {racha === 0
+            ? "Sin racha por ahora"
+            : `Racha de ${racha} ${racha === 1 ? "día" : "días"}`}
         </p>
         <p className="text-uva-detalle text-uva-text-muted">
           {actual.dias === 0 ? (
@@ -103,7 +135,8 @@ function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["activid
               .
             </>
           )}{" "}
-          En el último mes, tu promedio es de {promedioTexto} {promedio === 1 ? "día" : "días"} por semana.
+          En el último mes, tu promedio es de {promedioTexto}{" "}
+          {promedio === 1 ? "día" : "días"} por semana.
         </p>
       </div>
       <div className="w-full lg:w-[400px] lg:shrink-0">
@@ -115,11 +148,15 @@ function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["activid
           className="flex items-end gap-3 lg:gap-5"
         >
           {semanas.map((semana) => (
-            <div key={semana.inicio} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            <div
+              key={semana.inicio}
+              className="flex min-w-0 flex-1 flex-col items-center gap-2"
+            >
               <span
                 className={`font-mono text-uva-detalle ${semana.esActual ? "font-extrabold text-uva-text" : "font-semibold text-uva-text-muted"}`}
               >
-                {semana.dias} <span className="font-normal text-uva-text-muted">de 7</span>
+                {semana.dias}{" "}
+                <span className="font-normal text-uva-text-muted">de 7</span>
               </span>
               <span className="relative h-28 w-full max-w-[52px] rounded-uva-sm bg-[color-mix(in_srgb,var(--uva-divider)_60%,transparent)]">
                 <span
@@ -136,7 +173,8 @@ function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["activid
           ))}
         </div>
         <p className="mt-3 text-uva-detalle text-uva-text-muted">
-          Último mes. Cada barra es una semana: la parte llena son los días en que viste al menos una clase.
+          Último mes. Cada barra es una semana: la parte llena son los días en
+          que viste al menos una clase.
         </p>
       </div>
     </section>
@@ -168,7 +206,9 @@ function Estado({ curso }: { curso: CursoConProgreso }) {
 
 function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
   const hrefCurso = `/cursos/${curso.cursoSlug}`;
-  const hrefSeguir = curso.siguienteLeccionSlug ? `${hrefCurso}/${curso.siguienteLeccionSlug}` : hrefCurso;
+  const hrefSeguir = curso.siguienteLeccionSlug
+    ? `${hrefCurso}/${curso.siguienteLeccionSlug}`
+    : hrefCurso;
 
   return (
     <li className="flex flex-col gap-[18px] border-t border-uva-divider pt-[18px] pb-4 md:flex-row md:items-center">
@@ -179,17 +219,33 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
         className="relative block aspect-video w-full overflow-hidden rounded-uva-md border border-uva-divider md:w-[200px] md:shrink-0"
       >
         {curso.reanudarEn ? (
-          <MiniaturaMux src={curso.reanudarEn.url} className="absolute inset-0 size-full object-cover" />
+          <MiniaturaMux
+            src={curso.reanudarEn.url}
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : esPortadaReal(curso.imagenPortada) ? (
-          <Image src={curso.imagenPortada} alt="" fill sizes="(max-width: 767px) 100vw, 200px" className="object-cover" />
+          <Image
+            src={curso.imagenPortada}
+            alt=""
+            fill
+            sizes="(max-width: 767px) 100vw, 200px"
+            className="object-cover"
+          />
         ) : (
-          <span className={`absolute inset-0 grid place-items-center ${RETICULA}`}>
-            {curso.categoria && <IconoCategoria clave={curso.categoria} className="size-14" />}
+          <span
+            className={`absolute inset-0 grid place-items-center ${RETICULA}`}
+          >
+            {curso.categoria && (
+              <IconoCategoria clave={curso.categoria} className="size-14" />
+            )}
           </span>
         )}
         {!curso.completado && curso.porcentaje > 0 && (
           <span className="absolute inset-x-0 bottom-0 h-1 bg-uva-overlay/35">
-            <span className="block h-full bg-uva-btn" style={{ width: `${curso.porcentaje}%` }} />
+            <span
+              className="block h-full bg-uva-btn"
+              style={{ width: `${curso.porcentaje}%` }}
+            />
           </span>
         )}
       </Link>
@@ -204,7 +260,9 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
             </span>
           )}
         </div>
-        <h3 className="text-uva-cuerpo leading-snug font-extrabold text-uva-text">{curso.titulo}</h3>
+        <h3 className="text-uva-cuerpo leading-snug font-extrabold text-uva-text">
+          {curso.titulo}
+        </h3>
         <div className="flex items-center gap-3">
           <div
             role="progressbar"
@@ -214,14 +272,19 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
             aria-valuenow={curso.porcentaje}
             className="h-1.5 flex-1 overflow-hidden rounded-full bg-uva-divider"
           >
-            <div className="h-full rounded-full bg-uva-btn" style={{ width: `${curso.porcentaje}%` }} />
+            <div
+              className="h-full rounded-full bg-uva-btn"
+              style={{ width: `${curso.porcentaje}%` }}
+            />
           </div>
           <span className="font-mono text-uva-detalle font-bold text-uva-text">
             {curso.leccionesCompletadas}/{curso.leccionesTotal} clases
           </span>
         </div>
         {curso.certificadoEmitido ? (
-          <p className="font-mono text-uva-detalle text-uva-text-muted">Terminado el {fechaLarga(curso.certificadoEmitido)}</p>
+          <p className="font-mono text-uva-detalle text-uva-text-muted">
+            Terminado el {fechaLarga(curso.certificadoEmitido)}
+          </p>
         ) : (
           curso.ultimaActividad && (
             <p className="font-mono text-uva-detalle text-uva-text-muted">
@@ -229,44 +292,57 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
             </p>
           )
         )}
-      </div>
-
-      <div className="md:shrink-0">
-        {curso.completado ? (
-          <Button
-            render={<Link href={curso.certificadoEmitido ? "/dashboard/certificados" : hrefCurso} />}
-            nativeButton={false}
-            variant="uva-secondary"
-            size="uva"
-            className="min-h-11 gap-2 text-uva-cuerpo max-md:w-full md:w-auto"
-          >
-            {curso.certificadoEmitido ? (
-              <>
-                <Award className="size-[18px]" aria-hidden="true" />
-                Ver certificado
-              </>
-            ) : (
-              "Ver curso"
-            )}
-          </Button>
-        ) : (
-          <Button
-            render={<Link href={hrefSeguir} />}
-            nativeButton={false}
-            variant="uva-primary"
-            size="uva"
-            className="min-h-11 gap-2 text-uva-cuerpo max-md:w-full md:w-auto"
-          >
-            <Play className="size-4 fill-current" aria-hidden="true" />
-            Continuar
-          </Button>
-        )}
+        <div className="mt-1 max-md:w-full">
+          {curso.completado ? (
+            <Button
+              render={
+                <Link
+                  href={
+                    curso.certificadoEmitido
+                      ? "/dashboard/certificados"
+                      : hrefCurso
+                  }
+                />
+              }
+              nativeButton={false}
+              variant="uva-secondary"
+              size="uva"
+              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:h-9 md:min-h-9 md:w-auto md:px-4 md:text-uva-detalle"
+            >
+              {curso.certificadoEmitido ? (
+                <>
+                  <Award className="size-[18px]" aria-hidden="true" />
+                  Ver certificado
+                </>
+              ) : (
+                "Ver curso"
+              )}
+            </Button>
+          ) : (
+            <Button
+              render={<Link href={hrefSeguir} />}
+              nativeButton={false}
+              variant="uva-primary"
+              size="uva"
+              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:h-9 md:min-h-9 md:w-auto md:px-4 md:text-uva-detalle"
+            >
+              <Play className="size-4 fill-current" aria-hidden="true" />
+              Continuar
+            </Button>
+          )}
+        </div>
       </div>
     </li>
   );
 }
 
-export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string }) {
+export function ProgresoContent({
+  data,
+  hoy,
+}: {
+  data: ProgresoData;
+  hoy: string;
+}) {
   const { cursos, actividad } = data;
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [orden, setOrden] = useState<Orden>("recientes");
@@ -282,50 +358,80 @@ export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string
     });
     // `cursos` ya llega ordenado por actividad reciente (vista
     // progreso_cursos_estudiante): "recientes" no reordena nada.
-    return orden === "porcentaje" ? [...filtrados].sort((a, b) => b.porcentaje - a.porcentaje) : filtrados;
+    return orden === "porcentaje"
+      ? [...filtrados].sort((a, b) => b.porcentaje - a.porcentaje)
+      : filtrados;
   }, [cursos, filtro, orden]);
 
   const terminados = cursos.filter((curso) => curso.completado).length;
-  const clasesVistas = cursos.reduce((total, curso) => total + curso.leccionesCompletadas, 0);
-  const segundosVistos = cursos.reduce((total, curso) => total + curso.segundosVistos, 0);
+  const clasesVistas = cursos.reduce(
+    (total, curso) => total + curso.leccionesCompletadas,
+    0,
+  );
+  const segundosVistos = cursos.reduce(
+    (total, curso) => total + curso.segundosVistos,
+    0,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-uva flex-col gap-9 px-uva-margen py-7 lg:py-9">
       <div>
         <h1 className="text-uva-titulo-3 text-uva-text">Tu progreso</h1>
-        <p className="mt-2 text-uva-lead text-uva-text-muted">Lo que llevas, lo que terminaste y tu ritmo de estudio.</p>
+        <p className="mt-2 text-uva-lead text-uva-text-muted">
+          Lo que llevas, lo que terminaste y tu ritmo de estudio.
+        </p>
       </div>
 
       <dl className="-mt-3 grid grid-cols-2 border-t border-uva-divider pt-5 lg:grid-cols-4 [&>div:nth-child(even)]:border-l lg:[&>div:not(:first-child)]:border-l [&>div]:border-uva-divider">
-        <Cifra valor={String(cursos.length)} etiqueta={cursos.length === 1 ? "curso inscrito" : "cursos inscritos"} />
-        <Cifra valor={String(terminados)} etiqueta={terminados === 1 ? "terminado" : "terminados"} />
-        <Cifra valor={String(clasesVistas)} etiqueta={clasesVistas === 1 ? "clase vista" : "clases vistas"} />
-        <Cifra valor={duracionTexto(segundosVistos)} etiqueta="de clases vistas" />
+        <Cifra
+          valor={String(cursos.length)}
+          etiqueta={cursos.length === 1 ? "curso inscrito" : "cursos inscritos"}
+        />
+        <Cifra
+          valor={String(terminados)}
+          etiqueta={terminados === 1 ? "terminado" : "terminados"}
+        />
+        <Cifra
+          valor={String(clasesVistas)}
+          etiqueta={clasesVistas === 1 ? "clase vista" : "clases vistas"}
+        />
+        <Cifra
+          valor={duracionTexto(segundosVistos)}
+          etiqueta="de clases vistas"
+        />
       </dl>
 
       {actividad ? (
         <Actividad actividad={actividad} />
       ) : (
         <p className="border-t border-uva-divider pt-5 text-uva-detalle text-uva-text-muted">
-          No pudimos cargar tu actividad de estudio. Recarga la página para intentarlo de nuevo.
+          No pudimos cargar tu actividad de estudio. Recarga la página para
+          intentarlo de nuevo.
         </p>
       )}
 
-      <section aria-labelledby="progreso-cursos" className="flex flex-col gap-3.5">
+      <section
+        aria-labelledby="progreso-cursos"
+        className="flex flex-col gap-3.5"
+      >
         <h2 id="progreso-cursos" className="text-uva-titulo-4 text-uva-text">
           Tus cursos
         </h2>
 
         {cursos.length > 0 && (
           <div className="flex flex-wrap items-center gap-2.5">
-            <div role="group" aria-label="Filtrar cursos" className="inline-flex gap-0.5 rounded-full border border-uva-divider bg-uva-surface p-1">
+            <div
+              role="group"
+              aria-label="Filtrar cursos"
+              className="inline-flex gap-0.5 rounded-full border border-uva-divider bg-uva-surface p-0.5"
+            >
               {FILTROS.map((opcion) => (
                 <button
                   key={opcion.valor}
                   type="button"
                   aria-pressed={filtro === opcion.valor}
                   onClick={() => setFiltro(opcion.valor)}
-                  className={`min-h-11 rounded-full px-4 text-uva-detalle transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent ${
+                  className={`min-h-10.25 rounded-full px-4 text-uva-detalle transition-colors md:min-h-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent ${
                     filtro === opcion.valor
                       ? "bg-uva-btn font-bold text-uva-on-accent"
                       : "font-semibold text-uva-text-muted hover:text-uva-text"
@@ -338,10 +444,13 @@ export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string
             <Select
               value={orden}
               onValueChange={(valor) => setOrden(valor as Orden)}
-              items={{ recientes: "Más recientes", porcentaje: "Más avanzados" }}
+              items={{
+                recientes: "Más recientes",
+                porcentaje: "Más avanzados",
+              }}
             >
               <SelectTrigger
-                className="min-h-11 rounded-uva-md border-uva-divider bg-uva-surface text-uva-detalle font-semibold"
+                className="min-h-11 rounded-uva-md border-uva-divider bg-uva-surface text-uva-detalle font-semibold md:h-9 md:min-h-9"
                 aria-label="Ordenar cursos"
               >
                 <SelectValue />
@@ -357,21 +466,23 @@ export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string
         {cursos.length === 0 ? (
           <div className="flex flex-col items-start gap-3 rounded-uva-lg border border-uva-divider bg-uva-surface p-6">
             <p className="text-uva-cuerpo text-uva-text-muted">
-              Todavía no has empezado ningún curso. Explora el catálogo para arrancar.
+              Todavía no has empezado ningún curso. Explora el catálogo para
+              arrancar.
             </p>
             <Button
               render={<Link href="/dashboard/catalogo" />}
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-11 text-uva-cuerpo sm:w-auto"
+              className="min-h-11.25 text-uva-cuerpo sm:w-auto md:h-9 md:min-h-9 md:px-4 md:text-uva-detalle"
             >
               Ver catálogo
             </Button>
           </div>
         ) : cursosVisibles.length === 0 ? (
           <p className="py-6 text-uva-cuerpo text-uva-text-muted">
-            No tienes cursos {filtro === "completados" ? "completados" : "en progreso"} todavía.
+            No tienes cursos{" "}
+            {filtro === "completados" ? "completados" : "en progreso"} todavía.
           </p>
         ) : (
           <ul className="flex flex-col border-b border-uva-divider">

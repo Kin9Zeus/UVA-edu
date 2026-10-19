@@ -136,13 +136,13 @@ export function MisNotasContent({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label className="relative block w-full sm:w-[420px]">
             <span className="sr-only">Buscar en tus notas por curso</span>
-            <Search className="pointer-events-none absolute top-3.5 left-3.5 size-5 text-uva-text-muted" aria-hidden />
+            <Search className="pointer-events-none absolute top-3.5 left-3.5 size-5 text-uva-text-muted md:top-2" aria-hidden />
             <input
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Busca un curso en tus notas"
-              className="h-12 w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface pr-3.5 pl-11 text-base text-uva-text placeholder:text-uva-text-muted"
+              className="h-12 w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface pr-3.5 pl-11 text-base md:h-9 md:border md:text-uva-detalle text-uva-text placeholder:text-uva-text-muted"
             />
           </label>
           <p aria-live="polite" className="m-0 text-uva-detalle text-uva-text-muted">

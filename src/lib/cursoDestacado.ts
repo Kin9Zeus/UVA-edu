@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
+import { getInstructoresDeCursos, nombresDeInstructores } from "@/lib/instructores";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO } from "@/lib/cache-catalogo";
@@ -12,6 +13,8 @@ export type CursoDestacado = {
   descripcion: string;
   imagenPortada: string;
   nivel: "BASICO" | "INTERMEDIO" | "AVANZADO";
+  /** `null` si el curso no tiene profesor asignado o no se pudo leer: la sección omite la línea. */
+  instructorNombre: string | null;
   totalClases: number;
   duracionTotalSegundos: number;
 };
@@ -36,7 +39,8 @@ export type CursoDestacado = {
  * de ningún video real, y la portada decía "2 h 7 min" para un curso cuya
  * ficha decía "— de contenido".
  *
- * Una sola consulta (curso con sus módulos y lecciones embebidos) y cacheada
+ * Una consulta (curso con sus módulos y lecciones embebidos) más la de su
+ * profesor (vista pública, ver lib/instructores.ts), y cacheada
  * por la etiqueta del catálogo (lib/cache-catalogo.ts): es idéntica para todo
  * visitante y cambia cuando un administrador marca, publica u ordena un
  * curso — mutaciones que ya invalidan `TAG_CATALOGO`. Una excepción: el
@@ -82,6 +86,10 @@ const cursoDestacadoCacheado = unstable_cache(
 
     if (!curso) return null;
 
+    // Dato secundario: si falla (se registra dentro) la sección sale sin la
+    // línea del profesor, no se oculta.
+    const instructores = (await getInstructoresDeCursos(supabase, [curso.id as string])).get(curso.id as string) ?? [];
+
     const lecciones = (curso.modulos ?? []).flatMap((modulo) => modulo.lecciones ?? []);
 
     return {
@@ -91,6 +99,7 @@ const cursoDestacadoCacheado = unstable_cache(
       descripcion: curso.descripcion as string,
       imagenPortada: curso.imagen_portada as string,
       nivel: curso.nivel as CursoDestacado["nivel"],
+      instructorNombre: instructores.length > 0 ? nombresDeInstructores(instructores) : null,
       totalClases: lecciones.length,
       duracionTotalSegundos: lecciones
         .filter((leccion) => leccion.estado_procesamiento === "LISTO")

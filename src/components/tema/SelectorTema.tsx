@@ -70,6 +70,20 @@ export function SelectorTemaSistemaFila({ className }: { className?: string }) {
   );
 }
 
+/** Alterna claro/oscuro desde el menú de usuario. Para las pantallas cuya
+ *  cabecera oculta el botón sol/luna en celular (clase y examen). */
+export function SelectorTemaMenuItem({ className }: { className?: string }) {
+  const { tema, alternarTema } = useTema();
+  const { corto, Icono } = textos(tema);
+
+  return (
+    <DropdownMenuItem onClick={alternarTema} className={className}>
+      <Icono className="size-4" aria-hidden="true" />
+      {corto}
+    </DropdownMenuItem>
+  );
+}
+
 /** Igual que SelectorTemaSistemaFila, como opción del menú de usuario de los
  *  paneles. Cierra el menú: el botón sol/luna sigue a la vista en el header. */
 export function SelectorTemaSistemaMenuItem({ className }: { className?: string }) {
