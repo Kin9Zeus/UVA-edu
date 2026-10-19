@@ -294,4 +294,43 @@ describe("responderPostComunidad", () => {
       idUsuario: ESTUDIANTE.id,
     });
   });
+
+  describe("contestar a una respuesta", () => {
+    /** La contestada se lee y luego se inserta la nueva: dos usos de la misma tabla, en ese orden. */
+    function conContestada(contestada: Record<string, unknown> | null) {
+      servidorFalso.responderEnOrden("from:comunidad_respuestas", [
+        { data: contestada },
+        { data: { id: "respuesta-creada" } },
+      ]);
+    }
+
+    it("a una respuesta principal: la cuelga de ella", async () => {
+      conContestada({ id_post: "post-1", id_respuesta_padre: null, eliminado: false });
+
+      await responderPostComunidad("post-1", "Gracias", "/dashboard/comunidad/x", new FormData(), "resp-1");
+
+      expect(inserts("comunidad_respuestas")[0]).toMatchObject({ id_post: "post-1", id_respuesta_padre: "resp-1" });
+    });
+
+    it("a una respuesta de un hilo: la cuelga de la principal (un solo nivel)", async () => {
+      conContestada({ id_post: "post-1", id_respuesta_padre: "resp-1", eliminado: false });
+
+      await responderPostComunidad("post-1", "Gracias", "/dashboard/comunidad/x", new FormData(), "resp-2");
+
+      expect(inserts("comunidad_respuestas")[0]).toMatchObject({ id_respuesta_padre: "resp-1" });
+    });
+
+    it.each([
+      ["no existe", null],
+      ["está eliminada", { id_post: "post-1", id_respuesta_padre: null, eliminado: true }],
+      ["es de otra publicación", { id_post: "post-2", id_respuesta_padre: null, eliminado: false }],
+    ])("la contestada %s: no se inserta nada", async (_caso, contestada) => {
+      servidorFalso.responder("from:comunidad_respuestas", { data: contestada });
+
+      expect(
+        await responderPostComunidad("post-1", "Gracias", "/dashboard/comunidad/x", new FormData(), "resp-1"),
+      ).toEqual({ error: "La respuesta que quieres contestar ya no existe." });
+      expect(inserts("comunidad_respuestas")).toEqual([]);
+    });
+  });
 });

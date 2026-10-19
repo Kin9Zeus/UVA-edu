@@ -1619,11 +1619,17 @@ model ComunidadRespuestas {
   eliminado           Boolean  @default(false)
   /// Ver el comentario del mismo campo en ComunidadPosts.
   eliminado_por_admin Boolean  @default(false)
+  /// Respuesta a otra respuesta. Un solo nivel: la respuesta contestada es
+  /// "principal" (sin padre) y del mismo post; lo exige el trigger de
+  /// supabase/sql/126. Null = responde a la publicación.
+  id_respuesta_padre  String?  @db.Uuid
   creado_en           DateTime @default(now()) @db.Timestamptz
   actualizado_en      DateTime @default(now()) @updatedAt @db.Timestamptz
 
   post       ComunidadPosts        @relation(fields: [id_post], references: [id], onDelete: Cascade)
   usuario    Perfiles              @relation(fields: [id_usuario], references: [id])
+  padre      ComunidadRespuestas?  @relation("RespuestaARespuesta", fields: [id_respuesta_padre], references: [id], onDelete: Cascade)
+  hijas      ComunidadRespuestas[] @relation("RespuestaARespuesta")
   reacciones ComunidadReacciones[]
   moderacion ComunidadModeracion[]
   adjuntos   ComunidadAdjuntos[]
@@ -1631,6 +1637,7 @@ model ComunidadRespuestas {
 
   @@index([id_post, creado_en])
   @@index([id_usuario])
+  @@index([id_respuesta_padre])
   @@map("comunidad_respuestas")
 }
 

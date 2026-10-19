@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { PenLine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EditorTextoEnriquecido, type EditorTextoEnriquecidoHandle } from "@/components/editor/EditorTextoEnriquecido";
 import {
@@ -71,18 +72,19 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
         id="comunidad-composer-trigger"
         type="button"
         onClick={() => setExpandido(true)}
-        className="flex min-h-14 w-full items-center rounded-uva-lg border border-uva-line-strong bg-uva-surface px-3.5 text-left text-uva-cuerpo text-uva-text-muted transition-colors hover:border-uva-text"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-uva-md bg-uva-btn px-6 text-uva-detalle font-semibold text-uva-on-accent transition-colors hover:bg-uva-btn-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent sm:w-fit"
       >
-        ¿Qué quieres compartir con la comunidad?
+        <PenLine className="size-5 shrink-0" aria-hidden="true" />
+        Crear publicación
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-uva-lg border border-uva-line-strong bg-uva-surface p-4">
+    <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
       <span
         className={cn(
-          "inline-flex h-5 w-fit items-center rounded-4xl px-2 text-xs font-semibold",
+          "inline-flex h-5 w-fit items-center rounded-4xl px-2 text-uva-detalle font-semibold",
           CATEGORIA_ESTILO[categoria],
         )}
       >
@@ -105,7 +107,7 @@ export function ComunidadComposer({ ruta, categoria }: { ruta: string; categoria
 
       {esEmpleo && <ComunidadCamposEmpleo valores={datosEmpleo} onCambiar={setDatosEmpleo} />}
 
-      {error && <p className="text-sm text-uva-error">{error}</p>}
+      {error && <p className="text-uva-detalle text-uva-error">{error}</p>}
 
       <div className="flex justify-end gap-2">
         <Button

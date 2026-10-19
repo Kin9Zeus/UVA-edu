@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mismo criterio que CatalogoCursos (Revf3): no disparar una consulta al
 // servidor por cada tecla.
 const DEBOUNCE_MS = 300;
 
 const OPCIONES_ORDEN = [
-  { valor: "reciente", label: "Tiempo" },
-  { valor: "relevancia", label: "Relevancia" },
+  { valor: "reciente", label: "Más recientes" },
+  { valor: "relevancia", label: "Más relevantes" },
 ] as const;
 
 /**
@@ -66,7 +66,7 @@ export function ComunidadFiltros() {
   }
 
   return (
-    <div className="grid gap-2.5 @min-[620px]:grid-cols-[minmax(0,1fr)_auto] @min-[620px]:items-center @min-[620px]:gap-4">
+    <div className="grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
       <div className="relative min-w-0">
         <Search
           className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-uva-text-muted"
@@ -78,7 +78,7 @@ export function ComunidadFiltros() {
           onChange={(event) => alEscribir(event.target.value)}
           placeholder="Buscar publicaciones o personas"
           aria-label="Buscar publicaciones o personas en Comunidad"
-          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:h-9 md:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (
           <button
@@ -97,20 +97,25 @@ export function ComunidadFiltros() {
         aria-label="Ordenar por"
         className="flex shrink-0 flex-wrap items-center gap-1.5"
       >
-        {OPCIONES_ORDEN.map((opcion) => (
-          <button
-            key={opcion.valor}
-            type="button"
-            aria-pressed={ordenActual === opcion.valor}
-            onClick={() => actualizarUrl({ orden: opcion.valor === "reciente" ? undefined : opcion.valor })}
-            className={cn(
-              "min-h-11 rounded-full border border-uva-line-strong bg-transparent px-3.5 text-uva-cuerpo font-semibold text-uva-text transition-colors hover:border-uva-text",
-              ordenActual === opcion.valor && "border-uva-text bg-uva-text text-uva-bg hover:border-uva-text",
-            )}
+        <Select
+          value={ordenActual}
+          onValueChange={(valor) => actualizarUrl({ orden: valor && valor !== "reciente" ? valor : undefined })}
+          items={Object.fromEntries(OPCIONES_ORDEN.map((o) => [o.valor, o.label]))}
+        >
+          <SelectTrigger
+            aria-label="Ordenar publicaciones"
+            className="min-h-11.25 w-full gap-2.5 rounded-uva-md border border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:h-9 md:min-h-9 md:text-uva-detalle md:font-medium sm:w-auto dark:bg-uva-surface dark:hover:bg-uva-surface"
           >
-            {opcion.label}
-          </button>
-        ))}
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {OPCIONES_ORDEN.map((opcion) => (
+              <SelectItem key={opcion.valor} value={opcion.valor}>
+                {opcion.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

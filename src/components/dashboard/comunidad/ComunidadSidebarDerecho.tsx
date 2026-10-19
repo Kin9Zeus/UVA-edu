@@ -21,19 +21,18 @@ export async function ComunidadSidebarDerecho() {
           no competir con él. Una línea basta para separar las dos. */}
       {destacados.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Más respondidas esta semana</h2>
-          <ul className="flex flex-col gap-1">
+          <h2 className="text-uva-detalle font-semibold tracking-[.08em] text-uva-text-muted uppercase">
+            Más respondidas esta semana
+          </h2>
+          <ul className="flex flex-col gap-2.5">
             {destacados.map((post) => (
               <li key={post.id}>
-                <Link
-                  href={`/dashboard/comunidad/${post.slug}`}
-                  className="block min-h-11 py-1 text-uva-detalle leading-snug text-uva-text-muted hover:text-uva-accent-ink"
-                >
-                  <b className="font-bold text-uva-text">{post.titulo}</b>
-                  <small className="mt-0.5 block text-uva-detalle text-uva-text-muted">
-                    {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
-                  </small>
+                <Link href={`/dashboard/comunidad/${post.slug}`} className="block truncate text-uva-detalle text-uva-text hover:text-uva-accent-ink">
+                  {post.titulo}
                 </Link>
+                <span className="text-uva-detalle text-uva-text-muted">
+                  {post.totalRespuestas} respuesta{post.totalRespuestas === 1 ? "" : "s"}
+                </span>
               </li>
             ))}
           </ul>
@@ -48,18 +47,15 @@ export async function ComunidadSidebarDerecho() {
             destacados.length > 0 && "border-t border-uva-divider pt-5",
           )}
         >
-          <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Publicaciones recientes</h2>
-          <ul className="flex flex-col gap-1">
+          <h2 className="text-uva-detalle font-semibold tracking-[.08em] text-uva-text-muted uppercase">Publicaciones recientes</h2>
+          <ul className="flex flex-col gap-3">
             {actividad.map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={`/dashboard/comunidad/${item.slug}`}
-                  className="block min-h-11 py-1 text-uva-detalle leading-snug text-uva-text-muted hover:text-uva-accent-ink"
-                >
-                  <b className="font-bold text-uva-text">{item.autorNombre}</b> publicó{" "}
-                  <b className="font-bold text-uva-text">{item.titulo}</b>
-                  <small className="mt-0.5 block text-uva-detalle text-uva-text-muted">{item.tiempo}</small>
+              <li key={item.id} className="text-uva-detalle">
+                <Link href={`/dashboard/comunidad/${item.slug}`} className="text-uva-text-muted hover:text-uva-text">
+                  <span className="text-uva-text">{item.autorNombre}</span> publicó{" "}
+                  <span className="text-uva-text">{item.titulo}</span>
                 </Link>
+                <div className="mt-0.5 text-uva-detalle text-uva-text-muted">{item.tiempo}</div>
               </li>
             ))}
           </ul>

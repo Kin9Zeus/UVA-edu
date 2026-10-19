@@ -10,20 +10,36 @@ import { armarFormDataAdjuntos } from "@/lib/comunidad-tipos";
 /** Igual que `ComunidadComposer`: un placeholder que abre el editor, y el
  * mismo botón que lo abrió (o "Cancelar" dentro) lo vuelve a cerrar — no se
  * queda expandido para siempre una vez usado. */
-export function ComunidadRespuestaComposer({ postId, ruta }: { postId: string; ruta: string }) {
+export function ComunidadRespuestaComposer({
+  postId,
+  ruta,
+  enHilo,
+}: {
+  postId: string;
+  ruta: string;
+  /** Contestar a una respuesta: el campo nace abierto, debajo de ella.
+   * `mencionar`: la contestada ya es de un hilo, así que la nueva se cuelga
+   * de la principal y se antepone «@nombre» para saber a quién va. */
+  enHilo?: { respuestaId: string; nombre: string; mencionar: boolean; onCerrar: () => void };
+}) {
   const router = useRouter();
-  const [expandido, setExpandido] = useState(false);
+  const [expandido, setExpandidoEstado] = useState(Boolean(enHilo));
+  function setExpandido(valor: boolean) {
+    setExpandidoEstado(valor);
+    if (!valor) enHilo?.onCerrar();
+  }
   const [contenidoVacio, setContenidoVacio] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const editorRef = useRef<EditorTextoEnriquecidoHandle>(null);
 
   function publicar() {
-    const contenido = editorRef.current?.obtenerTexto() ?? "";
+    const texto = editorRef.current?.obtenerTexto() ?? "";
+    const contenido = enHilo?.mencionar ? `@${enHilo.nombre} ${texto}` : texto;
     const adjuntos = armarFormDataAdjuntos(editorRef.current?.obtenerAdjuntosPendientes() ?? new Map());
     setError(null);
     startTransition(async () => {
-      const resultado = await responderPostComunidad(postId, contenido, ruta, adjuntos);
+      const resultado = await responderPostComunidad(postId, contenido, ruta, adjuntos, enHilo?.respuestaId);
       if ("error" in resultado) {
         setError(resultado.error);
         return;
@@ -45,7 +61,7 @@ export function ComunidadRespuestaComposer({ postId, ruta }: { postId: string; r
         // veían distintos solo porque este vivía prestado dentro de la caja
         // del hilo. Ese `border-t` heredado, además, caía a 1px del borde de
         // esa caja y dibujaba una raya doble en su borde superior.
-        className="w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-3 text-left text-sm text-uva-text-faint transition-colors hover:border-uva-text-faint"
+        className="w-full rounded-uva-md border border-uva-line-strong bg-uva-surface px-4 py-3 text-left text-uva-detalle text-uva-text-muted transition-colors hover:border-uva-text-faint"
       >
         Responder…
       </button>
@@ -56,13 +72,13 @@ export function ComunidadRespuestaComposer({ postId, ruta }: { postId: string; r
     <div className="flex flex-col gap-3 rounded-uva-md border border-uva-divider bg-uva-surface p-4">
       <EditorTextoEnriquecido
         ref={editorRef}
-        placeholder="Escribe una respuesta..."
+        placeholder={enHilo ? `Responde a ${enHilo.nombre}…` : "Escribe una respuesta..."}
         autoFocus
         alturaMinima="min-h-16"
         onCambiar={setContenidoVacio}
         onErrorAdjunto={setError}
       />
-      {error && <p className="text-sm text-uva-error">{error}</p>}
+      {error && <p className="text-uva-detalle text-uva-error">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button
           type="button"

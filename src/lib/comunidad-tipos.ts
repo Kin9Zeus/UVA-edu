@@ -127,6 +127,9 @@ export type ComunidadPostResumen = {
 
 export type ComunidadRespuesta = {
   id: string;
+  /** Respuesta principal a la que contesta esta, o `null` si responde a la
+   * publicación. Un solo nivel (ver supabase/sql/126). */
+  idRespuestaPadre: string | null;
   contenido: string;
   eliminado: boolean;
   /** Solo relevante si `eliminado`: distingue "[respuesta eliminada por su

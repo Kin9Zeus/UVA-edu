@@ -11,7 +11,10 @@ import { ReportarComunidadDialog } from "@/components/dashboard/comunidad/Report
 import { eliminarRespuestaComunidad } from "@/actions/comunidad/eliminar";
 import { reportarComunidad } from "@/actions/comunidad/reportar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
-import { CLASE_BOTON_ACCION_COMUNIDAD, type ComunidadRespuesta } from "@/lib/comunidad-tipos";
+import {
+  CLASE_BOTON_ACCION_COMUNIDAD,
+  type ComunidadRespuesta,
+} from "@/lib/comunidad-tipos";
 
 function iniciales(nombre: string) {
   return (
@@ -29,27 +32,51 @@ export function ComunidadRespuestaItem({
   ruta,
   usuarioActualId,
   esAdmin,
+  onResponder,
+  nombresMencionables,
 }: {
   respuesta: ComunidadRespuesta;
   ruta: string;
   usuarioActualId: string | null;
   esAdmin: boolean;
+  /** Abre el campo para contestar a esta respuesta; sin él no hay botón. */
+  onResponder?: () => void;
+  /** Autores del hilo: si el texto empieza con «@nombre» de alguno, esa
+   * mención se destaca y el resto se lee como la respuesta. */
+  nombresMencionables?: string[];
 }) {
   const router = useRouter();
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
-  const [dialogoModeracionAbierto, setDialogoModeracionAbierto] = useState(false);
+  const [dialogoModeracionAbierto, setDialogoModeracionAbierto] =
+    useState(false);
   const [dialogoReporteAbierto, setDialogoReporteAbierto] = useState(false);
   const esAutor = usuarioActualId === respuesta.autorId;
   const puedeEliminar = !respuesta.eliminado && (esAutor || esAdmin);
-  const puedeReportar = !respuesta.eliminado && Boolean(usuarioActualId) && !esAutor && !esAdmin;
+  const puedeReportar =
+    !respuesta.eliminado && Boolean(usuarioActualId) && !esAutor && !esAdmin;
 
   async function confirmarReporte(motivo: string) {
-    const resultado = await reportarComunidad({ idRespuesta: respuesta.id }, motivo);
+    const resultado = await reportarComunidad(
+      { idRespuesta: respuesta.id },
+      motivo,
+    );
     if ("error" in resultado) return { error: resultado.error };
     return {};
   }
 
-  const adjuntosPorId = new Map(respuesta.adjuntos.map((adjunto) => [adjunto.id, adjunto]));
+  // La más larga primero: «@Ana Ruiz» no debe quedarse en «@Ana».
+  const mencion = respuesta.eliminado
+    ? undefined
+    : [...(nombresMencionables ?? [])]
+        .sort((a, b) => b.length - a.length)
+        .find((nombre) => respuesta.contenido.startsWith(`@${nombre} `));
+  const contenidoSinMencion = mencion
+    ? respuesta.contenido.slice(mencion.length + 2).trimStart()
+    : respuesta.contenido;
+
+  const adjuntosPorId = new Map(
+    respuesta.adjuntos.map((adjunto) => [adjunto.id, adjunto]),
+  );
   function resolverAdjunto(id: string) {
     const adjunto = adjuntosPorId.get(id);
     return adjunto ? <ComunidadAdjuntoVista adjunto={adjunto} /> : null;
@@ -64,7 +91,11 @@ export function ComunidadRespuestaItem({
   }
 
   async function confirmarEliminacionModerada(motivo: string) {
-    const resultado = await eliminarRespuestaComunidad(respuesta.id, ruta, motivo);
+    const resultado = await eliminarRespuestaComunidad(
+      respuesta.id,
+      ruta,
+      motivo,
+    );
     if ("error" in resultado) return { error: resultado.error };
     router.refresh();
     return {};
@@ -73,8 +104,10 @@ export function ComunidadRespuestaItem({
   return (
     <div className="flex items-start gap-2.5 py-3">
       <Avatar className="size-7 shrink-0 bg-uva-divider">
-        {respuesta.autorFotoUrl && <AvatarImage src={respuesta.autorFotoUrl} alt="" />}
-        <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
+        {respuesta.autorFotoUrl && (
+          <AvatarImage src={respuesta.autorFotoUrl} alt="" />
+        )}
+        <AvatarFallback className="bg-uva-divider text-uva-detalle text-uva-text">
           {iniciales(respuesta.autorNombre)}
         </AvatarFallback>
       </Avatar>
@@ -84,20 +117,38 @@ export function ComunidadRespuestaItem({
             el avatar. `leading-7` iguala la altura de línea a la del
             avatar (`size-7`, 28px) — con `items-start` en la fila, ambos
             parten del mismo borde superior y quedan centrados entre sí. */}
-        <p className="m-0 text-sm leading-7 text-uva-text">{respuesta.autorNombre}</p>
+        <p className="m-0 text-uva-detalle leading-7 text-uva-text">
+          {respuesta.autorNombre}
+        </p>
         <div
-          className={`flex flex-col gap-2 text-sm wrap-break-word ${respuesta.eliminado ? "text-uva-text-faint italic" : "text-uva-text-muted"}`}
+          className={`flex flex-col gap-2 text-uva-cuerpo wrap-break-word ${respuesta.eliminado ? "text-uva-text-muted italic" : "text-uva-text"}`}
         >
-          {respuesta.eliminado
-            ? respuesta.eliminadoPorAdmin
-              ? "[respuesta eliminada por un moderador]"
-              : "[respuesta eliminada por su autor]"
-            : renderizarTextoFormateado(respuesta.contenido, resolverAdjunto)}
+          {respuesta.eliminado ? (
+            respuesta.eliminadoPorAdmin ? (
+              "[respuesta eliminada por un moderador]"
+            ) : (
+              "[respuesta eliminada por su autor]"
+            )
+          ) : mencion ? (
+            <div className="flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-semibold text-uva-accent-text">
+                @{mencion}
+              </span>
+              <div className="flex min-w-0 flex-col gap-2">
+                {renderizarTextoFormateado(
+                  contenidoSinMencion,
+                  resolverAdjunto,
+                )}
+              </div>
+            </div>
+          ) : (
+            renderizarTextoFormateado(respuesta.contenido, resolverAdjunto)
+          )}
         </div>
         {/* Misma fila que la de ComunidadPostCard: se parte sin cortar
             palabras y la acción va a la derecha. Eliminar y Reportar nunca
             salen juntos (reportar es para quien no puede eliminar). */}
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 text-xs text-uva-text-faint">
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 text-uva-detalle text-uva-text-muted">
           <span className="whitespace-nowrap">{respuesta.tiempo}</span>
           {!respuesta.eliminado && (
             <ComunidadReactionButton
@@ -109,10 +160,23 @@ export function ComunidadRespuestaItem({
               usuarioActualId={usuarioActualId}
             />
           )}
+          {onResponder && !respuesta.eliminado && (
+            <button
+              type="button"
+              onClick={onResponder}
+              className={CLASE_BOTON_ACCION_COMUNIDAD}
+            >
+              Responder
+            </button>
+          )}
           {puedeEliminar && (
             <button
               type="button"
-              onClick={() => (esAutor ? setConfirmandoEliminar(true) : setDialogoModeracionAbierto(true))}
+              onClick={() =>
+                esAutor
+                  ? setConfirmandoEliminar(true)
+                  : setDialogoModeracionAbierto(true)
+              }
               className={`ml-auto ${CLASE_BOTON_ACCION_COMUNIDAD}`}
             >
               Eliminar

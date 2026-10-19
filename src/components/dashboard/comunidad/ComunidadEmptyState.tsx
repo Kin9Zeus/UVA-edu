@@ -29,12 +29,12 @@ export function ComunidadEmptyState({
       : "Sé el primero en compartir algo con la comunidad.";
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-uva-lg border border-uva-divider bg-uva-surface px-5 py-11 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-uva-surface-2 text-uva-accent-ink">
+    <div className="flex flex-col items-center gap-4 rounded-uva-md border border-uva-divider bg-uva-surface px-9 py-14 text-center">
+      <div className="flex size-16 items-center justify-center rounded-full bg-uva-accent-soft text-uva-accent-ink">
         <MessageSquarePlus className="size-7" strokeWidth={2} />
       </div>
-      <h3 className="text-uva-titulo-4 font-extrabold text-uva-text">{titulo}</h3>
-      <p className="max-w-[38ch] text-uva-cuerpo text-uva-text-muted">{texto}</p>
+      <h3 className="text-uva-titulo-4 text-uva-text">{titulo}</h3>
+      <p className="max-w-[380px] text-uva-detalle text-uva-text-muted">{texto}</p>
     </div>
   );
 }

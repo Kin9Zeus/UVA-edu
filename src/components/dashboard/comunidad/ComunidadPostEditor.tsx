@@ -85,7 +85,7 @@ export function ComunidadPostEditor({
 
       {esEmpleo && <ComunidadCamposEmpleo valores={datosEmpleo} onCambiar={setDatosEmpleo} />}
 
-      {error && <p className="text-sm text-uva-error">{error}</p>}
+      {error && <p className="text-uva-detalle text-uva-error">{error}</p>}
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="uva-secondary" className="w-auto px-4" onClick={onCancelar} disabled={pending}>

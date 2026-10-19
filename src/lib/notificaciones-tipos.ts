@@ -13,6 +13,7 @@ export type Notificacion = {
   id: string;
   tipo:
     | "COMUNIDAD_RESPUESTA"
+    | "COMUNIDAD_RESPUESTA_A_RESPUESTA"
     | "COMUNIDAD_ANUNCIO"
     | "COMUNIDAD_MODERACION"
     | "COMUNIDAD_REPORTE_ELIMINADO"
@@ -51,6 +52,8 @@ export function mensajeNotificacion(
   switch (notificacion.tipo) {
     case "COMUNIDAD_RESPUESTA":
       return `${notificacion.actorNombre} respondió tu publicación${titulo}`;
+    case "COMUNIDAD_RESPUESTA_A_RESPUESTA":
+      return `${notificacion.actorNombre} respondió tu comentario${titulo}`;
     case "COMUNIDAD_ANUNCIO":
       return `${notificacion.actorNombre} publicó un anuncio${titulo}`;
     // Genérico a propósito, sin distinguir publicación/respuesta: `entidad_id`

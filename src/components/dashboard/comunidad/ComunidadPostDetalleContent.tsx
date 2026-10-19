@@ -35,7 +35,7 @@ export function ComunidadPostDetalleContent({
             ) : (
               <Trash2 className="size-8 text-uva-text-faint" strokeWidth={1.6} />
             )}
-            <p className="text-sm text-uva-text">
+            <p className="text-uva-detalle text-uva-text">
               {post.eliminadoPorAdmin
                 ? "Esta publicación fue eliminada por moderación."
                 : "Esta publicación ya no existe — su autor la eliminó."}
@@ -74,6 +74,7 @@ export function ComunidadPostDetalleContent({
             ruta={ruta}
             usuarioActualId={usuarioActualId}
             esAdmin={esAdmin}
+            postId={post.id}
           />
         )}
       </div>

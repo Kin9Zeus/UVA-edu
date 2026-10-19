@@ -63,9 +63,9 @@ export function ComunidadReactionButton({
       disabled={!usuarioActualId || pending}
       onClick={toggle}
       // `min-h-6`: objetivo táctil de 24 px, igual que CLASE_BOTON_ACCION_COMUNIDAD.
-      className={`inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-uva-sm border-0 bg-transparent px-2 font-semibold whitespace-nowrap text-uva-text-faint transition-colors hover:text-uva-text-muted disabled:cursor-not-allowed ${meReaccione ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
+      className={`inline-flex min-h-6 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 whitespace-nowrap text-uva-text-faint transition-colors hover:text-uva-text-muted disabled:cursor-not-allowed ${meReaccione ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
     >
-      <Heart className="size-[18px]" strokeWidth={2} fill={meReaccione ? "currentColor" : "none"} />
+      <Heart className="size-3.5" strokeWidth={2.4} fill={meReaccione ? "currentColor" : "none"} />
       {total}
     </button>
   );

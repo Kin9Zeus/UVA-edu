@@ -162,13 +162,19 @@ export async function crearPostComunidad(
   return { success: true, id: data.id };
 }
 
-/** Responde a una publicación del feed de Comunidad. Mismo tratamiento de
- * adjuntos que crearPostComunidad. */
+/** Responde a una publicación del feed de Comunidad, o a una respuesta de
+ * ella (`respuestaContestadaId`). Mismo tratamiento de adjuntos que
+ * crearPostComunidad.
+ *
+ * Un solo nivel de hilo: si la respuesta contestada ya es una respuesta de un
+ * hilo, la nueva se cuelga de la principal de ese hilo (como Instagram). El
+ * trigger 126 lo exige también en la base; esto resuelve a quién colgarla. */
 export async function responderPostComunidad(
   postId: string,
   contenido: string,
   ruta: string,
   adjuntosFormData: FormData = new FormData(),
+  respuestaContestadaId?: string,
 ): Promise<CrearRespuestaComunidadResultado> {
   const supabase = await createClient();
   const user = await getUsuarioActual();
@@ -197,6 +203,22 @@ export async function responderPostComunidad(
     return { error: "Todavía no tienes acceso a la comunidad. Necesitas una suscripción activa." };
   }
 
+  // A quién se cuelga: la respuesta principal del hilo.
+  let respuestaPadreId: string | null = null;
+  if (respuestaContestadaId) {
+    const { data: contestada, error: errorContestada } = await supabase
+      .from("comunidad_respuestas")
+      .select("id_post, id_respuesta_padre, eliminado")
+      .eq("id", respuestaContestadaId)
+      .maybeSingle();
+    // Un fallo no es "la respuesta ya no existe".
+    if (errorContestada) return { error: "No pudimos publicar tu respuesta. Intenta de nuevo." };
+    if (!contestada || contestada.eliminado || contestada.id_post !== postId) {
+      return { error: "La respuesta que quieres contestar ya no existe." };
+    }
+    respuestaPadreId = (contestada.id_respuesta_padre as string | null) ?? respuestaContestadaId;
+  }
+
   if (adjuntosFormData.getAll("token").length > MAX_ADJUNTOS_COMUNIDAD) {
     return { error: `No puedes adjuntar más de ${MAX_ADJUNTOS_COMUNIDAD} archivos por respuesta.` };
   }
@@ -207,7 +229,13 @@ export async function responderPostComunidad(
   const respuestaId = crypto.randomUUID();
   const { data, error } = await supabase
     .from("comunidad_respuestas")
-    .insert({ id: respuestaId, id_usuario: user.id, id_post: postId, contenido: resultadoAdjuntos.contenido })
+    .insert({
+      id: respuestaId,
+      id_usuario: user.id,
+      id_post: postId,
+      id_respuesta_padre: respuestaPadreId,
+      contenido: resultadoAdjuntos.contenido,
+    })
     .select("id")
     .single();
 

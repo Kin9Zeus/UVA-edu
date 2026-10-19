@@ -42,10 +42,10 @@ export function ComunidadFeedContent({
 
   return (
     <ComunidadLayout nav={<ComunidadCategoriaTabs categoriaActiva={categoriaActiva} soloPropios={soloPropios} />}>
-      <div className="flex flex-col gap-[18px]">
-        <ComunidadFiltros />
+      <div className="flex flex-col gap-5">
+        <h2 className="font-heading text-uva-titulo-4 text-uva-text">{tituloSeccion}</h2>
 
-        <h2 className="text-uva-titulo-4 text-uva-text">{tituloSeccion}</h2>
+        <ComunidadFiltros />
 
         {/* Sin selector de categoría: se publica en la pestaña donde está
             parado el usuario, así que solo tiene sentido ofrecer "crear
@@ -59,13 +59,16 @@ export function ComunidadFeedContent({
         {posts.length === 0 ? (
           <ComunidadEmptyState categoria={categoriaActiva} soloPropios={soloPropios} busqueda={busqueda} />
         ) : (
-          <div className="grid grid-cols-1 items-stretch gap-5 @min-[620px]:grid-cols-2 @min-[980px]:grid-cols-3">
-            {/* Cartelera: cada publicación es una nota clavada. Los fijados
-                ocupan la fila entera y van primero — `getComunidadFeed` ya
-                los devuelve arriba en los dos órdenes (comunidad.ts:271 y
-                :311), así que esto solo corta ese prefijo. */}
+          <div className="flex flex-col gap-3">
+            {/* Los fijados salen del feed a su propio grupo para poder
+                conservar el marco sin partir la lista: `divide-y` dibuja una
+                línea entre hermanos, y una tarjeta con borde propio metida
+                ahí dentro quedaba con doble raya encima.
+                No reordena nada — `getComunidadFeed` ya los devuelve
+                primero, en los dos órdenes (comunidad.ts:271 y :311), así
+                que esto solo corta el prefijo que ya venía arriba. */}
             {fijados.length > 0 && (
-              <div className="col-span-full grid gap-5">
+              <div className="flex flex-col gap-3">
                 {fijados.map((post) => (
                   <ComunidadPostCard
                     key={post.id}
@@ -80,7 +83,7 @@ export function ComunidadFeedContent({
             )}
 
             {corriente.length > 0 && (
-              <>
+              <div className="divide-y divide-uva-divider">
                 {corriente.map((post) => (
                   <ComunidadPostCard
                     key={post.id}
@@ -91,7 +94,7 @@ export function ComunidadFeedContent({
                     truncar
                   />
                 ))}
-              </>
+              </div>
             )}
           </div>
         )}

@@ -22,6 +22,7 @@ import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
  * danger (algo tuyo se removió) y anuncio/respuesta usen tonos más neutros. */
 const ESTILO_POR_TIPO: Record<Notificacion["tipo"], { Icono: typeof MessageCircle; tono: "success" | "warn" | "danger" | "neutral" }> = {
   COMUNIDAD_RESPUESTA: { Icono: MessageCircle, tono: "neutral" },
+  COMUNIDAD_RESPUESTA_A_RESPUESTA: { Icono: MessageCircle, tono: "neutral" },
   COMUNIDAD_ANUNCIO: { Icono: Megaphone, tono: "success" },
   COMUNIDAD_MODERACION: { Icono: ShieldAlert, tono: "danger" },
   COMUNIDAD_REPORTE_ELIMINADO: { Icono: ShieldCheck, tono: "danger" },
