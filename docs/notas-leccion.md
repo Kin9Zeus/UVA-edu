@@ -41,7 +41,7 @@ Lo genuinamente nuevo: la tabla, sus policies, un control imperativo del reprodu
 | Alcance de una nota | Pertenece a **una lección** | El segundo solo tiene sentido dentro de un video. La vista "todo el curso" es una consulta, no otro modelo. |
 | Visibilidad | **Privada**: solo su autor | Sin moderación, sin exposición pública, sin datos de terceros. |
 | Administradores | **No** pueden leer notas ajenas | Mínimo privilegio. Rompe a propósito el patrón habitual "propio **o** admin": no hay ninguna operación de negocio que lo necesite, y son apuntes personales. Soporte no las requiere. |
-| Crear una nota | Exige lo mismo que guardar progreso: correo verificado, cuenta activa y (acceso vigente al curso **o** lección introductoria) | Coherente con `progreso_insert_propio` (076). |
+| Crear una nota | Exige correo verificado, cuenta activa y (acceso vigente al curso **o** lección introductoria **o** ser administrador) | Igual que `progreso_insert_propio` (076), más el administrador (125): entra a cualquier clase sin suscripción propia (`obtenerAccesoAlCurso`), así que también puede tomar notas en ella. Solo las suyas: sigue sin leer notas ajenas. |
 | Leer, editar, eliminar | El autor, **sin** exigir acceso vigente | Si la suscripción vence, el estudiante conserva y puede borrar sus apuntes. Borrar datos propios nunca se debe bloquear. |
 | Dónde ve sus notas quien **ya no tiene acceso** | En la página **"Mis notas"** del dashboard (§6.6), no en la clase | Sin acceso vigente, `page.tsx` de la clase redirige a la ficha del curso (líneas 54-74): el reproductor, y con él la pestaña Notas, no se puede abrir. "Mis notas" vive fuera del muro de pago, así que es el único lugar desde donde esas notas son alcanzables. |
 | Formato | El mismo de los comentarios (negrita, cursiva, subrayado, listas) | Reutiliza editor y renderizador ya revisados. |
@@ -113,7 +113,8 @@ notas_leccion
   SELECT  (select auth.uid()) = id_usuario
   INSERT  (select auth.uid()) = id_usuario
           and private.correo_verificado() and private.cuenta_activa()
-          and (tiene_acceso_vigente_curso(curso de la lección) or lección es_introductoria)
+          and (es_administrador() or tiene_acceso_vigente_curso(curso de la lección)
+               or lección es_introductoria)   -- es_administrador: 125
   UPDATE  USING y WITH CHECK: (select auth.uid()) = id_usuario and private.cuenta_activa()
   DELETE  (select auth.uid()) = id_usuario
   anon    sin ninguna policy (ni lectura ni escritura)
@@ -236,7 +237,7 @@ Las notas son datos personales escritos libremente por el estudiante: pueden con
 
 1. El usuario A no ve, no edita y no borra notas del usuario B.
 2. `anon` no lee ni escribe.
-3. Un administrador no lee notas de otro usuario.
+3. Un administrador no lee notas de otro usuario, pero sí crea las suyas en cualquier lección sin suscripción (125).
 4. Sin acceso vigente: no puede crear en una lección de pago, pero sí en la introductoria.
 5. Con acceso vencido: lee, edita y borra sus notas previas, pero no crea nuevas en lecciones de pago.
 10. Eliminar una lección borra las notas de esa lección de todos los estudiantes (D1).
