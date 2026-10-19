@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthVisual } from "@/components/auth/AuthVisual";
 import { ReenviarVerificacion } from "@/components/auth/ReenviarVerificacion";
+import { IrAlLoginAlConfirmar } from "@/components/sesion/IrAlLoginAlConfirmar";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default async function VerificarCorreoPage() {
           </p>
 
           <ReenviarVerificacion email={user.email ?? ""} />
+          <IrAlLoginAlConfirmar correo={user.email ?? ""} />
         </div>
       </section>
     </div>

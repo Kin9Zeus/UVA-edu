@@ -28,6 +28,7 @@ import {
   ACCESO_TITULO,
 } from "@/components/auth/acceso";
 import { checkEmail } from "@/actions/auth/check-email";
+import { escucharPestanas, mismoCorreo } from "@/lib/sesion/pestanas";
 
 type Step =
   | "email"
@@ -176,6 +177,21 @@ export function AuthFlow({
   function handlePendienteVerificacion() {
     setStep("pendiente");
   }
+
+  // "¡Ya casi!" y "Verifica tu correo" esperan un enlace que se abre en otra
+  // pestaña. Cuando ahí se confirma este mismo correo, esta pantalla salta
+  // sola al paso de contraseña en vez de quedarse esperando.
+  const [confirmadoEnOtraPestana, setConfirmadoEnOtraPestana] = useState(false);
+  const esperandoConfirmacion = step === "confirmar" || step === "pendiente";
+  useEffect(() => {
+    if (!esperandoConfirmacion) return;
+    return escucharPestanas((aviso) => {
+      if (aviso.tipo === "correo-confirmado" && mismoCorreo(aviso.correo, email)) {
+        setConfirmadoEnOtraPestana(true);
+        setStep("login");
+      }
+    });
+  }, [esperandoConfirmacion, email]);
 
   // Al cambiar de paso el contenido se reemplaza entero: sin esto el foco
   // queda en un botón que ya no existe y el lector de pantalla no anuncia
@@ -382,6 +398,12 @@ export function AuthFlow({
                   Cambiar
                 </button>
               </div>
+            )}
+
+            {step === "login" && confirmadoEnOtraPestana && (
+              <AvisoAcceso icono="ok">
+                Confirmaste tu correo en la otra pestaña. Ya puedes iniciar sesión.
+              </AvisoAcceso>
             )}
 
             {step === "login" && (

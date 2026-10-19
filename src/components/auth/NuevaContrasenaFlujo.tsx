@@ -17,6 +17,7 @@ import {
 } from "@/components/auth/acceso";
 import { passwordRules } from "@/lib/password";
 import { cn } from "@/lib/utils";
+import { avisarPestanas } from "@/lib/sesion/pestanas";
 import {
   actualizarPassword,
   type ActualizarPasswordState,
@@ -50,6 +51,13 @@ export function NuevaContrasenaFlujo() {
   useEffect(() => {
     if (guardada) tituloRef.current?.focus();
   }, [guardada]);
+
+  // La pestaña donde se pidió el enlace sigue en "te llegará un enlace":
+  // se le avisa para que pase sola a "Contraseña guardada".
+  const correoGuardado = state?.guardada ? state.email : null;
+  useEffect(() => {
+    if (correoGuardado) avisarPestanas({ tipo: "contrasena-guardada", correo: correoGuardado });
+  }, [correoGuardado]);
 
   const login = state?.guardada && state.email
     ? `/login?email=${encodeURIComponent(state.email)}`
