@@ -1,138 +1,53 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Boton, Codigo, Enlace, Ficha, Fuerte, MarcoCorreo, Nota, Parrafo, Titulo } from "./marco/marco";
+import { primerNombre } from "./marco/nombres";
+
+export function asuntoCertificadoEmitido(cursoTitulo: string): string {
+  return `Tu certificado de ${cursoTitulo} está listo`;
+}
 
 type CertificadoEmitidoEmailProps = {
   nombre: string;
   cursoTitulo: string;
   codigoVerificacion: string;
   urlCertificados: string;
+  /** Página pública de verificación de ESTE código. */
+  urlVerificacion: string;
 };
 
-export function CertificadoEmitidoEmail({
-  nombre,
-  cursoTitulo,
-  codigoVerificacion,
-  urlCertificados,
-}: CertificadoEmitidoEmailProps) {
+/**
+ * Hoja 06. "Tu certificado ya está listo".
+ *
+ * Los datos del certificado van en una ficha de texto y no en una imagen: una
+ * imagen fija mostraría el nombre de otra persona, y una imagen incrustada
+ * (data:) la bloquea Gmail. Una miniatura personalizada exigiría generarla y
+ * alojarla al emitir el certificado.
+ */
+export function CertificadoEmitidoEmail({ nombre, cursoTitulo, codigoVerificacion, urlCertificados, urlVerificacion }: CertificadoEmitidoEmailProps) {
+  const corto = primerNombre(nombre);
   return (
-    <Html>
-      <Head />
-      <Preview>Tu certificado de {cursoTitulo} ya está listo</Preview>
-      <Body style={main}>
-        <Container style={container}>
-          <Section>
-            <Text style={logo}>U.V.A</Text>
-          </Section>
-
-          <Section style={content}>
-            <Text style={heading}>¡Felicitaciones, {nombre}!</Text>
-            <Text style={paragraph}>
-              Terminaste <strong>{cursoTitulo}</strong> y tu certificado ya
-              está disponible para descargar.
-            </Text>
-            <Text style={codigo}>{codigoVerificacion}</Text>
-
-            <Button href={urlCertificados} style={button}>
-              Descargar mi certificado
-            </Button>
-          </Section>
-
-          <Hr style={hr} />
-
-          <Section>
-            <Text style={footer}>
-              U.V.A. — Unidad Vectorial de Arquitectura
-            </Text>
-            <Text style={footer}>
-              ¿Necesitas ayuda? Escríbenos a soporte@uva.edu
-            </Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+    <MarcoCorreo
+      vistaPrevia="Ya puedes descargarlo y compartirlo."
+      seccion="Certificados"
+      nombre="Certificado listo"
+      hoja="06"
+      motivo="Recibes este correo porque terminaste un curso en U.V.A."
+    >
+      <Titulo>{corto ? `¡Felicitaciones, ${corto}!` : "¡Felicitaciones!"}</Titulo>
+      <Parrafo>
+        Terminaste <Fuerte>{cursoTitulo}</Fuerte> y tu certificado ya está listo para descargar.
+      </Parrafo>
+      <Ficha
+        filas={[
+          { etiqueta: "Certificado de", valor: nombre },
+          { etiqueta: "Curso", valor: cursoTitulo },
+          { etiqueta: "Código", valor: codigoVerificacion, codigo: true },
+        ]}
+      />
+      <Boton href={urlCertificados}>Descargar mi certificado</Boton>
+      <Nota pad="0">
+        Quien reciba tu certificado puede comprobarlo con el código <Codigo>{codigoVerificacion}</Codigo> en{" "}
+        <Enlace href={urlVerificacion}>la página de verificación</Enlace>.
+      </Nota>
+    </MarcoCorreo>
   );
 }
-
-const main = {
-  backgroundColor: "#09090B",
-  padding: "32px 0",
-  fontFamily:
-    "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
-
-const container = {
-  backgroundColor: "#18181B",
-  border: "1px solid #27272A",
-  borderRadius: "6px",
-  padding: "32px",
-  maxWidth: "480px",
-  margin: "0 auto",
-};
-
-const logo = {
-  color: "#FAFAFA",
-  fontSize: "20px",
-  fontWeight: 700,
-  letterSpacing: "1px",
-  margin: 0,
-};
-
-const content = {
-  marginTop: "24px",
-};
-
-const heading = {
-  color: "#FAFAFA",
-  fontSize: "18px",
-  fontWeight: 600,
-  margin: "0 0 12px",
-};
-
-const paragraph = {
-  color: "#A1A1AA",
-  fontSize: "14px",
-  lineHeight: "1.5",
-  margin: "0 0 16px",
-};
-
-const codigo = {
-  color: "#A1A1AA",
-  fontSize: "12px",
-  fontFamily: "'JetBrains Mono', monospace",
-  letterSpacing: "0.06em",
-  margin: "0 0 20px",
-};
-
-const button = {
-  backgroundColor: "#FF007A",
-  color: "#FAFAFA",
-  borderRadius: "6px",
-  padding: "12px 24px",
-  fontSize: "14px",
-  fontWeight: 600,
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const hr = {
-  borderColor: "#27272A",
-  margin: "24px 0",
-};
-
-const footer = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "0 0 4px",
-};
-
-export default CertificadoEmitidoEmail;

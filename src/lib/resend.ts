@@ -1,9 +1,11 @@
 import { resend } from "@/lib/resend/client";
-import { WelcomeEmail } from "@/emails/welcome";
-import { CertificadoEmitidoEmail } from "@/emails/certificado-emitido";
-import { ContrasenaActualizadaEmail } from "@/emails/contrasena-actualizada";
-import { ComunidadModeradaEmail } from "@/emails/comunidad-moderada";
-import { ReciboPagoEmail } from "@/emails/recibo-pago";
+import { ASUNTO_BIENVENIDA, WelcomeEmail } from "@/emails/welcome";
+import { asuntoCertificadoEmitido, CertificadoEmitidoEmail } from "@/emails/certificado-emitido";
+import { ASUNTO_PASSWORD_ACTUALIZADA, ContrasenaActualizadaEmail } from "@/emails/contrasena-actualizada";
+import { asuntoComunidadModerada, ComunidadModeradaEmail } from "@/emails/comunidad-moderada";
+import { asuntoReciboPago, ReciboPagoEmail } from "@/emails/recibo-pago";
+import { formatFechaHora } from "@/lib/admin/format";
+import { siteUrl } from "@/lib/site-url";
 
 export { resend };
 
@@ -20,8 +22,8 @@ export async function enviarCorreoBienvenida(
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
-      subject: "Bienvenido a U.V.A",
-      react: WelcomeEmail({ nombre, urlAcceso }),
+      subject: ASUNTO_BIENVENIDA,
+      react: WelcomeEmail({ nombre, correo: destinatario, urlAcceso }),
     });
 
     if (error) {
@@ -60,12 +62,13 @@ export async function enviarCorreoCertificadoEmitido(
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
-      subject: `Tu certificado de ${cursoTitulo} ya está listo`,
+      subject: asuntoCertificadoEmitido(cursoTitulo),
       react: CertificadoEmitidoEmail({
         nombre,
         cursoTitulo,
         codigoVerificacion,
         urlCertificados,
+        urlVerificacion: `${siteUrl()}/verificar-certificado/${encodeURIComponent(codigoVerificacion)}`,
       }),
     });
 
@@ -92,8 +95,14 @@ export async function enviarCorreoPasswordActualizada(
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
-      subject: "Tu contraseña fue actualizada",
-      react: ContrasenaActualizadaEmail(),
+      subject: ASUNTO_PASSWORD_ACTUALIZADA,
+      react: ContrasenaActualizadaEmail({
+        correo: destinatario,
+        // La hora del envío es la del cambio: los dos llamadores avisan justo
+        // después de guardar la contraseña.
+        fechaCambio: formatFechaHora(new Date().toISOString()),
+        urlLogin: `${siteUrl()}/login`,
+      }),
     });
 
     if (error) {
@@ -130,7 +139,7 @@ export async function enviarCorreoComunidadModerada(
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
-      subject: `Un administrador eliminó tu ${tipoContenido} en Comunidad`,
+      subject: asuntoComunidadModerada(tipoContenido),
       react: ComunidadModeradaEmail({ nombre, tipoContenido, tituloPost, motivo, urlComunidad }),
     });
 
@@ -175,7 +184,7 @@ export async function enviarCorreoReciboPago(
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
-      subject: `Recibimos tu pago — acceso activo hasta el ${datos.vigenteHasta}`,
+      subject: asuntoReciboPago(datos.vigenteHasta),
       react: ReciboPagoEmail(datos),
     });
 

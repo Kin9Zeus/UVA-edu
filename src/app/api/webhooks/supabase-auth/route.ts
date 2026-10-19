@@ -1,8 +1,9 @@
 import { Webhook } from "standardwebhooks";
 import { NextResponse, type NextRequest } from "next/server";
 import { resend } from "@/lib/resend/client";
-import { RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-email";
-import { ConfirmarCuentaEmail } from "@/emails/confirmar-cuenta";
+import { ASUNTO_RECUPERAR_PASSWORD, RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-email";
+import { ASUNTO_CONFIRMAR_CUENTA, ConfirmarCuentaEmail } from "@/emails/confirmar-cuenta";
+import { asuntoConfirmarAccion, ConfirmarAccionEmail } from "@/emails/confirmar-accion";
 import { logError } from "@/lib/log";
 
 /**
@@ -35,7 +36,13 @@ import { logError } from "@/lib/log";
  */
 
 type SendEmailHookPayload = {
-  user: { email: string };
+  user: {
+    email: string;
+    /** Solo en el cambio de correo: la dirección que se quiere confirmar. */
+    new_email?: string;
+    /** `nombre` lo guarda el registro (src/actions/auth/registro.ts). */
+    user_metadata?: { nombre?: unknown };
+  };
   email_data: {
     token_hash: string;
     email_action_type: string;
@@ -65,6 +72,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { user, email_data } = data;
+  const nombre = typeof user.user_metadata?.nombre === "string" ? user.user_metadata.nombre : undefined;
 
   // Notificación de seguridad nativa de Supabase (no una acción por
   // confirmar: no trae un token_hash real, así que armarle un enlace de
@@ -108,26 +116,34 @@ export async function POST(request: NextRequest) {
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Restablece tu contraseña de U.V.A.",
-          react: RecuperarPasswordEmail({ actionLink }),
+          subject: ASUNTO_RECUPERAR_PASSWORD,
+          react: RecuperarPasswordEmail({ actionLink, nombre, correo: user.email }),
         });
         break;
       case "signup":
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Confirma tu cuenta de U.V.A.",
-          react: ConfirmarCuentaEmail({ actionLink }),
+          subject: ASUNTO_CONFIRMAR_CUENTA,
+          react: ConfirmarCuentaEmail({ actionLink, nombre, correo: user.email }),
         });
         break;
       default:
-        // Invite, magic link, cambio de correo, reautenticación: sin
-        // plantilla dedicada aún.
+        // Invitación, enlace mágico, cambio de correo y reautenticación:
+        // ningún flujo de la app las dispara hoy, pero si llegan (panel de
+        // Supabase) salen con el mismo diseño. Mismo destinatario y mismo
+        // enlace que antes: solo cambia la presentación.
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
-          subject: "Confirma tu acción en U.V.A.",
-          text: `Confirma tu acción en U.V.A. visitando este enlace: ${actionLink}`,
+          subject: asuntoConfirmarAccion(email_data.email_action_type),
+          react: ConfirmarAccionEmail({
+            tipo: email_data.email_action_type,
+            actionLink,
+            nombre,
+            correo: user.email,
+            correoNuevo: user.new_email,
+          }),
         });
     }
     const { error } = sendResult;

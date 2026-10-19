@@ -38,7 +38,7 @@ try {
 
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
-import { VencimientoProximoEmail } from "@/emails/vencimiento-proximo";
+import { asuntoVencimientoProximo, VencimientoProximoEmail } from "@/emails/vencimiento-proximo";
 import { calcularDiasVigencia } from "@/lib/estadoAcceso";
 import { formatFecha } from "@/lib/admin/format";
 
@@ -151,16 +151,12 @@ async function main() {
     const { error: errorEnvio } = await resend.emails.send({
       from: FROM,
       to: perfil.correo,
-      subject:
-        dias <= 0
-          ? "Tu acceso a U.V.A termina hoy"
-          : dias === 1
-            ? "Tu acceso a U.V.A termina mañana"
-            : `Tu acceso a U.V.A termina en ${dias} días`,
+      subject: asuntoVencimientoProximo(dias),
       react: VencimientoProximoEmail({
         nombre: perfil.nombre ?? "",
         planNombre: plan?.nombre ?? "Acceso U.V.A",
         diasRestantes: dias,
+        fechaHoy: formatFecha(new Date().toISOString()),
         fechaVencimiento: formatFecha(suscripcion.fecha_renovacion!),
         urlPlanes: `${SITE_URL}/dashboard/planes`,
       }),

@@ -1,115 +1,43 @@
-import {
-  Body,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Link,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Boton, BotonSecundario, Ficha, Fila, Fuerte, MarcoCorreo, Recuadro, Separador, Titulo } from "./marco/marco";
+import { CLARO, CORREO_SOPORTE, LETRA } from "./marco/paleta";
 
-export function ContrasenaActualizadaEmail() {
+export const ASUNTO_PASSWORD_ACTUALIZADA = "Tu contraseña de U.V.A. cambió";
+
+type ContrasenaActualizadaEmailProps = {
+  correo: string;
+  /** Fecha y hora del cambio, ya formateada en hora de Colombia. */
+  fechaCambio: string;
+  urlLogin: string;
+};
+
+/** Hoja 03. Aviso de seguridad al guardar una contraseña nueva. */
+export function ContrasenaActualizadaEmail({ correo, fechaCambio, urlLogin }: ContrasenaActualizadaEmailProps) {
   return (
-    <Html>
-      <Head />
-      <Preview>Tu contraseña de U.V.A. fue actualizada</Preview>
-      <Body style={main}>
-        <Container style={container}>
-          <Section>
-            <Text style={logo}>U.V.A</Text>
-          </Section>
-
-          <Section style={content}>
-            <Text style={heading}>Tu contraseña fue actualizada</Text>
-            <Text style={paragraph}>
-              Confirmamos que la contraseña de tu cuenta en U.V.A. se cambió
-              correctamente. Ya puedes iniciar sesión con tu contraseña
-              nueva.
-            </Text>
-            <Text style={{ ...paragraph, marginBottom: 0 }}>
-              Si no fuiste tú quien hizo este cambio,{" "}
-              <Link href="mailto:soporte@uva.edu" style={link}>
-                contáctanos de inmediato
-              </Link>{" "}
-              para proteger tu cuenta.
-            </Text>
-          </Section>
-
-          <Hr style={hr} />
-
-          <Section>
-            <Text style={footer}>
-              U.V.A. — Unidad Vectorial de Arquitectura
-            </Text>
-            <Text style={footer}>
-              ¿Necesitas ayuda? Escríbenos a soporte@uva.edu
-            </Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+    <MarcoCorreo
+      vistaPrevia="Si no fuiste tú, escríbenos de inmediato."
+      seccion="Seguridad de la cuenta"
+      nombre="Contraseña actualizada"
+      hoja="03"
+      motivo="Te avisamos cada vez que cambia la contraseña de tu cuenta."
+    >
+      <Titulo>Tu contraseña cambió</Titulo>
+      <Recuadro icono="listo">
+        Guardamos la contraseña nueva de <Fuerte>{correo}</Fuerte>. Ya puedes iniciar sesión con ella.
+      </Recuadro>
+      <Ficha
+        filas={[
+          { etiqueta: "Cuenta", valor: correo },
+          { etiqueta: "Cambio", valor: fechaCambio },
+        ]}
+      />
+      <Boton href={urlLogin}>Iniciar sesión</Boton>
+      <Separador />
+      <Fila pad="0 0 14px">
+        <p className="c-suave" style={{ margin: 0, fontFamily: LETRA, fontSize: 15, lineHeight: "24px", color: CLARO.suave }}>
+          <Fuerte>¿No fuiste tú?</Fuerte> Alguien más podría estar usando tu cuenta. Escríbenos de inmediato para protegerla.
+        </p>
+      </Fila>
+      <BotonSecundario href={`mailto:${CORREO_SOPORTE}`}>Escribir a soporte</BotonSecundario>
+    </MarcoCorreo>
   );
 }
-
-const main = {
-  backgroundColor: "#09090B",
-  padding: "32px 0",
-  fontFamily:
-    "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
-
-const container = {
-  backgroundColor: "#18181B",
-  border: "1px solid #27272A",
-  borderRadius: "6px",
-  padding: "32px",
-  maxWidth: "480px",
-  margin: "0 auto",
-};
-
-const logo = {
-  color: "#FAFAFA",
-  fontSize: "20px",
-  fontWeight: 700,
-  letterSpacing: "1px",
-  margin: 0,
-};
-
-const content = {
-  marginTop: "24px",
-};
-
-const heading = {
-  color: "#FAFAFA",
-  fontSize: "18px",
-  fontWeight: 600,
-  margin: "0 0 12px",
-};
-
-const paragraph = {
-  color: "#A1A1AA",
-  fontSize: "14px",
-  lineHeight: "1.5",
-  margin: "0 0 12px",
-};
-
-const link = {
-  color: "#FF007A",
-  textDecoration: "underline",
-};
-
-const hr = {
-  borderColor: "#27272A",
-  margin: "24px 0",
-};
-
-const footer = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "0 0 4px",
-};
-
-export default ContrasenaActualizadaEmail;

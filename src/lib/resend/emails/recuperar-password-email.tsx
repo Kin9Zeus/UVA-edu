@@ -1,138 +1,44 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Boton, EnlaceRespaldo, Fuerte, MarcoCorreo, Nota, Parrafo, Recuadro, Titulo } from "@/emails/marco/marco";
+import { primerNombre } from "@/emails/marco/nombres";
+
+export const ASUNTO_RECUPERAR_PASSWORD = "Crea una contraseña nueva para U.V.A.";
 
 type RecuperarPasswordEmailProps = {
   actionLink: string;
   nombre?: string;
+  correo: string;
 };
 
-export function RecuperarPasswordEmail({
-  actionLink,
-  nombre,
-}: RecuperarPasswordEmailProps) {
+/** Hoja 02. Lo envía el gancho de correos de Supabase al pedir "Olvidé mi contraseña". */
+export function RecuperarPasswordEmail({ actionLink, nombre, correo }: RecuperarPasswordEmailProps) {
+  const corto = primerNombre(nombre);
   return (
-    <Html>
-      <Head />
-      <Preview>Recupera tu contraseña en U.V.A.</Preview>
-      <Body style={main}>
-        <Container style={container}>
-          <Section>
-            <Text style={logo}>U.V.A</Text>
-          </Section>
-
-          <Section style={content}>
-            <Text style={heading}>Recupera tu contraseña</Text>
-            <Text style={paragraph}>
-              Hola{nombre ? ` ${nombre}` : ""}, recibimos una solicitud para
-              restablecer la contraseña de tu cuenta en U.V.A. Haz clic en el
-              botón para crear una nueva.
-            </Text>
-
-            <Button href={actionLink} style={button}>
-              Restablecer contraseña
-            </Button>
-
-            <Text style={smallPrint}>
-              Este enlace expira pronto por seguridad. Si no fuiste tú,
-              puedes ignorar este correo.
-            </Text>
-          </Section>
-
-          <Hr style={hr} />
-
-          <Section>
-            <Text style={footer}>
-              U.V.A. — Unidad Vectorial de Arquitectura
-            </Text>
-            <Text style={footer}>
-              ¿Necesitas ayuda? Escríbenos a soporte@uva.edu
-            </Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+    <MarcoCorreo
+      vistaPrevia="Pediste cambiar tu contraseña."
+      seccion="Seguridad de la cuenta"
+      nombre="Recuperar contraseña"
+      hoja="02"
+      motivo="Recibes este correo porque alguien pidió cambiar la contraseña de esta cuenta."
+    >
+      <Titulo>Crea una contraseña nueva</Titulo>
+      <Parrafo>
+        {corto ? (
+          <>
+            Hola, <Fuerte>{corto}</Fuerte>.{" "}
+          </>
+        ) : (
+          "Hola. "
+        )}
+        Recibimos una solicitud para cambiar la contraseña de tu cuenta <Fuerte>{correo}</Fuerte>.
+      </Parrafo>
+      <Boton href={actionLink} pad="4px 0 18px">
+        Crear contraseña nueva
+      </Boton>
+      <Recuadro icono="alerta">
+        <Fuerte>¿No fuiste tú?</Fuerte> Ignora este correo. Tu contraseña actual sigue igual y nadie puede cambiarla sin este enlace.
+      </Recuadro>
+      <Nota>El enlace vence pronto por seguridad y se usa una sola vez.</Nota>
+      <EnlaceRespaldo href={actionLink} />
+    </MarcoCorreo>
   );
 }
-
-const main = {
-  backgroundColor: "#09090B",
-  padding: "32px 0",
-  fontFamily:
-    "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
-
-const container = {
-  backgroundColor: "#18181B",
-  border: "1px solid #27272A",
-  borderRadius: "6px",
-  padding: "32px",
-  maxWidth: "480px",
-  margin: "0 auto",
-};
-
-const logo = {
-  color: "#FAFAFA",
-  fontSize: "20px",
-  fontWeight: 700,
-  letterSpacing: "1px",
-  margin: 0,
-};
-
-const content = {
-  marginTop: "24px",
-};
-
-const heading = {
-  color: "#FAFAFA",
-  fontSize: "18px",
-  fontWeight: 600,
-  margin: "0 0 12px",
-};
-
-const paragraph = {
-  color: "#A1A1AA",
-  fontSize: "14px",
-  lineHeight: "1.5",
-  margin: "0 0 20px",
-};
-
-const button = {
-  backgroundColor: "#FF007A",
-  color: "#FAFAFA",
-  borderRadius: "6px",
-  padding: "12px 24px",
-  fontSize: "14px",
-  fontWeight: 600,
-  textDecoration: "none",
-  display: "inline-block",
-};
-
-const smallPrint = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "20px 0 0",
-};
-
-const hr = {
-  borderColor: "#27272A",
-  margin: "24px 0",
-};
-
-const footer = {
-  color: "#71717A",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "0 0 4px",
-};
-
-export default RecuperarPasswordEmail;
