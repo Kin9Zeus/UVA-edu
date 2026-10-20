@@ -6,7 +6,8 @@ import type { CategoriaActiva } from "@/lib/categoria";
  * y cada uno rotula una categoría real con su número de cursos (las de más
  * cursos; el del centro, el más alto, es la primera; el bajo de adelante, la
  * cuarta). En celular se dibujan solo tres: a ese tamaño un cuarto rótulo
- * tapa los edificios. Con menos categorías, los edificios sobrantes quedan
+ * tapa los edificios; lo mismo en celular girado (`apaisado`), donde la
+ * maqueta se encoge a ~240 px aunque el ancho active `sm:`. Con menos categorías, los edificios sobrantes quedan
  * sin rótulo ni línea guía.
  *
  * El dibujo es decorativo (`aria-hidden`) y los rótulos no reciben foco: la
@@ -23,7 +24,7 @@ const ROTULOS = [
   { x: "50%", y: "17.1%", clase: "max-w-[44%] -translate-y-full" }, // centro, desde y=2
   { x: "16.67%", y: "42.95%", clase: "max-w-[33%] -translate-y-full" }, // izquierda, desde (120,154)
   { x: "83.33%", y: "42.95%", clase: "max-w-[33%] -translate-y-full" }, // derecha, desde (480,154)
-  { x: "78%", y: "86.9%", clase: "max-w-[34%] -translate-y-1/2 hidden sm:flex" }, // adelante, a la derecha de la placa
+  { x: "78%", y: "86.9%", clase: "max-w-[34%] -translate-y-1/2 hidden sm:flex apaisado:max-lg:hidden" }, // adelante, a la derecha de la placa
 ] as const;
 
 /** Línea guía y punto de cada rótulo, en el mismo orden de ROTULOS. */
@@ -74,7 +75,7 @@ export function MaquetaCategorias({ categorias }: { categorias: CategoriaActiva[
           <path d="M412.6 191L480.1 230L390.1 282L322.5 243Z" className="fill-uva-accent-2" />
         </g>
         {/* Adelante: una placa baja, tapa gris; no se dibuja en celular */}
-        <g className="uva-maqueta-edificio hidden stroke-uva-maqueta-arista sm:inline">
+        <g className="uva-maqueta-edificio hidden stroke-uva-maqueta-arista sm:inline apaisado:max-lg:hidden">
           <path d="M300 446L367.5 407L367.5 367L300 406Z" className="fill-uva-maqueta-der" />
           <path d="M300 446L232.5 407L232.5 367L300 406Z" className="fill-uva-maqueta-izq" />
           <path d="M300 328L367.5 367L300 406L232.5 367Z" className="fill-uva-line-strong" />
@@ -82,7 +83,7 @@ export function MaquetaCategorias({ categorias }: { categorias: CategoriaActiva[
 
         {GUIAS.map((guia, i) =>
           destacadas[i] ? (
-            <g key={guia.d} className={`uva-maqueta-rotulo stroke-uva-text ${i === 3 ? "hidden sm:inline" : ""}`} strokeWidth={1.5}>
+            <g key={guia.d} className={`uva-maqueta-rotulo stroke-uva-text ${i === 3 ? "hidden sm:inline apaisado:max-lg:hidden" : ""}`} strokeWidth={1.5}>
               <path d={guia.d} strokeOpacity={0.6} />
               <circle
                 cx={guia.punto[0]}
@@ -102,9 +103,9 @@ export function MaquetaCategorias({ categorias }: { categorias: CategoriaActiva[
           tabIndex={-1}
           aria-hidden="true"
           style={{ left: ROTULOS[i].x, top: ROTULOS[i].y }}
-          className={`uva-maqueta-rotulo absolute flex w-max -translate-x-1/2 ${ROTULOS[i].clase} flex-col items-center rounded-uva-md border border-uva-line-strong bg-uva-surface px-3 py-1.5 text-center leading-tight text-uva-text no-underline hover:border-uva-accent hover:no-underline sm:px-4 sm:py-2`}
+          className={`uva-maqueta-rotulo absolute flex w-max -translate-x-1/2 ${ROTULOS[i].clase} flex-col items-center rounded-uva-md border border-uva-line-strong bg-uva-surface px-3 py-1.5 text-center leading-tight text-uva-text no-underline hover:border-uva-accent hover:no-underline sm:px-4 sm:py-2 apaisado:max-lg:px-2 apaisado:max-lg:py-1`}
         >
-          <span className="text-uva-detalle font-bold text-balance sm:text-uva-cuerpo">{categoria.nombre}</span>
+          <span className="text-uva-detalle font-bold text-balance sm:text-uva-cuerpo apaisado:max-lg:text-uva-detalle">{categoria.nombre}</span>
           <span className="text-uva-detalle text-uva-text-muted tabular-nums">
             {categoria.totalCursos} {categoria.totalCursos === 1 ? "curso" : "cursos"}
           </span>

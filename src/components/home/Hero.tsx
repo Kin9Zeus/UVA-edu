@@ -33,8 +33,9 @@ export async function Hero({
       {/* En celular y tablet la maqueta se ajusta al alto visible (es casi
           cuadrada) para que título, maqueta y los dos botones quepan en la
           primera pantalla; nunca baja de 240 px, donde los rótulos dejarían
-          de leerse. */}
-      <div className="mx-auto mt-4 mb-3 w-full max-[359px]:mt-6 max-w-[min(100%,max(240px,calc(100svh-400px)))] sm:mt-4 sm:mb-6 sm:max-w-[min(560px,max(240px,calc(100svh-330px)))] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:max-w-none lg:self-center">
+          de leerse. En celular girado (`apaisado`) mide 300 px: con 240 el
+          nombre más largo ("Construcción") no cabe en su rótulo. */}
+      <div className="mx-auto mt-4 mb-3 w-full max-[359px]:mt-6 max-w-[min(100%,max(240px,calc(100svh-400px)))] sm:mt-4 sm:mb-6 sm:max-w-[min(560px,max(240px,calc(100svh-330px)))] apaisado:max-lg:max-w-[300px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:max-w-none lg:self-center">
         <MaquetaCategorias categorias={categorias} />
       </div>
 
