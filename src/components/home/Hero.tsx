@@ -60,7 +60,7 @@ export async function Hero({
             size="uva"
             className="min-h-[50px] text-uva-cuerpo sm:min-h-13 sm:w-auto sm:px-[26px]"
           >
-            Ver catálogo
+            Explorar cursos
           </Button>
         </div>
 
