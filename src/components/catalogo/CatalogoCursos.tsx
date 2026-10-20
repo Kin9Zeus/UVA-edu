@@ -54,7 +54,7 @@ const VACIO_POR_ESTADO: Record<FiltroEstado, string> = {
 const ID_LISTA = "lista-cursos";
 
 const CLASE_BOTON_FILTRO =
-  "inline-flex min-h-11 items-center gap-2 rounded-full border-[1.5px] px-4 text-uva-detalle no-underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
+  "inline-flex min-h-11 items-center gap-2 rounded-full border-[1.5px] px-4 text-uva-detalle sm:pointer-fine:min-h-9 no-underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 
 /**
  * Catálogo de cursos. Un solo componente para los dos contextos:
@@ -360,7 +360,7 @@ function Resultados({
           <Link
             href={rutaSinFiltros}
             scroll={false}
-            className="inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline"
+            className="inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline sm:pointer-fine:min-h-9 underline-offset-4 hover:no-underline"
           >
             Quitar filtros
           </Link>

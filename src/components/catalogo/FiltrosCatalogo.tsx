@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchIcon, CrossIcon } from "@/components/home/icons";
 import { CLASE_CAMPO_BUSCADOR, CLASE_ICONO_BUSCADOR } from "@/components/catalogo/campoBuscador";
 import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
@@ -42,14 +42,26 @@ export function ProveedorCatalogo({ children }: { children: ReactNode }) {
   return <Contexto value={{ pendiente, navegar }}>{children}</Contexto>;
 }
 
-const CLASE_SELECT =
-  "h-11 w-full min-w-0 cursor-pointer appearance-none truncate rounded-uva-md border border-uva-line-strong bg-uva-surface pr-10 pl-3.5 text-base font-semibold text-uva-text hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent";
+/**
+ * Medidas de los controles: 44 px en pantallas táctiles (celular, tablet) y
+ * bajo 640 px; 36 px con mouse, donde no hace falta el área de un dedo. La
+ * letra baja a 14 px solo con mouse: en el iPhone, un campo de menos de 16 px
+ * hace zoom al tocarlo.
+ */
+export const CLASE_TAMANO_CONTROL = "h-11 text-base sm:pointer-fine:h-9 sm:pointer-fine:text-uva-detalle";
 
 const CLASE_ETIQUETA = "text-uva-detalle font-bold text-uva-text";
 
+/** Valor de la opción "Todas"/"Todos": Base UI no admite "" como valor. */
+const TODAS = "todas";
+
 type Opcion = { valor: string; etiqueta: string };
 
-/** `<select>` nativo con etiqueta visible: teclado, lector de pantalla y la lista del sistema en el celular. */
+/**
+ * Desplegable del sistema de diseño (Base UI) con etiqueta visible: la lista
+ * se ve igual en todos los celulares y navegadores. `name` deja un campo
+ * oculto para que el formulario GET funcione también sin JavaScript.
+ */
 function Desplegable({
   id,
   etiqueta,
@@ -62,35 +74,41 @@ function Desplegable({
   id: string;
   etiqueta: string;
   nombre: string;
+  /** "" = la primera opción ("Todas las escuelas", "Todos los niveles"). */
   valor: string;
   opciones: Opcion[];
   alCambiar: (valor: string) => void;
   className?: string;
 }) {
+  const valorDe = (v: string) => v || TODAS;
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
       <label htmlFor={id} className={CLASE_ETIQUETA}>
         {etiqueta}
       </label>
-      <div className="relative">
-        <select
+      <Select
+        name={nombre}
+        items={Object.fromEntries(opciones.map((o) => [valorDe(o.valor), o.etiqueta]))}
+        value={valorDe(valor)}
+        onValueChange={(nuevo) => alCambiar(nuevo && nuevo !== TODAS ? String(nuevo) : "")}
+      >
+        <SelectTrigger
           id={id}
-          name={nombre}
-          value={valor}
-          onChange={(evento) => alCambiar(evento.target.value)}
-          className={CLASE_SELECT}
+          className={cn(
+            CLASE_TAMANO_CONTROL,
+            "w-full min-w-0 pr-3 pl-3.5 font-semibold sm:pointer-fine:font-medium",
+          )}
         >
-          {opciones.map((opcion) => (
-            <option key={opcion.valor} value={opcion.valor}>
-              {opcion.etiqueta}
-            </option>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {opciones.map((o) => (
+            <SelectItem key={o.valor} value={valorDe(o.valor)}>
+              {o.etiqueta}
+            </SelectItem>
           ))}
-        </select>
-        <ChevronDownIcon
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-uva-text-muted"
-        />
-      </div>
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -184,7 +202,10 @@ export function BarraBusqueda({
             maxLength={LARGO_MAXIMO_BUSQUEDA}
             className={cn(
               CLASE_CAMPO_BUSCADOR,
-              "h-11 pl-10 text-base sm:text-base [&::-webkit-search-cancel-button]:appearance-none",
+              CLASE_TAMANO_CONTROL,
+              // Anula el `sm:text-sm` del campo del encabezado: en una tablet táctil
+              // también hace falta 16 px.
+              "pl-10 sm:text-base [&::-webkit-search-cancel-button]:appearance-none",
               texto && "pr-11",
             )}
           />
