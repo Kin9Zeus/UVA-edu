@@ -1,17 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
-import { SearchIcon, CrossIcon } from "@/components/home/icons";
-import { cn } from "@/lib/utils";
+import { SearchIcon } from "@/components/home/icons";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
+import type { BuscadorMovilPanel } from "@/components/catalogo/BuscadorMovilPanel";
+
+let panel: Promise<typeof BuscadorMovilPanel> | null = null;
+function cargarPanel() {
+  panel ??= import("@/components/catalogo/BuscadorMovilPanel")
+    .then((m) => m.BuscadorMovilPanel)
+    .catch((error) => {
+      panel = null;
+      throw error;
+    });
+  return panel;
+}
 
 /**
  * Botón de lupa + overlay de búsqueda a pantalla completa, para cuando el
  * header no tiene espacio para el input inline (headers públicos por debajo
- * de min-[861px], ver Header.tsx). Reutiliza BuscadorHeaderInput tal cual —
- * mismas sugerencias y misma navegación — solo cambia dónde vive el input.
+ * de sm, ver Header.tsx).
+ *
+ * La lupa se pinta con la página; el overlay (base-ui Dialog, que trae
+ * floating-ui) se carga con la intención de usarlo (ver useModuloDiferido),
+ * para no sumar su JavaScript al LCP de la portada (Lighthouse móvil,
+ * 2026-10-20). Si se toca antes de que llegue, se abre al llegar.
  */
 export function BuscadorMovilDialog({
   destino,
@@ -23,42 +37,34 @@ export function BuscadorMovilDialog({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const boton = useRef<HTMLButtonElement>(null);
+  const { modulo: Panel, pedir } = useModuloDiferido(cargarPanel);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-      <DialogPrimitive.Trigger
-        render={<Button variant="uva-icon" size="icon" className={className} aria-label="Buscar" />}
+    <>
+      <Button
+        ref={boton}
+        variant="uva-icon"
+        size="icon"
+        className={className}
+        aria-label="Buscar"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Se pide el panel con la intención (puntero encima, foco, dedo
+        // abajo) para que llegue antes del clic.
+        onPointerEnter={pedir}
+        onPointerDown={pedir}
+        onFocus={pedir}
+        onClick={() => {
+          pedir();
+          setOpen(true);
+        }}
       >
         <SearchIcon />
-      </DialogPrimitive.Trigger>
-
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-uva-overlay/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-        <DialogPrimitive.Popup
-          className={cn(
-            "fixed inset-x-0 top-0 z-50 border-b border-uva-divider bg-uva-bg p-4 outline-none",
-            "pt-[max(1rem,env(safe-area-inset-top))]",
-            "data-open:animate-in data-open:slide-in-from-top-4 data-open:fade-in-0",
-            "data-closed:animate-out data-closed:slide-out-to-top-4 data-closed:fade-out-0",
-          )}
-        >
-          <DialogPrimitive.Title className="sr-only">Buscar cursos</DialogPrimitive.Title>
-          <div className="flex items-center gap-2">
-            <BuscadorHeaderInput
-              placeholder={placeholder}
-              destino={destino}
-              className="flex-1"
-              autoFocus
-              onNavegar={() => setOpen(false)}
-            />
-            <DialogPrimitive.Close
-              render={<Button variant="uva-icon" size="icon" aria-label="Cerrar búsqueda" />}
-            >
-              <CrossIcon />
-            </DialogPrimitive.Close>
-          </div>
-        </DialogPrimitive.Popup>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+      </Button>
+      {Panel && (
+        <Panel open={open} onOpenChange={setOpen} finalFocus={boton} destino={destino} placeholder={placeholder} />
+      )}
+    </>
   );
 }

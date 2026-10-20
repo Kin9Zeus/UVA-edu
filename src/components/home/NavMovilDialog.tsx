@@ -1,95 +1,60 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MenuIcon, CrossIcon } from "@/components/home/icons";
-import { cn } from "@/lib/utils";
-import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { SelectorTemaTres } from "@/components/tema/SelectorTema";
+import { MenuIcon } from "@/components/home/icons";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
+import type { NavMovilPanel } from "@/components/home/NavMovilPanel";
 
-const ENLACES = [
-  { href: "/catalogo", label: "Catálogo" },
-  ...(PRECIOS_HABILITADOS ? [{ href: "/#planes", label: "Precios" }] : []),
-  { href: "/#verificar-certificado", label: "Verificar certificado" },
-];
-
-// Mismo destino que "Tengo un código" de la portada: sin sesión el proxy lo
-// manda a /login y de vuelta aquí.
-const HREF_CODIGO = "/dashboard/suscripcion";
+let panel: Promise<typeof NavMovilPanel> | null = null;
+function cargarPanel() {
+  panel ??= import("@/components/home/NavMovilPanel")
+    .then((m) => m.NavMovilPanel)
+    .catch((error) => {
+      panel = null;
+      throw error;
+    });
+  return panel;
+}
 
 /**
  * Hamburguesa + panel de navegación para cuando el header no tiene espacio
  * para los links inline (headers públicos por debajo de lg, ver
- * Header.tsx). Mismo patrón visual que BuscadorMovilDialog: panel a ancho
- * completo que baja desde el header, no un dropdown flotante.
+ * Header.tsx). Mismo patrón visual que BuscadorMovilDialog.
+ *
+ * El botón se pinta con la página; el panel (base-ui Dialog, que trae
+ * floating-ui) se carga con la intención de usarlo (ver useModuloDiferido),
+ * para no sumar su JavaScript al LCP de la portada (Lighthouse móvil,
+ * 2026-10-20). Si se toca antes de que llegue, se abre al llegar.
  */
 export function NavMovilDialog({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-  const esActual = (href: string) => href === "/catalogo" && (pathname === href || pathname.startsWith(`${href}/`));
+  const boton = useRef<HTMLButtonElement>(null);
+  const { modulo: Panel, pedir } = useModuloDiferido(cargarPanel);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-      <DialogPrimitive.Trigger
-        render={<Button variant="uva-icon" size="icon" className={className} aria-label="Abrir menú" />}
+    <>
+      <Button
+        ref={boton}
+        variant="uva-icon"
+        size="icon"
+        className={className}
+        aria-label="Abrir menú"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Se pide el panel con la intención (puntero encima, foco, dedo
+        // abajo) para que llegue antes del clic.
+        onPointerEnter={pedir}
+        onPointerDown={pedir}
+        onFocus={pedir}
+        onClick={() => {
+          pedir();
+          setOpen(true);
+        }}
       >
         <MenuIcon />
-      </DialogPrimitive.Trigger>
-
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-uva-overlay/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-        <DialogPrimitive.Popup
-          className={cn(
-            "fixed inset-x-0 top-0 z-50 border-b border-uva-line-strong bg-uva-surface pr-[max(1.25rem,env(safe-area-inset-right))] pb-5 pl-[max(1.25rem,env(safe-area-inset-left))] max-h-dvh overflow-y-auto outline-none",
-            "pt-[max(1rem,env(safe-area-inset-top))]",
-            "data-open:animate-in data-open:slide-in-from-top-4 data-open:fade-in-0",
-            "data-closed:animate-out data-closed:slide-out-to-top-4 data-closed:fade-out-0",
-          )}
-        >
-          <DialogPrimitive.Title className="sr-only">Menú</DialogPrimitive.Title>
-          <div className="flex justify-end">
-            <DialogPrimitive.Close
-              render={<Button variant="uva-icon" size="icon" aria-label="Cerrar menú" className="text-uva-text" />}
-            >
-              <CrossIcon />
-            </DialogPrimitive.Close>
-          </div>
-
-          <nav className="flex flex-col" aria-label="Navegación">
-            {ENLACES.map((enlace) => {
-              const actual = esActual(enlace.href);
-              return (
-                <Link
-                  key={enlace.href}
-                  href={enlace.href}
-                  aria-current={actual ? "page" : undefined}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "relative flex min-h-13 items-center border-b border-uva-divider text-uva-titulo-4 font-semibold text-uva-text no-underline hover:text-uva-accent-ink hover:no-underline",
-                    // Sección actual: barra de lámina a la izquierda.
-                    actual &&
-                      "pl-3.5 font-extrabold before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-sm before:bg-uva-accent-ink",
-                  )}
-                >
-                  {enlace.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="grid gap-2.5 py-4">
-            <Button render={<Link href={HREF_CODIGO} onClick={() => setOpen(false)} />} nativeButton={false} variant="uva-primary" size="uva" className="min-h-11 text-uva-cuerpo">
-              Tengo un código
-            </Button>
-            <Button render={<Link href="/login" onClick={() => setOpen(false)} />} nativeButton={false} variant="uva-secondary" size="uva" className="min-h-11 text-uva-cuerpo">
-              Entrar
-            </Button>
-          </div>
-          <SelectorTemaTres className="border-t border-uva-divider pt-4" />
-        </DialogPrimitive.Popup>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+      </Button>
+      {Panel && <Panel open={open} onOpenChange={setOpen} finalFocus={boton} />}
+    </>
   );
 }

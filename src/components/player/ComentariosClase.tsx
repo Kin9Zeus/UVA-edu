@@ -1,5 +1,7 @@
 "use client";
 
+// Banderas del país de cada comentario (ver PerfilForm.tsx).
+import "flag-icons/css/flag-icons.min.css";
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Heart, Loader2, Reply } from "lucide-react";

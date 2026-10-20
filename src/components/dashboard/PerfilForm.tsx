@@ -1,5 +1,9 @@
 "use client";
 
+// Banderas en SVG, no dependen de la fuente de emoji del SO: sin esto, "🇨🇴"
+// cae en texto plano ("CO") en Chrome/Windows. Se importa aquí y no en el
+// layout raíz para no bloquear el render de las páginas que no las usan.
+import "flag-icons/css/flag-icons.min.css";
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";

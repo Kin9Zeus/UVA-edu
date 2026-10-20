@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SelectorTemaMenuItem, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
+import { SelectorTemaMenuItem, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTemaMenu";
 import { logout } from "@/actions/auth/logout";
 import { cn } from "@/lib/utils";
 

@@ -47,7 +47,7 @@ const socials = [
   {
     label: "U.V.A. en Spotify",
     Icon: SpotifyIcon,
-    href: "https://open.spotify.com/",
+    href: "https://open.spotify.com/show/0JGnY0rLz1CJHhQ4gYeRva",
   },
   {
     label: "U.V.A. en TikTok",

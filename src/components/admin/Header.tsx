@@ -16,7 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/actions/auth/logout";
-import { SelectorTemaBoton, SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTema";
+import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
+import { SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTemaMenu";
 
 /**
  * Mapa `titles` del mockup: el titulo de cada pantalla vive en el header, no
