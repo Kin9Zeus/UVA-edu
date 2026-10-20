@@ -123,6 +123,10 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
               type="email"
               placeholder="Ingresa tu correo electrónico"
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className={ACCESO_INPUT}

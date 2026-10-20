@@ -20,14 +20,21 @@ export type CanjearCodigoResult = {
    * el mismo error una y otra vez.
    */
   segundosEspera?: number;
+  /**
+   * `true` cuando el código en sí no sirve (no existe, está desactivado,
+   * venció o se agotó): la persona necesita una invitación nueva, y el
+   * formulario le ofrece pedirla. No se manda en los demás rechazos, donde
+   * pedir otra invitación no arregla nada (ya canjeado, ya tiene acceso).
+   */
+  ofrecerInvitacion?: true;
 };
 
 const MOTIVO_ERROR: Record<string, string> = {
-  codigo_invalido: "Ese código no existe.",
-  codigo_inactivo: "Ese código ya no está activo.",
-  codigo_vencido: "Ese código venció.",
-  codigo_agotado: "Ese código ya alcanzó su límite de usos.",
-  ya_canjeado: "Ya canjeaste este código antes.",
+  codigo_invalido: "No encontramos ese código. Revisa que no falte ni sobre ningún carácter.",
+  codigo_inactivo: "Ese código fue desactivado.",
+  codigo_vencido: "Ese código ya venció.",
+  codigo_agotado: "Ese código ya se usó el máximo de veces.",
+  ya_canjeado: "Ya canjeaste este código antes. Tu acceso ya quedó en tu cuenta.",
   // Ver 027_canje_valida_suscripcion_activa.sql: el código está bien, lo
   // que sobra es la suscripción vigente. El mensaje lo dice así para que
   // nadie crea que su código no sirve y lo descarte.
@@ -37,6 +44,13 @@ const MOTIVO_ERROR: Record<string, string> = {
   // 035_canje_codigo_por_dias.sql el código lleva sus propios
   // `duracion_dias` y el canje no consulta ningún plan.
 };
+
+const MOTIVOS_SIN_CODIGO_UTIL = new Set([
+  "codigo_invalido",
+  "codigo_inactivo",
+  "codigo_vencido",
+  "codigo_agotado",
+]);
 
 /**
  * Canjea un código de invitación por acceso completo a la plataforma.
@@ -97,7 +111,10 @@ export async function canjearCodigoInvitacion(codigo: string): Promise<CanjearCo
   const resultado = data as { ok: boolean; motivo: string | null };
   if (!resultado.ok) {
     await admin.rpc("registrar_canje_fallido", { p_usuario_id: user.id });
-    return { error: MOTIVO_ERROR[resultado.motivo ?? ""] ?? "No pudimos canjear el código." };
+    const error = MOTIVO_ERROR[resultado.motivo ?? ""] ?? "No pudimos canjear el código.";
+    return MOTIVOS_SIN_CODIGO_UTIL.has(resultado.motivo ?? "")
+      ? { error, ofrecerInvitacion: true }
+      : { error };
   }
 
   await admin.rpc("limpiar_intentos_canjear_codigo", { p_usuario_id: user.id });

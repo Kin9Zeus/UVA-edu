@@ -3,6 +3,7 @@ import {
   estadoCodigo,
   generarCodigoInvitacion,
   normalizarCodigo,
+  normalizarCodigoPegado,
   validarDuracionDias,
   validarFechaVencimiento,
   MAX_DURACION_DIAS,
@@ -43,6 +44,18 @@ describe("normalizarCodigo", () => {
 
   it("no toca un código ya limpio", () => {
     expect(normalizarCodigo("UVA-K7M2-QP4X")).toBe("UVA-K7M2-QP4X");
+  });
+});
+
+describe("normalizarCodigoPegado", () => {
+  it.each([
+    [" UVA-K7M2-QP4X ", "UVA-K7M2-QP4X"],
+    ["uva k7m2 qp4x\n", "UVA-K7M2-QP4X"],
+    ["UVAK7M2QP4X", "UVA-K7M2-QP4X"],
+    ["K7M2QP4X", "UVA-K7M2-QP4X"],
+    ["k7m2-qp4x", "UVA-K7M2-QP4X"],
+  ])("%j → %s", (pegado, esperado) => {
+    expect(normalizarCodigoPegado(pegado)).toBe(esperado);
   });
 });
 

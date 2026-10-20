@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,12 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { canjearCodigoInvitacion } from "@/actions/codigos-invitacion/canjear";
-import { formatearCodigoMientrasEscribe, normalizarCodigo } from "@/lib/codigoInvitacion";
+import {
+  formatearCodigoMientrasEscribe,
+  normalizarCodigo,
+  normalizarCodigoPegado,
+} from "@/lib/codigoInvitacion";
+import { urlWhatsapp } from "@/lib/contacto";
 import { avisarPestanas } from "@/lib/sesion/pestanas";
 
 function formatearEspera(segundos: number): string {
@@ -35,8 +40,20 @@ function formatearEspera(segundos: number): string {
 export function CanjearCodigoForm({
   tieneSuscripcion,
   embebido = false,
+  alCanjear,
+  sinEncabezado = false,
 }: {
   tieneSuscripcion: boolean;
+  /**
+   * Se llama después de un canje correcto. Sin esto, el formulario solo
+   * refresca la página; /canjear lo usa para pasar a la bienvenida.
+   */
+  alCanjear?: () => void;
+  /**
+   * `true` cuando la pantalla que lo contiene ya trae el título y la
+   * explicación (/canjear): se omiten aquí para no repetirlos.
+   */
+  sinEncabezado?: boolean;
   /**
    * `true` cuando esto ya vive DENTRO de otra sección con su propio
    * encabezado — hoy, "¿Cómo quieres recuperar el acceso?" en
@@ -48,6 +65,8 @@ export function CanjearCodigoForm({
   const [codigo, setCodigo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [ofrecerInvitacion, setOfrecerInvitacion] = useState(false);
+  const campoRef = useRef<HTMLInputElement>(null);
   // Segundos que faltan para poder reintentar tras el rate limit (P2-2).
   // null = sin bloqueo activo.
   const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
@@ -81,10 +100,22 @@ export function CanjearCodigoForm({
     setCodigo(formatearCodigoMientrasEscribe(sinGuionesNuevo));
   }
 
+  // Se pega tal como llegó (WhatsApp, correo): sin espacios, en minúsculas,
+  // con o sin "UVA". Se hace aquí y no en `onChange` porque solo con el texto
+  // pegado completo se sabe si falta el prefijo.
+  function handlePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const pegado = event.clipboardData.getData("text");
+    if (!pegado) return;
+    event.preventDefault();
+    setCodigo(normalizarCodigoPegado(pegado));
+    setError(null);
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
     setError(null);
+    setOfrecerInvitacion(false);
 
     // Se normaliza también en el cliente para que un pegado con espacios o
     // en minúsculas no se lea como "código inválido".
@@ -93,6 +124,10 @@ export function CanjearCodigoForm({
 
     if (resultado.error) {
       setError(resultado.error);
+      setOfrecerInvitacion(Boolean(resultado.ofrecerInvitacion));
+      // El lector de pantalla lee el campo con su mensaje, y quien teclea
+      // puede corregir sin buscar el campo.
+      campoRef.current?.focus();
       // Solo viene presente cuando el rechazo fue por rate limit: deja el
       // formulario deshabilitado hasta que expire, en vez de dejar que
       // seguir dando clic muestre el mismo error una y otra vez.
@@ -106,6 +141,7 @@ export function CanjearCodigoForm({
     router.refresh();
     // Otras pestañas con un curso bloqueado o "sin acceso" se refrescan solas.
     avisarPestanas({ tipo: "acceso-cambio" });
+    alCanjear?.();
   }
 
   // Capitalizada para que JSX la trate como componente y no como etiqueta
@@ -114,6 +150,8 @@ export function CanjearCodigoForm({
 
   const contenido = (
     <>
+      {!sinEncabezado && (
+        <>
       <Titulo
         className={cn(
           "flex items-center gap-2.5 font-extrabold text-uva-text",
@@ -129,9 +167,13 @@ export function CanjearCodigoForm({
           : "Canjéalo aquí y tendrás acceso completo al catálogo, sin ningún cobro."}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3.5">
+        </>
+      )}
+
+      <form onSubmit={handleSubmit} className={cn("flex flex-col gap-3.5", !sinEncabezado && "mt-4")}>
         {error && (
           <div
+            id="codigo-error"
             role="alert"
             className="max-w-[56ch] rounded-uva-md bg-uva-error-soft px-3.5 py-3 text-uva-cuerpo font-semibold text-uva-error-text"
           >
@@ -140,6 +182,17 @@ export function CanjearCodigoForm({
               <span className="block mt-0.5 font-medium">
                 Podrás volver a intentar en {formatearEspera(segundosRestantes!)}.
               </span>
+            )}
+            {ofrecerInvitacion && (
+              <a
+                href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a U.V.A.")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 block min-h-11 py-2.5 font-bold underline underline-offset-4"
+              >
+                Pedir otra invitación
+                <span className="sr-only"> (abre WhatsApp en otra pestaña)</span>
+              </a>
             )}
           </div>
         )}
@@ -159,7 +212,10 @@ export function CanjearCodigoForm({
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
-              maxLength={13}
+              ref={campoRef}
+              onPaste={handlePaste}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "codigo-error" : undefined}
               className="h-13 w-[min(100%,260px)] border-[1.5px] border-uva-line-strong font-codigo text-uva-titulo-4 font-bold tracking-[0.08em] uppercase placeholder:font-medium placeholder:text-uva-text-muted sm:text-uva-titulo-4"
               disabled={bloqueado}
               required
@@ -171,7 +227,7 @@ export function CanjearCodigoForm({
               className="min-h-13 w-auto px-[22px] text-base"
               disabled={pending || bloqueado || codigo.trim() === ""}
             >
-              {pending ? "Canjeando…" : bloqueado ? "Bloqueado" : "Canjear"}
+              {pending ? "Canjeando…" : bloqueado ? "Bloqueado" : "Canjear código"}
             </Button>
           </div>
         </div>

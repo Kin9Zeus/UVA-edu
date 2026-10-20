@@ -301,7 +301,7 @@ export function AuthFlow({
     <GoogleAuthButton
       label="Continuar con Google"
       next={redirectTo}
-      className="h-12 border-[1.5px] border-uva-muted-2 text-uva-cuerpo bajo:h-11"
+      className="h-12 text-uva-cuerpo bajo:h-11"
     />
   );
 
@@ -345,6 +345,10 @@ export function AuthFlow({
                   type="email"
                   placeholder="Ingresa tu correo electrónico"
                   autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   aria-describedby={checkError ? "auth-email-error" : undefined}
                   className={ACCESO_INPUT}

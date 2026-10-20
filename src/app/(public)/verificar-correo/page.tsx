@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AuthVisual } from "@/components/auth/AuthVisual";
+import { AccesoMarco } from "@/components/auth/AccesoMarco";
+import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
+import { NivelObra, POSICION_NIVEL } from "@/components/auth/NivelObra";
 import { ReenviarVerificacion } from "@/components/auth/ReenviarVerificacion";
+import {
+  ACCESO_NOTA,
+  ACCESO_SUBTITULO,
+  ACCESO_TITULO,
+} from "@/components/auth/acceso";
 import { IrAlLoginAlConfirmar } from "@/components/sesion/IrAlLoginAlConfirmar";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,25 +30,35 @@ export default async function VerificarCorreoPage() {
     redirect("/dashboard");
   }
 
+  // Mismo marco y mismo aviso que «¡Ya casi!» del registro (AuthFlow): quien
+  // llega aquí acaba de pasar por esa pantalla o volvió a entrar sin confirmar.
   return (
-    <div className="grid min-h-screen grid-cols-1 min-[900px]:grid-cols-2">
-      <AuthVisual />
+    <AccesoMarco>
+      <div className="grid grid-cols-1 gap-5 medio:gap-4 bajo:gap-3 muy-bajo:gap-2.5">
+        <div className="muy-bajo:[zoom:0.85]">
+          <NivelObra posicion={POSICION_NIVEL.centro} />
+        </div>
 
-      <section className="grid place-items-center bg-uva-text/4 p-7 min-[900px]:p-11">
-        <div className="w-full max-w-[396px] text-center">
-          <h1 className="mb-1.5 text-[30px] text-uva-text">
-            Verifica tu correo
-          </h1>
-          <p className="mb-6 text-sm text-uva-text-muted">
-            Enviamos un enlace de confirmación a{" "}
-            <span className="text-uva-text">{user.email}</span>. Ábrelo para
-            activar tu cuenta.
+        <div className="grid grid-cols-1 gap-2 bajo:gap-1">
+          <h1 className={ACCESO_TITULO}>Verifica tu correo</h1>
+          <p className={`${ACCESO_SUBTITULO} muy-bajo:sr-only`}>
+            Tu cuenta está creada, pero falta confirmar tu correo para entrar.
           </p>
+        </div>
 
+        <div className="grid grid-cols-1 gap-3 bajo:gap-2">
+          <AvisoAcceso icono="correo">
+            Enviamos un enlace de confirmación a{" "}
+            <strong className="[overflow-wrap:anywhere]">{user.email}</strong>.
+            Ábrelo para activar tu cuenta.
+          </AvisoAcceso>
+          <p className={ACCESO_NOTA}>
+            ¿No te llegó? Revisa la carpeta de spam o de promociones.
+          </p>
           <ReenviarVerificacion email={user.email ?? ""} />
           <IrAlLoginAlConfirmar correo={user.email ?? ""} />
         </div>
-      </section>
-    </div>
+      </div>
+    </AccesoMarco>
   );
 }

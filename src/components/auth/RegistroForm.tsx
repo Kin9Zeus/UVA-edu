@@ -85,6 +85,10 @@ export function RegistroForm({
           type="email"
           placeholder="Ingresa tu correo electrónico"
           autoComplete="email"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={correo}
           onChange={(event) => {
             setCorreo(event.target.value);
