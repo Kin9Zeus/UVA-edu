@@ -237,6 +237,13 @@ export function BarraBusqueda({
         />
       )}
 
+      {/* Los desplegables dejan campos de texto ocultos (`name`) y, con más de
+          un campo de texto, Enter solo envía el formulario si hay un botón de
+          envío. Invisible: el buscador ya filtra mientras se escribe. */}
+      <button type="submit" tabIndex={-1} aria-hidden="true" className="sr-only">
+        Buscar
+      </button>
+
       {/* Sin JavaScript, el envío del formulario conserva el filtro de estado. */}
       {filtros.estado && <input type="hidden" name="estado" value={PARAMETRO_DE_ESTADO[filtros.estado]} />}
     </form>
