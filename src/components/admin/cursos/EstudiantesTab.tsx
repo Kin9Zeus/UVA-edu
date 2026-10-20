@@ -135,7 +135,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                   </StatusBadge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Progress value={estudiante.progreso} className="flex-1" />
+                  <Progress value={estudiante.progreso} aria-label={`Progreso de ${estudiante.nombre}`} className="flex-1" />
                   <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
                     {estudiante.progreso}%
                   </span>
@@ -178,7 +178,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                   </TableCell>
                   <TableCell className="min-w-[140px]">
                     <div className="flex items-center gap-2">
-                      <Progress value={estudiante.progreso} className="w-24" />
+                      <Progress value={estudiante.progreso} aria-label={`Progreso de ${estudiante.nombre}`} className="w-24" />
                       <span className="font-mono text-xs tabular-nums">{estudiante.progreso}%</span>
                     </div>
                   </TableCell>

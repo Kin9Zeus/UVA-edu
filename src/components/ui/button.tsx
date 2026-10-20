@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -16,28 +17,28 @@ const TACTIL_CUADRADO =
   "max-sm:min-h-11 max-sm:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         /* `.btn` — neutro, el que usa el mockup para casi todo */
         default:
-          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
+          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover active:bg-uva-surface-2 aria-expanded:bg-uva-hover",
         /* `.btn-primary` — magenta, reservado al CTA de cada pantalla */
         primary:
           "border-uva-btn bg-uva-btn text-uva-on-accent hover:bg-uva-btn-hover hover:border-uva-btn-hover active:bg-uva-btn-active",
         /* El mockup no distingue un `outline` del `.btn` base */
         outline:
-          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
+          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover active:bg-uva-surface-2 aria-expanded:bg-uva-hover",
         secondary:
-          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
+          "border-uva-divider bg-uva-surface text-uva-text hover:bg-uva-hover active:bg-uva-surface-2 aria-expanded:bg-uva-hover",
         /* `.btn-ghost` */
         ghost:
-          "border-transparent bg-transparent text-uva-text hover:bg-uva-hover aria-expanded:bg-uva-hover",
+          "border-transparent bg-transparent text-uva-text hover:bg-uva-hover active:bg-uva-surface-2 aria-expanded:bg-uva-hover",
         /* `.btn-danger` — borde neutro y texto rojo, nunca relleno rojo */
         destructive:
-          "border-uva-divider bg-transparent text-uva-error hover:bg-[color-mix(in_srgb,var(--uva-error)_12%,transparent)]",
-        link: "border-transparent text-uva-accent-ink underline-offset-4 hover:underline",
+          "border-uva-divider bg-transparent text-uva-error hover:bg-[color-mix(in_srgb,var(--uva-error)_12%,transparent)] active:bg-[color-mix(in_srgb,var(--uva-error)_22%,transparent)]",
+        link: "border-transparent text-uva-accent-ink underline-offset-4 hover:underline active:opacity-70",
         /* U.V.A — variantes del sitio público (auth.css / home.css migrados).
            El original no define `transition` en .btn, así que se cancela la
            transition-all heredada de la base para no animar lo que antes
@@ -80,14 +81,34 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  cargando = false,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    /** Acción en curso: muestra un spinner, bloquea el clic y avisa con
+     *  aria-busy. Sigue enfocable (no pierde el foco al empezar a cargar) y
+     *  se ve a opacidad completa, a diferencia de `disabled`. */
+    cargando?: boolean
+  }) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || cargando}
+      focusableWhenDisabled={cargando}
+      aria-busy={cargando || undefined}
       {...props}
-    />
+    >
+      {cargando && (
+        <Loader2
+          aria-hidden="true"
+          className="animate-spin motion-reduce:animate-none"
+        />
+      )}
+      {children}
+    </ButtonPrimitive>
   )
 }
 

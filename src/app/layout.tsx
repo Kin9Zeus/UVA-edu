@@ -7,6 +7,7 @@ import "flag-icons/css/flag-icons.min.css";
 import { siteUrl } from "@/lib/site-url";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
+import { Toaster } from "@/components/ui/toast";
 import { TemaProvider } from "@/components/tema/TemaProvider";
 import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
 
@@ -67,7 +68,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <TemaProvider>{children}</TemaProvider>
+        <TemaProvider>
+          <Toaster>{children}</Toaster>
+        </TemaProvider>
         <SincronizarPestanas />
       </body>
     </html>
