@@ -71,6 +71,7 @@ export function ComunidadFiltros() {
         <Search
           className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-uva-text-muted"
           strokeWidth={2}
+          aria-hidden="true"
         />
         <input
           type="search"
@@ -78,16 +79,16 @@ export function ComunidadFiltros() {
           onChange={(event) => alEscribir(event.target.value)}
           placeholder="Buscar publicaciones o personas"
           aria-label="Buscar publicaciones o personas en Comunidad"
-          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:h-9 md:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:h-9 md:pointer-fine:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (
           <button
             type="button"
             onClick={limpiarTexto}
             aria-label="Limpiar búsqueda"
-            className="absolute top-1/2 right-0.5 grid size-10 -translate-y-1/2 place-items-center text-uva-text-muted hover:text-uva-text"
+            className="absolute top-1/2 right-0.5 grid size-11 -translate-y-1/2 place-items-center text-uva-text-muted hover:text-uva-text"
           >
-            <X className="size-3.5" strokeWidth={2} />
+            <X className="size-3.5" strokeWidth={2} aria-hidden="true" />
           </button>
         )}
       </div>

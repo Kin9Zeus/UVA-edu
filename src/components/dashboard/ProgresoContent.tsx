@@ -1,5 +1,6 @@
 "use client";
 
+import { Progress } from "@/components/ui/progress";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -264,19 +265,11 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
           {curso.titulo}
         </h3>
         <div className="flex items-center gap-3">
-          <div
-            role="progressbar"
+          <Progress
+            value={curso.porcentaje}
             aria-label={`${curso.leccionesCompletadas} de ${curso.leccionesTotal} clases`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={curso.porcentaje}
-            className="h-1.5 flex-1 overflow-hidden rounded-full bg-uva-divider"
-          >
-            <div
-              className="h-full rounded-full bg-uva-btn"
-              style={{ width: `${curso.porcentaje}%` }}
-            />
-          </div>
+            className="flex-1"
+          />
           <span className="font-mono text-uva-detalle font-bold text-uva-text">
             {curso.leccionesCompletadas}/{curso.leccionesTotal} clases
           </span>

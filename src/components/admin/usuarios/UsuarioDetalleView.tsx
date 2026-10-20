@@ -1,5 +1,6 @@
 "use client";
 
+import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -373,16 +374,7 @@ export function UsuarioDetalleView({
                   </StatusBadge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div
-                    role="progressbar"
-                    aria-valuenow={curso.progreso}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Progreso de ${curso.titulo}`}
-                    className="h-1.5 w-full rounded-full bg-uva-divider"
-                  >
-                    <div className="h-full rounded-full bg-uva-accent" style={{ width: `${curso.progreso}%` }} />
-                  </div>
+                  <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
                   <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
                     {curso.progreso}%
                   </span>
@@ -444,20 +436,7 @@ export function UsuarioDetalleView({
                 </TableCell>
                 <TableCell className="min-w-[140px]">
                   <div className="flex items-center gap-2">
-                    {/* Barra plana de 6px, como en el mockup */}
-                    <div
-                      role="progressbar"
-                      aria-valuenow={curso.progreso}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`Progreso de ${curso.titulo}`}
-                      className="h-1.5 w-full rounded-full bg-uva-divider"
-                    >
-                      <div
-                        className="h-full rounded-full bg-uva-accent"
-                        style={{ width: `${curso.progreso}%` }}
-                      />
-                    </div>
+                    <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
                     <span className="font-mono text-xs text-uva-muted-2 tabular-nums">
                       {curso.progreso}%
                     </span>

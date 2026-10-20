@@ -1,3 +1,6 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,14 +31,10 @@ export function AvisoErrorCarga({
         className,
       )}
     >
-      <p className="m-0 text-[13px] leading-snug text-uva-text-muted">{texto}</p>
-      <button
-        type="button"
-        onClick={onReintentar}
-        className="inline-flex min-h-11 cursor-pointer items-center rounded-uva-md border border-uva-divider bg-uva-surface px-4 text-[13px] font-semibold text-uva-text transition-colors hover:border-uva-dim"
-      >
+      <p className="m-0 text-uva-detalle leading-snug text-uva-text-muted">{texto}</p>
+      <Button variant="default" onClick={onReintentar}>
         Reintentar
-      </button>
+      </Button>
     </div>
   );
 }

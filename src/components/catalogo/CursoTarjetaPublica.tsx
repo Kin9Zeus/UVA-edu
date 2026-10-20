@@ -97,10 +97,9 @@ export function CursoTarjetaPublica({
   const duracion = curso.duracionTotalSegundos ? formatHoras(curso.duracionTotalSegundos) : null;
 
   return (
-    <Link
-      href={`/cursos/${curso.slug}`}
+    <article
       className={cn(
-        "group flex h-full rounded-uva-sm text-uva-text no-underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-uva-accent",
+        "group relative flex h-full rounded-uva-sm text-uva-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-uva-accent",
         tarjeta ? "flex-col" : "gap-3.5 py-4 md:flex-col md:gap-0 md:py-0",
       )}
     >
@@ -148,7 +147,16 @@ export function CursoTarjetaPublica({
         </span>
 
         <h2 className="line-clamp-3 text-uva-cuerpo leading-snug font-bold text-balance group-hover:text-uva-accent-ink">
-          {curso.titulo}
+          {/* Único enlace de la tarjeta: su nombre es solo el título. `after`
+              lo estira sobre toda la tarjeta para que el clic y el toque
+              funcionen en cualquier parte, sin envolver todo el texto en un
+              <a>. El foco se dibuja en el <article> (has-[:focus-visible]). */}
+          <Link
+            href={`/cursos/${curso.slug}`}
+            className="text-inherit no-underline outline-hidden hover:text-inherit after:absolute after:inset-0 after:content-[''] hover:no-underline"
+          >
+            {curso.titulo}
+          </Link>
         </h2>
 
         {/* Instructor a la izquierda y nivel a la derecha, en la misma fila. */}
@@ -172,6 +180,6 @@ export function CursoTarjetaPublica({
           </span>
         )}
       </div>
-    </Link>
+    </article>
   );
 }

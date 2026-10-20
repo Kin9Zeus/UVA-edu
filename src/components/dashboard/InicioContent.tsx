@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Progress } from "@/components/ui/progress";
 import Image from "next/image";
 import { ArrowRight, ChevronRight, CirclePlay, Clock, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
@@ -18,18 +19,7 @@ const RETICULA =
   "bg-uva-surface-2 bg-[linear-gradient(color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--uva-line-strong)_25%,transparent)_1px,transparent_1px)] bg-[size:24px_24px]";
 
 function Barra({ porcentaje, etiqueta }: { porcentaje: number; etiqueta: string }) {
-  return (
-    <div
-      role="progressbar"
-      aria-label={etiqueta}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={porcentaje}
-      className="h-2 overflow-hidden rounded-uva-xs border border-uva-line-strong bg-uva-surface-2"
-    >
-      <div className="h-full bg-uva-accent" style={{ width: `${porcentaje}%` }} />
-    </div>
-  );
+  return <Progress value={porcentaje} aria-label={etiqueta} />;
 }
 
 /** Portada de un curso: la imagen real o, sin ella, la retícula con su ícono. */

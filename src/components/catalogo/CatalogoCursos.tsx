@@ -237,7 +237,7 @@ export function CatalogoCursos({
             onBuscar={alSeleccionarSugerencia}
             onTextoChange={alEscribir}
             className="w-full md:w-[340px]"
-            inputClassName="h-11.25 border-[1.5px] border-uva-line-strong pl-11 text-base hover:border-uva-text md:h-9 md:border sm:text-base md:text-uva-detalle"
+            inputClassName="h-11.25 border-[1.5px] border-uva-line-strong pl-11 text-base hover:border-uva-text md:h-9 md:border sm:text-base md:pointer-fine:text-uva-detalle"
           />
           {/* Con `fallo` el total no es 0: es desconocido. */}
           {!resultado.fallo && (
@@ -328,7 +328,7 @@ function Resultados({
     const desde = enfocarDesde.current;
     if (desde === null || resultado.cursos.length <= desde) return;
     enfocarDesde.current = null;
-    listaRef.current?.querySelectorAll<HTMLAnchorElement>(":scope > li > a")[desde]?.focus();
+    listaRef.current?.querySelectorAll<HTMLAnchorElement>(":scope > li a")[desde]?.focus();
   }, [resultado.cursos.length]);
 
   if (resultado.fallo) {
