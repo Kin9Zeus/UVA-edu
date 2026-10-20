@@ -20,8 +20,21 @@ export const RETICULA = {
   backgroundSize: "24px 24px",
 };
 
-/** Tres barras de alto creciente; se rellenan tantas como el nivel. El texto del nivel va al lado. */
-export function BarrasNivel({ nivel, className }: { nivel: CursoDeCategoria["nivel"]; className?: string }) {
+/**
+ * Tres barras de alto creciente; se rellenan tantas como el nivel. El texto
+ * del nivel va al lado. `colorDelTexto`: las llenas toman el color del texto
+ * que las rodea (el filtro por nivel del catálogo, que se invierte al
+ * elegirlo).
+ */
+export function BarrasNivel({
+  nivel,
+  className,
+  colorDelTexto = false,
+}: {
+  nivel: CursoDeCategoria["nivel"];
+  className?: string;
+  colorDelTexto?: boolean;
+}) {
   const llenas = NIVEL[nivel].barras;
   return (
     <span aria-hidden="true" className={cn("inline-flex items-end gap-[3px]", className)}>
@@ -33,7 +46,7 @@ export function BarrasNivel({ nivel, className }: { nivel: CursoDeCategoria["niv
             i === 0 && "h-1.5 max-md:h-[5px]",
             i === 1 && "h-2.5 max-md:h-2",
             i === 2 && "h-3.5 max-md:h-[11px]",
-            i < llenas ? "bg-uva-text" : "bg-uva-divider",
+            i < llenas ? (colorDelTexto ? "bg-current" : "bg-uva-text") : "bg-uva-divider",
           )}
         />
       ))}

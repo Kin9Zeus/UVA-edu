@@ -13,10 +13,15 @@ export type CursoOpcion = {
   instructorNombre: string;
 };
 
+/** Sin tildes ni mayúsculas, como `normalizar_busqueda` en la base: "diseno" encuentra "Diseño". */
+export function normalizar(texto: string) {
+  return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
 /**
- * Input de búsqueda de la página de catálogo: mientras se escribe solo
- * despliega un dropdown con las coincidencias (mismo criterio de título/
- * instructor que el filtro de CatalogoCursos), sin ejecutar la búsqueda.
+ * Input de búsqueda del encabezado (lo carga BuscadorHeaderInput): mientras se escribe solo despliega un dropdown con las
+ * coincidencias (mismo criterio de título/instructor que `buscar_catalogo`),
+ * sin ejecutar la búsqueda.
  * El filtro real solo se aplica al clickear (o confirmar con Enter sobre
  * una opción resaltada) una opción del dropdown.
  */
@@ -75,12 +80,9 @@ export function BuscadorInput({
       onValueChange={cambiarTexto}
       itemToStringValue={(curso) => curso.titulo}
       filter={(curso, query) => {
-        const termino = query.trim().toLowerCase();
+        const termino = normalizar(query.trim());
         if (!termino) return false;
-        return (
-          curso.titulo.toLowerCase().includes(termino) ||
-          curso.instructorNombre.toLowerCase().includes(termino)
-        );
+        return normalizar(curso.titulo).includes(termino) || normalizar(curso.instructorNombre).includes(termino);
       }}
       autoHighlight
     >
