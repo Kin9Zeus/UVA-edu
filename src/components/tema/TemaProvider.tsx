@@ -18,6 +18,8 @@ type ContextoTema = {
   tema: Tema;
   alternarTema: () => void;
   usarTemaDelSistema: () => void;
+  /** Fija la preferencia exacta (selector de tres opciones). */
+  elegirTema: (preferencia: PreferenciaTema) => void;
 };
 
 const TemaContext = createContext<ContextoTema | null>(null);
@@ -55,7 +57,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const valor = useMemo(
-    () => ({ preferencia, tema, alternarTema, usarTemaDelSistema }),
+    () => ({ preferencia, tema, alternarTema, usarTemaDelSistema, elegirTema: guardarPreferencia }),
     [preferencia, tema, alternarTema, usarTemaDelSistema],
   );
 
