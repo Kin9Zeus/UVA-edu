@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { MenuIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { SelectorTemaFila, SelectorTemaSistemaFila } from "@/components/tema/SelectorTema";
+import { SelectorTemaTres } from "@/components/tema/SelectorTema";
 
 const ENLACES = [
   { href: "/catalogo", label: "Catálogo" },
@@ -87,8 +87,7 @@ export function NavMovilDialog({ className }: { className?: string }) {
               Entrar
             </Button>
           </div>
-          <SelectorTemaFila className="min-h-14 border-t border-uva-divider text-uva-titulo-4 font-semibold" />
-          <SelectorTemaSistemaFila className="min-h-14 border-t border-uva-divider text-uva-titulo-4 font-semibold" />
+          <SelectorTemaTres className="border-t border-uva-divider pt-4" />
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

@@ -40,33 +40,41 @@ export function SelectorTemaBoton({ className }: { className?: string }) {
   );
 }
 
-const CLASE_FILA =
-  "flex min-h-11 w-full items-center gap-2.5 border-0 bg-transparent py-3 text-left text-[15px] text-uva-text hover:text-uva-accent-ink";
+const OPCIONES_TEMA = [
+  { valor: "claro", etiqueta: "Claro", Icono: Sun },
+  { valor: "oscuro", etiqueta: "Oscuro", Icono: Moon },
+  { valor: "sistema", etiqueta: "Sistema", Icono: Monitor },
+] as const;
 
-/** Fila a ancho completo para el menú móvil del sitio público. */
-export function SelectorTemaFila({ className }: { className?: string }) {
-  const { tema, alternarTema } = useTema();
-  const { etiqueta, corto, Icono } = textos(tema);
-
-  return (
-    <button type="button" onClick={alternarTema} aria-label={etiqueta} className={cn(CLASE_FILA, className)}>
-      <Icono className="size-[18px]" strokeWidth={2} aria-hidden="true" />
-      {corto}
-    </button>
-  );
-}
-
-/** Vuelve a seguir `prefers-color-scheme`. Solo aparece cuando hay una
- *  elección manual: siguiendo ya al sistema no haría nada. */
-export function SelectorTemaSistemaFila({ className }: { className?: string }) {
-  const { preferencia, usarTemaDelSistema } = useTema();
-  if (preferencia === "sistema") return null;
+/** Tres botones (claro, oscuro, sistema) con el actual marcado, para el menú
+ *  móvil del sitio público. Cada uno mide 44 px de alto. */
+export function SelectorTemaTres({ className }: { className?: string }) {
+  const { preferencia, elegirTema } = useTema();
 
   return (
-    <button type="button" onClick={usarTemaDelSistema} className={cn(CLASE_FILA, className)}>
-      <Monitor className="size-[18px]" strokeWidth={2} aria-hidden="true" />
-      {TEXTO_SISTEMA}
-    </button>
+    <div role="radiogroup" aria-label="Tema" className={cn("grid grid-cols-3 gap-2", className)}>
+      {OPCIONES_TEMA.map(({ valor, etiqueta, Icono }) => {
+        const activa = preferencia === valor;
+        return (
+          <button
+            key={valor}
+            type="button"
+            role="radio"
+            aria-checked={activa}
+            onClick={() => elegirTema(valor)}
+            className={cn(
+              "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-uva-md border-[1.5px] px-2 max-[359px]:[&>svg]:hidden text-uva-cuerpo font-semibold outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+              activa
+                ? "border-uva-accent-ink bg-uva-accent-soft text-uva-accent-text"
+                : "border-uva-line-strong text-uva-text hover:border-uva-text",
+            )}
+          >
+            <Icono className="size-4 shrink-0" strokeWidth={2} aria-hidden="true" />
+            {etiqueta}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
