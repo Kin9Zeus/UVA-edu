@@ -1,6 +1,6 @@
-import { ALTERNO, BASE, FIJOS } from "./paleta";
+import { BASE, FIJOS } from "./paleta";
 
-type Paleta = typeof BASE | typeof ALTERNO;
+type Paleta = typeof BASE;
 
 /**
  * Reglas de color por clase. Cada clase `c-*` marca qué propiedad cambia con
@@ -39,17 +39,20 @@ function reglasFijas(antes = ""): string {
  * Estilos del <head> de todos los correos. Lo esencial va en línea en cada
  * elemento, en tema OSCURO (muchos clientes descartan el <head>). Esto agrega:
  *   - celular (menos de 600 px): márgenes, título y rótulo apilado;
- *   - tema claro, para los clientes que lo piden con `prefers-color-scheme`;
  *   - tema oscuro repetido: un cliente que ve reglas propias de oscuro sabe
  *     que el correo ya está pensado para ese tema y no lo recolorea;
  *   - Outlook (Outlook.com y las apps del celular) recolorea igual con su
  *     propio modo oscuro y marca lo que cambió con `data-ogsc` (texto) y
  *     `data-ogsb` (fondo): esas reglas devuelven los colores del diseño.
  *     Sin ellas, el fondo casi negro salía gris y el amarillo, café.
+ *     Además cada fondo va también como degradado (`fondo()` en marco.tsx),
+ *     que la app de Outlook del celular no recolorea.
+ *
+ * No hay versión clara: los correos son oscuros siempre, también para quien
+ * tiene el teléfono en modo claro (decisión del 2026-10-20).
  */
 export const ESTILOS_CORREO = `
 body{margin:0;padding:0;}
-.c-logo-alterno{display:none;}
 @media only screen and (max-width:600px){
   .c-pad{padding-left:20px!important;padding-right:20px!important;}
   .c-h1{font-size:24px!important;line-height:30px!important;}
@@ -65,10 +68,4 @@ ${reglasDeColor(BASE, "[data-ogsb] ")}
 ${reglasDeColor(BASE, "[data-ogsc] ")}
 ${reglasFijas("[data-ogsb] ")}
 ${reglasFijas("[data-ogsc] ")}
-@media (prefers-color-scheme:light){
-  ${reglasDeColor(ALTERNO)}
-  .c-logo-base{display:none!important;}
-  .c-logo-alterno{display:block!important;}
-  .c-rot td.c-rc{border-top-color:${ALTERNO.tinta}!important;}
-}
 `;

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@react-email/components";
 import { aRgba, razon } from "@/lib/diseno/contraste";
 import { siteUrl } from "@/lib/site-url";
-import { CLARO, FIJOS, OSCURO } from "./marco/paleta";
+import { FIJOS, OSCURO } from "./marco/paleta";
 import { ASUNTO_CONFIRMAR_CUENTA, ConfirmarCuentaEmail } from "./confirmar-cuenta";
 import { ASUNTO_RECUPERAR_PASSWORD, RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-email";
 import { ASUNTO_PASSWORD_ACTUALIZADA, ContrasenaActualizadaEmail } from "./contrasena-actualizada";
@@ -77,10 +77,20 @@ describe("las nueve plantillas", () => {
         expect(html).toContain('alt="U.V.A."');
       });
 
-      it("salen en oscuro por defecto y en claro solo si el cliente lo pide", async () => {
+      it("son oscuros siempre: sin versión clara ni logo alternativo", async () => {
         const html = await render(crear());
-        expect(html).toMatch(/class="c-pagina"[^>]*background:#09090B/i);
-        expect(html).toContain("@media (prefers-color-scheme:light)");
+        expect(html).toMatch(/class="c-pagina"[^>]*background-color:#09090B/i);
+        expect(html).not.toContain("prefers-color-scheme:light");
+        expect(html).not.toContain("logo-sobre-claro");
+        expect(html).toContain('<meta name="color-scheme" content="dark"/>');
+      });
+
+      it("pintan cada fondo también como degradado, que Outlook no recolorea", async () => {
+        const html = await render(crear());
+        expect(html).toContain("background-image:linear-gradient(#09090B,#09090B)");
+        expect(html).toContain("background-image:linear-gradient(#18181B,#18181B)");
+        expect(html).toContain("background-image:linear-gradient(#FFC400,#FFC400)");
+        expect(html).not.toMatch(/background:#/i);
       });
 
       it("fijan sus colores para que el modo oscuro del cliente no los recoloree", async () => {
@@ -98,8 +108,8 @@ describe("las nueve plantillas", () => {
 
       it("pintan el botón con el magenta de la app (AA), no con el magenta puro", async () => {
         const html = await render(crear());
-        expect(html).toMatch(/background:#CC006D/i);
-        expect(html).not.toMatch(/background:#FF007A/i);
+        expect(html).toMatch(/background-color:#CC006D/i);
+        expect(html).not.toMatch(/background(-color)?:#FF007A/i);
       });
 
       it("no escriben rótulos en mayúsculas ni valores vacíos", async () => {
@@ -251,10 +261,7 @@ describe("logos del correo", () => {
 describe("paleta del correo", () => {
   const r = (a: string, b: string) => razon(aRgba(a), aRgba(b));
 
-  for (const [tema, p] of [
-    ["claro", CLARO],
-    ["oscuro", OSCURO],
-  ] as const) {
+  for (const [tema, p] of [["oscuro", OSCURO]] as const) {
     it(`en ${tema}, el texto pasa AA sobre la tarjeta, la página y los bloques apartados`, () => {
       for (const fondo of [p.tarjeta, p.pagina, p.fondoSuave]) {
         for (const color of [p.tinta, p.suave, p.enlace]) {

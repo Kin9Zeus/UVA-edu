@@ -15,19 +15,21 @@ import { BASE, CORREO_SOPORTE, FIJOS, LETRA, LETRA_CODIGO } from "./paleta";
 
 const tabla = { role: "presentation", width: "100%", cellPadding: 0, cellSpacing: 0, border: 0 } as const;
 
+/**
+ * Fondo que el modo oscuro de Outlook no recolorea. La app de Outlook del
+ * celular (y Outlook.com) cambia por su cuenta el `background-color`: el fondo
+ * casi negro salía gris y el amarillo, café. Un degradado de un solo color
+ * pinta lo mismo y esos recoloreos no lo tocan. Donde el degradado no se
+ * admite (Gmail web, Outlook de escritorio) queda el color de fondo.
+ */
+function fondo(color: string): CSSProperties {
+  return { backgroundColor: color, backgroundImage: `linear-gradient(${color},${color})` };
+}
+
 function texto(estilo: CSSProperties): CSSProperties {
   return { fontFamily: LETRA, margin: 0, ...estilo };
 }
 
-/**
- * Logo de trazo. `gruesa` para tamaños chicos (rótulo).
- *
- * El PNG trae fondo opaco del color de la tarjeta: Gmail en el celular
- * recolorea los fondos del correo pero nunca las imágenes, y un logo
- * transparente de un solo color desaparece cuando el fondo cambia. Con su
- * propio fondo se lee en cualquier cliente. Se ve el de tema oscuro; el de
- * tema claro solo donde el cliente aplica `prefers-color-scheme: light`.
- */
 /**
  * Origen público de las imágenes del correo. Por defecto es el del sitio,
  * pero un correo enviado desde `next dev` las pediría a localhost, que ningún
@@ -39,23 +41,25 @@ export function origenImagenesCorreo(): string {
   return configurado || siteUrl();
 }
 
+/**
+ * Logo de trazo. `gruesa` para tamaños chicos (rótulo).
+ *
+ * El PNG trae fondo opaco del color de la tarjeta oscura: los clientes
+ * recolorean los fondos del correo pero nunca las imágenes, y un logo
+ * transparente de un solo color desaparece cuando el fondo cambia. Con su
+ * propio fondo se lee en cualquier cliente.
+ */
 function Logo({ ancho, gruesa = false }: { ancho: number; gruesa?: boolean }) {
   const alto = Math.round((ancho * 23) / 70);
-  const archivo = (tema: "oscuro" | "claro") =>
-    `${origenImagenesCorreo()}/correo/logo-sobre-${tema}${gruesa ? "-gruesa" : ""}.png`;
-  const estilo: CSSProperties = { display: "block", border: 0, outline: "none", width: ancho, height: alto };
+  const src = `${origenImagenesCorreo()}/correo/logo-sobre-oscuro${gruesa ? "-gruesa" : ""}.png`;
   return (
-    <>
-      <Img className="c-logo-base" src={archivo("oscuro")} width={ancho} height={alto} alt="U.V.A." style={estilo} />
-      <Img
-        className="c-logo-alterno"
-        src={archivo("claro")}
-        width={ancho}
-        height={alto}
-        alt=""
-        style={{ ...estilo, display: "none", msoHide: "all" } as CSSProperties}
-      />
-    </>
+    <Img
+      src={src}
+      width={ancho}
+      height={alto}
+      alt="U.V.A."
+      style={{ display: "block", border: 0, outline: "none", width: ancho, height: alto }}
+    />
   );
 }
 
@@ -142,7 +146,7 @@ export function Boton({ href, children, pad = "4px 0 14px" }: { href: string; ch
         target="_blank"
         style={texto({
           display: "block",
-          background: FIJOS.boton,
+          ...fondo(FIJOS.boton),
           borderRadius: 10,
           padding: "16px 20px",
           fontSize: 16,
@@ -188,7 +192,7 @@ export function BotonSecundario({ href, children, pad = "0" }: { href: string; c
 export function Separador() {
   return (
     <Fila pad="6px 0 16px">
-      <div className="c-separador" style={{ height: 1, lineHeight: "1px", fontSize: 0, background: BASE.linea }}>
+      <div className="c-separador" style={{ height: 1, lineHeight: "1px", fontSize: 0, ...fondo(BASE.linea) }}>
         &nbsp;
       </div>
     </Fila>
@@ -240,7 +244,7 @@ export function Recuadro({ icono, children }: { icono: "alerta" | "listo"; child
           width: 22,
           height: 22,
           borderRadius: 11,
-          background: FIJOS.amarillo,
+          ...fondo(FIJOS.amarillo),
           color: FIJOS.sobreAmarillo,
           fontSize: 13,
           lineHeight: "22px",
@@ -304,7 +308,7 @@ export function Cita({ titulo, children }: { titulo: string; children: ReactNode
       <table
         {...tabla}
         className="c-fondo-suave c-borde-amarillo"
-        style={{ borderCollapse: "separate", borderLeft: `4px solid ${FIJOS.amarillo}`, background: BASE.fondoSuave, borderRadius: "0 10px 10px 0" }}
+        style={{ borderCollapse: "separate", borderLeft: `4px solid ${FIJOS.amarillo}`, ...fondo(BASE.fondoSuave), borderRadius: "0 10px 10px 0" }}
       >
         <tbody>
           <tr>
@@ -347,7 +351,7 @@ export function Carne({
   const estiloSello: CSSProperties =
     sello.tono === "pendiente"
       ? { border: `2px solid ${FIJOS.magenta}`, color: BASE.enlace }
-      : { border: `2px solid ${BASE.tinta}`, background: FIJOS.amarillo, color: FIJOS.sobreAmarillo };
+      : { border: `2px solid ${BASE.tinta}`, ...fondo(FIJOS.amarillo), color: FIJOS.sobreAmarillo };
   return (
     <Fila pad="2px 0 22px">
       <table
@@ -355,7 +359,7 @@ export function Carne({
         align="center"
         width={300}
         className="c-carne c-borde c-fondo-tarjeta"
-        style={{ borderCollapse: "separate", border: `2px solid ${BASE.tinta}`, borderRadius: 14, overflow: "hidden", background: BASE.tarjeta }}
+        style={{ borderCollapse: "separate", border: `2px solid ${BASE.tinta}`, borderRadius: 14, overflow: "hidden", ...fondo(BASE.tarjeta) }}
       >
         <tbody>
           <tr>
@@ -389,7 +393,7 @@ export function Carne({
                         height: 72,
                         border: `2px solid ${BASE.tinta}`,
                         borderRadius: 7,
-                        background: BASE.fondoSuave,
+                        ...fondo(BASE.fondoSuave),
                         fontSize: 24,
                         fontWeight: 800,
                         color: BASE.tinta,
@@ -452,7 +456,7 @@ export function Carne({
             <td
               className="c-borde c-amarillo"
               style={texto({
-                background: FIJOS.amarillo,
+                ...fondo(FIJOS.amarillo),
                 borderTop: `2px solid ${BASE.tinta}`,
                 padding: "9px 18px",
                 fontSize: 12,
@@ -471,7 +475,7 @@ export function Carne({
 
 /** Los días que faltan, dibujados como una cota de plano de hoy al último día. */
 export function Cota({ etiqueta, desde, hasta }: { etiqueta: string; desde: string; hasta: string }) {
-  const extremo: CSSProperties = { width: 2, background: BASE.tinta, fontSize: 0, lineHeight: 0 };
+  const extremo: CSSProperties = { width: 2, ...fondo(BASE.tinta), fontSize: 0, lineHeight: 0 };
   const lado = texto({ fontSize: 13, color: BASE.suave });
   return (
     <Fila>
@@ -489,7 +493,7 @@ export function Cota({ etiqueta, desde, hasta }: { etiqueta: string; desde: stri
                           display: "inline-block",
                           padding: "4px 12px",
                           borderRadius: 999,
-                          background: FIJOS.amarillo,
+                          ...fondo(FIJOS.amarillo),
                           fontSize: 14,
                           fontWeight: 800,
                           color: FIJOS.sobreAmarillo,
@@ -564,8 +568,8 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
   return (
     <Html lang="es">
       <Head>
-        <meta name="color-scheme" content="dark light" />
-        <meta name="supported-color-schemes" content="dark light" />
+        <meta name="color-scheme" content="dark" />
+        <meta name="supported-color-schemes" content="dark" />
         {/* Correo, no página de Next: la regla de fuentes de _document no aplica.
             Gmail ignora la hoja y usa Arial; Apple Mail e iOS cargan la letra. */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -576,8 +580,8 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
         <style dangerouslySetInnerHTML={{ __html: ESTILOS_CORREO }} />
       </Head>
       <Preview>{vistaPrevia}</Preview>
-      <Body className="c-pagina" style={{ margin: 0, padding: 0, background: BASE.pagina }}>
-        <table {...tabla} className="c-pagina" style={{ background: BASE.pagina }}>
+      <Body className="c-pagina" style={{ margin: 0, padding: 0, ...fondo(BASE.pagina) }}>
+        <table {...tabla} className="c-pagina" style={{ ...fondo(BASE.pagina) }}>
           <tbody>
             <tr>
               <td align="center" style={{ padding: "28px 12px" }}>
@@ -586,7 +590,7 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                   className="c-tarjeta"
                   style={{
                     maxWidth: 560,
-                    background: BASE.tarjeta,
+                    ...fondo(BASE.tarjeta),
                     border: `2px solid ${BASE.tinta}`,
                     borderRadius: 14,
                     borderCollapse: "separate",
@@ -615,7 +619,7 @@ export function MarcoCorreo({ vistaPrevia, seccion, nombre, hoja, motivo, ayuda,
                         className="c-borde c-amarillo"
                         style={{
                           height: 8,
-                          background: FIJOS.amarillo,
+                          ...fondo(FIJOS.amarillo),
                           borderTop: `2px solid ${BASE.tinta}`,
                           borderBottom: `2px solid ${BASE.tinta}`,
                           fontSize: 0,
