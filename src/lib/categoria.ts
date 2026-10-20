@@ -57,7 +57,7 @@ export type CursoDeCategoria = {
 };
 
 export { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
-import type { FiltroEstado } from "@/lib/filtroEstado";
+import { NIVELES, type FiltroEstado, type FiltroNivel } from "@/lib/filtroEstado";
 
 /** `totalCursos`: cursos publicados de la categoría (siempre 1 o más). */
 export type CategoriaActiva = { id: string; slug: string; nombre: string; totalCursos: number };
@@ -205,6 +205,8 @@ type OpcionesBuscarCatalogo = {
   incluir?: string[];
   /** Todos menos estos cursos (filtro por estado, SQL 122). */
   excluir?: string[];
+  /** Solo cursos de este nivel. Se resuelve a `incluir`: ver `cursosPorNivelCacheados`. */
+  nivel?: FiltroNivel;
 };
 
 type ProgresoPorCurso = Map<string, NonNullable<CursoDeCategoria["progreso"]>>;
@@ -242,6 +244,15 @@ async function buscarCatalogoConCliente(
   const offset = opciones.acumular ? 0 : (pagina - 1) * CURSOS_POR_PAGINA;
   const limite = opciones.acumular ? pagina * CURSOS_POR_PAGINA : CURSOS_POR_PAGINA;
 
+  // El nivel entra como lista de cursos a incluir (cruzada con la del filtro
+  // por estado, si la hay): `buscar_catalogo` no tiene parámetro de nivel y
+  // así no hace falta tocar la base.
+  let incluir = opciones.incluir;
+  if (opciones.nivel) {
+    const delNivel = new Set((await cursosPorNivelCacheados())[opciones.nivel]);
+    incluir = incluir ? incluir.filter((id) => delNivel.has(id)) : [...delNivel];
+  }
+
   const { data, error } = await supabase.rpc("buscar_catalogo", {
     p_query: textoDeBusqueda(opciones.query) ?? null,
     p_categoria_id: opciones.categoriaId || null,
@@ -249,7 +260,7 @@ async function buscarCatalogoConCliente(
     p_offset: offset,
     // Solo se mandan cuando hay filtro: así la llamada sigue sirviendo con
     // una base sin el script 122 (los 4 argumentos de siempre).
-    ...(opciones.incluir ? { p_incluir: opciones.incluir } : {}),
+    ...(incluir ? { p_incluir: incluir } : {}),
     ...(opciones.excluir ? { p_excluir: opciones.excluir } : {}),
   });
 
@@ -323,10 +334,10 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
     return query
       ? await buscarCatalogoConCliente(
           createPublicClient(),
-          { query, categoriaId: opciones.categoriaId, pagina, acumular: true },
+          { query, categoriaId: opciones.categoriaId, nivel: opciones.nivel, pagina, acumular: true },
           null,
         )
-      : await listadoPublicoCacheado(opciones.categoriaId ?? null, pagina);
+      : await listadoPublicoCacheado(opciones.categoriaId ?? null, opciones.nivel ?? null, pagina);
   } catch (error) {
     unstable_rethrow(error);
     logError("catalogo:publico", "no se pudo cargar el catálogo público", error, {
@@ -346,12 +357,17 @@ export async function buscarCatalogoPublico(opciones: OpcionesBuscarCatalogo): P
  * variación de entrada (`page=1.5`, un `categoriaId` como `undefined` en vez
  * de `null`) sería una entrada distinta para el mismo resultado. Normalizado,
  * el conjunto de claves posibles es finito: (categorías activas + 1) ×
- * `PAGINA_MAXIMA`. `categoriaId` sale siempre de la base (la lista de
- * categorías activas o `resolverCategoria`), nunca del texto de la URL.
+ * 4 niveles (con "todos") × `PAGINA_MAXIMA`. `categoriaId` sale siempre de la
+ * base (la lista de categorías activas o `resolverCategoria`), nunca del texto
+ * de la URL, y el nivel de `filtroNivelDeUrl`.
  */
 const listadoPublicoCacheado = unstable_cache(
-  async (categoriaId: string | null, pagina: number): Promise<ResultadoCatalogo> =>
-    buscarCatalogoConCliente(createPublicClient(), { categoriaId: categoriaId ?? undefined, pagina, acumular: true }, null),
+  async (categoriaId: string | null, nivel: FiltroNivel | null, pagina: number): Promise<ResultadoCatalogo> =>
+    buscarCatalogoConCliente(
+      createPublicClient(),
+      { categoriaId: categoriaId ?? undefined, nivel: nivel ?? undefined, pagina, acumular: true },
+      null,
+    ),
   // Clave nueva desde "cargar más": una entrada guardada con la forma
   // anterior (una sola página, sin duración) no debe servirse con esta.
   ["catalogo-publico-acumulado"],
@@ -451,6 +467,41 @@ async function getProgresoPorCurso(supabase: SupabaseClient): Promise<ProgresoPo
     });
   }
   return progresoPorCurso;
+}
+
+/**
+ * Ids de los cursos publicados de cada nivel, para el filtro por nivel del
+ * catálogo (entra a `buscar_catalogo` como `p_incluir`). Son pocos cursos y
+ * la lista es la misma para todos, así que se cachea junto con el catálogo.
+ * Lanza si falla: quien filtra muestra el fallo, no una lista equivocada.
+ */
+const cursosPorNivelCacheados = unstable_cache(
+  async (): Promise<Record<FiltroNivel, string[]>> => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase.from("cursos").select("id, nivel").eq("mostrado", true);
+    lanzarSiFalla(error, "cursos por nivel");
+    const porNivel: Record<FiltroNivel, string[]> = { BASICO: [], INTERMEDIO: [], AVANZADO: [] };
+    for (const fila of data ?? []) porNivel[fila.nivel as FiltroNivel]?.push(fila.id as string);
+    return porNivel;
+  },
+  ["cursos-por-nivel"],
+  { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
+);
+
+/**
+ * Niveles que tienen al menos un curso publicado: el filtro solo ofrece esos,
+ * para que ninguna opción lleve a una lista vacía. Ante un fallo devuelve `[]`
+ * (sin cachearlo) y la página oculta el filtro de nivel mientras dure.
+ */
+export async function getNivelesConCursos(): Promise<FiltroNivel[]> {
+  try {
+    const porNivel = await cursosPorNivelCacheados();
+    return NIVELES.filter((nivel) => porNivel[nivel].length > 0);
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:niveles", "no se pudieron cargar los niveles del catálogo", error, { area: "catalogo" });
+    return [];
+  }
 }
 
 export type CursoOpcionBuscador = {
