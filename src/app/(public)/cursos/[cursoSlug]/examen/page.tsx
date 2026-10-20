@@ -103,7 +103,7 @@ export default async function ExamenPage({
             Salir del examen
           </Link>
         </EncabezadoCurso>
-        <main className="flex flex-1 flex-col">
+        <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col">
           <ExamenRendir intento={intento} cursoSlug={cursoSlug} cursoTitulo={curso.titulo} />
         </main>
       </div>
@@ -147,7 +147,7 @@ export default async function ExamenPage({
           />
         )}
       </EncabezadoCurso>
-      <main className="flex flex-1 flex-col">
+      <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col">
         <ExamenIntro
           situacion={situacion}
           resultado={resultado}

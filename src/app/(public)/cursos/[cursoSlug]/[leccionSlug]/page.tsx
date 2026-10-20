@@ -118,7 +118,7 @@ export default async function LeccionPlayerPage({
 
   // Encabezado propio (LeccionMaqueta), sin el header del sitio.
   return (
-    <main>
+    <main id="contenido" tabIndex={-1}>
       <LeccionMaqueta
         data={data}
         comentarios={comentarios ?? []}

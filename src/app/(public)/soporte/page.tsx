@@ -29,7 +29,7 @@ export default async function SoportePublicoPage({
   return (
     <>
       <SiteHeader {...perfilActual} />
-      <main>
+      <main id="contenido" tabIndex={-1}>
         <SoporteCentro
           temaAbierto={esTemaSoporte(tema) ? tema : undefined}
           conSesion={Boolean(perfilActual.user)}

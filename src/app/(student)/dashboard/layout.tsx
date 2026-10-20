@@ -50,7 +50,7 @@ export default async function DashboardLayout({
             lo que va en posición absoluta. Sin esto, un `sr-only` (absoluto)
             hacia el final de una página se salía del `overflow` y estiraba
             el documento: dos barras de desplazamiento (pasaba en Soporte). */}
-        <main className="relative flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+        <main id="contenido" tabIndex={-1} className="relative flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
         <BottomTabBar />
       </div>
     </div>

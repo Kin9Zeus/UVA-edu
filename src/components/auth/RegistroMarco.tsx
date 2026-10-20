@@ -32,7 +32,7 @@ export function RegistroMarco({
         {carne}
       </div>
 
-      <main className="flex-1 px-5 pt-4 pb-9 min-[900px]:grid min-[900px]:border-l min-[900px]:border-uva-divider min-[900px]:bg-uva-surface min-[900px]:px-10 min-[900px]:py-9 min-[900px]:[place-items:safe_center] min-[1280px]:px-[72px] medio:min-[900px]:py-6 bajo:min-[900px]:py-4">
+      <main id="contenido" tabIndex={-1} className="flex-1 px-5 pt-4 pb-9 min-[900px]:grid min-[900px]:border-l min-[900px]:border-uva-divider min-[900px]:bg-uva-surface min-[900px]:px-10 min-[900px]:py-9 min-[900px]:[place-items:safe_center] min-[1280px]:px-[72px] medio:min-[900px]:py-6 bajo:min-[900px]:py-4">
         <div className="mx-auto w-full min-w-0 max-w-[410px] escritorio-bajo:max-w-[560px] [@media(min-width:1920px)_and_(min-height:1100px)]:max-w-[480px]">
           {children}
         </div>

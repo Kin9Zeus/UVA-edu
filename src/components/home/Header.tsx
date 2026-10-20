@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BuscadorHeaderInput } from "@/components/catalogo/BuscadorHeaderInput";
 import { BuscadorMovilDialog } from "@/components/catalogo/BuscadorMovilDialog";
 import { NavMovilDialog } from "@/components/home/NavMovilDialog";
@@ -10,10 +11,14 @@ import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { LogoUva } from "@/components/home/LogoUva";
 
 const CLASE_ENLACE =
-  "inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-text no-underline hover:text-uva-accent-ink hover:no-underline";
+  "relative inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-text no-underline hover:text-uva-accent-ink hover:no-underline";
+// Sección actual: subrayado grueso, como la línea de título de una lámina.
+const CLASE_ACTIVO = "font-extrabold after:absolute after:inset-x-0 after:bottom-1 after:h-[3px] after:bg-uva-accent-ink";
 
 export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+  const enCatalogo = pathname === "/catalogo" || pathname.startsWith("/catalogo/");
 
   useEffect(() => {
     function handleScroll() {
@@ -26,7 +31,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
 
   return (
     <header
-      className={`sticky top-0 z-50 flex items-center gap-1 border-b py-2.5 pr-2 pl-4 sm:gap-6 sm:px-uva-margen lg:gap-10 lg:py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
+      className={`sticky top-0 z-50 flex items-center gap-1 border-b py-2.5 pr-[max(0.5rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:gap-6 sm:pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] sm:pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] lg:gap-10 lg:py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
         scrolled
           ? "border-uva-divider bg-uva-bg/86"
           : "border-transparent bg-uva-bg/40"
@@ -46,8 +51,12 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
 
       <nav className="flex shrink-0 items-center gap-1 sm:ml-auto lg:gap-7" aria-label="Navegación principal">
         <div className="hidden items-center gap-7 lg:flex">
-          <Link href="/catalogo" className={CLASE_ENLACE}>
-            Cursos
+          <Link
+            href="/catalogo"
+            aria-current={enCatalogo ? "page" : undefined}
+            className={`${CLASE_ENLACE} ${enCatalogo ? CLASE_ACTIVO : ""}`}
+          >
+            Catálogo
           </Link>
           {PRECIOS_HABILITADOS && (
             <Link href="/#planes" className={CLASE_ENLACE}>
@@ -58,7 +67,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
             Verificar certificado
           </Link>
         </div>
-        {/* Por debajo de lg no cabe junto a "Acceder", la lupa y el menú: ahí
+        {/* Por debajo de lg no cabe junto a "Entrar", la lupa y el menú: ahí
             vive dentro del menú móvil (NavMovilDialog). */}
         <SelectorTemaBoton className="hidden rounded-uva-md border-[1.5px] border-uva-line-strong text-uva-text lg:inline-flex" />
         {!ocultarBuscador && <BuscadorMovilDialog destino="/catalogo" className="size-11 text-uva-text sm:hidden" />}
@@ -81,7 +90,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
               <circle cx="12" cy="8.5" r="4" />
               <path d="M4.5 20.5c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6" />
             </svg>
-            Acceder
+            Entrar
           </span>
         </Link>
         <NavMovilDialog className="size-11 text-uva-text lg:hidden" />

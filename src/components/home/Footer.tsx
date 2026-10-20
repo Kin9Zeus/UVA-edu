@@ -81,12 +81,12 @@ export async function Footer({
 
   return (
     <footer
-      className={`mt-auto px-uva-margen ${conBotonWhatsApp ? "pb-24" : "pb-12"}`}
+      className={`mt-auto pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] ${conBotonWhatsApp ? "pb-24" : "pb-12"}`}
     >
       {/* Banda de lámina: línea gruesa y trama de rayado, de borde a borde. */}
       <div
         aria-hidden="true"
-        className="-mx-uva-margen h-4 border-t-2 border-uva-text bg-[repeating-linear-gradient(135deg,var(--uva-line-strong)_0_1px,transparent_1px_10px)]"
+        className="-mr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] -ml-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] h-4 border-t-2 border-uva-text bg-[repeating-linear-gradient(135deg,var(--uva-line-strong)_0_1px,transparent_1px_10px)]"
       />
       <div className="mx-auto w-full max-w-uva pt-9">
         <div className="mb-9 grid gap-8 md:grid-cols-2 lg:grid-cols-12">
@@ -102,7 +102,7 @@ export async function Footer({
           {escuelas.length > 0 && (
             <nav aria-label="Escuelas" className="lg:col-span-2">
               <h2 className={headingClass}>Escuelas</h2>
-              <ul>
+              <ul className="grid grid-cols-2 gap-x-4 md:block">
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
                     <Link href={`/catalogo/${escuela.slug}`} className={linkClass}>
@@ -134,7 +134,7 @@ export async function Footer({
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
           <nav aria-label="Soporte" className="lg:col-span-3">
             <h2 className={headingClass}>Soporte</h2>
-            <ul>
+            <ul className="grid grid-cols-2 gap-x-4 md:block">
               {TEMAS_SOPORTE.map((tema) => (
                 <li key={tema.id}>
                   <Link href={`/soporte?tema=${tema.id}`} className={linkClass}>
