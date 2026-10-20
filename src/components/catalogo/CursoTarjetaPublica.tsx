@@ -172,12 +172,13 @@ export function CursoTarjetaPublica({
           </Link>
         </h2>
 
-        {/* Instructor a la izquierda y nivel a la derecha, en la misma fila. */}
+        {/* Instructor a la izquierda y nivel a la derecha, en la misma fila; si
+            no caben (letra del sistema agrandada), el nivel baja de línea. */}
         {/* En la cuadrícula va al fondo (`mt-auto`): las tarjetas de una fila
             quedan alineadas aunque los títulos tengan distinto largo. */}
         <span
           className={cn(
-            "flex items-center justify-between gap-3 text-uva-detalle text-uva-text-muted",
+            "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-uva-detalle text-uva-text-muted",
             tarjeta ? "mt-auto" : "md:mt-auto",
           )}
         >

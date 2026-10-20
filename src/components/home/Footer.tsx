@@ -89,7 +89,10 @@ export async function Footer({
         className="-mr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] -ml-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] h-4 border-t-2 border-uva-text bg-[repeating-linear-gradient(135deg,var(--uva-line-strong)_0_1px,transparent_1px_10px)]"
       />
       <div className="mx-auto w-full max-w-uva pt-9">
-        <div className="mb-9 grid gap-8 md:grid-cols-2 lg:grid-cols-12">
+        {/* `grid-cols-1` (minmax(0, 1fr)) y `wrap-anywhere` en las listas: con la
+            letra del sistema al doble, "Arquitectónica" en dos columnas era
+            más ancha que un celular de 375 px y ensanchaba toda la página. */}
+        <div className="mb-9 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-12">
           <div className="flex flex-col gap-3 lg:col-span-3">
             <LogoUva etiqueta="U.V.A." className="h-[34px] w-[105px] text-uva-text" />
             <p className="max-w-[240px] text-uva-cuerpo text-uva-text-muted">
@@ -102,7 +105,7 @@ export async function Footer({
           {escuelas.length > 0 && (
             <nav aria-label="Escuelas" className="lg:col-span-2">
               <h2 className={headingClass}>Escuelas</h2>
-              <ul className="grid grid-cols-2 gap-x-4 md:block">
+              <ul className="grid grid-cols-2 gap-x-4 wrap-anywhere md:block">
                 {escuelas.map((escuela) => (
                   <li key={escuela.id}>
                     <Link href={`/catalogo/${escuela.slug}`} className={linkClass}>
@@ -134,7 +137,7 @@ export async function Footer({
               desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
           <nav aria-label="Soporte" className="lg:col-span-3">
             <h2 className={headingClass}>Soporte</h2>
-            <ul className="grid grid-cols-2 gap-x-4 md:block">
+            <ul className="grid grid-cols-2 gap-x-4 wrap-anywhere md:block">
               {TEMAS_SOPORTE.map((tema) => (
                 <li key={tema.id}>
                   <Link href={`/soporte?tema=${tema.id}`} className={linkClass}>
@@ -156,7 +159,7 @@ export async function Footer({
 
         <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
           <p className="text-uva-detalle text-uva-text-muted">© 2026 U.V.A. Hecho en obra, para LATAM.</p>
-          <ul aria-label="U.V.A. en redes" className="flex gap-2">
+          <ul aria-label="U.V.A. en redes" className="flex flex-wrap gap-2">
             {socials.map(({ label, Icon, href }) => (
               <li key={label}>
                 <a
