@@ -49,6 +49,8 @@ export function ErrorBlock({
 }: ErrorBlockProps) {
   return (
     <main
+      id="contenido"
+      tabIndex={-1}
       className={cn(
         "flex items-center justify-center bg-[linear-gradient(168deg,var(--uva-bg-gradient-start)_0%,var(--uva-bg)_52%,var(--uva-bg)_100%)] px-[clamp(20px,5vw,48px)] py-[clamp(40px,8vh,88px)]",
         standalone ? "min-h-screen" : "min-h-full",

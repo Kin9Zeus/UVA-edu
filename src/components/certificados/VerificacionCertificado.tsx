@@ -71,7 +71,7 @@ export function VerificacionCertificado({
         </div>
       </header>
 
-      <main className="relative isolate flex-1 px-3 pt-4 pb-10 sm:px-6 md:pt-11">
+      <main id="contenido" tabIndex={-1} className="relative isolate flex-1 px-3 pt-4 pb-10 sm:px-6 md:pt-11">
         <div
           aria-hidden="true"
           className="uva-reticula pointer-events-none absolute inset-0 -z-10"

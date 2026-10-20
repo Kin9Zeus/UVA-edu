@@ -96,7 +96,7 @@ export default async function CursoDetallePage({
       <>
         <JsonLd data={jsonLd} />
         <SiteHeader {...perfilActual} />
-        <main>
+        <main id="contenido" tabIndex={-1}>
           {/* Sin sesión: sin examen (no es contenido público) y con reseñas
               de solo lectura. */}
           <CursoFicha curso={curso} calificaciones={calificaciones} sesion={null} />
@@ -132,7 +132,7 @@ export default async function CursoDetallePage({
           notificaciones={notificaciones}
           notificacionesNoLeidas={notificacionesNoLeidas}
         />
-        <main className="pb-20 md:pb-0">
+        <main id="contenido" tabIndex={-1} className="pb-20 md:pb-0">
           <CursoFicha
             curso={curso}
             calificaciones={calificaciones}

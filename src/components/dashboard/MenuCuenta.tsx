@@ -53,7 +53,7 @@ export function MenuCuenta({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Menú de usuario"
+        aria-label={`Menú de ${primerNombre}`}
         className="-my-0.5 flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       >
         <Avatar className="size-9 border-[1.5px] border-uva-line-strong bg-uva-surface-2">
@@ -65,7 +65,7 @@ export function MenuCuenta({
         {mostrarNombre && (
           <span className="hidden max-w-[120px] truncate text-uva-cuerpo font-bold sm:inline">{primerNombre}</span>
         )}
-        <ChevronDown className="size-4 text-uva-text-faint" />
+        <ChevronDown className="size-4 text-uva-text-faint" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuLinkItem render={<Link href="/dashboard/perfil" />} className={ITEM}>

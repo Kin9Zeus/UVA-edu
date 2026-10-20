@@ -59,7 +59,7 @@ export default async function Home() {
           parecido. */}
       <JsonLd data={organizacionCompleta()} />
       <Header />
-      <main>
+      <main id="contenido" tabIndex={-1}>
         <Hero hrefCodigo={hrefCodigo} categorias={categorias} />
         <CategoriasPortada categorias={categorias} />
         <ProductBand />

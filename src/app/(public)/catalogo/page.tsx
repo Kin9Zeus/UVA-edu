@@ -38,7 +38,7 @@ export default async function CatalogoPage({
   return (
     <>
       <SiteHeader {...perfilActual} />
-      <main>
+      <main id="contenido" tabIndex={-1}>
         <CatalogoCursos
           contexto="publico"
           categorias={categorias}

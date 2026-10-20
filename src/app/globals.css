@@ -614,6 +614,12 @@
   html {
     @apply font-sans;
     background: var(--uva-bg);
+    /* Encabezado fijo (≈64 px): el foco nunca queda tapado debajo (WCAG 2.4.11). */
+    scroll-padding-top: 5rem;
+  }
+  /* Destino del enlace "Saltar al contenido": recibe foco, no es un control. */
+  main:focus {
+    outline: none;
   }
   h1,
   h2,

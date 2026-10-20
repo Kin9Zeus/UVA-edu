@@ -39,7 +39,7 @@ export default async function LeccionVistaPreviaPage({
   return (
     <>
       <BannerVistaPrevia publicado={data.publicado} expiraEn={resultado.expiraEn} />
-      <main className="pt-12">
+      <main id="contenido" tabIndex={-1} className="pt-12">
         <LeccionVistaPreviaContent data={data} token={token} />
       </main>
     </>

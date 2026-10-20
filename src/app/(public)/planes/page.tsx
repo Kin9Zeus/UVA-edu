@@ -37,7 +37,7 @@ export default async function PlanesPage() {
   return (
     <>
       <Header />
-      <main className="pt-[clamp(24px,4vw,44px)]">
+      <main id="contenido" tabIndex={-1} className="pt-[clamp(24px,4vw,44px)]">
         <Pricing
           titulo="Un plan, todo el gremio"
           subtitulo="Acceso a todo el catálogo, las plantillas descargables y los certificados. Cambia o cancela cuando quieras."

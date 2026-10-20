@@ -41,7 +41,7 @@ export default async function VistaPreviaPage({
     <>
       <BannerVistaPrevia publicado={curso.mostrado} expiraEn={resultado.expiraEn} />
       {/* Deja sitio para la barra fija de arriba. */}
-      <main className="pt-12">
+      <main id="contenido" tabIndex={-1} className="pt-12">
         <ContenidoVistaPrevia curso={curso} token={token} />
       </main>
     </>
