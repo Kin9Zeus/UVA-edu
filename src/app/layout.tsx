@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-// SVG, no depende de fuente de emoji del SO — sin esto, "🇨🇴" cae en texto
-// plano ("CO") en Chrome/Windows por falta de glifos de bandera.
-import "flag-icons/css/flag-icons.min.css";
+// flag-icons NO va aquí: son 33 KB de CSS que bloqueaban el render de todas
+// las páginas (Lighthouse de la portada, 2026-10-20) y solo lo usan las
+// banderas del perfil y de los comentarios. Cada uno lo importa.
 import { siteUrl } from "@/lib/site-url";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
