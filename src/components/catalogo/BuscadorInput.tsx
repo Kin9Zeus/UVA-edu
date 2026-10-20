@@ -5,6 +5,7 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { SearchIcon, CrossIcon } from "@/components/home/icons";
 import { cn } from "@/lib/utils";
 import { LARGO_MAXIMO_BUSQUEDA } from "@/lib/parametros-url";
+import { CLASE_CAMPO_BUSCADOR, CLASE_ICONO_BUSCADOR } from "@/components/catalogo/campoBuscador";
 
 export type CursoOpcion = {
   id: string;
@@ -84,7 +85,7 @@ export function BuscadorInput({
       autoHighlight
     >
       <div className={cn("relative", className)}>
-        <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-uva-text-faint">
+        <span className={CLASE_ICONO_BUSCADOR}>
           <SearchIcon />
         </span>
         <Autocomplete.Input
@@ -95,7 +96,7 @@ export function BuscadorInput({
           // nadie escribe algo que después se recorte en silencio.
           maxLength={LARGO_MAXIMO_BUSQUEDA}
           className={cn(
-            "h-10 w-full min-w-0 rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-3 pl-9 text-base text-uva-text caret-uva-accent outline-hidden placeholder:text-uva-text-faint hover:border-uva-text-faint focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent sm:text-sm",
+            CLASE_CAMPO_BUSCADOR,
             // Espacio para la ✕ de limpiar solo cuando se ve: vacío, el
             // texto de ayuda usa todo el ancho (a 320 px se cortaba).
             texto && "pr-11",

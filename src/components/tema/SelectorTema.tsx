@@ -2,7 +2,6 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useTema } from "@/components/tema/TemaProvider";
 import { cn } from "@/lib/utils";
 
@@ -12,14 +11,18 @@ import { cn } from "@/lib/utils";
  * con la etiqueta "Encender". Elegir aquí sobrescribe el tema del sistema
  * hasta que el usuario pida volver a él (las opciones "Usar tema del
  * sistema" de abajo).
+ *
+ * Las variantes para el menú de usuario de los paneles viven en
+ * SelectorTemaMenu.tsx: traen el menú desplegable de base-ui, y este archivo
+ * lo cargan también las cabeceras públicas, que no lo usan.
  */
-function textos(tema: "claro" | "oscuro") {
+export function textos(tema: "claro" | "oscuro") {
   return tema === "oscuro"
     ? { etiqueta: "Cambiar a tema claro", corto: "Tema claro", Icono: Sun }
     : { etiqueta: "Cambiar a tema oscuro", corto: "Tema oscuro", Icono: Moon };
 }
 
-const TEXTO_SISTEMA = "Usar tema del sistema";
+export const TEXTO_SISTEMA = "Usar tema del sistema";
 
 /** Botón de solo ícono, 44×44, para las cabeceras. */
 export function SelectorTemaBoton({ className }: { className?: string }) {
@@ -67,33 +70,5 @@ export function SelectorTemaSistemaFila({ className }: { className?: string }) {
       <Monitor className="size-[18px]" strokeWidth={2} aria-hidden="true" />
       {TEXTO_SISTEMA}
     </button>
-  );
-}
-
-/** Alterna claro/oscuro desde el menú de usuario. Para las pantallas cuya
- *  cabecera oculta el botón sol/luna en celular (clase y examen). */
-export function SelectorTemaMenuItem({ className }: { className?: string }) {
-  const { tema, alternarTema } = useTema();
-  const { corto, Icono } = textos(tema);
-
-  return (
-    <DropdownMenuItem onClick={alternarTema} className={className}>
-      <Icono className="size-4" aria-hidden="true" />
-      {corto}
-    </DropdownMenuItem>
-  );
-}
-
-/** Igual que SelectorTemaSistemaFila, como opción del menú de usuario de los
- *  paneles. Cierra el menú: el botón sol/luna sigue a la vista en el header. */
-export function SelectorTemaSistemaMenuItem({ className }: { className?: string }) {
-  const { preferencia, usarTemaDelSistema } = useTema();
-  if (preferencia === "sistema") return null;
-
-  return (
-    <DropdownMenuItem onClick={usarTemaDelSistema} className={className}>
-      <Monitor className="size-4" aria-hidden="true" />
-      {TEXTO_SISTEMA}
-    </DropdownMenuItem>
   );
 }
