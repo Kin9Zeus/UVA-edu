@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import { suscripcionDaAcceso, type EstadoSuscripcionAdmin } from "@/lib/estadoAcceso";
 
 export type LoginState =
   | { error: string; pendingVerification?: never }
@@ -64,7 +65,7 @@ export async function login(
   // en vez de dejarla entrar: no basta con negar el acceso más adelante.
   const { data: perfil, error: errorPerfil } = await supabase
     .from("perfiles")
-    .select("estado")
+    .select("estado, rol")
     .eq("id", data.user.id)
     .single();
 
@@ -91,5 +92,42 @@ export async function login(
     logError("login", "limpiar_intentos_login rpc falló", errorLimpieza);
   }
 
-  redirect(redirectTo);
+  redirect(await destinoTrasEntrar(supabase, data.user.id, redirectTo, perfil?.rol));
+}
+
+/**
+ * Sin un destino pedido (`/dashboard` a secas) un estudiante sin acceso vigente
+ * entra por «Canjea tu invitación», el paso que sigue en el recorrido, en vez
+ * de un panel donde casi todo está bloqueado. Un destino explícito (el curso al
+ * que iba, un enlace guardado) se respeta siempre, y el administrador entra a
+ * su panel. Si la consulta falla se cae al panel: no es una comprobación de
+ * seguridad, el panel ya sabe mostrar a quien no tiene acceso.
+ */
+async function destinoTrasEntrar(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  usuarioId: string,
+  redirectTo: string,
+  rol: string | undefined,
+): Promise<string> {
+  if (redirectTo !== "/dashboard" || rol !== "ESTUDIANTE") return redirectTo;
+
+  const { data: suscripcion, error } = await supabase
+    .from("suscripciones")
+    .select("estado, fecha_renovacion")
+    .eq("id_usuario", usuarioId)
+    .order("fecha_inicio", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logError("login", "no se pudo leer la suscripción para elegir el destino", error);
+    return redirectTo;
+  }
+
+  const daAcceso = suscripcion
+    ? suscripcionDaAcceso({
+        estado: suscripcion.estado as EstadoSuscripcionAdmin,
+        fechaRenovacion: suscripcion.fecha_renovacion,
+      })
+    : false;
+  return daAcceso ? redirectTo : "/canjear";
 }

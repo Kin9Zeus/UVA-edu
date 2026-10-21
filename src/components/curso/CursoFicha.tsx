@@ -107,9 +107,11 @@ function FilaClase({
         </span>
       </span>
 
+      {/* La miniatura solo desde 640 px: en celular le quitaba casi la mitad
+          del ancho al título y a 64 px no aporta nada. */}
       <span
         className={cn(
-          "relative block h-9 w-16 shrink-0 overflow-hidden rounded-uva-xs bg-uva-surface-2 md:h-13.5 md:w-24",
+          "relative hidden h-9 w-16 shrink-0 overflow-hidden rounded-uva-xs bg-uva-surface-2 sm:block md:h-13.5 md:w-24",
           resaltada ? "outline-2 outline-offset-1 outline-uva-btn" : "border border-uva-divider",
         )}
       >
@@ -120,19 +122,10 @@ function FilaClase({
             className={cn("absolute inset-0 size-full object-cover", bloqueada && "opacity-50")}
           />
         )}
-        {(resaltada || bloqueada) && (
+        {resaltada && (
           <span className="absolute inset-0 grid place-items-center">
-            <span
-              className={cn(
-                "grid size-6 place-items-center rounded-full text-uva-on-accent",
-                resaltada ? "bg-uva-btn" : "bg-uva-overlay",
-              )}
-            >
-              {resaltada ? (
-                <Play className="size-3 fill-current" strokeWidth={0} aria-hidden />
-              ) : (
-                <Lock className="size-3" strokeWidth={2.4} aria-hidden />
-              )}
+            <span className="grid size-6 place-items-center rounded-full bg-uva-btn text-uva-on-accent">
+              <Play className="size-3 fill-current" strokeWidth={0} aria-hidden />
             </span>
           </span>
         )}
@@ -146,22 +139,43 @@ function FilaClase({
           )}
         >
           {leccion.titulo}
-          {bloqueada && <span className="sr-only"> (bloqueada)</span>}
         </span>
-        {etiqueta && (
-          <span
-            className={cn(
-              "block text-uva-detalle font-bold",
-              resaltada ? "text-uva-accent-ink" : "text-uva-accent-2-text",
+        {/* Segunda línea: el estado en texto (la bloqueada lleva candado y la
+            palabra, no solo el ícono) y, en celular, la duración. */}
+        {(etiqueta || bloqueada || duracion) && (
+          <span className="flex flex-wrap items-center gap-x-2.5 text-uva-detalle">
+            {bloqueada && (
+              <span className="inline-flex items-center gap-1 font-bold text-uva-text-muted">
+                <Lock className="size-3.5" strokeWidth={2.4} aria-hidden />
+                Bloqueada
+              </span>
             )}
-          >
-            {etiqueta}
+            {etiqueta && (
+              <span
+                className={cn(
+                  "font-bold",
+                  estado === "vista-previa"
+                    ? "rounded-full border-[1.5px] border-uva-accent-ink px-2 text-uva-accent-ink"
+                    : resaltada
+                      ? "text-uva-accent-ink"
+                      : "text-uva-accent-2-text",
+                )}
+              >
+                {etiqueta}
+              </span>
+            )}
+            {duracion && (
+              <span className="font-mono text-uva-text-muted sm:hidden">
+                <span className="sr-only">Duración </span>
+                {duracion}
+              </span>
+            )}
           </span>
         )}
       </span>
 
       {duracion && (
-        <span className="shrink-0 font-mono text-uva-detalle text-uva-text-muted">
+        <span className="hidden shrink-0 font-mono text-uva-detalle text-uva-text-muted sm:block">
           <span className="sr-only">Duración </span>
           {duracion}
         </span>
@@ -257,6 +271,46 @@ export function CursoFicha({
   // Numeración corrida en todo el curso (1…N), como el reproductor.
   const numeroDeClase = new Map(lecciones.map((leccion, indice) => [leccion.id, indice + 1]));
 
+  // Módulos plegables: queda abierto el que tiene la clase por la que sigue
+  // quien ya empezó; para el resto, el primero.
+  const moduloAbiertoId =
+    (conAcceso && curso.leccionContinuarId
+      ? modulos.find((modulo) => modulo.lecciones.some((leccion) => leccion.id === curso.leccionContinuarId))?.id
+      : undefined) ?? modulos[0]?.id;
+
+  const mostrarExamen = sesion !== null && sesion.situacionExamen.situacion !== "SIN_EXAMEN";
+  // Sin profesor asignado no hay tarjeta: un círculo con "SI" no dice nada, y
+  // el dato ya figura arriba.
+  const tarjetaInstructor = instructores && (
+    <aside
+      aria-label={instructores.length > 1 ? "Instructores" : "Instructor"}
+      className="order-4 flex flex-col gap-4 @max-2xl:border-y @max-2xl:border-uva-divider @max-2xl:py-4 @2xl:order-5 @4xl:order-none"
+    >
+      {instructores.map((instructor) => (
+        <div key={instructor.id} className="flex items-center gap-3.5">
+          <span
+            aria-hidden="true"
+            className="grid size-13 shrink-0 place-items-center overflow-hidden rounded-full border-[1.5px] border-uva-line-strong bg-uva-surface-2 text-uva-cuerpo font-bold text-uva-text"
+          >
+            {instructor.fotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
+              <img src={instructor.fotoUrl} alt="" loading="lazy" className="size-full object-cover" />
+            ) : (
+              iniciales(instructor.nombre)
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="m-0 text-uva-detalle text-uva-text-muted">Instructor</p>
+            <p className="m-0 text-uva-cuerpo font-bold text-uva-text">{instructor.nombre}</p>
+            {instructor.especialidad && (
+              <p className="m-0 text-uva-detalle text-uva-text-muted">{instructor.especialidad}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </aside>
+  );
+
   function estadoDe(leccion: LeccionPublica): EstadoClase {
     if (conAcceso) {
       if (leccion.id === curso.leccionContinuarId) return "continuar";
@@ -291,13 +345,14 @@ export function CursoFicha({
   );
 
   return (
-    // Dos columnas según el ancho que le queda a la ficha (`@container`,
-    // `@4xl` = 896 px), no según la pantalla: con el menú del panel al lado,
-    // a 1024 px la columna del título quedaba en 190 px.
+    // Columnas y orden según el ancho que le queda a la ficha (`@container`;
+    // `@2xl` = 672 px hace de tableta y `@4xl` = 896 px de escritorio), no
+    // según la pantalla: con el menú del panel al lado, a 1024 px la columna
+    // del título quedaba en 190 px.
     <div className="@container mx-auto max-w-uva px-uva-margen pt-4 pb-uva-seccion lg:pt-8">
-      <div className="grid grid-cols-1 gap-7 @4xl:grid-cols-[minmax(0,1fr)_440px] @4xl:grid-rows-[auto_1fr_auto_auto] @4xl:gap-x-14 @4xl:gap-y-4">
+      <div className="grid grid-cols-1 gap-7 @4xl:grid-cols-[minmax(0,1fr)_440px] @4xl:grid-rows-[auto_1fr_auto] @4xl:gap-x-14 @4xl:gap-y-4">
         {/* Encabezado: ruta, título y datos del curso. */}
-        <div className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-1 @4xl:gap-4">
+        <div className="order-1 flex min-w-0 flex-col gap-3 @4xl:order-none @4xl:col-start-1 @4xl:row-start-1 @4xl:gap-4">
           <nav aria-label="Ruta de navegación">
             <ol className="flex flex-wrap items-center gap-x-2 text-uva-detalle text-uva-text-muted">
               <li>
@@ -373,11 +428,17 @@ export function CursoFicha({
           </div>
         </div>
 
-        {/* Portada y botones: columna derecha en escritorio. En una sola
-            columna con espacio (tableta, `@2xl` a `@4xl`), portada y botones
-            van lado a lado: a todo el ancho, la portada empujaba "Seguir
-            viendo" fuera de la primera pantalla. */}
-        <div className="flex min-w-0 flex-col gap-4 @2xl:@max-4xl:grid @2xl:@max-4xl:grid-cols-2 @2xl:@max-4xl:content-start @2xl:@max-4xl:gap-x-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1 @4xl:gap-5">
+        {/* Columna derecha en escritorio: portada, botones, instructor y examen
+            en una sola tarjeta que se queda fija mientras se lee el temario.
+            Con la ficha de menos de `@4xl` la envoltura desaparece (`contents`)
+            y cada pieza ocupa su lugar con `order`: el instructor va antes del
+            temario solo con la ficha angosta (< `@2xl`, celular) y después en
+            tableta. */}
+        <div className="contents @4xl:sticky @4xl:top-24 @4xl:col-start-2 @4xl:row-span-3 @4xl:row-start-1 @4xl:flex @4xl:flex-col @4xl:gap-6 @4xl:self-start">
+        {/* En una sola columna con espacio (tableta, `@2xl` a `@4xl`), portada
+            y botones van lado a lado: a todo el ancho, la portada empujaba
+            "Seguir viendo" fuera de la primera pantalla. */}
+        <div className="order-2 flex min-w-0 flex-col gap-4 @2xl:@max-4xl:grid @2xl:@max-4xl:grid-cols-2 @2xl:@max-4xl:content-start @2xl:@max-4xl:gap-x-6 @4xl:order-none @4xl:gap-5">
           {rutaPortada ? (
             // La portada repite el destino del botón de abajo: fuera del orden
             // del teclado y del lector para no anunciar dos veces lo mismo.
@@ -425,9 +486,19 @@ export function CursoFicha({
             </>
           )}
         </div>
+        {tarjetaInstructor}
+        {/* El examen va dos veces y se muestra una: dentro de la tarjeta fija
+            en escritorio, y después del temario en celular y tableta. Así el
+            orden del teclado sigue al orden que se ve. */}
+        {mostrarExamen && sesion && (
+          <div className="hidden @4xl:block">
+            <ExamenCta situacion={sesion.situacionExamen} cursoSlug={curso.slug} />
+          </div>
+        )}
+        </div>
 
         {/* Descripción. */}
-        <div className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-2">
+        <div className="order-3 flex min-w-0 flex-col gap-3 @4xl:order-none @4xl:col-start-1 @4xl:row-start-2">
           <p className="m-0 max-w-prose text-uva-cuerpo text-uva-text">{curso.descripcion}</p>
           <p className="m-0 font-mono text-uva-detalle text-uva-text-muted">
             Actualizado el {formatFecha(curso.fechaEdicion)}
@@ -437,7 +508,7 @@ export function CursoFicha({
         {/* Temario. */}
         <section
           aria-labelledby="temario-titulo"
-          className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-3 @4xl:mt-6"
+          className="order-5 flex min-w-0 flex-col gap-3 @2xl:order-4 @4xl:order-none @4xl:col-start-1 @4xl:row-start-3 @4xl:mt-6"
         >
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -475,8 +546,11 @@ export function CursoFicha({
                 const vistas = conVideo.filter((leccion) => leccion.completado).length;
                 const mostrarAvance = conAcceso && conVideo.length > 0;
                 return (
-                  <li key={modulo.id} className="border-t border-uva-divider pt-3.5 pb-2.5">
-                    <div className="flex items-center gap-3.5">
+                  <li key={modulo.id} className="border-t border-uva-divider pt-1.5 pb-2.5">
+                    {/* <details> nativo: se pliega con teclado y lector de
+                        pantalla sin JavaScript de cliente. */}
+                    <details open={modulo.id === moduloAbiertoId} className="group">
+                    <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3.5 rounded-uva-sm hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&::-webkit-details-marker]:hidden">
                       <span
                         aria-hidden="true"
                         className={cn(
@@ -504,7 +578,12 @@ export function CursoFicha({
                           plural(modulo.lecciones.length, "clase", "clases")
                         )}
                       </span>
-                    </div>
+                      <ChevronRight
+                        className="size-5 shrink-0 text-uva-text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                    </summary>
 
                     <ol className="relative flex flex-col pt-1">
                       {/* Línea que une los números de las clases del módulo. */}
@@ -522,6 +601,7 @@ export function CursoFicha({
                         />
                       ))}
                     </ol>
+                    </details>
                   </li>
                 );
               })}
@@ -529,52 +609,28 @@ export function CursoFicha({
           )}
         </section>
 
-        {/* Instructor y examen final. Sin profesor asignado no hay tarjeta: un
-            círculo con "SI" no dice nada, y el dato ya figura arriba. */}
-        {(instructores || (sesion && sesion.situacionExamen.situacion !== "SIN_EXAMEN")) && (
-          <div className="flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-start-3 @4xl:mt-6">
-            {instructores && (
-              <aside aria-label={instructores.length > 1 ? "Instructores" : "Instructor"} className="flex flex-col gap-4">
-                {instructores.map((instructor) => (
-                  <div key={instructor.id} className="flex items-center gap-3.5">
-                    <span
-                      aria-hidden="true"
-                      className="grid size-13 shrink-0 place-items-center overflow-hidden rounded-full border-[1.5px] border-uva-line-strong bg-uva-surface-2 text-uva-cuerpo font-bold text-uva-text"
-                    >
-                      {instructor.fotoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- avatar chico servido desde Storage, mismo criterio que AvatarImage (ui/avatar.tsx)
-                        <img src={instructor.fotoUrl} alt="" loading="lazy" className="size-full object-cover" />
-                      ) : (
-                        iniciales(instructor.nombre)
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="m-0 text-uva-detalle text-uva-text-muted">Instructor</p>
-                      <p className="m-0 text-uva-cuerpo font-bold text-uva-text">{instructor.nombre}</p>
-                      {instructor.especialidad && (
-                        <p className="m-0 text-uva-detalle text-uva-text-muted">{instructor.especialidad}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </aside>
-            )}
-            {sesion && <ExamenCta situacion={sesion.situacionExamen} cursoSlug={curso.slug} />}
+        {mostrarExamen && sesion && (
+          <div className="order-6 @4xl:hidden">
+            <ExamenCta situacion={sesion.situacionExamen} cursoSlug={curso.slug} />
           </div>
         )}
 
-        <div className="min-w-0 @4xl:col-span-2 @4xl:row-start-4 @4xl:mt-6">
-          <ResenasCurso
-            cursoId={curso.id}
-            cursoSlug={curso.slug}
-            datos={calificaciones}
-            sesion={
-              sesion
-                ? { usuarioActualId: sesion.usuarioId, puedeCalificar: curso.tieneAcceso, esAdmin: sesion.esAdmin }
-                : null
-            }
-          />
-        </div>
+      </div>
+
+      {/* Fuera de la cuadrícula a propósito: la tarjeta fija de la derecha solo
+          debe acompañar al temario, y un `sticky` dentro de una cuadrícula se
+          extiende hasta el final de ella. */}
+      <div className="mt-7 min-w-0 lg:mt-10">
+        <ResenasCurso
+          cursoId={curso.id}
+          cursoSlug={curso.slug}
+          datos={calificaciones}
+          sesion={
+            sesion
+              ? { usuarioActualId: sesion.usuarioId, puedeCalificar: curso.tieneAcceso, esAdmin: sesion.esAdmin }
+              : null
+          }
+        />
       </div>
     </div>
   );

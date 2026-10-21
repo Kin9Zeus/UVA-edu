@@ -10,6 +10,9 @@ export const PASOS_RECUPERAR = [
   "Creas una contraseña nueva",
 ];
 
+/** Los tres pasos de canjear una invitación (/canjear). */
+export const PASOS_CANJEAR = ["Tu cuenta", "Tu código", "Listo"];
+
 /**
  * Contenido de la tarjeta de AccesoMarco en recuperar contraseña: el nivel,
  * el título, el subtítulo y la ruta de pasos, y debajo lo propio de cada
@@ -21,16 +24,21 @@ export function PasoAcceso({
   subtitulo,
   paso,
   tituloRef,
+  pasos = PASOS_RECUPERAR,
+  etiquetaPasos = "Pasos para recuperar tu contraseña",
   children,
 }: {
   /** Posición de la burbuja del nivel (POSICION_NIVEL). */
   posicionNivel: string;
   titulo: string;
   subtitulo: string;
-  /** Paso actual de PASOS_RECUPERAR (3 = todos hechos). */
+  /** Paso actual de PASOS_RECUPERAR (`pasos.length` = todos hechos). */
   paso: number;
   /** Para llevar el foco al título cuando el contenido cambia entero. */
   tituloRef?: Ref<HTMLHeadingElement>;
+  /** Los pasos de la ruta; por defecto, los de recuperar contraseña. */
+  pasos?: string[];
+  etiquetaPasos?: string;
   children: ReactNode;
 }) {
   return (
@@ -54,7 +62,7 @@ export function PasoAcceso({
         <p className={`${ACCESO_SUBTITULO} muy-bajo:sr-only`}>{subtitulo}</p>
       </div>
 
-      <RutaPasos etiqueta="Pasos para recuperar tu contraseña" pasos={PASOS_RECUPERAR} actual={paso} />
+      <RutaPasos etiqueta={etiquetaPasos} pasos={pasos} actual={paso} />
 
       <div className="grid grid-cols-1 gap-3 bajo:gap-2">{children}</div>
     </div>

@@ -60,6 +60,18 @@ export function normalizarCodigo(entrada: string): string {
   return entrada.trim().toUpperCase().replace(/\s+/g, "");
 }
 
+/**
+ * Limpia un código pegado tal como llegó (WhatsApp, correo, una diapositiva):
+ * espacios y saltos de línea alrededor o en medio, minúsculas, guiones de
+ * más. Si pegan solo los 8 caracteres de después del prefijo, lo antepone.
+ * Solo para pegado: al teclear, "UVA" se escribe letra por letra y no puede
+ * confundirse con un cuerpo sin prefijo.
+ */
+export function normalizarCodigoPegado(entrada: string): string {
+  const limpio = entrada.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return formatearCodigoMientrasEscribe(limpio.length === LARGO ? `UVA${limpio}` : limpio);
+}
+
 /** Cuántos caracteres alfanuméricos tiene un código sin contar los guiones: 3 (prefijo) + 4 + 4. */
 const LARGO_SIN_GUIONES = 11;
 

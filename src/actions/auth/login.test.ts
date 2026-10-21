@@ -54,6 +54,47 @@ describe("login", () => {
     expect(servidorFalso.argumentosDe("rpc:limpiar_intentos_login")).toEqual({ p_correo: CORREO });
   });
 
+  describe("destino sin redirect explícito", () => {
+    const ESTUDIANTE = { estado: "ACTIVO", rol: "ESTUDIANTE" };
+    const enUnMes = new Date(Date.now() + 30 * 86_400_000).toISOString();
+
+    it("estudiante sin suscripción: va a canjear su invitación", async () => {
+      servidorFalso.responder("from:perfiles", { data: ESTUDIANTE });
+      servidorFalso.responder("from:suscripciones", { data: null });
+      expect(await destinoDe(entrar())).toBe("/canjear");
+    });
+
+    it("estudiante con acceso vigente: va al panel", async () => {
+      servidorFalso.responder("from:perfiles", { data: ESTUDIANTE });
+      servidorFalso.responder("from:suscripciones", { data: { estado: "ACTIVA", fecha_renovacion: enUnMes } });
+      expect(await destinoDe(entrar())).toBe("/dashboard");
+    });
+
+    it("estudiante con la suscripción vencida: va a canjear", async () => {
+      servidorFalso.responder("from:perfiles", { data: ESTUDIANTE });
+      servidorFalso.responder("from:suscripciones", { data: { estado: "VENCIDA", fecha_renovacion: enUnMes } });
+      expect(await destinoDe(entrar())).toBe("/canjear");
+    });
+
+    it("un destino explícito se respeta aunque no tenga acceso", async () => {
+      servidorFalso.responder("from:perfiles", { data: ESTUDIANTE });
+      servidorFalso.responder("from:suscripciones", { data: null });
+      expect(await destinoDe(entrar({ redirect: "/dashboard/perfil" }))).toBe("/dashboard/perfil");
+    });
+
+    it("administrador: va al panel aunque no tenga suscripción", async () => {
+      servidorFalso.responder("from:perfiles", { data: { estado: "ACTIVO", rol: "ADMINISTRADOR" } });
+      servidorFalso.responder("from:suscripciones", { data: null });
+      expect(await destinoDe(entrar())).toBe("/dashboard");
+    });
+
+    it("si la consulta de la suscripción falla, cae al panel", async () => {
+      servidorFalso.responder("from:perfiles", { data: ESTUDIANTE });
+      servidorFalso.responder("from:suscripciones", { data: null, error: { message: "boom" } });
+      expect(await destinoDe(entrar())).toBe("/dashboard");
+    });
+  });
+
   it("credenciales incorrectas: suma un intento fallido con mensaje genérico (no dice si el correo existe)", async () => {
     servidorFalso.responder("auth:signInWithPassword", { data: {}, error: { message: "Invalid login credentials" } });
 

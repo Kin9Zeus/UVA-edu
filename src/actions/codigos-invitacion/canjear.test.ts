@@ -107,16 +107,18 @@ describe("canje rechazado", () => {
   });
 
   it.each([
-    ["codigo_invalido", "Ese código no existe."],
-    ["codigo_inactivo", "Ese código ya no está activo."],
-    ["codigo_vencido", "Ese código venció."],
-    ["codigo_agotado", "Ese código ya alcanzó su límite de usos."],
-    ["ya_canjeado", "Ya canjeaste este código antes."],
-    ["ya_tiene_suscripcion", "Ya tienes una suscripción activa. Podrás canjear este código cuando termine, si sigue vigente."],
-  ])("motivo %s → mensaje propio y suma un intento fallido", async (motivo, mensaje) => {
+    ["codigo_invalido", "No encontramos ese código. Revisa que no falte ni sobre ningún carácter.", true],
+    ["codigo_inactivo", "Ese código fue desactivado.", true],
+    ["codigo_vencido", "Ese código ya venció.", true],
+    ["codigo_agotado", "Ese código ya se usó el máximo de veces.", true],
+    ["ya_canjeado", "Ya canjeaste este código antes. Tu acceso ya quedó en tu cuenta.", false],
+    ["ya_tiene_suscripcion", "Ya tienes una suscripción activa. Podrás canjear este código cuando termine, si sigue vigente.", false],
+  ])("motivo %s → mensaje propio y suma un intento fallido", async (motivo, mensaje, ofrece) => {
     servidorFalso.responder("rpc:canjear_codigo_invitacion", { data: { ok: false, motivo } });
 
-    expect(await canjearCodigoInvitacion("UVA-2026")).toEqual({ error: mensaje });
+    expect(await canjearCodigoInvitacion("UVA-2026")).toEqual(
+      ofrece ? { error: mensaje, ofrecerInvitacion: true } : { error: mensaje },
+    );
     expect(servidorFalso.argumentosDe("rpc:registrar_canje_fallido")).toEqual({
       p_usuario_id: ESTUDIANTE.id,
     });

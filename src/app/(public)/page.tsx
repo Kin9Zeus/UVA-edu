@@ -45,7 +45,7 @@ export default async function Home() {
   // con `?redirect=` — la misma pantalla ofrece entrar o crear cuenta y de
   // ahí vuelve al canje. Así la portada no hace una consulta de sesión por
   // visita.
-  const hrefCodigo = "/dashboard/suscripcion";
+  const hrefCodigo = "/canjear";
 
   // Una sola lectura (cacheada) para la maqueta del hero y la lista de
   // categorías; el pie la vuelve a pedir y le llega de la misma caché.
