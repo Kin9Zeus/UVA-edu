@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { SiteHeader } from "@/components/SiteHeader";
-import { Footer } from "@/components/home/Footer";
-import { getPerfilActual } from "@/lib/perfil";
-import { getCategoriasActivas, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
+import { getCategoriasActivas, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { metadataPublica } from "@/lib/seo/metadata";
-import { numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
+import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
   descripcion:
-    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A. por categoría.",
+    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A. por escuela y nivel.",
   ruta: "/catalogo",
 });
 
@@ -19,34 +16,22 @@ export default async function CatalogoPage({
 }: {
   // El tipo real: un parámetro repetido en la URL llega como arreglo. Ver
   // lib/parametros-url.ts (`?q=a&q=b` era un 500, AUDIT-2026-09-22.md P2-3).
-  searchParams: Promise<{ q?: ParametroUrl; categoria?: ParametroUrl; page?: ParametroUrl }>;
+  searchParams: Promise<ParametrosCatalogo>;
 }) {
-  const parametros = await searchParams;
-  const query = textoDeBusqueda(parametros.q);
-  const pagina = numeroDePagina(parametros.page);
-  const categoria = parametroUnico(parametros.categoria);
+  const filtros = filtrosDeUrl(await searchParams);
+  const [categorias, niveles] = await Promise.all([getCategoriasActivas(), getNivelesConCursos()]);
 
-  const [perfilActual, categorias, opcionesBusqueda] = await Promise.all([
-    getPerfilActual(),
-    getCategoriasActivas(),
-    getCursosParaBuscador(),
-  ]);
-
-  const categoriaId = categoria ? categorias.find((fila) => fila.slug === categoria)?.id : undefined;
-  const resultado = await buscarCatalogoPublico({ query, categoriaId, pagina });
+  const categoriaId = filtros.categoria ? categorias.find((fila) => fila.slug === filtros.categoria)?.id : undefined;
+  const resultado = await buscarCatalogoPublico({
+    query: filtros.q,
+    categoriaId,
+    nivel: niveles.length > 1 ? filtros.nivel : undefined,
+    pagina: filtros.pagina,
+  });
 
   return (
-    <>
-      <SiteHeader {...perfilActual} />
-      <main id="contenido" tabIndex={-1}>
-        <CatalogoCursos
-          contexto="publico"
-          categorias={categorias}
-          resultado={resultado}
-          opcionesBusqueda={opcionesBusqueda}
-        />
-      </main>
-      <Footer />
-    </>
+    <main id="contenido" tabIndex={-1}>
+      <CatalogoCursos contexto="publico" categorias={categorias} resultado={resultado} filtros={filtros} niveles={niveles} />
+    </main>
   );
 }

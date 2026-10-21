@@ -41,8 +41,10 @@ const {
   filtroEstadoDeUrl,
   getCategoriasActivas,
   getCursosParaBuscador,
+  getNivelesConCursos,
   resolverCategoria,
 } = await import("@/lib/categoria");
+const { filtrosDeUrl, hrefCatalogo } = await import("@/lib/filtroEstado");
 const { logError } = await import("@/lib/log");
 
 const ERROR_PG = { message: "canceling statement due to statement timeout", code: "57014" };
@@ -77,7 +79,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
     expect(resultado.fallo).toBeUndefined();
     // La clave es JSON.stringify(args): `2.7` ya llega como `2`, y la categoría
     // ausente sería `null`, nunca `undefined`.
-    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: ["cat-1", 2], resultado: "resolvio" }]);
+    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: ["cat-1", null, 2], resultado: "resolvio" }]);
   });
 
   it("sin categoría, la clave lleva `null` explícito (no `undefined`, que JSON.stringify colapsa)", async () => {
@@ -85,7 +87,7 @@ describe("buscarCatalogoPublico — qué se cachea", () => {
 
     await buscarCatalogoPublico({});
 
-    expect(llamadasA("catalogo-publico-acumulado")[0].args).toEqual([null, 1]);
+    expect(llamadasA("catalogo-publico-acumulado")[0].args).toEqual([null, null, 1]);
   });
 
   it("una búsqueda con texto va directo a la base y NO crea entrada de caché", async () => {
@@ -149,7 +151,7 @@ describe("buscarCatalogoPublico — un fallo nunca se cachea", () => {
 
     const resultado = await buscarCatalogoPublico({ pagina: 3 });
 
-    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: [null, 3], resultado: "rechazo" }]);
+    expect(llamadasA("catalogo-publico-acumulado")).toEqual([{ clave: "catalogo-publico-acumulado", args: [null, null, 3], resultado: "rechazo" }]);
     expect(resultado).toEqual({ cursos: [], totalResultados: 0, pagina: 3, totalPaginas: 1, fallo: true });
     expect(logError).toHaveBeenCalledWith(
       "catalogo:publico",
@@ -435,5 +437,83 @@ describe("buscarCatalogoConProgreso — filtro por estado", () => {
     expect(filtroEstadoDeUrl("completados")).toBe("COMPLETADO");
     expect(filtroEstadoDeUrl("toString")).toBeUndefined();
     expect(filtroEstadoDeUrl(undefined)).toBeUndefined();
+  });
+});
+
+/** Filtro por nivel: entra a `buscar_catalogo` como lista de cursos a incluir, sin tocar la base. */
+describe("filtro por nivel", () => {
+  const CURSOS = [
+    { id: "a", nivel: "BASICO" },
+    { id: "b", nivel: "BASICO" },
+    { id: "c", nivel: "AVANZADO" },
+  ];
+
+  it("solo ofrece los niveles que tienen cursos publicados", async () => {
+    servidorFalso.responder("from:cursos", { data: CURSOS, error: null });
+
+    expect(await getNivelesConCursos()).toEqual(["BASICO", "AVANZADO"]);
+  });
+
+  it("si la consulta falla: sin filtro de nivel (lista vacía), registrado", async () => {
+    servidorFalso.responder("from:cursos", { data: null, error: ERROR_PG });
+
+    expect(await getNivelesConCursos()).toEqual([]);
+    expect(logError).toHaveBeenCalled();
+  });
+
+  it("público: el nivel llega como p_incluir y entra en la clave de la caché", async () => {
+    servidorFalso.responder("from:cursos", { data: CURSOS, error: null });
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [], error: null });
+
+    await buscarCatalogoPublico({ nivel: "BASICO" });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_incluir: ["a", "b"] });
+    expect(llamadasA("catalogo-publico-acumulado")[0].args).toEqual([null, "BASICO", 1]);
+  });
+
+  it("panel: nivel y avance se cruzan (en progreso Y básico)", async () => {
+    servidorFalso.responder("from:cursos", { data: CURSOS, error: null });
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [], error: null });
+    servidorFalso.responder("from:progreso_cursos_estudiante", {
+      data: [
+        { curso_id: "b", lecciones_total: 4, lecciones_completadas: 1, examen_requerido: false, examen_aprobado: false },
+        { curso_id: "c", lecciones_total: 4, lecciones_completadas: 1, examen_requerido: false, examen_aprobado: false },
+      ],
+      error: null,
+    });
+
+    await buscarCatalogoConProgreso({ nivel: "BASICO", estado: "EN_PROGRESO" });
+
+    expect(servidorFalso.argumentosDe("rpc:buscar_catalogo")).toMatchObject({ p_incluir: ["b"] });
+  });
+
+  it("si no cargan los cursos por nivel, filtrar es un fallo (no una lista equivocada)", async () => {
+    servidorFalso.responder("from:cursos", { data: null, error: ERROR_PG });
+    servidorFalso.responder("rpc:buscar_catalogo", { data: [filaCurso("a")], error: null });
+
+    expect((await buscarCatalogoPublico({ nivel: "AVANZADO" })).fallo).toBe(true);
+  });
+});
+
+describe("URL del catálogo", () => {
+  it("lee y escribe los mismos filtros (compartir el enlace reproduce la lista)", () => {
+    const filtros = filtrosDeUrl({ q: " revit ", categoria: "bim", nivel: "intermedio", estado: "en-progreso", page: "3" });
+
+    expect(filtros).toEqual({ q: "revit", categoria: "bim", nivel: "INTERMEDIO", estado: "EN_PROGRESO", pagina: 3 });
+    expect(hrefCatalogo("/catalogo", filtros, { pagina: 3 })).toBe(
+      "/catalogo?q=revit&categoria=bim&nivel=intermedio&estado=en-progreso&page=3",
+    );
+  });
+
+  it("cambiar un filtro vuelve a los primeros cursos y quitarlo lo saca de la URL", () => {
+    const filtros = filtrosDeUrl({ categoria: "bim", nivel: "basico", page: "2" });
+
+    expect(hrefCatalogo("/catalogo", filtros, { nivel: undefined })).toBe("/catalogo?categoria=bim");
+    expect(hrefCatalogo("/catalogo", filtrosDeUrl({}))).toBe("/catalogo");
+  });
+
+  it("un nivel desconocido o repetido en la URL es Todos", () => {
+    expect(filtrosDeUrl({ nivel: "toString" }).nivel).toBeUndefined();
+    expect(filtrosDeUrl({ nivel: ["basico", "avanzado"] }).nivel).toBe("BASICO");
   });
 });

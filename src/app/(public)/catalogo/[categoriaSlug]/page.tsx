@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { SiteHeader } from "@/components/SiteHeader";
-import { Footer } from "@/components/home/Footer";
-import { getPerfilActual } from "@/lib/perfil";
-import { resolverCategoria, buscarCatalogoPublico, getCursosParaBuscador } from "@/lib/categoria";
+import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { metadataPublica } from "@/lib/seo/metadata";
-import { numeroDePagina, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
+import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export async function generateMetadata({
   params,
@@ -41,48 +38,41 @@ export default async function CategoriaPage({
 }: {
   params: Promise<{ categoriaSlug: string }>;
   // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
-  searchParams: Promise<{ q?: ParametroUrl; page?: ParametroUrl }>;
+  searchParams: Promise<ParametrosCatalogo>;
 }) {
   const { categoriaSlug } = await params;
-  const parametros = await searchParams;
-  const q = textoDeBusqueda(parametros.q);
-  const pagina = numeroDePagina(parametros.page);
-  // Solo se lleva `page` al redirect de abajo si la URL la traía.
-  const page = parametros.page === undefined ? undefined : String(pagina);
+  const filtros = filtrosDeUrl(await searchParams);
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
-  // cambio de rutas siguen resolviendo. En paralelo con getPerfilActual():
-  // son dos consultas independientes que antes iban en cascada.
-  const [perfilActual, categoria] = await Promise.all([getPerfilActual(), resolverCategoria(categoriaSlug)]);
+  // cambio de rutas siguen resolviendo.
+  const [categoria, niveles] = await Promise.all([resolverCategoria(categoriaSlug), getNivelesConCursos()]);
 
   if (!categoria) {
     notFound();
   }
 
-  // Enlace viejo con UUID: misma página con slug, conservando la búsqueda y
-  // la página. Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  // Enlace viejo con UUID: misma página con slug, conservando los filtros.
+  // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
   if (esUuid(categoriaSlug)) {
-    const consulta = new URLSearchParams({ ...(q ? { q } : {}), ...(page ? { page } : {}) }).toString();
-    redirect(`/catalogo/${categoria.slug}${consulta ? `?${consulta}` : ""}`);
+    redirect(hrefCatalogo(`/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
   }
 
-  const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogoPublico({ query: q, categoriaId: categoria.id, pagina }),
-    getCursosParaBuscador(),
-  ]);
+  const resultado = await buscarCatalogoPublico({
+    query: filtros.q,
+    categoriaId: categoria.id,
+    nivel: niveles.length > 1 ? filtros.nivel : undefined,
+    pagina: filtros.pagina,
+  });
 
   return (
-    <>
-      <SiteHeader {...perfilActual} />
-      <main id="contenido" tabIndex={-1}>
-        <CatalogoCursos
-          contexto="publico"
-          categorias={[]}
-          resultado={resultado}
-          opcionesBusqueda={opcionesBusqueda}
-          categoriaFija={categoria}
-        />
-      </main>
-      <Footer />
-    </>
+    <main id="contenido" tabIndex={-1}>
+      <CatalogoCursos
+        contexto="publico"
+        categorias={[]}
+        resultado={resultado}
+        filtros={filtros}
+        niveles={niveles}
+        categoriaFija={categoria}
+      />
+    </main>
   );
 }

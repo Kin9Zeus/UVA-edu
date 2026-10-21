@@ -85,7 +85,9 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
               strokeWidth={2}
               strokeLinecap="round"
               aria-hidden="true"
-              className="size-[18px] lg:hidden"
+              // `20rem` y no `320px`: con la letra del sistema agrandada el
+              // rem crece y el ícono se oculta para que el menú quepa a 320 px.
+              className="size-[18px] max-[20rem]:hidden lg:hidden"
             >
               <circle cx="12" cy="8.5" r="4" />
               <path d="M4.5 20.5c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6" />

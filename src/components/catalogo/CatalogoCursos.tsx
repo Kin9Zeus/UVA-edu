@@ -1,148 +1,148 @@
-"use client";
-
-import { useEffect, useRef, useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BuscadorInput } from "@/components/catalogo/BuscadorInput";
-import { CursoTarjetaPublica } from "@/components/catalogo/CursoTarjetaPublica";
+import { ChevronDownIcon } from "lucide-react";
+import { CursoTarjetaPublica, BarrasNivel, NIVEL } from "@/components/catalogo/CursoTarjetaPublica";
+import {
+  BarraBusqueda,
+  CargarMas,
+  EnlaceFiltro,
+  ErrorCatalogo,
+  FraseResultados,
+  ProveedorCatalogo,
+  ZonaResultados,
+} from "@/components/catalogo/FiltrosCatalogo";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
+import { EsqueletoRegion, Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
+import {
+  hrefCatalogo,
+  PARAMETRO_DE_NIVEL,
+  type FiltroEstado,
+  type FiltroNivel,
+  type FiltrosCatalogo,
+} from "@/lib/filtroEstado";
 import type {
   CategoriaActiva,
   CategoriaChip,
   CategoriaInfo,
   CursoDeCategoria,
-  CursoOpcionBuscador,
   ResultadoCatalogo,
 } from "@/lib/categoria";
 
-// Revf3: no disparar una consulta al servidor por cada tecla.
-const DEBOUNCE_MS = 300;
-
-/** Botones de estado del catálogo del panel, en el orden del diseño. */
-const ESTADOS: { valor: string | undefined; etiqueta: string }[] = [
+/** Filtro de avance del catálogo del panel, en el orden del diseño. */
+const ESTADOS: { valor: FiltroEstado | undefined; etiqueta: string }[] = [
   { valor: undefined, etiqueta: "Todos" },
-  { valor: "sin-empezar", etiqueta: "Sin empezar" },
-  { valor: "en-progreso", etiqueta: "En progreso" },
-  { valor: "completados", etiqueta: "Completados" },
+  { valor: "SIN_EMPEZAR", etiqueta: "Sin empezar" },
+  { valor: "EN_PROGRESO", etiqueta: "En progreso" },
+  { valor: "COMPLETADO", etiqueta: "Completados" },
 ];
 
-/** Qué decir cuando un filtro de estado no deja cursos (sin texto de búsqueda). */
+/** Cómo se lee cada avance dentro de la frase de resultados. */
+const ESTADO_EN_FRASE: Record<FiltroEstado, [singular: string, plural: string]> = {
+  SIN_EMPEZAR: ["sin empezar", "sin empezar"],
+  EN_PROGRESO: ["en progreso", "en progreso"],
+  COMPLETADO: ["completado", "completados"],
+};
+
+/** Qué decir cuando solo el filtro de avance deja la lista vacía. */
 const VACIO_POR_ESTADO: Record<FiltroEstado, string> = {
   SIN_EMPEZAR: "Ya empezaste todos los cursos de esta lista.",
   EN_PROGRESO: "No tienes cursos en progreso.",
   COMPLETADO: "Todavía no completas ningún curso.",
 };
 
-const CLASE_ENLACE_TEXTO =
-  "inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline underline-offset-4 hover:no-underline";
+const ID_LISTA = "lista-cursos";
+
+const CLASE_BOTON_FILTRO =
+  "inline-flex min-h-11 items-center gap-2 rounded-full border-[1.5px] px-4 text-uva-detalle sm:pointer-fine:min-h-9 no-underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
 
 /**
- * Catálogo de cursos, dirección visual "Maqueta". Un solo componente para los
- * dos contextos del canvas de diseño:
+ * Catálogo de cursos. Un solo componente para los dos contextos:
  *
- * - `publico` ("Catalogo Home"): `/catalogo` y `/catalogo/[categoria]`. Ruta
- *   "Inicio / Catálogo", botones de categoría en celular y cursos en filas.
- * - `panel` ("Catalogo sesion"): `/dashboard/catalogo` y su vista por
- *   categoría. Enlace "← Inicio" al panel, filtro por estado (Todos, Sin
- *   empezar, En progreso, Completados), tarjetas también en celular y el
- *   avance del estudiante sobre la portada.
+ * - `publico`: `/catalogo` y `/catalogo/[categoria]`. Ruta "Inicio /
+ *   Catálogo" y cursos en filas en el celular.
+ * - `panel`: `/dashboard/catalogo` y su vista por categoría. Enlace
+ *   "‹ Inicio", filtro por avance y tarjetas con el avance del estudiante.
  *
- * Búsqueda, categoría, estado y cuántos cursos se ven viven en la URL
- * (`?q=&categoria=&estado=&page=`): recargar, compartir el enlace o volver
- * atrás reproduce la misma lista. `page` es HASTA qué página se ve ("cargar
- * más"), ver `buscarCatalogoPublico` y `buscarCatalogoConProgreso`.
+ * Es de servidor: solo la búsqueda, los filtros y "Cargar más" corren en el
+ * navegador (FiltrosCatalogo.tsx). Búsqueda, escuela, nivel, avance y cuántos
+ * cursos se ven viven en la URL (`?q=&categoria=&nivel=&estado=&page=`):
+ * recargar, compartir el enlace o volver atrás reproduce la misma lista.
+ *
+ * Filtros: escuela en un desplegable (aguanta cualquier cantidad de escuelas
+ * y nombres largos). Nivel en desplegable en el celular y en botones desde
+ * 768 px; el avance, siempre en botones. En el celular del panel, nivel y
+ * avance van plegados en "Más filtros". Un filtro con una sola opción no se
+ * muestra.
  */
 export function CatalogoCursos({
   contexto,
   categorias,
   resultado,
-  opcionesBusqueda,
+  filtros,
+  niveles,
   categoriaFija,
 }: {
   contexto: "publico" | "panel";
-  /** Categorías activas para el filtro. Vacío en la vista de una categoría. */
+  /** Escuelas activas para el filtro. Vacío en la vista de una escuela. */
   categorias: CategoriaActiva[];
   resultado: ResultadoCatalogo;
-  opcionesBusqueda: CursoOpcionBuscador[];
-  /** Vista de una sola categoría: sin filtro de categoría, ruta con su nombre. */
+  /** Filtros de la URL, ya normalizados. */
+  filtros: FiltrosCatalogo;
+  /** Niveles con al menos un curso publicado. */
+  niveles: FiltroNivel[];
+  /** Vista de una sola escuela: sin filtro de escuela, ruta con su nombre. */
   categoriaFija?: CategoriaInfo;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [cargando, startTransition] = useTransition();
-
-  const [texto, setTexto] = useState(searchParams.get("q") ?? "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  const slugActivo = categoriaFija ? null : searchParams.get("categoria");
-  const categoriaActiva = slugActivo ? categorias.find((c) => c.slug === slugActivo) : undefined;
   const panel = contexto === "panel";
-  const parametroEstado = panel ? (searchParams.get("estado") ?? undefined) : undefined;
-  const estadoActivo = filtroEstadoDeUrl(parametroEstado);
-  const rutaCatalogo = panel ? "/dashboard/catalogo" : "/catalogo";
+  const raiz = panel ? "/dashboard/catalogo" : "/catalogo";
+  const ruta = categoriaFija ? `${raiz}/${categoriaFija.slug}` : raiz;
 
-  function hrefCon(cambios: Record<string, string | undefined>) {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [clave, valor] of Object.entries(cambios)) {
-      if (valor) params.set(clave, valor);
-      else params.delete(clave);
-    }
-    // Cambiar de búsqueda o de categoría vuelve a los primeros cursos.
-    if (!("page" in cambios)) params.delete("page");
-    return params.size > 0 ? `${pathname}?${params.toString()}` : pathname;
-  }
+  // Solo cuentan los filtros que la página entiende: un `?categoria=` que no
+  // es una escuela activa se ignora, igual que en la consulta.
+  const categoriaActiva = categoriaFija ? undefined : categorias.find((c) => c.slug === filtros.categoria);
+  const actuales: FiltrosCatalogo = {
+    ...filtros,
+    categoria: categoriaActiva?.slug,
+    nivel: niveles.length > 1 ? filtros.nivel : undefined,
+    estado: panel ? filtros.estado : undefined,
+  };
+  const hayFiltros = Boolean(actuales.q || actuales.categoria || actuales.nivel || actuales.estado);
 
-  function navegar(href: string) {
-    startTransition(() => router.push(href, { scroll: false }));
-  }
-
-  function alEscribir(valor: string) {
-    setTexto(valor);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => navegar(hrefCon({ q: valor.trim() || undefined })), DEBOUNCE_MS);
-  }
-
-  // Elegir una sugerencia filtra de inmediato, sin esperar el debounce.
-  function alSeleccionarSugerencia(valor: string) {
-    setTexto(valor);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    navegar(hrefCon({ q: valor.trim() || undefined }));
-  }
-
-  function elegirCategoria(slug: string | undefined) {
-    navegar(hrefCon({ categoria: slug }));
-  }
-
-  function limpiarFiltros() {
-    setTexto("");
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    navegar(pathname);
-  }
-
-  const hayFiltros = texto.trim() !== "" || Boolean(categoriaActiva) || Boolean(estadoActivo);
-
-  /** La categoría que muestra cada tarjeta: la del filtro si hay una, si no la primera del curso. */
-  function categoriaDeTarjeta(curso: CursoDeCategoria): CategoriaChip {
-    const filtro = categoriaFija ?? categoriaActiva;
-    if (filtro && curso.categorias.some((c) => c.id === filtro.id)) return { id: filtro.id, nombre: filtro.nombre };
-    return curso.categorias[0];
-  }
+  const opcionesNivel = niveles.length > 1 ? niveles : [];
+  const grupoNivel = (sufijo: string) =>
+    opcionesNivel.length > 0 && (
+      <GrupoFiltro id={`nivel-${sufijo}`} etiqueta="Nivel">
+        {[undefined, ...opcionesNivel].map((nivel) => (
+          <BotonFiltro
+            key={nivel ?? "todos"}
+            href={hrefCatalogo(ruta, actuales, { nivel })}
+            activo={actuales.nivel === nivel}
+          >
+            {nivel && <BarrasNivel nivel={nivel} colorDelTexto />}
+            {nivel ? NIVEL[nivel].etiqueta : "Todos"}
+          </BotonFiltro>
+        ))}
+      </GrupoFiltro>
+    );
+  const grupoAvance = (sufijo: string) =>
+    panel && (
+      <GrupoFiltro id={`avance-${sufijo}`} etiqueta="Tu avance">
+        {ESTADOS.map(({ valor, etiqueta }) => (
+          <BotonFiltro key={etiqueta} href={hrefCatalogo(ruta, actuales, { estado: valor })} activo={actuales.estado === valor}>
+            {etiqueta}
+          </BotonFiltro>
+        ))}
+      </GrupoFiltro>
+    );
+  const plegados = (actuales.nivel ? 1 : 0) + (actuales.estado ? 1 : 0);
 
   return (
     <div className="mx-auto flex w-full max-w-uva flex-col gap-6 px-uva-margen pt-2 pb-uva-seccion md:gap-8">
       {panel ? (
         <Link
-          href={categoriaFija ? rutaCatalogo : "/dashboard"}
-          className="inline-flex min-h-11 items-center gap-1 self-start text-uva-detalle text-uva-text-muted hover:text-uva-text"
+          href={categoriaFija ? raiz : "/dashboard"}
+          className="inline-flex min-h-11 items-center gap-1 self-start text-uva-detalle text-uva-text-muted no-underline hover:text-uva-text"
         >
           <svg
             viewBox="0 0 24 24"
@@ -170,7 +170,7 @@ export function CatalogoCursos({
             {categoriaFija ? (
               <>
                 <li>
-                  <Link href={rutaCatalogo} className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
+                  <Link href={raiz} className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
                     Catálogo
                   </Link>
                 </li>
@@ -194,191 +194,185 @@ export function CatalogoCursos({
         </h1>
         <p className="max-w-[60ch] text-uva-lead text-uva-text-muted">
           {categoriaFija
-            ? (categoriaFija.descripcion ?? "Cursos de esta categoría.")
-            : "Todo el catálogo del gremio, por categoría y curso."}
+            ? (categoriaFija.descripcion ?? "Cursos de esta escuela.")
+            : "Todo el catálogo del gremio, por escuela y nivel."}
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {categorias.length > 0 && (
-            <Select
-              items={{
-                todas: "Todas las categorías",
-                ...Object.fromEntries(categorias.map((c) => [c.slug, c.nombre])),
-              }}
-              value={categoriaActiva?.slug ?? "todas"}
-              onValueChange={(valor) => elegirCategoria(valor && valor !== "todas" ? valor : undefined)}
-            >
-              <SelectTrigger
-                aria-label="Filtrar por categoría"
-                className={cn(
-                  "min-h-11.25 gap-2.5 rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:h-9 md:min-h-9 md:border md:text-uva-detalle md:font-medium dark:bg-uva-surface dark:hover:bg-uva-surface",
-                  "flex max-md:w-full",
-                )}
-              >
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas las categorías</SelectItem>
-                {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.slug}>
-                    {c.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <BuscadorInput
-            placeholder="Busca un curso o instructor"
-            etiqueta="Buscar por curso o instructor"
-            valorInicial={texto}
-            opciones={opcionesBusqueda}
-            onBuscar={alSeleccionarSugerencia}
-            onTextoChange={alEscribir}
-            className="w-full md:w-[340px]"
-            inputClassName="h-11.25 border-[1.5px] border-uva-line-strong pl-11 text-base hover:border-uva-text md:h-9 md:border sm:text-base md:pointer-fine:text-uva-detalle"
+      <ProveedorCatalogo>
+        <div className="flex flex-col gap-5">
+          <BarraBusqueda
+            ruta={ruta}
+            filtros={actuales}
+            escuelas={categoriaFija ? [] : categorias}
+            // En el celular público el nivel va en desplegable; en el panel, en "Más filtros".
+            niveles={panel ? [] : opcionesNivel.map((n) => ({ valor: PARAMETRO_DE_NIVEL[n], etiqueta: NIVEL[n].etiqueta }))}
           />
-          {/* Con `fallo` el total no es 0: es desconocido. */}
-          {!resultado.fallo && (
-            <p
-              className="font-mono text-uva-detalle font-bold text-uva-text max-md:order-last max-md:mt-2 max-md:w-full md:ml-auto md:font-normal md:text-uva-text-muted"
-              aria-live="polite"
-            >
-              {resultado.totalResultados} {resultado.totalResultados === 1 ? "curso" : "cursos"}
-            </p>
+
+          {(opcionesNivel.length > 0 || panel) && (
+            <div className="hidden flex-wrap gap-x-10 gap-y-5 md:flex">
+              {grupoNivel("ancho")}
+              {grupoAvance("ancho")}
+            </div>
+          )}
+
+          {panel && (
+            <details className="group border-y border-uva-divider md:hidden">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-uva-cuerpo font-bold text-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  Más filtros
+                  {plegados > 0 && (
+                    <span className="rounded-full bg-uva-btn px-2 font-mono text-uva-detalle text-uva-on-accent">
+                      {plegados}
+                      <span className="sr-only"> {plegados === 1 ? "activo" : "activos"}</span>
+                    </span>
+                  )}
+                </span>
+                <ChevronDownIcon aria-hidden="true" className="size-5 text-uva-text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+              </summary>
+              <div className="flex flex-col gap-5 pb-5">
+                {grupoNivel("plegado")}
+                {grupoAvance("plegado")}
+              </div>
+            </details>
           )}
         </div>
 
-        {panel && (
-          <ul aria-label="Filtrar por estado" className="flex flex-wrap gap-2">
-            {ESTADOS.map(({ valor, etiqueta }) => {
-              const presionado = (filtroEstadoDeUrl(valor) ?? null) === (estadoActivo ?? null);
-              return (
-                <li key={etiqueta}>
-                  <button
-                    type="button"
-                    aria-pressed={presionado}
-                    onClick={() => navegar(hrefCon({ estado: valor }))}
-                    className={cn(
-                      "inline-flex min-h-11 items-center rounded-full border-[1.5px] px-4 text-uva-detalle md:min-h-9 md:border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
-                      presionado
-                        ? "border-uva-text bg-uva-text font-bold text-uva-bg"
-                        : "border-uva-line-strong font-medium text-uva-text hover:border-uva-text",
-                    )}
-                  >
-                    {etiqueta}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <Resultados
-        panel={panel}
-        estado={estadoActivo}
-        resultado={resultado}
-        texto={texto}
-        hayFiltros={hayFiltros}
-        cargando={cargando}
-        categoriaDeTarjeta={categoriaDeTarjeta}
-        hrefMas={hrefCon({ page: String(resultado.pagina + 1) })}
-        onCargarMas={navegar}
-        onReintentar={() => startTransition(() => router.refresh())}
-        onLimpiar={limpiarFiltros}
-      />
+        <ZonaResultados>
+          <Resultados
+            panel={panel}
+            resultado={resultado}
+            filtros={actuales}
+            hayFiltros={hayFiltros}
+            escuela={categoriaActiva?.nombre}
+            rutaSinFiltros={ruta}
+            hrefMas={hrefCatalogo(ruta, actuales, { pagina: resultado.pagina + 1 })}
+            categoriaDeTarjeta={(curso) => {
+              // La del filtro si el curso la tiene; si no, la primera del curso.
+              const filtro = categoriaFija ?? categoriaActiva;
+              if (filtro && curso.categorias.some((c) => c.id === filtro.id)) return { id: filtro.id, nombre: filtro.nombre };
+              return curso.categorias[0];
+            }}
+          />
+        </ZonaResultados>
+      </ProveedorCatalogo>
     </div>
   );
 }
 
+function GrupoFiltro({ id, etiqueta, children }: { id: string; etiqueta: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-labelledby={id} className="flex flex-col gap-1.5">
+      <span id={id} className="text-uva-detalle font-bold text-uva-text">
+        {etiqueta}
+      </span>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function BotonFiltro({ href, activo, children }: { href: string; activo: boolean; children: ReactNode }) {
+  return (
+    <EnlaceFiltro
+      href={href}
+      activo={activo}
+      className={cn(
+        CLASE_BOTON_FILTRO,
+        activo
+          ? "border-uva-text bg-uva-text font-bold text-uva-bg hover:text-uva-bg"
+          : "border-uva-line-strong font-medium text-uva-text hover:border-uva-text hover:text-uva-text",
+      )}
+    >
+      {children}
+    </EnlaceFiltro>
+  );
+}
+
+/**
+ * Los filtros leídos como frase: "3 cursos de Obra, nivel básico, en
+ * progreso para «revit»", "1 curso de nivel avanzado". Es también el
+ * contador que anuncia el lector de pantalla, así que dice qué cambió y no
+ * solo un número.
+ */
+function fraseDeFiltros(total: number, filtros: FiltrosCatalogo, escuela: string | undefined) {
+  const partes: string[] = [];
+  if (escuela) partes.push(`de ${escuela}`);
+  if (filtros.nivel) partes.push(`${escuela ? "" : "de "}nivel ${NIVEL[filtros.nivel].etiqueta.toLowerCase()}`);
+  if (filtros.estado) partes.push(ESTADO_EN_FRASE[filtros.estado][total === 1 ? 0 : 1]);
+  let resto = partes.length ? ` ${partes.join(", ")}` : "";
+  if (filtros.q) resto += ` para «${filtros.q}»`;
+  return resto;
+}
+
 function Resultados({
   panel,
-  estado,
   resultado,
-  texto,
+  filtros,
   hayFiltros,
-  cargando,
-  categoriaDeTarjeta,
+  escuela,
+  rutaSinFiltros,
   hrefMas,
-  onCargarMas,
-  onReintentar,
-  onLimpiar,
+  categoriaDeTarjeta,
 }: {
   panel: boolean;
-  estado: FiltroEstado | undefined;
   resultado: ResultadoCatalogo;
-  texto: string;
+  filtros: FiltrosCatalogo;
   hayFiltros: boolean;
-  cargando: boolean;
-  categoriaDeTarjeta: (curso: CursoDeCategoria) => CategoriaChip;
+  escuela: string | undefined;
+  rutaSinFiltros: string;
   hrefMas: string;
-  onCargarMas: (href: string) => void;
-  onReintentar: () => void;
-  onLimpiar: () => void;
+  categoriaDeTarjeta: (curso: CursoDeCategoria) => CategoriaChip;
 }) {
-  const listaRef = useRef<HTMLUListElement>(null);
-  // Cuántas tarjetas había al pulsar "Cargar más": al llegar las nuevas, el
-  // foco pasa a la primera de ellas para que el teclado y el lector de
-  // pantalla sigan donde iban, en vez de quedarse en un botón que se movió.
-  const enfocarDesde = useRef<number | null>(null);
+  // AUDIT-2026-09-22.md, P2-2: un fallo nunca se muestra como "no hay cursos".
+  if (resultado.fallo) return <ErrorCatalogo />;
 
-  useEffect(() => {
-    const desde = enfocarDesde.current;
-    if (desde === null || resultado.cursos.length <= desde) return;
-    enfocarDesde.current = null;
-    listaRef.current?.querySelectorAll<HTMLAnchorElement>(":scope > li a")[desde]?.focus();
-  }, [resultado.cursos.length]);
+  const total = resultado.totalResultados;
+  const viendo = resultado.cursos.length;
+  const resto = fraseDeFiltros(total, filtros, escuela);
 
-  if (resultado.fallo) {
-    // AUDIT-2026-09-22.md, P2-2: un fallo nunca se muestra como "no hay cursos".
+  if (viendo === 0) {
+    const soloAvance = filtros.estado && !filtros.q && !filtros.nivel && !escuela;
     return (
-      <div role="alert" className="flex flex-col items-start gap-2">
-        <p className="text-uva-cuerpo text-uva-text-muted">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</p>
-        <button type="button" onClick={onReintentar} className={CLASE_ENLACE_TEXTO}>
-          Reintentar
-        </button>
-      </div>
-    );
-  }
-
-  if (resultado.cursos.length === 0) {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <p className="text-uva-cuerpo text-uva-text-muted">
-          {texto.trim()
-            ? `No encontramos cursos para «${texto.trim()}».`
-            : estado
-              ? VACIO_POR_ESTADO[estado]
-              : hayFiltros
-              ? "No encontramos cursos en esta categoría."
-              : "Todavía no hay cursos publicados. Vuelve pronto."}
-        </p>
-        {hayFiltros && (
-          <button type="button" onClick={onLimpiar} className={CLASE_ENLACE_TEXTO}>
-            {estado && !texto.trim() ? "Ver todos los cursos" : "Limpiar filtros"}
-          </button>
+      <div className="flex flex-col gap-4">
+        {/* Para el lector de pantalla: el aviso de "0 cursos" al filtrar. */}
+        <FraseResultados className="sr-only">0 cursos{resto}</FraseResultados>
+        {hayFiltros ? (
+          <EstadoVacio
+            titulo={soloAvance && filtros.estado ? VACIO_POR_ESTADO[filtros.estado] : `No encontramos cursos${resto}.`}
+            texto={soloAvance ? "Mira todo el catálogo para elegir otro." : "Prueba con otra palabra o quita un filtro."}
+            accion={{ etiqueta: soloAvance ? "Ver todos los cursos" : "Quitar filtros", href: rutaSinFiltros }}
+          />
+        ) : (
+          <EstadoVacio titulo="Todavía no hay cursos publicados" texto="Estamos preparando los primeros. Vuelve pronto." />
         )}
       </div>
     );
   }
 
-  const viendo = resultado.cursos.length;
-  const total = resultado.totalResultados;
-  const hayMas = viendo < total;
-
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t border-uva-divider pt-4">
+        <FraseResultados className="text-uva-titulo-4 text-balance text-uva-text">
+          <span className="font-mono text-uva-accent-ink">{total}</span> {total === 1 ? "curso" : "cursos"}
+          {resto}
+        </FraseResultados>
+        {hayFiltros && (
+          <Link
+            href={rutaSinFiltros}
+            scroll={false}
+            className="inline-flex min-h-11 items-center text-uva-cuerpo font-semibold text-uva-accent-ink underline sm:pointer-fine:min-h-9 underline-offset-4 hover:no-underline"
+          >
+            Quitar filtros
+          </Link>
+        )}
+      </div>
+
       <ul
-        ref={listaRef}
-        aria-busy={cargando}
+        id={ID_LISTA}
         className={cn(
-          "transition-opacity motion-reduce:transition-none",
           panel
             ? "grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3"
             : "border-t border-uva-divider md:grid md:grid-cols-2 md:gap-x-5 md:gap-y-8 md:border-t-0 lg:grid-cols-3",
-          cargando && "opacity-60",
         )}
       >
         {resultado.cursos.map((curso, i) => (
@@ -395,35 +389,54 @@ function Resultados({
       </ul>
 
       {total > viendo || resultado.pagina > 1 ? (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 pt-2">
           <p className="font-mono text-uva-detalle text-uva-text-muted">
             Viendo {viendo} de {total} {total === 1 ? "curso" : "cursos"}
           </p>
           <div aria-hidden="true" className="h-1 w-50 bg-uva-divider">
             <div className="h-full bg-uva-text" style={{ width: `${Math.round((viendo / total) * 100)}%` }} />
           </div>
-          {hayMas && (
-            // Enlace real (`?page=N+1`): funciona sin JavaScript y lo sigue un
-            // buscador; con JavaScript se queda en el sitio y suma tarjetas.
-            <Link
-              href={hrefMas}
-              scroll={false}
-              prefetch={false}
-              aria-disabled={cargando}
-              onClick={(evento) => {
-                evento.preventDefault();
-                if (cargando) return;
-                enfocarDesde.current = viendo;
-                onCargarMas(hrefMas);
-              }}
-              className="inline-flex min-h-13 w-full items-center justify-center rounded-uva-md border-[1.5px] border-uva-line-strong px-6 text-uva-cuerpo font-semibold text-uva-text no-underline hover:border-uva-text hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent aria-disabled:opacity-60 md:min-h-12 md:w-auto"
-            >
-              {cargando ? "Cargando cursos…" : "Cargar más cursos"}
-            </Link>
-          )}
+          {viendo < total && <CargarMas href={hrefMas} viendo={viendo} idLista={ID_LISTA} />}
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Esqueleto del catálogo para `loading.tsx`: mismo margen, filtros y lista
+ * que la página real (filas en el celular público, tarjetas en la cuadrícula),
+ * para que nada salte cuando llega.
+ */
+export function EsqueletoCatalogo({ panel = false }: { panel?: boolean }) {
+  return (
+    <EsqueletoRegion
+      etiqueta="Cargando el catálogo"
+      className="mx-auto flex w-full max-w-uva flex-col gap-6 px-uva-margen pt-2 pb-uva-seccion md:gap-8"
+    >
+      <Skeleton className="h-11 w-32" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-6 w-full max-w-md" />
+      </div>
+      <div className="flex flex-col gap-4 md:flex-row md:gap-3">
+        <Skeleton className="h-[70px] w-full md:w-64" />
+        <Skeleton className="h-[70px] w-full md:w-[420px]" />
+      </div>
+      <Skeleton className="h-8 w-48" />
+      <div className={cn("grid gap-x-5 gap-y-8 md:grid-cols-2 lg:grid-cols-3", panel && "sm:grid-cols-2")}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className={cn("flex gap-3.5 md:flex-col", panel && "flex-col")}>
+            <Skeleton className={cn("aspect-video shrink-0 md:w-full", panel ? "w-full" : "h-21 w-28 md:h-auto")} />
+            <div className="flex flex-1 flex-col gap-2">
+              <Skeleton className="h-5 w-11/12" />
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </EsqueletoRegion>
   );
 }
 

@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import {
-  resolverCategoria,
-  buscarCatalogoConProgreso,
-  filtroEstadoDeUrl,
-  getCursosParaBuscador,
-} from "@/lib/categoria";
+import { resolverCategoria, buscarCatalogoConProgreso, getNivelesConCursos } from "@/lib/categoria";
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
-import { numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
+import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export async function generateMetadata({
   params,
@@ -26,45 +21,39 @@ export default async function DashboardCategoriaPage({
 }: {
   params: Promise<{ categoriaSlug: string }>;
   // Tipo real (un parámetro repetido llega como arreglo): ver lib/parametros-url.ts.
-  searchParams: Promise<{ q?: ParametroUrl; estado?: ParametroUrl; page?: ParametroUrl }>;
+  searchParams: Promise<ParametrosCatalogo>;
 }) {
   const { categoriaSlug } = await params;
-  const parametros = await searchParams;
-  const q = textoDeBusqueda(parametros.q);
-  const pagina = numeroDePagina(parametros.page);
-  // Solo se lleva `page` al redirect de abajo si la URL la traía.
-  const page = parametros.page === undefined ? undefined : String(pagina);
+  const filtros = filtrosDeUrl(await searchParams);
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
   // cambio de rutas siguen resolviendo.
-  const categoria = await resolverCategoria(categoriaSlug);
+  const [categoria, niveles] = await Promise.all([resolverCategoria(categoriaSlug), getNivelesConCursos()]);
 
   if (!categoria) {
     notFound();
   }
 
-  // Enlace viejo con UUID: misma página con slug, conservando la búsqueda y
-  // la página. Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  // Enlace viejo con UUID: misma página con slug, conservando los filtros.
+  // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
   if (esUuid(categoriaSlug)) {
-    const consulta = new URLSearchParams({ ...(q ? { q } : {}), ...(page ? { page } : {}) }).toString();
-    redirect(`/dashboard/catalogo/${categoria.slug}${consulta ? `?${consulta}` : ""}`);
+    redirect(hrefCatalogo(`/dashboard/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
   }
 
-  const [resultado, opcionesBusqueda] = await Promise.all([
-    buscarCatalogoConProgreso({
-      query: q,
-      categoriaId: categoria.id,
-      pagina,
-      estado: filtroEstadoDeUrl(parametroUnico(parametros.estado)),
-    }),
-    getCursosParaBuscador(),
-  ]);
+  const resultado = await buscarCatalogoConProgreso({
+    query: filtros.q,
+    categoriaId: categoria.id,
+    nivel: niveles.length > 1 ? filtros.nivel : undefined,
+    pagina: filtros.pagina,
+    estado: filtros.estado,
+  });
 
   return (
     <CatalogoCursos
       contexto="panel"
       categorias={[]}
       resultado={resultado}
-      opcionesBusqueda={opcionesBusqueda}
+      filtros={filtros}
+      niveles={niveles}
       categoriaFija={categoria}
     />
   );
