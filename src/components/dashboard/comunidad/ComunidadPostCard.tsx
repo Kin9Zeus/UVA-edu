@@ -154,7 +154,9 @@ export function ComunidadPostCard({
   const Titulo = truncar ? (
     <Link
       href={`/dashboard/comunidad/${post.slug}`}
-      className="font-heading text-uva-cuerpo font-bold wrap-break-word text-uva-text hover:underline"
+      // En táctil el área sube a 44 px con relleno y margen negativo: el
+      // título no se mueve, solo crece la zona que responde al dedo.
+      className="font-heading text-uva-cuerpo font-bold wrap-break-word text-uva-text hover:underline pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
     >
       {post.titulo}
     </Link>
@@ -263,7 +265,7 @@ export function ComunidadPostCard({
                 href={post.datosEmpleo.enlace}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-uva-accent-text hover:underline"
+                className="inline-flex items-center gap-1 font-semibold text-uva-accent-text hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
               >
                 Postularme
                 <ExternalLink className="size-3.5" strokeWidth={2.2} />

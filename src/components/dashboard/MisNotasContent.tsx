@@ -142,7 +142,7 @@ export function MisNotasContent({
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Busca un curso en tus notas"
-              className="h-12 w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface pr-3.5 pl-11 text-base md:h-9 md:border md:text-uva-detalle text-uva-text placeholder:text-uva-text-muted"
+              className="h-12 w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface pr-3.5 pl-11 text-base md:pointer-fine:h-9 md:border md:pointer-fine:text-uva-detalle text-uva-text placeholder:text-uva-text-muted"
             />
           </label>
           <p aria-live="polite" className="m-0 text-uva-detalle text-uva-text-muted">

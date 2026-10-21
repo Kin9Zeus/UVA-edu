@@ -26,7 +26,7 @@ export function ComunidadVolverBoton() {
     <button
       type="button"
       onClick={volver}
-      className="inline-flex items-center gap-1.5 text-uva-detalle text-uva-text-muted hover:text-uva-text"
+      className="inline-flex items-center gap-1.5 text-uva-detalle text-uva-text-muted hover:text-uva-text pointer-coarse:-my-3.5 pointer-coarse:py-3.5"
     >
       <ArrowLeft className="size-4" strokeWidth={2} />
       Volver

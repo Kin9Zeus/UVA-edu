@@ -4,7 +4,7 @@ import { SIDEBAR_COOKIE, guardarSidebarColapsado } from "@/lib/sidebar-preferenc
 const cookiesMock = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: async () => cookiesMock }));
 
-import { leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
+import { leerPreferenciaSidebar, leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
 
 describe("guardarSidebarColapsado", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -16,11 +16,11 @@ describe("guardarSidebarColapsado", () => {
     expect(doc.cookie).toBe(`${SIDEBAR_COOKIE}=1; path=/; max-age=31536000; SameSite=Lax`);
   });
 
-  it("borra la cookie cuando se expande (max-age=0)", () => {
+  it("guarda '0' cuando se expande: es una elección, no la ausencia de una", () => {
     const doc = { cookie: "" };
     vi.stubGlobal("document", doc);
     guardarSidebarColapsado(false);
-    expect(doc.cookie).toBe(`${SIDEBAR_COOKIE}=; path=/; max-age=0; SameSite=Lax`);
+    expect(doc.cookie).toBe(`${SIDEBAR_COOKIE}=0; path=/; max-age=31536000; SameSite=Lax`);
   });
 
   it("no falla si se llama sin navegador", () => {
@@ -42,4 +42,17 @@ describe("leerSidebarColapsado", () => {
       expect(await leerSidebarColapsado()).toBe(false);
     },
   );
+});
+
+describe("leerPreferenciaSidebar", () => {
+  it.each([
+    [{ value: "1" }, "colapsado"],
+    [{ value: "0" }, "expandido"],
+    [undefined, null],
+    [{ value: "" }, null],
+    [{ value: "true" }, null],
+  ])("%j es %s", async (valor, esperado) => {
+    cookiesMock.get.mockReturnValue(valor);
+    expect(await leerPreferenciaSidebar()).toBe(esperado);
+  });
 });

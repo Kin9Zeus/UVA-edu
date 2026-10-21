@@ -16,7 +16,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 import { esUuid } from "@/lib/slug";
-import { leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
+import { leerPreferenciaSidebar } from "@/lib/sidebar-preferencia-servidor";
 
 export async function generateMetadata({
   params,
@@ -119,7 +119,7 @@ export default async function CursoDetallePage({
       <Sidebar
         certificadosCount={certificadosCount}
         diasGracia={diasGracia}
-        colapsadoInicial={await leerSidebarColapsado()}
+        preferenciaInicial={await leerPreferenciaSidebar()}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header

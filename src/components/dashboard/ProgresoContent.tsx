@@ -300,7 +300,7 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
               nativeButton={false}
               variant="uva-secondary"
               size="uva"
-              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:h-9 md:min-h-9 md:w-auto md:px-4 md:text-uva-detalle"
+              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:w-auto md:px-4 md:pointer-fine:text-uva-detalle"
             >
               {curso.certificadoEmitido ? (
                 <>
@@ -317,7 +317,7 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:h-9 md:min-h-9 md:w-auto md:px-4 md:text-uva-detalle"
+              className="min-h-11.25 gap-2 text-uva-cuerpo max-md:w-full md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:w-auto md:px-4 md:pointer-fine:text-uva-detalle"
             >
               <Play className="size-4 fill-current" aria-hidden="true" />
               Continuar
@@ -424,7 +424,7 @@ export function ProgresoContent({
                   type="button"
                   aria-pressed={filtro === opcion.valor}
                   onClick={() => setFiltro(opcion.valor)}
-                  className={`min-h-10.25 rounded-full px-4 text-uva-detalle transition-colors md:min-h-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent ${
+                  className={`min-h-11 rounded-full px-4 text-uva-detalle transition-colors md:pointer-fine:min-h-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent ${
                     filtro === opcion.valor
                       ? "bg-uva-btn font-bold text-uva-on-accent"
                       : "font-semibold text-uva-text-muted hover:text-uva-text"
@@ -443,7 +443,7 @@ export function ProgresoContent({
               }}
             >
               <SelectTrigger
-                className="min-h-11 rounded-uva-md border-uva-divider bg-uva-surface text-uva-detalle font-semibold md:h-9 md:min-h-9"
+                className="min-h-11 rounded-uva-md border-uva-divider bg-uva-surface text-uva-detalle font-semibold md:pointer-fine:h-9 md:pointer-fine:min-h-9"
                 aria-label="Ordenar cursos"
               >
                 <SelectValue />
@@ -467,7 +467,7 @@ export function ProgresoContent({
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="min-h-11.25 text-uva-cuerpo sm:w-auto md:h-9 md:min-h-9 md:px-4 md:text-uva-detalle"
+              className="min-h-11.25 text-uva-cuerpo sm:w-auto md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:px-4 md:pointer-fine:text-uva-detalle"
             >
               Ver catálogo
             </Button>

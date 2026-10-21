@@ -27,7 +27,7 @@ export async function ComunidadSidebarDerecho() {
           <ul className="flex flex-col gap-2.5">
             {destacados.map((post) => (
               <li key={post.id}>
-                <Link href={`/dashboard/comunidad/${post.slug}`} className="block truncate text-uva-detalle text-uva-text hover:text-uva-accent-ink">
+                <Link href={`/dashboard/comunidad/${post.slug}`} className="block truncate text-uva-detalle text-uva-text hover:text-uva-accent-ink pointer-coarse:-my-3 pointer-coarse:py-3">
                   {post.titulo}
                 </Link>
                 <span className="text-uva-detalle text-uva-text-muted">
@@ -51,7 +51,7 @@ export async function ComunidadSidebarDerecho() {
           <ul className="flex flex-col gap-3">
             {actividad.map((item) => (
               <li key={item.id} className="text-uva-detalle">
-                <Link href={`/dashboard/comunidad/${item.slug}`} className="text-uva-text-muted hover:text-uva-text">
+                <Link href={`/dashboard/comunidad/${item.slug}`} className="block text-uva-text-muted hover:text-uva-text pointer-coarse:-my-3 pointer-coarse:py-3">
                   <span className="text-uva-text">{item.autorNombre}</span> publicó{" "}
                   <span className="text-uva-text">{item.titulo}</span>
                 </Link>

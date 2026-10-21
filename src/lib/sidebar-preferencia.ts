@@ -14,9 +14,19 @@ export const SIDEBAR_COOKIE = "uva-sidebar-colapsado";
 
 const UN_ANIO_EN_SEGUNDOS = 60 * 60 * 24 * 365;
 
+/**
+ * "1" colapsado, "0" expandido. Sin cookie el panel del estudiante decide
+ * por el ancho (ver PreferenciaSidebar); el de administración lo trata como
+ * expandido.
+ */
 export function guardarSidebarColapsado(colapsado: boolean): void {
   if (typeof document === "undefined") return;
-  document.cookie = colapsado
-    ? `${SIDEBAR_COOKIE}=1; path=/; max-age=${UN_ANIO_EN_SEGUNDOS}; SameSite=Lax`
-    : `${SIDEBAR_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `${SIDEBAR_COOKIE}=${colapsado ? "1" : "0"}; path=/; max-age=${UN_ANIO_EN_SEGUNDOS}; SameSite=Lax`;
 }
+
+/**
+ * Lo que eligió la persona, o `null` si nunca tocó el botón: entonces el
+ * menú del panel va solo con íconos por debajo de 1280 px (tabletas, iPad
+ * horizontal) y completo desde ahí.
+ */
+export type PreferenciaSidebar = "colapsado" | "expandido" | null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { guardarSidebarColapsado } from "@/lib/sidebar-preferencia";
+import { guardarSidebarColapsado, type PreferenciaSidebar } from "@/lib/sidebar-preferencia";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -30,6 +30,23 @@ const navPrincipal = [
   { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
 ];
 
+/**
+ * Cómo se ve el menú: `compacto` (solo íconos), `completo`, o `auto`: solo
+ * íconos por debajo de 1280 px y completo desde ahí. `auto` es el de quien
+ * nunca tocó el botón: en una tableta o un iPad horizontal el menú completo
+ * (256 px) dejaba la ficha del curso con una columna de 190 px. Se resuelve
+ * con CSS (`max-xl:`) para que el servidor lo pinte bien sin saber el ancho.
+ * Las clases van escritas enteras en cada caso para que Tailwind las vea.
+ */
+type Modo = "compacto" | "completo" | "auto";
+const modoDe = (preferencia: PreferenciaSidebar): Modo =>
+  preferencia === "colapsado" ? "compacto" : preferencia === "expandido" ? "completo" : "auto";
+
+/** Lo que solo se ve con el menú completo. */
+const SOLO_COMPLETO: Record<Modo, string> = { compacto: "hidden", completo: "", auto: "max-xl:hidden" };
+/** Lo que solo se ve con el menú compacto. */
+const SOLO_COMPACTO: Record<Modo, string> = { compacto: "", completo: "hidden", auto: "xl:hidden" };
+
 const navProgreso = [
   { href: "/dashboard/progreso", label: "Progreso", icon: TrendingUp },
   { href: "/dashboard/certificados", label: "Certificados", icon: Award },
@@ -43,35 +60,33 @@ function NavLink({
   label,
   icon: Icon,
   active,
-  collapsed,
+  modo,
   badge,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   active: boolean;
-  collapsed: boolean;
+  modo: Modo;
   badge?: string;
 }) {
   const link = (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      // Colapsado no hay texto visible: el tooltip solo aparece al pasar el
+      // Compacto no hay texto visible: el tooltip solo aparece al pasar el
       // mouse, así que el nombre accesible tiene que ir en el propio enlace.
-      aria-label={collapsed ? label : undefined}
+      aria-label={modo === "completo" ? undefined : label}
       className={cn(
         "flex min-h-11 items-center gap-3 rounded-uva-md px-3 text-uva-cuerpo font-medium text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
         active && "bg-uva-surface-2 font-bold text-uva-text shadow-[inset_3px_0_0_var(--uva-btn)]",
-        collapsed && "justify-center px-0",
+        { compacto: "justify-center px-0", completo: "", auto: "max-xl:justify-center max-xl:px-0" }[modo],
       )}
     >
       <Icon className="size-5 shrink-0" strokeWidth={1.8} aria-hidden />
-      {!collapsed && (
-        <span className="flex-1 truncate">{label}</span>
-      )}
-      {!collapsed && badge && (
-        <span className="font-mono text-uva-detalle font-bold text-uva-text-muted">
+      <span className={cn("flex-1 truncate", SOLO_COMPLETO[modo])}>{label}</span>
+      {badge && (
+        <span className={cn("font-mono text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
           {badge}
         </span>
       )}
@@ -80,12 +95,12 @@ function NavLink({
 
   // Colapsado: el ícono solo no dice nada (estilo Platzi) — un tooltip al
   // pasar el mouse muestra la etiqueta sin tener que expandir el menú.
-  if (!collapsed) return link;
+  if (modo === "completo") return link;
 
   return (
     <Tooltip>
       <TooltipTrigger render={link} />
-      <TooltipContent>
+      <TooltipContent className={SOLO_COMPACTO[modo]}>
         {label}
         {badge && <span className="ml-1.5 text-uva-text-faint">{badge}</span>}
       </TooltipContent>
@@ -127,7 +142,7 @@ function TarjetaAcceso({ acceso }: { acceso: AccesoVigente }) {
 export function Sidebar({
   certificadosCount,
   diasGracia,
-  colapsadoInicial = false,
+  preferenciaInicial = null,
   acceso = null,
 }: {
   certificadosCount: number;
@@ -135,9 +150,10 @@ export function Sidebar({
   /** Días que le quedan a un acceso vigente (tarjeta "Tu acceso"). */
   acceso?: AccesoVigente | null;
   /** Preferencia guardada (cookie), leída en el servidor para no parpadear. */
-  colapsadoInicial?: boolean;
+  preferenciaInicial?: PreferenciaSidebar;
 }) {
-  const [collapsed, setCollapsed] = useState(colapsadoInicial);
+  const [preferencia, setPreferencia] = useState(preferenciaInicial);
+  const modo = modoDe(preferencia);
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -147,7 +163,7 @@ export function Sidebar({
     <aside
       className={cn(
         "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-uva-surface transition-[width] duration-150 md:flex",
-        collapsed ? "w-[76px]" : "w-64",
+        { compacto: "w-[76px]", completo: "w-64", auto: "w-[76px] xl:w-64" }[modo],
       )}
     >
       <div
@@ -157,33 +173,43 @@ export function Sidebar({
           // colapsar quede centrado exactamente sobre los íconos de abajo —
           // con `px-4` (el de antes) el botón quedaba 6px a la izquierda del
           // centro real de los íconos colapsados.
-          collapsed ? "justify-center px-3" : "justify-between pr-4 pl-5",
+          {
+            compacto: "justify-center px-3",
+            completo: "justify-between pr-4 pl-5",
+            auto: "justify-center px-3 xl:justify-between xl:pr-4 xl:pl-5",
+          }[modo],
         )}
       >
-        {!collapsed && (
-          <Link
-            href="/dashboard"
-            aria-label="U.V.A., ir al inicio del panel"
-            className="inline-flex min-h-11 items-center text-uva-text no-underline hover:no-underline"
-          >
-            <LogoUva className="h-[27px] w-[83px]" />
-          </Link>
-        )}
+        <Link
+          href="/dashboard"
+          aria-label="U.V.A., ir al inicio del panel"
+          className={cn(
+            "min-h-11 items-center text-uva-text no-underline hover:no-underline",
+            { compacto: "hidden", completo: "inline-flex", auto: "hidden xl:inline-flex" }[modo],
+          )}
+        >
+          <LogoUva className="h-[27px] w-[83px]" />
+        </Link>
         <button
           type="button"
           onClick={() => {
-            const siguiente = !collapsed;
-            setCollapsed(siguiente);
-            guardarSidebarColapsado(siguiente);
+            // En `auto` se invierte lo que se ve en este ancho.
+            const compactoAhora =
+              modo === "compacto" || (modo === "auto" && !window.matchMedia("(min-width: 1280px)").matches);
+            setPreferencia(compactoAhora ? "expandido" : "colapsado");
+            guardarSidebarColapsado(!compactoAhora);
           }}
-          aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
           className="flex size-11 shrink-0 items-center justify-center rounded-uva-sm text-uva-text-muted hover:bg-uva-hover hover:text-uva-text"
         >
-          {collapsed ? (
-            <PanelLeft className="size-[18px]" strokeWidth={1.9} />
-          ) : (
-            <PanelLeftClose className="size-[18px]" strokeWidth={1.9} />
-          )}
+          {/* Nombre e ícono de lo que hará el botón en este ancho. */}
+          <span className={cn("contents", SOLO_COMPACTO[modo])}>
+            <span className="sr-only">Expandir menú</span>
+            <PanelLeft className="size-[18px]" strokeWidth={1.9} aria-hidden />
+          </span>
+          <span className={cn("contents", SOLO_COMPLETO[modo])}>
+            <span className="sr-only">Colapsar menú</span>
+            <PanelLeftClose className="size-[18px]" strokeWidth={1.9} aria-hidden />
+          </span>
         </button>
       </div>
 
@@ -194,23 +220,21 @@ export function Sidebar({
               key={item.href}
               {...item}
               active={isActive(item.href)}
-              collapsed={collapsed}
+              modo={modo}
             />
           ))}
 
-          {!collapsed && (
-            <p className="mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted">
-              Tu progreso
-            </p>
-          )}
-          {collapsed && <div className="my-3 border-t border-uva-divider" />}
+          <p className={cn("mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
+            Tu progreso
+          </p>
+          <div className={cn("my-3 border-t border-uva-divider", SOLO_COMPACTO[modo])} />
 
           {navProgreso.map((item) => (
             <NavLink
               key={item.href}
               {...item}
               active={isActive(item.href)}
-              collapsed={collapsed}
+              modo={modo}
               badge={
                 item.href === "/dashboard/certificados"
                   ? String(certificadosCount).padStart(2, "0")
@@ -226,13 +250,17 @@ export function Sidebar({
           la lista de arriba. Cuando hay período de gracia, Soporte se corre
           debajo de esa tarjeta (no encima) — mismo lugar de siempre, solo
           empujado por el módulo que aparece arriba. */}
-      {diasGracia !== null && !collapsed && (
-        <div className="shrink-0 px-[19px] pt-[19px]">
+      {diasGracia !== null && (
+        <div className={cn("shrink-0 px-[19px] pt-[19px]", SOLO_COMPLETO[modo])}>
           <GraciaCard diasGracia={diasGracia} />
         </div>
       )}
 
-      {acceso && diasGracia === null && !collapsed && <TarjetaAcceso acceso={acceso} />}
+      {acceso && diasGracia === null && (
+        <div className={cn("contents", SOLO_COMPLETO[modo])}>
+          <TarjetaAcceso acceso={acceso} />
+        </div>
+      )}
 
       <div className="shrink-0 border-t border-uva-divider px-3 py-2">
         <TooltipProvider delay={150}>
@@ -241,7 +269,7 @@ export function Sidebar({
             label="Soporte"
             icon={HelpCircle}
             active={isActive("/dashboard/soporte")}
-            collapsed={collapsed}
+            modo={modo}
           />
         </TooltipProvider>
       </div>

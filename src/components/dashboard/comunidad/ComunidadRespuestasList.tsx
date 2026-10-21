@@ -125,7 +125,7 @@ export function ComunidadRespuestasList({
               aria-pressed={orden === opcion.valor}
               onClick={() => setOrden(opcion.valor)}
               className={cn(
-                "rounded-uva-sm px-2.5 py-1 text-[12px] font-semibold text-uva-text-muted transition-colors hover:text-uva-text",
+                "rounded-uva-sm px-2.5 py-1 text-[12px] font-semibold pointer-coarse:min-h-11 text-uva-text-muted transition-colors hover:text-uva-text",
                 orden === opcion.valor && "bg-uva-hover text-uva-text",
               )}
             >

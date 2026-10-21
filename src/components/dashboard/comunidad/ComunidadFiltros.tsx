@@ -79,7 +79,7 @@ export function ComunidadFiltros() {
           onChange={(event) => alEscribir(event.target.value)}
           placeholder="Buscar publicaciones o personas"
           aria-label="Buscar publicaciones o personas en Comunidad"
-          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:h-9 md:pointer-fine:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:pointer-fine:h-9 md:pointer-fine:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (
           <button
@@ -105,7 +105,7 @@ export function ComunidadFiltros() {
         >
           <SelectTrigger
             aria-label="Ordenar publicaciones"
-            className="min-h-11.25 w-full gap-2.5 rounded-uva-md border border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:h-9 md:min-h-9 md:text-uva-detalle md:font-medium sm:w-auto dark:bg-uva-surface dark:hover:bg-uva-surface"
+            className="min-h-11.25 w-full gap-2.5 rounded-uva-md border border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle md:pointer-fine:font-medium sm:w-auto dark:bg-uva-surface dark:hover:bg-uva-surface"
           >
             <SelectValue />
           </SelectTrigger>

@@ -267,7 +267,7 @@ export function CursoFicha({
 
   const portada = (
     <figure
-      className="relative aspect-video overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface-2 lg:rounded-uva-lg"
+      className="relative aspect-video overflow-hidden rounded-uva-md border border-uva-divider bg-uva-surface-2 @4xl:rounded-uva-lg"
       style={conPortada ? undefined : RETICULA}
     >
       {conPortada ? (
@@ -291,10 +291,13 @@ export function CursoFicha({
   );
 
   return (
-    <div className="mx-auto max-w-uva px-uva-margen pt-4 pb-uva-seccion lg:pt-8">
-      <div className="grid grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1fr)_440px] lg:grid-rows-[auto_1fr_auto_auto] lg:gap-x-14 lg:gap-y-4">
+    // Dos columnas según el ancho que le queda a la ficha (`@container`,
+    // `@4xl` = 896 px), no según la pantalla: con el menú del panel al lado,
+    // a 1024 px la columna del título quedaba en 190 px.
+    <div className="@container mx-auto max-w-uva px-uva-margen pt-4 pb-uva-seccion lg:pt-8">
+      <div className="grid grid-cols-1 gap-7 @4xl:grid-cols-[minmax(0,1fr)_440px] @4xl:grid-rows-[auto_1fr_auto_auto] @4xl:gap-x-14 @4xl:gap-y-4">
         {/* Encabezado: ruta, título y datos del curso. */}
-        <div className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1 lg:gap-4">
+        <div className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-1 @4xl:gap-4">
           <nav aria-label="Ruta de navegación">
             <ol className="flex flex-wrap items-center gap-x-2 text-uva-detalle text-uva-text-muted">
               <li>
@@ -319,7 +322,7 @@ export function CursoFicha({
             </ol>
           </nav>
 
-          <h1 className="m-0 text-uva-titulo-2 text-balance text-uva-text lg:text-uva-titulo-3">{curso.titulo}</h1>
+          <h1 className="m-0 text-uva-titulo-2 text-balance text-uva-text @4xl:text-uva-titulo-3">{curso.titulo}</h1>
           {conAcceso && completado && (
             <p className="m-0 inline-flex w-fit items-center gap-1.5 rounded-full bg-uva-accent-2 px-3 py-1 text-uva-detalle font-bold text-uva-on-bright">
               <CircleCheck className="size-4" strokeWidth={2.4} aria-hidden />
@@ -370,22 +373,25 @@ export function CursoFicha({
           </div>
         </div>
 
-        {/* Portada y botones: columna derecha en escritorio. */}
-        <div className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:gap-5">
+        {/* Portada y botones: columna derecha en escritorio. En una sola
+            columna con espacio (tableta, `@2xl` a `@4xl`), portada y botones
+            van lado a lado: a todo el ancho, la portada empujaba "Seguir
+            viendo" fuera de la primera pantalla. */}
+        <div className="flex min-w-0 flex-col gap-4 @2xl:@max-4xl:grid @2xl:@max-4xl:grid-cols-2 @2xl:@max-4xl:content-start @2xl:@max-4xl:gap-x-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1 @4xl:gap-5">
           {rutaPortada ? (
             // La portada repite el destino del botón de abajo: fuera del orden
             // del teclado y del lector para no anunciar dos veces lo mismo.
-            <Link href={rutaPortada} tabIndex={-1} aria-hidden="true" className="block">
+            <Link href={rutaPortada} tabIndex={-1} aria-hidden="true" className="block @2xl:@max-4xl:row-span-4">
               {portada}
             </Link>
           ) : (
-            portada
+            <div className="@2xl:@max-4xl:row-span-4">{portada}</div>
           )}
 
           {conAcceso ? (
             <>
               {rutaDestino && destino ? (
-                <Link href={rutaDestino} className={cn(BOTON_PRIMARIO, "min-h-16 lg:min-h-14")}>
+                <Link href={rutaDestino} className={cn(BOTON_PRIMARIO, "min-h-16 @4xl:min-h-14")}>
                   {siguiendo ? "Seguir viendo" : completado ? "Repasar curso" : "Comenzar curso"}
                   {destino.titulo && !completado && (
                     <small className="block w-full min-w-0 truncate text-uva-detalle font-medium">
@@ -405,7 +411,7 @@ export function CursoFicha({
           ) : (
             <>
               {rutaVistaPrevia && vistaPrevia && (
-                <Link href={rutaVistaPrevia} className={cn(BOTON_PRIMARIO, "min-h-16 lg:min-h-14")}>
+                <Link href={rutaVistaPrevia} className={cn(BOTON_PRIMARIO, "min-h-16 @4xl:min-h-14")}>
                   Ver la primera clase gratis
                   <small className="block w-full min-w-0 truncate text-uva-detalle font-medium">
                     Clase 1, {vistaPrevia.titulo}
@@ -421,7 +427,7 @@ export function CursoFicha({
         </div>
 
         {/* Descripción. */}
-        <div className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-2">
+        <div className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-2">
           <p className="m-0 max-w-prose text-uva-cuerpo text-uva-text">{curso.descripcion}</p>
           <p className="m-0 font-mono text-uva-detalle text-uva-text-muted">
             Actualizado el {formatFecha(curso.fechaEdicion)}
@@ -431,7 +437,7 @@ export function CursoFicha({
         {/* Temario. */}
         <section
           aria-labelledby="temario-titulo"
-          className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-3 lg:mt-6"
+          className="flex min-w-0 flex-col gap-3 @4xl:col-start-1 @4xl:row-start-3 @4xl:mt-6"
         >
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -526,7 +532,7 @@ export function CursoFicha({
         {/* Instructor y examen final. Sin profesor asignado no hay tarjeta: un
             círculo con "SI" no dice nada, y el dato ya figura arriba. */}
         {(instructores || (sesion && sesion.situacionExamen.situacion !== "SIN_EXAMEN")) && (
-          <div className="flex min-w-0 flex-col gap-6 lg:col-start-2 lg:row-start-3 lg:mt-6">
+          <div className="flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-start-3 @4xl:mt-6">
             {instructores && (
               <aside aria-label={instructores.length > 1 ? "Instructores" : "Instructor"} className="flex flex-col gap-4">
                 {instructores.map((instructor) => (
@@ -557,7 +563,7 @@ export function CursoFicha({
           </div>
         )}
 
-        <div className="min-w-0 lg:col-span-2 lg:row-start-4 lg:mt-6">
+        <div className="min-w-0 @4xl:col-span-2 @4xl:row-start-4 @4xl:mt-6">
           <ResenasCurso
             cursoId={curso.id}
             cursoSlug={curso.slug}
