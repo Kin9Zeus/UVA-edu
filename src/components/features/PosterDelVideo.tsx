@@ -12,16 +12,18 @@ import { MiniaturaMux } from "@/components/features/MiniaturaMux";
  * reproductor, para que no haya salto de diseño al reemplazarlo.
  *
  * Con `onActivar` y `cargando` en falso es también un botón de play: el
- * reproductor se carga unos segundos después de la página (ver VideoFrame) y
- * quien toca el póster antes lo carga de inmediato.
+ * reproductor se descarga con la intención de usarlo (`onIntencion`: puntero
+ * encima, foco o dedo abajo; ver VideoFrame) y arranca al llegar.
  */
 export function PosterDelVideo({
   posterUrl,
   onActivar,
+  onIntencion,
   cargando = true,
 }: {
   posterUrl?: string | null;
   onActivar?: () => void;
+  onIntencion?: () => void;
   cargando?: boolean;
 }) {
   return (
@@ -38,6 +40,9 @@ export function PosterDelVideo({
         <button
           type="button"
           onClick={onActivar}
+          onPointerEnter={onIntencion}
+          onPointerDown={onIntencion}
+          onFocus={onIntencion}
           aria-label="Reproducir video"
           className="absolute inset-0 grid place-items-center"
         >

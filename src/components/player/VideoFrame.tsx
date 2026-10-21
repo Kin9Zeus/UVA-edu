@@ -1,9 +1,10 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type { ControlReproductor, VideoPlayer as VideoPlayerTipo } from "@/components/features/VideoPlayer";
 import { PosterDelVideo } from "@/components/features/PosterDelVideo";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,8 +22,16 @@ import { cn } from "@/lib/utils";
  * que pide el propio comentario de VideoPlayer para no quedarse mostrando
  * el video anterior mientras resuelve el token nuevo.
  */
-/** Espera tras hidratar antes de cargar el reproductor si nadie toca el póster. */
-const ESPERA_ANTES_DEL_REPRODUCTOR_MS = 4_000;
+let reproductor: Promise<typeof VideoPlayerTipo> | null = null;
+function cargarReproductor() {
+  reproductor ??= import("@/components/features/VideoPlayer")
+    .then((modulo) => modulo.VideoPlayer)
+    .catch((error) => {
+      reproductor = null;
+      throw error;
+    });
+  return reproductor;
+}
 
 export function VideoFrame({
   leccionId,
@@ -32,6 +41,8 @@ export function VideoFrame({
   posterUrl,
   onTerminado,
   controlRef,
+  activarRef,
+  rutaCurso,
   className,
 }: {
   leccionId: string;
@@ -45,40 +56,41 @@ export function VideoFrame({
   onTerminado?: () => void;
   /** Ver ControlReproductor (features/VideoPlayer.tsx). */
   controlRef?: RefObject<ControlReproductor | null>;
+  /** Se llena con una función que carga el reproductor y arranca en un
+   * segundo (saltar desde una nota antes de haber tocado el video). */
+  activarRef?: RefObject<((segundo: number) => void) | null>;
+  /** Ver VideoPlayer. */
+  rutaCurso?: string;
   className?: string;
 }) {
-  // El reproductor de Mux pesa ~290 KiB y tardaba ~765 ms en ejecutarse justo
-  // después de hidratar, dentro de la ventana donde se mide el TBT (lección:
-  // 581 ms, Rendimiento 78 en Lighthouse móvil). Se descarga aparte de la
-  // página y unos segundos después de hidratar, para que la clase ya sea
-  // visible y usable; quien toca el póster antes lo carga de inmediato y el
-  // video arranca solo. Mientras tanto el recuadro muestra el póster
-  // (PosterDelVideo), que viene en el HTML.
-  const [VideoPlayer, setVideoPlayer] = useState<typeof VideoPlayerTipo | null>(null);
+  // El reproductor de Mux pesa ~290 KiB y su ejecución bloquea el hilo
+  // principal más de medio segundo en un celular. Se descarga con la
+  // intención de usarlo (puntero encima, foco o dedo sobre el póster, ver
+  // useModuloDiferido), no con un temporizador: a los 4 s caía igual dentro
+  // de la medición de Lighthouse con la sesión iniciada (TBT ~950 ms,
+  // 2026-10-20). Mientras tanto el recuadro muestra el póster
+  // (PosterDelVideo), que viene en el HTML; quien lo toca hace arrancar el
+  // video apenas llega.
+  const { modulo: VideoPlayer, pedir } = useModuloDiferido(cargarReproductor);
   const [activadoPorElUsuario, setActivadoPorElUsuario] = useState(false);
-  const cargarReproductorRef = useRef<() => void>(() => {});
-  useEffect(() => {
-    if (!videoListo) return;
-    let cancelado = false;
-    const cargar = () => {
-      clearTimeout(temporizador);
-      void import("@/components/features/VideoPlayer").then((modulo) => {
-        if (!cancelado) setVideoPlayer(() => modulo.VideoPlayer);
-      });
-    };
-    const temporizador = setTimeout(cargar, ESPERA_ANTES_DEL_REPRODUCTOR_MS);
-    cargarReproductorRef.current = cargar;
-    return () => {
-      cancelado = true;
-      clearTimeout(temporizador);
-      cargarReproductorRef.current = () => {};
-    };
-  }, [videoListo]);
+  const [inicio, setInicio] = useState<number | undefined>(undefined);
 
   function activarReproductor() {
     setActivadoPorElUsuario(true);
-    cargarReproductorRef.current();
+    pedir();
   }
+
+  useEffect(() => {
+    if (!activarRef) return;
+    activarRef.current = (segundo) => {
+      setInicio(segundo);
+      setActivadoPorElUsuario(true);
+      pedir();
+    };
+    return () => {
+      activarRef.current = null;
+    };
+  }, [activarRef, pedir]);
 
   if (videoListo) {
     return (
@@ -88,15 +100,17 @@ export function VideoFrame({
             key={leccionId}
             leccionId={leccionId}
             titulo={titulo}
-            segundoActual={segundoActual}
+            segundoActual={inicio ?? segundoActual}
             posterUrl={posterUrl}
             reproducirAlCargar={activadoPorElUsuario}
             onTerminado={onTerminado}
             controlRef={controlRef}
+            rutaCurso={rutaCurso}
           />
         ) : (
           <PosterDelVideo
             posterUrl={posterUrl}
+            onIntencion={videoListo ? pedir : undefined}
             onActivar={activarReproductor}
             cargando={activadoPorElUsuario}
           />
@@ -106,7 +120,7 @@ export function VideoFrame({
   }
 
   return (
-    <div className={cn("dark relative h-[452px] overflow-hidden rounded-uva-md bg-black", className)}>
+    <div className={cn("dark relative aspect-video overflow-hidden rounded-uva-md bg-black", className)}>
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div className="grid size-[74px] place-items-center rounded-full bg-uva-accent/90">
           <Play className="size-[26px] fill-uva-bg text-uva-bg" strokeWidth={0} />

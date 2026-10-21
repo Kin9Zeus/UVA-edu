@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronLeft, Eye, FileText } from "lucide-react";
 import { extensionArchivo, formatDuracion } from "@/lib/admin/format";
 import type { LeccionVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
@@ -31,7 +30,6 @@ export function LeccionVistaPreviaContent({
   data: LeccionVistaPrevia;
   token: string;
 }) {
-  const router = useRouter();
   const [tab, setTab] = useState<TabPlayer>("recursos");
   const [temarioOpen, setTemarioOpen] = useState(false);
 
@@ -163,10 +161,7 @@ export function LeccionVistaPreviaContent({
         completadas={0}
         total={data.totalClases}
         porcentaje={0}
-        onIrALeccion={(leccionId) => {
-          setTemarioOpen(false);
-          router.push(hrefLeccion(slugPorLeccionId.get(leccionId) ?? leccionId));
-        }}
+        hrefDe={(leccion) => hrefLeccion(slugPorLeccionId.get(leccion.id) ?? leccion.id)}
       />
     </div>
   );

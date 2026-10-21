@@ -70,13 +70,11 @@ export type LeccionPlayer = {
   anteriorSlug: string | null;
   siguienteId: string | null;
   siguienteSlug: string | null;
-  /** true solo en la ÚLTIMA clase del curso (siguienteId = null) y solo si el
-   * curso tiene examen final publicado — es lo que hace que "Siguiente clase"
-   * se reemplace por "Hacer examen" en vez de simplemente desaparecer. No
-   * distingue si el examen ya está aprobado/agotado: esos estados se resuelven
-   * al entrar a /cursos/<slug>/examen, no acá — el botón solo decide adónde
-   * apunta el CTA de cierre del curso. */
+  /** El curso tiene examen final publicado y la persona puede verlo (RLS).
+   * En la última clase convierte "Siguiente clase" en "Hacer examen". */
   examenDisponible: boolean;
+  /** Estado del examen para la última fila del temario (`null` sin examen o sin sesión). */
+  situacionExamen: "DISPONIBLE" | "EN_CURSO" | "EN_ESPERA" | "APROBADO" | null;
   /** Segundo en el que quedó el estudiante (tabla progreso). */
   segundoActual: number;
   /** Con sesión iniciada: puede comentar (RLS exige `auth.uid()`, un
@@ -181,7 +179,6 @@ async function cargarLeccionPlayer(
   // `plano.length > 1`: un curso de una sola lección no tiene introducción
   // separada del contenido pagado — esa única lección ES el curso completo.
   const esIntroduccion = indice === 0 && plano.length > 1;
-  const esUltimaLeccion = indice === plano.length - 1;
 
   // Acceso, progreso, recursos, documento de la clase y examen no dependen
   // unos de otros —todos parten de ids que ya tenemos—, así que salen juntos
@@ -212,13 +209,9 @@ async function cargarLeccionPlayer(
       .order("creado_en"),
     // Solo el documento de la clase que se ve (ver el comentario del embed).
     supabase.from("lecciones").select("contenido, resumen").eq("id", leccionId).maybeSingle(),
-    // Solo se consulta en la última clase: es la única donde el botón de
-    // cierre del reproductor puede necesitar cambiar de "Siguiente clase" a
-    // "Hacer examen" — en cualquier otra, siguienteId ya no es null y el
-    // botón sigue siendo el de siempre.
-    esUltimaLeccion
-      ? getSituacionExamen(curso.id, usuarioId)
-      : Promise.resolve({ situacion: "SIN_EXAMEN" as const }),
+    // En todas las clases: el temario cierra con el examen y su estado.
+    // Sin sesión devuelve SIN_EXAMEN sin consultar.
+    getSituacionExamen(curso.id, usuarioId),
   ]);
 
   // Antes que cualquier `lanzarSiFalla`: sin acceso se responde `null`, y un
@@ -307,6 +300,7 @@ async function cargarLeccionPlayer(
     siguienteId: indice < plano.length - 1 ? plano[indice + 1].id : null,
     siguienteSlug: indice < plano.length - 1 ? plano[indice + 1].slug : null,
     examenDisponible: situacionExamen.situacion !== "SIN_EXAMEN",
+    situacionExamen: situacionExamen.situacion === "SIN_EXAMEN" ? null : situacionExamen.situacion,
     segundoActual: progresoPorLeccion.get(actual.id)?.segundo_actual ?? 0,
     puedeComentar: !!usuarioId,
   };

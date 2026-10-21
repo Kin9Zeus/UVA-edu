@@ -18,6 +18,7 @@ export function EncabezadoCurso({
   volver,
   titulo,
   logoEnCelular = false,
+  className,
   children,
 }: {
   /** Adónde lleva el logo y su nombre accesible. */
@@ -27,11 +28,12 @@ export function EncabezadoCurso({
   /** Texto fijo en lugar de "← curso" (p. ej. "Examen final" mientras se rinde). */
   titulo?: string;
   logoEnCelular?: boolean;
+  className?: string;
   /** Acciones a la derecha: tema, cuenta, "Salir del examen"… */
   children?: ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-uva-divider bg-uva-bg lg:static">
+    <header className={cn("sticky top-0 z-40 border-b border-uva-divider bg-uva-bg lg:static", className)}>
       <div className="mx-auto flex w-full max-w-uva items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-6 lg:px-8">
         <Link
           href={inicio.href}

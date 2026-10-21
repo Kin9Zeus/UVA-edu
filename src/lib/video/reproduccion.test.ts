@@ -57,6 +57,7 @@ describe("resolverTokenReproduccion", () => {
 
     expect(await resolverTokenReproduccion(cliente(), "l2")).toEqual({
       error: "No tienes acceso vigente a este curso.",
+      sinAcceso: true,
     });
     expect(servidorFalso.efectosExternos).toHaveLength(0);
   });

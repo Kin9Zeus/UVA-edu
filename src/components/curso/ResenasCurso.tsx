@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmarEnLinea } from "@/components/ui/confirmar-en-linea";
 import { EstrellasCalificacion, EstrellasInput } from "@/components/curso/EstrellasCalificacion";
 import {
   calificarCurso,
@@ -267,7 +268,7 @@ function BotonMeGusta({
       aria-pressed={meGusta}
       aria-label={`Me gusta, ${total}`}
       className={cn(
-        "inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-mono text-uva-detalle font-semibold disabled:cursor-not-allowed",
+        "inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-mono text-uva-detalle font-semibold disabled:cursor-not-allowed pointer-coarse:min-w-11",
         meGusta ? "text-uva-accent-ink" : "text-uva-text-muted hover:text-uva-text",
       )}
     >
@@ -358,14 +359,13 @@ function FormularioResena({
           {pendiente ? "Publicando…" : miCalificacion ? "Guardar cambios" : "Publicar"}
         </button>
         {miCalificacion && (
-          <button
-            type="button"
-            onClick={eliminar}
+          <ConfirmarEnLinea
+            etiqueta="Eliminar mi reseña"
+            pregunta="¿Eliminar tu reseña?"
+            onConfirmar={eliminar}
             disabled={pendiente}
             className="inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-uva-detalle font-semibold text-uva-text-muted hover:text-uva-error-text disabled:cursor-not-allowed"
-          >
-            Eliminar mi reseña
-          </button>
+          />
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { preconnect } from "react-dom";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,8 @@ import { getNotasDeLeccion } from "@/lib/notas";
 import { parsearSegundoEnUrl } from "@/lib/notas-validacion";
 import { esUuid } from "@/lib/slug";
 import { LeccionMaqueta } from "@/components/player/LeccionMaqueta";
+import { COOKIE_PANEL_OCULTO } from "@/components/player/panelLateral";
+import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { siteUrl } from "@/lib/site-url";
 
 export async function generateMetadata({
@@ -98,9 +101,10 @@ export default async function LeccionPlayerPage({
   // Sin sesión solo llega la clase gratis del curso (sin notas, que son
   // privadas de cada cuenta). Con sesión, comentarios y notas en paralelo:
   // las notas no deben sumar un viaje a Supabase en serie.
-  const [comentarios, notas] = await Promise.all([
+  const [comentarios, notas, almacenCookies] = await Promise.all([
     getComentariosDeLeccion(data.leccionId, data.cursoId, user?.id ?? null),
     user ? getNotasDeLeccion(data.leccionId, user.id) : Promise.resolve([]),
+    cookies(),
   ]);
 
   const cuenta = resumenCuenta(perfilActual);
@@ -121,6 +125,10 @@ export default async function LeccionPlayerPage({
     <main id="contenido" tabIndex={-1}>
       <LeccionMaqueta
         data={data}
+        // El resumen se dibuja aquí, en el servidor: el renderizador no viaja
+        // en el JavaScript de la clase.
+        resumen={data.contenido?.content?.length ? <RichTextRenderer contenido={data.contenido} escala="lectura" /> : null}
+        panelOcultoInicial={almacenCookies.get(COOKIE_PANEL_OCULTO)?.value === "1"}
         comentarios={comentarios ?? []}
         comentariosNoDisponibles={comentarios === null}
         sesion={sesion}

@@ -12,7 +12,11 @@ import { lanzarSiFalla } from "@/lib/supabase/errores";
 // quede viendo una clase larga.
 const DURACION_TOKEN = "15m";
 
-export type TokenReproduccionResultado = { error: string } | { playbackId: string; token: string };
+/** `sinAcceso`: el acceso al curso venció o nunca existió (el reproductor
+ * explica qué hacer en vez de ofrecer "Reintentar"). */
+export type TokenReproduccionResultado =
+  | { error: string; sinAcceso?: true }
+  | { playbackId: string; token: string };
 
 /**
  * Lógica real del muro de acceso al video, separada de
@@ -90,7 +94,7 @@ export async function resolverTokenReproduccion(
 
   const acceso = await obtenerAccesoAlCurso(supabase, user.id, cursoId);
   if (!acceso.tieneAcceso) {
-    return { error: "No tienes acceso vigente a este curso." };
+    return { error: "No tienes acceso vigente a este curso.", sinAcceso: true };
   }
 
   return firmarPlaybackToken(leccion.id_video_mux, leccionId);

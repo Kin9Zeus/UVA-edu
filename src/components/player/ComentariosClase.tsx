@@ -6,7 +6,9 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Heart, Loader2, Reply } from "lucide-react";
 import { AvisoErrorCarga } from "@/components/errores/AvisoErrorCarga";
-import { comentariosVisibles } from "@/components/player/PlayerTabs";
+import { ConfirmarEnLinea } from "@/components/ui/confirmar-en-linea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { comentariosVisibles } from "@/lib/comentarios-visibles";
 import { crearComentario } from "@/actions/comentarios/crear";
 import { eliminarComentario } from "@/actions/comentarios/eliminar";
 import { darLikeComentario, quitarLikeComentario } from "@/actions/comentarios/like";
@@ -112,18 +114,21 @@ export function ComentariosClase({
               {total === 1 ? "1 comentario" : `${total} comentarios`}
             </p>
             {visibles.length > 1 && (
-              <select
-                aria-label="Ordenar comentarios"
-                value={orden}
-                onChange={(evento) => setOrden(evento.target.value as Orden)}
-                className="min-h-11 cursor-pointer rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 text-uva-detalle text-uva-text-muted hover:text-uva-text"
-              >
-                {(Object.keys(ORDEN_LABEL) as Orden[]).map((valor) => (
-                  <option key={valor} value={valor}>
-                    {ORDEN_LABEL[valor]}
-                  </option>
-                ))}
-              </select>
+              <Select items={ORDEN_LABEL} value={orden} onValueChange={(valor) => valor && setOrden(valor as Orden)}>
+                <SelectTrigger
+                  aria-label="Ordenar comentarios"
+                  className="text-base sm:pointer-fine:text-uva-detalle"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ORDEN_LABEL) as Orden[]).map((valor) => (
+                    <SelectItem key={valor} value={valor}>
+                      {ORDEN_LABEL[valor]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
           <ul className="m-0 flex list-none flex-col p-0">
@@ -270,14 +275,13 @@ function Comentario({
             </button>
           )}
           {puedeBorrar && (
-            <button
-              type="button"
-              onClick={borrar}
+            <ConfirmarEnLinea
+              etiqueta="Eliminar"
+              pregunta={esRespuesta ? "¿Eliminar esta respuesta?" : "¿Eliminar este comentario?"}
+              onConfirmar={borrar}
               disabled={pendienteBorrar}
               className={cn(accion, "text-uva-text-muted hover:text-uva-text")}
-            >
-              Eliminar
-            </button>
+            />
           )}
         </div>
 

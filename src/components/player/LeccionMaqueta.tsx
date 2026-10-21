@@ -1,34 +1,76 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download, FileCheck, List, Loader2, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileCheck, List, Loader2, Lock, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { EncabezadoCurso } from "@/components/curso/EncabezadoCurso";
 import { MenuCuenta } from "@/components/dashboard/MenuCuenta";
 import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
-import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
-import { ComentariosClase, type SesionComentarios } from "@/components/player/ComentariosClase";
-import { NotasTab } from "@/components/player/NotasTab";
-import { contarComentarios } from "@/components/player/PlayerTabs";
-import { TemarioDrawer } from "@/components/player/TemarioDrawer";
+import type { SesionComentarios } from "@/components/player/ComentariosClase";
+import { ListaTemario, type ExamenTemario } from "@/components/player/ListaTemario";
+import type { TemarioDrawer } from "@/components/player/TemarioDrawer";
 import { VideoFrame } from "@/components/player/VideoFrame";
+import { COOKIE_PANEL_OCULTO } from "@/components/player/panelLateral";
 import type { ControlReproductor } from "@/components/features/VideoPlayer";
+import { EsqueletoRegion, Skeleton } from "@/components/ui/skeleton";
 import { iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 import { obtenerUrlRecurso } from "@/actions/cursos/recurso";
 import { extensionArchivo, formatTamanoArchivo } from "@/lib/admin/format";
 import type { ComentarioConRespuestas } from "@/lib/comentarios";
+import { contarComentarios } from "@/lib/comentarios-visibles";
 import { porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import type { LeccionPlayer, RecursoLeccion } from "@/lib/leccion";
+import type { LeccionPlayer, LeccionPlayerItem, RecursoLeccion } from "@/lib/leccion";
 import type { NotaLeccion } from "@/lib/notas";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
 import { cn } from "@/lib/utils";
 
-type Pestana = "resumen" | "recursos" | "notas" | "comentarios";
-type PanelLateral = "notas" | "comentarios";
+/*
+ * Lo que no se ve al abrir la clase se descarga al pedirlo: notas y
+ * comentarios (con sus editores) al elegir su pestaña, y el panel del temario
+ * al tocar "Temario" (se adelanta al pasar el puntero o enfocar el botón).
+ * La auditoría midió 12 s de JavaScript cuando todo venía en la página.
+ */
+function CargandoPanel() {
+  return (
+    <EsqueletoRegion className="flex flex-col gap-3 py-2">
+      <Skeleton className="h-12" />
+      <Skeleton className="h-20" />
+      <Skeleton className="h-20" />
+    </EsqueletoRegion>
+  );
+}
+const ComentariosClase = dynamic(
+  () => import("@/components/player/ComentariosClase").then((modulo) => modulo.ComentariosClase),
+  { loading: CargandoPanel },
+);
+const NotasTab = dynamic(() => import("@/components/player/NotasTab").then((modulo) => modulo.NotasTab), {
+  loading: CargandoPanel,
+});
+let temario: Promise<typeof TemarioDrawer> | null = null;
+function cargarTemario() {
+  temario ??= import("@/components/player/TemarioDrawer")
+    .then((modulo) => modulo.TemarioDrawer)
+    .catch((error) => {
+      temario = null;
+      throw error;
+    });
+  return temario;
+}
 
-/** Desde aquí la clase va en dos columnas y notas y comentarios pasan a la lateral. */
-const ESCRITORIO = "(min-width: 1024px)";
+type Pestana = "resumen" | "recursos" | "notas" | "comentarios";
+type PestanaLateral = "temario" | "notas" | "comentarios";
+
+/**
+ * Desde aquí la clase va en dos columnas y notas y comentarios pasan a la
+ * lateral. 1280 y no 1024: con la columna al lado, un iPad horizontal (1024 a
+ * 1194 px) dejaba el video en 604-756 px de ancho; hasta 1279 px usa la
+ * disposición de tablet (video a todo el ancho, temario en el encabezado).
+ */
+const ESCRITORIO = "(min-width: 1280px)";
+
 
 const BOTON_PRIMARIO =
   "inline-flex min-h-12 lg:min-h-11 items-center justify-center gap-2.5 rounded-uva-md bg-uva-btn px-5 text-center text-uva-cuerpo font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline";
@@ -50,13 +92,19 @@ export type SesionLeccion = {
 };
 
 /**
- * Clase de un curso (`/cursos/[curso]/[clase]`), dirección visual «Maqueta»
- * (artboards "leccion" y "leccion movil" del canvas "UVA Cursos"). Una sola
- * vista para los dos casos, para que no se separen con el tiempo.
+ * Clase de un curso (`/cursos/[curso]/[clase]`), dirección visual «Maqueta».
+ * Una sola vista para los dos casos, para que no se separen con el tiempo.
+ *
+ * - Celular y tablet (también iPad horizontal): video a todo el ancho,
+ *   título, Anterior / Siguiente, progreso y pestañas (Resumen, Recursos, Notas, Comentarios). El temario
+ *   se abre con el botón del encabezado. Con el celular girado el video llena
+ *   el alto de la pantalla y el encabezado se oculta.
+ * - Desde 1280 px: a la derecha, el progreso y las pestañas Temario, Notas y
+ *   Comentarios, junto al video; "Ocultar panel" la cierra y el video toma
+ *   todo el ancho (la preferencia vive en una cookie).
  *
  * Con sesión (`sesion`): progreso, "Marcar como vista", notas, comentarios
- * con respuestas y "me gusta", descargas, Anterior / Siguiente y, en la
- * última clase, "Hacer examen".
+ * con respuestas y "me gusta", descargas, Anterior / Siguiente y el examen.
  *
  * Sin sesión solo existe la primera clase de cada curso (`getLeccionPlayer`):
  * - La tarjeta "Clase gratis" ocupa el lugar de "Progreso".
@@ -64,17 +112,24 @@ export type SesionLeccion = {
  *   que vuelve a esa clase.
  * - Sin notas (son privadas de cada cuenta); recursos y comentarios se ven,
  *   pero descargar y comentar piden entrar.
+ *
+ * `resumen`: el documento de la clase, ya dibujado en el servidor (no suma
+ * el renderizador al JavaScript de la página).
  */
 export function LeccionMaqueta({
   data,
+  resumen,
   comentarios,
   comentariosNoDisponibles,
   sesion,
+  panelOcultoInicial,
 }: {
   data: LeccionPlayer;
+  resumen: ReactNode;
   comentarios: ComentarioConRespuestas[];
   comentariosNoDisponibles: boolean;
   sesion: SesionLeccion | null;
+  panelOcultoInicial: boolean;
 }) {
   const router = useRouter();
   const rutaDe = (slug: string) => `/cursos/${data.cursoSlug}/${slug}`;
@@ -87,6 +142,7 @@ export function LeccionMaqueta({
     : null;
   /** Con sesión navega; sin sesión pasa por iniciar sesión y vuelve a la clase. */
   const rutaClase = (slug: string) => (sesion ? rutaDe(slug) : entrarA(rutaDe(slug)));
+  const hrefDe = (leccion: LeccionPlayerItem) => (leccion.slug ? rutaClase(leccion.slug) : ruta);
   const totalComentarios = contarComentarios(comentarios);
   const notaSiguienteId = useId();
   const notaVistaId = useId();
@@ -106,6 +162,11 @@ export function LeccionMaqueta({
   const conVideo = new Set(data.lecciones.filter((leccion) => leccion.videoListo).map((leccion) => leccion.id));
   const completadas = [...completadoPorLeccion].filter(([id, hecha]) => hecha && conVideo.has(id)).length;
   const porcentaje = porcentajeLecciones(completadas, data.clasesConVideo);
+  const leccionesDelTemario = sesion
+    ? data.lecciones.map((leccion) => ({ ...leccion, completado: completadoPorLeccion.get(leccion.id) ?? false }))
+    : data.lecciones;
+  const examen: ExamenTemario | null =
+    sesion && data.situacionExamen ? { href: rutaExamen, situacion: data.situacionExamen } : null;
 
   function alternarVista() {
     const siguienteValor = !completada;
@@ -158,11 +219,14 @@ export function LeccionMaqueta({
     setEstadoNotas((estado) => ({ ...estado, notas: actualizar(estado.notas) }));
 
   const controlRef = useRef<ControlReproductor | null>(null);
+  const activarRef = useRef<((segundo: number) => void) | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
   // Salto desde una nota: lleva el video al segundo y, si quedó fuera de la
   // pantalla (en celular la lista está debajo), lo trae a la vista.
   function saltarA(segundo: number) {
-    controlRef.current?.irA(segundo);
+    // Sin reproductor todavía (no se tocó el video): se carga y arranca ahí.
+    if (controlRef.current) controlRef.current.irA(segundo);
+    else activarRef.current?.(segundo);
     const marco = videoRef.current;
     if (!marco) return;
     const { top, bottom } = marco.getBoundingClientRect();
@@ -174,10 +238,11 @@ export function LeccionMaqueta({
 
   // --- Pestañas y paneles ---
   const [pestana, setPestana] = useState<Pestana>("resumen");
-  const [panel, setPanel] = useState<PanelLateral>(sesion ? "notas" : "comentarios");
+  const [lateral, setLateral] = useState<PestanaLateral>(sesion ? "notas" : "comentarios");
   // En escritorio notas y comentarios viven en la columna lateral y sus
-  // pestañas no existen: si quedó elegida una y la ventana crece, vuelve a
-  // Resumen. `escritorio` también evita montar dos NotasTab a la vez.
+  // pestañas de abajo no existen: si quedó elegida una y la ventana crece,
+  // vuelve a Resumen. `escritorio` también evita montar dos veces NotasTab o
+  // ComentariosClase (uno por columna).
   const [escritorio, setEscritorio] = useState(false);
   useEffect(() => {
     const consulta = window.matchMedia(ESCRITORIO);
@@ -192,14 +257,18 @@ export function LeccionMaqueta({
     return () => consulta.removeEventListener("change", ajustar);
   }, []);
 
-  const [temarioAbierto, setTemarioAbierto] = useState(false);
-  const abrirTemario = () => setTemarioAbierto(true);
-  function irALeccion(leccionId: string) {
-    setTemarioAbierto(false);
-    const leccion = data.lecciones.find((item) => item.id === leccionId);
-    if (!leccion?.slug || leccion.id === data.leccionId) return;
-    router.push(rutaClase(leccion.slug));
+  const [panelOculto, setPanelOculto] = useState(panelOcultoInicial);
+  function alternarPanel() {
+    const oculto = !panelOculto;
+    setPanelOculto(oculto);
+    document.cookie = `${COOKIE_PANEL_OCULTO}=${oculto ? "1" : ""}; path=/; max-age=${oculto ? 31_536_000 : 0}; samesite=lax`;
   }
+
+  // El panel del temario se descarga con la intención de abrirlo (puntero
+  // encima, foco o dedo abajo); si se toca antes de que llegue, abre al llegar.
+  const [temarioAbierto, setTemarioAbierto] = useState(false);
+  const { modulo: Temario, pedir: pedirTemario } = useModuloDiferido(cargarTemario);
+  const botonTemarioRef = useRef<HTMLButtonElement>(null);
 
   const sesionComentarios: SesionComentarios | null = sesion
     ? {
@@ -234,6 +303,7 @@ export function LeccionMaqueta({
     />
   );
   const totalNotas = sesion && !notasNoDisponibles ? notas.length : null;
+  const totalComentariosVisible = comentariosNoDisponibles ? null : totalComentarios;
 
   // "Sigue:" en la tarjeta de progreso: la próxima clase o, en la última, el examen.
   const sigue: { titulo: string; href: string } | null = siguiente?.slug
@@ -241,6 +311,12 @@ export function LeccionMaqueta({
     : sesion && data.examenDisponible
       ? { titulo: "Examen final", href: rutaExamen }
       : null;
+
+  const tarjeta = sesion ? (
+    <TarjetaProgreso porcentaje={porcentaje} completadas={completadas} total={data.clasesConVideo} sigue={sigue} />
+  ) : (
+    <ClaseGratis data={data} rutaEntrar={rutaEntrar} sigue={sigue} />
+  );
 
   return (
     <div className="flex min-h-dvh flex-col bg-uva-bg">
@@ -251,18 +327,44 @@ export function LeccionMaqueta({
             : { href: "/", etiqueta: "U.V.A., ir al inicio" }
         }
         volver={{ href: `/cursos/${data.cursoSlug}`, texto: data.cursoTitulo }}
+        className="apaisado:max-lg:hidden"
       >
         <button
+          ref={botonTemarioRef}
           type="button"
-          onClick={abrirTemario}
+          aria-haspopup="dialog"
+          aria-expanded={temarioAbierto}
+          onClick={() => {
+            pedirTemario();
+            setTemarioAbierto(true);
+          }}
+          onPointerEnter={pedirTemario}
+          onPointerDown={pedirTemario}
+          onFocus={pedirTemario}
           aria-label={`Temario del curso, clase ${data.numero} de ${data.totalClases}`}
-          className={cn(BOTON_SECUNDARIO, "cursor-pointer bg-transparent lg:hidden")}
+          className={cn(BOTON_SECUNDARIO, "cursor-pointer bg-transparent xl:hidden")}
         >
           <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
           Temario
-          <span className="font-mono text-uva-text-muted">
+          {/* `max-[18rem]`: solo con la letra del sistema agrandada (a 16 px,
+              18rem = 288 px, menos que cualquier celular): cede la cifra. */}
+          <span className="font-mono text-uva-text-muted max-[18rem]:hidden">
             {data.numero}/{data.totalClases}
           </span>
+        </button>
+        <button
+          type="button"
+          onClick={alternarPanel}
+          aria-expanded={!panelOculto}
+          aria-controls="clase-lateral"
+          className={cn(BOTON_SECUNDARIO, "hidden cursor-pointer bg-transparent xl:inline-flex")}
+        >
+          {panelOculto ? (
+            <PanelRightOpen className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
+          ) : (
+            <PanelRightClose className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
+          )}
+          {panelOculto ? "Mostrar panel" : "Ocultar panel"}
         </button>
         <SelectorTemaBoton className="hidden text-uva-text hover:bg-uva-hover hover:text-uva-text lg:inline-flex" />
         {sesion ? (
@@ -281,18 +383,27 @@ export function LeccionMaqueta({
         )}
       </EncabezadoCurso>
 
-      <div className="mx-auto grid w-full max-w-uva flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_clamp(340px,30vw,440px)]">
+      <div
+        className={cn(
+          "mx-auto grid w-full max-w-uva flex-1 grid-cols-1",
+          !panelOculto && "xl:grid-cols-[minmax(0,1fr)_clamp(340px,30vw,440px)]",
+        )}
+      >
         <div className="flex min-w-0 flex-col gap-5 pb-10 lg:gap-6 lg:px-10 lg:pt-7 lg:pb-12">
-          <div ref={videoRef} className="scroll-mt-4">
+          {/* Celular girado: el video llena el alto visible (`svh`, no `vh`:
+              en iPhone `vh` cuenta la barra del navegador). En escritorio no
+              pasa del alto de la pantalla menos el encabezado. */}
+          <div ref={videoRef} className="scroll-mt-4 apaisado:max-lg:bg-black">
             <VideoFrame
               leccionId={data.leccionId}
               videoListo={data.videoListo}
               titulo={data.leccionTitulo}
               segundoActual={sesion ? (sesion.segundoEnUrl ?? data.segundoActual) : undefined}
               posterUrl={data.posterUrl}
+              rutaCurso={`/cursos/${data.cursoSlug}`}
               onTerminado={sesion ? completarPorFinDeVideo : undefined}
               controlRef={sesion ? controlRef : undefined}
-              className="aspect-video h-auto rounded-none lg:rounded-uva-lg"
+              className="mx-auto aspect-video h-auto w-full rounded-none apaisado:max-lg:max-w-[calc(100svh*16/9)] lg:max-w-[calc((100dvh-9rem)*16/9)] lg:rounded-uva-lg"
             />
           </div>
 
@@ -337,145 +448,110 @@ export function LeccionMaqueta({
             )}
           </div>
 
-          <div className="px-4 sm:px-6 lg:hidden">
-            {sesion ? (
-              <TarjetaProgreso
-                porcentaje={porcentaje}
-                completadas={completadas}
-                total={data.clasesConVideo}
-                sigue={sigue}
-                onTemario={abrirTemario}
-              />
-            ) : (
-              <ClaseGratis data={data} rutaEntrar={rutaEntrar} sigue={sigue} onTemario={abrirTemario} />
-            )}
-          </div>
+          <div className="px-4 sm:px-6 xl:hidden">{tarjeta}</div>
 
           <Pestanas
-            pestana={pestana}
-            onPestana={setPestana}
-            totalRecursos={data.recursos.length}
-            totalNotas={sesion ? totalNotas : undefined}
-            totalComentarios={comentariosNoDisponibles ? null : totalComentarios}
+            idBase="clase"
+            etiqueta="Secciones de la clase"
+            elegida={pestana}
+            onElegir={setPestana}
+            pestanas={[
+              { id: "resumen", etiqueta: "Resumen", total: null },
+              { id: "recursos", etiqueta: "Recursos", total: data.recursos.length },
+              ...(sesion ? [{ id: "notas" as const, etiqueta: "Notas", total: totalNotas, soloCelular: true }] : []),
+              { id: "comentarios", etiqueta: "Comentarios", total: totalComentariosVisible, soloCelular: true },
+            ]}
+            className="mx-4 sm:mx-6 lg:mx-0"
           />
 
           <div className="px-4 sm:px-6 lg:px-0">
-            <section
-              id="clase-panel-resumen"
-              role="tabpanel"
-              aria-labelledby="clase-pestana-resumen"
-              hidden={pestana !== "resumen"}
-            >
-              {data.contenido?.content?.length ? (
-                <RichTextRenderer contenido={data.contenido} escala="lectura" />
-              ) : (
+            <Panel idBase="clase" id="resumen" elegida={pestana}>
+              {resumen ?? (
                 <p className="m-0 text-uva-cuerpo text-uva-text-muted">
                   El instructor todavía no publicó el resumen de esta clase.
                 </p>
               )}
-            </section>
-            <section
-              id="clase-panel-recursos"
-              role="tabpanel"
-              aria-labelledby="clase-pestana-recursos"
-              hidden={pestana !== "recursos"}
-            >
+            </Panel>
+            <Panel idBase="clase" id="recursos" elegida={pestana}>
               <Recursos recursos={data.recursos} rutaEntrar={sesion ? null : rutaEntrar} />
-            </section>
+            </Panel>
             {sesion && (
-              <section
-                id="clase-panel-notas"
-                role="tabpanel"
-                aria-labelledby="clase-pestana-notas"
-                hidden={pestana !== "notas"}
-                className="lg:hidden"
-              >
+              <Panel idBase="clase" id="notas" elegida={pestana} className="xl:hidden">
                 {!escritorio && pestana === "notas" && notasNodo}
-              </section>
+              </Panel>
             )}
-            <section
-              id="clase-panel-comentarios"
-              role="tabpanel"
-              aria-labelledby="clase-pestana-comentarios"
-              hidden={pestana !== "comentarios"}
-              className="lg:hidden"
-            >
-              {comentariosNodo}
-            </section>
+            <Panel idBase="clase" id="comentarios" elegida={pestana} className="xl:hidden">
+              {!escritorio && pestana === "comentarios" && comentariosNodo}
+            </Panel>
           </div>
         </div>
 
+        {/* Columna lateral (escritorio): se queda a la vista mientras se baja
+            por el resumen, con su propio desplazamiento. */}
         <aside
-          aria-label={sesion ? "Progreso, notas y comentarios" : "Clase gratis y comentarios"}
-          className="hidden flex-col gap-5 border-l border-uva-divider px-7 pt-7 pb-12 lg:flex"
-        >
-          {sesion ? (
-            <TarjetaProgreso
-              porcentaje={porcentaje}
-              completadas={completadas}
-              total={data.clasesConVideo}
-              sigue={sigue}
-              onTemario={abrirTemario}
-            />
-          ) : (
-            <ClaseGratis data={data} rutaEntrar={rutaEntrar} sigue={sigue} onTemario={abrirTemario} />
+          id="clase-lateral"
+          aria-label={sesion ? "Progreso, temario, notas y comentarios" : "Clase gratis, temario y comentarios"}
+          className={cn(
+            "hidden flex-col gap-5 border-l border-uva-divider px-7 pt-7 pb-12 xl:sticky xl:top-0 xl:max-h-dvh xl:overflow-y-auto",
+            !panelOculto && "xl:flex",
           )}
+        >
+          {tarjeta}
           <section
-            aria-labelledby={sesion ? undefined : "clase-comentarios-titulo"}
-            aria-label={sesion ? "Notas y comentarios" : undefined}
+            aria-label="Temario, notas y comentarios"
             className="flex flex-col gap-4 rounded-uva-lg border border-uva-divider bg-uva-surface px-6 pt-4 pb-3"
           >
-            {sesion ? (
-              <div
-                role="group"
-                aria-label="Ver notas o comentarios"
-                className="flex flex-wrap gap-1.5 border-b border-uva-divider pb-3.5"
-              >
-                <Pildora activa={panel === "notas"} onClick={() => setPanel("notas")} total={totalNotas}>
-                  Notas
-                </Pildora>
-                <Pildora
-                  activa={panel === "comentarios"}
-                  onClick={() => setPanel("comentarios")}
-                  total={comentariosNoDisponibles ? null : totalComentarios}
-                >
-                  Comentarios
-                </Pildora>
-              </div>
-            ) : (
-              <h2
-                id="clase-comentarios-titulo"
-                className="m-0 flex items-baseline gap-2 pt-1 text-uva-titulo-4 text-uva-text"
-              >
-                Comentarios
-                {!comentariosNoDisponibles && totalComentarios > 0 && (
-                  <span className="font-mono text-uva-detalle font-medium text-uva-text-muted">{totalComentarios}</span>
-                )}
-              </h2>
+            <Pestanas
+              idBase="lateral"
+              etiqueta="Temario, notas y comentarios"
+              variante="pildora"
+              elegida={lateral}
+              onElegir={setLateral}
+              pestanas={[
+                { id: "temario", etiqueta: "Temario", total: null },
+                ...(sesion ? [{ id: "notas" as const, etiqueta: "Notas", total: totalNotas }] : []),
+                { id: "comentarios", etiqueta: "Comentarios", total: totalComentariosVisible },
+              ]}
+            />
+            <Panel idBase="lateral" id="temario" elegida={lateral}>
+              {lateral === "temario" && (
+                <ListaTemario
+                  lecciones={leccionesDelTemario}
+                  leccionActualId={data.leccionId}
+                  hrefDe={hrefDe}
+                  examen={examen}
+                  sinSesion={!sesion}
+                  total={sesion ? data.clasesConVideo : data.totalClases}
+                />
+              )}
+            </Panel>
+            {sesion && (
+              <Panel idBase="lateral" id="notas" elegida={lateral}>
+                {lateral === "notas" && (escritorio ? notasNodo : <CargandoPanel />)}
+              </Panel>
             )}
-            {sesion && panel === "notas" ? escritorio && notasNodo : comentariosNodo}
+            <Panel idBase="lateral" id="comentarios" elegida={lateral}>
+              {lateral === "comentarios" && (escritorio ? comentariosNodo : <CargandoPanel />)}
+            </Panel>
           </section>
         </aside>
       </div>
 
-      <TemarioDrawer
-        abierto={temarioAbierto}
-        onCerrar={() => setTemarioAbierto(false)}
-        lecciones={
-          sesion
-            ? data.lecciones.map((leccion) => ({
-                ...leccion,
-                completado: completadoPorLeccion.get(leccion.id) ?? false,
-              }))
-            : data.lecciones
-        }
-        leccionActualId={data.leccionId}
-        completadas={completadas}
-        total={sesion ? data.clasesConVideo : data.totalClases}
-        porcentaje={porcentaje}
-        onIrALeccion={irALeccion}
-        sinSesion={sesion ? undefined : { nota: `Esta clase es gratis. ${notaDeAcceso(data.totalClases - 1)}` }}
-      />
+      {Temario && (
+        <Temario
+          abierto={temarioAbierto}
+          finalFocus={botonTemarioRef}
+          onCerrar={() => setTemarioAbierto(false)}
+          lecciones={leccionesDelTemario}
+          leccionActualId={data.leccionId}
+          completadas={completadas}
+          total={sesion ? data.clasesConVideo : data.totalClases}
+          porcentaje={porcentaje}
+          hrefDe={hrefDe}
+          examen={examen}
+          sinSesion={sesion ? undefined : { nota: `Esta clase es gratis. ${notaDeAcceso(data.totalClases - 1)}` }}
+        />
+      )}
     </div>
   );
 }
@@ -525,7 +601,8 @@ function Navegacion({
 
   return (
     <div className="flex shrink-0 flex-col gap-1.5 lg:items-end">
-      <div className="flex gap-2.5">
+      {/* Con la letra agrandada los dos botones no caben en una fila: bajan. */}
+      <div className="flex flex-wrap gap-2.5">
         {anterior && (
           <Link href={rutaClase(anterior)} className={cn(BOTON_SECUNDARIO, "min-h-12 flex-1 px-4 lg:flex-none")}>
             <ChevronLeft className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
@@ -573,19 +650,18 @@ function Sigue({ sigue, conCandado }: { sigue: { titulo: string; href: string };
   );
 }
 
+
 /** Avance del curso (con sesión): solo cuentan las clases con video, como el certificado. */
 function TarjetaProgreso({
   porcentaje,
   completadas,
   total,
   sigue,
-  onTemario,
 }: {
   porcentaje: number;
   completadas: number;
   total: number;
   sigue: { titulo: string; href: string } | null;
-  onTemario: () => void;
 }) {
   const tituloId = useId();
   return (
@@ -593,21 +669,11 @@ function TarjetaProgreso({
       aria-labelledby={tituloId}
       className="rounded-uva-lg border border-uva-divider bg-uva-surface p-4.5 lg:px-6 lg:py-5.5"
     >
-      <div className="flex items-center justify-between gap-3">
-        {/* "Progreso" en la columna lateral, como el diseño; en celular la
-            tarjeta va sola bajo el título y dice de qué es el avance. */}
-        <h2 id={tituloId} className="m-0 text-uva-titulo-4 text-uva-text">
-          Progreso<span className="lg:hidden"> del curso</span>
-        </h2>
-        <button
-          type="button"
-          onClick={onTemario}
-          className={cn(BOTON_SECUNDARIO, "hidden shrink-0 cursor-pointer bg-transparent lg:inline-flex")}
-        >
-          <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
-          Temario
-        </button>
-      </div>
+      {/* "Progreso" en la columna lateral, como el diseño; en celular la
+          tarjeta va sola bajo el título y dice de qué es el avance. */}
+      <h2 id={tituloId} className="m-0 text-uva-titulo-4 text-uva-text">
+        Progreso<span className="xl:hidden"> del curso</span>
+      </h2>
       {total === 0 ? (
         // Sin clases con video no hay avance que medir: "0 de 0" no dice nada.
         <p className="m-0 mt-2 text-uva-detalle text-uva-text-muted">
@@ -646,12 +712,10 @@ function ClaseGratis({
   data,
   rutaEntrar,
   sigue,
-  onTemario,
 }: {
   data: LeccionPlayer;
   rutaEntrar: string;
   sigue: { titulo: string; href: string } | null;
-  onTemario: () => void;
 }) {
   const tituloId = useId();
   const restantes = data.totalClases - 1;
@@ -661,19 +725,9 @@ function ClaseGratis({
       aria-labelledby={tituloId}
       className="rounded-uva-lg border border-uva-divider bg-uva-surface p-4.5 lg:px-6 lg:py-5.5"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 id={tituloId} className="m-0 text-uva-titulo-4 text-uva-text">
-          Clase gratis
-        </h2>
-        <button
-          type="button"
-          onClick={onTemario}
-          className={cn(BOTON_SECUNDARIO, "hidden shrink-0 cursor-pointer bg-transparent lg:inline-flex")}
-        >
-          <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
-          Temario
-        </button>
-      </div>
+      <h2 id={tituloId} className="m-0 text-uva-titulo-4 text-uva-text">
+        Clase gratis
+      </h2>
       {restantes > 0 && (
         <p className="m-0 mt-2 text-uva-detalle text-uva-text-muted">{notaDeAcceso(restantes)}</p>
       )}
@@ -685,69 +739,32 @@ function ClaseGratis({
   );
 }
 
-/** Selector Notas / Comentarios de la columna lateral (escritorio, con sesión). */
-function Pildora({
-  activa,
-  onClick,
-  total,
-  children,
-}: {
-  activa: boolean;
-  onClick: () => void;
-  total: number | null;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={activa}
-      className={cn(
-        "inline-flex min-h-11 cursor-pointer items-center rounded-full border-0 px-4.5 text-uva-detalle",
-        activa
-          ? "bg-uva-btn font-bold text-uva-on-accent"
-          : "bg-transparent font-semibold text-uva-text-muted hover:text-uva-text",
-      )}
-    >
-      <span className="inline-flex items-baseline gap-1.5">
-        {children}
-        {total !== null && total > 0 && (
-          <span className={cn("font-mono", activa ? "text-uva-on-accent" : "text-uva-text-muted")}>{total}</span>
-        )}
-      </span>
-    </button>
-  );
-}
-
 /**
- * Pestañas de la clase (patrón de pestañas WAI-ARIA: flechas, Inicio y Fin).
- * Notas y Comentarios solo existen en celular; en escritorio van en la
- * lateral. Las flechas saltan las pestañas ocultas por CSS.
+ * Fila de pestañas (patrón de pestañas WAI-ARIA: flechas, Inicio y Fin; solo
+ * la elegida entra en el orden de tabulación). Las flechas saltan las
+ * pestañas ocultas por CSS (`soloCelular`). Dos aspectos: subrayado (bajo el
+ * video) y píldora (columna lateral).
  */
-function Pestanas({
-  pestana,
-  onPestana,
-  totalRecursos,
-  totalNotas,
-  totalComentarios,
+function Pestanas<T extends string>({
+  idBase,
+  etiqueta,
+  pestanas,
+  elegida,
+  onElegir,
+  variante = "subrayado",
+  className,
 }: {
-  pestana: Pestana;
-  onPestana: (pestana: Pestana) => void;
-  totalRecursos: number;
-  /** `undefined`: sin sesión no hay pestaña de notas. `null`: no se pudieron leer. */
-  totalNotas: number | null | undefined;
-  /** null: no se pudieron leer, no se muestra un 0 engañoso. */
-  totalComentarios: number | null;
+  idBase: string;
+  etiqueta: string;
+  /** `total`: null no muestra cifra (sin dato o no se pudo leer: nunca un 0 engañoso). */
+  pestanas: { id: T; etiqueta: string; total: number | null; soloCelular?: boolean }[];
+  elegida: T;
+  onElegir: (id: T) => void;
+  variante?: "subrayado" | "pildora";
+  className?: string;
 }) {
   const listaRef = useRef<HTMLDivElement>(null);
-  const pestanas: { id: Pestana; etiqueta: string; total: number | null; soloCelular?: boolean }[] = [
-    { id: "resumen", etiqueta: "Resumen", total: null },
-    { id: "recursos", etiqueta: "Recursos", total: totalRecursos },
-    ...(totalNotas !== undefined
-      ? [{ id: "notas" as const, etiqueta: "Notas", total: totalNotas, soloCelular: true }]
-      : []),
-    { id: "comentarios", etiqueta: "Comentarios", total: totalComentarios, soloCelular: true },
-  ];
+  const subrayado = variante === "subrayado";
 
   function alTeclear(evento: KeyboardEvent<HTMLDivElement>) {
     const visibles = [...(listaRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])].filter(
@@ -764,53 +781,103 @@ function Pestanas({
     if (destino === undefined) return;
     evento.preventDefault();
     visibles[destino].focus();
-    onPestana(visibles[destino].dataset.pestana as Pestana);
+    onElegir(visibles[destino].dataset.pestana as T);
   }
 
   return (
     <div
       ref={listaRef}
       role="tablist"
-      aria-label="Secciones de la clase"
+      aria-label={etiqueta}
       onKeyDown={alTeclear}
-      // La raya de abajo es una sombra interior y no un borde: así la fila
-      // puede desplazarse sola (cifras muy largas a 320 px) sin cortar el
-      // subrayado de la pestaña elegida ni empujar la página de lado.
-      className="mx-4 flex justify-between gap-2 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-uva-divider)] [scrollbar-width:none] sm:mx-6 sm:justify-start sm:gap-7 lg:mx-0 [&::-webkit-scrollbar]:hidden"
+      className={cn(
+        subrayado
+          ? // La raya de abajo es una sombra interior y no un borde: así la fila
+            // puede desplazarse sola (cifras muy largas a 320 px) sin cortar el
+            // subrayado de la pestaña elegida ni empujar la página de lado.
+            "flex justify-between gap-2 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-uva-divider)] [scrollbar-width:none] sm:justify-start sm:gap-7 [&::-webkit-scrollbar]:hidden"
+          : // Una sola fila: si no cabe (letra agrandada), se desliza de lado.
+            "flex gap-1 overflow-x-auto border-b border-uva-divider pb-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
     >
-      {pestanas.map(({ id, etiqueta, total, soloCelular }) => {
-        const elegida = pestana === id;
+      {pestanas.map(({ id, etiqueta: texto, total, soloCelular }) => {
+        const activa = elegida === id;
         return (
           <button
             key={id}
             type="button"
             role="tab"
-            id={`clase-pestana-${id}`}
+            id={`${idBase}-pestana-${id}`}
             data-pestana={id}
-            aria-selected={elegida}
-            aria-controls={`clase-panel-${id}`}
-            tabIndex={elegida ? 0 : -1}
-            onClick={() => onPestana(id)}
+            aria-selected={activa}
+            aria-controls={`${idBase}-panel-${id}`}
+            tabIndex={activa ? 0 : -1}
+            onClick={() => onElegir(id)}
             className={cn(
-              "flex min-h-12 shrink-0 cursor-pointer items-center border-0 border-b-[2.5px] bg-transparent px-0.5 text-uva-detalle whitespace-nowrap",
-              elegida
-                ? "border-uva-btn font-bold text-uva-text"
-                : "border-transparent font-medium text-uva-text-muted hover:text-uva-text",
-              soloCelular && "lg:hidden",
+              "flex shrink-0 cursor-pointer items-center border-0 text-uva-detalle whitespace-nowrap",
+              subrayado
+                ? cn(
+                    "min-h-12 border-b-[2.5px] bg-transparent px-0.5",
+                    activa
+                      ? "border-uva-btn font-bold text-uva-text"
+                      : "border-transparent font-medium text-uva-text-muted hover:text-uva-text",
+                  )
+                : cn(
+                    "min-h-11 rounded-full px-3.5",
+                    activa
+                      ? "bg-uva-btn font-bold text-uva-on-accent"
+                      : "bg-transparent font-semibold text-uva-text-muted hover:text-uva-text",
+                  ),
+              soloCelular && "xl:hidden",
             )}
           >
             {/* Etiqueta y cifra en su propia fila de línea base: con el
                 centrado del botón, la cifra quedaba alzada. */}
             <span className="inline-flex items-baseline gap-1.5">
-              {etiqueta}
+              {texto}
               {total !== null && total > 0 && (
-                <span className="font-mono font-medium text-uva-text-muted">{total}</span>
+                <span
+                  className={cn(
+                    "font-mono font-medium",
+                    !subrayado && activa ? "text-uva-on-accent" : "text-uva-text-muted",
+                  )}
+                >
+                  {total}
+                </span>
               )}
             </span>
           </button>
         );
       })}
     </div>
+  );
+}
+
+/** Panel de una pestaña de `Pestanas` con el mismo `idBase`. */
+function Panel({
+  idBase,
+  id,
+  elegida,
+  className,
+  children,
+}: {
+  idBase: string;
+  id: string;
+  elegida: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={`${idBase}-panel-${id}`}
+      role="tabpanel"
+      aria-labelledby={`${idBase}-pestana-${id}`}
+      hidden={elegida !== id}
+      className={className}
+    >
+      {children}
+    </section>
   );
 }
 

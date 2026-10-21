@@ -1,11 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import Link from "next/link";
 import MuxPlayer, { type MuxPlayerCSSProperties } from "@mux/mux-player-react";
 import type MuxPlayerElement from "@mux/mux-player";
 import { obtenerTokenReproduccion } from "@/actions/video/reproduccion";
 import { guardarSegundoActual } from "@/actions/progreso/marcar";
 import { PosterDelVideo } from "@/components/features/PosterDelVideo";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
+
+const BOTON_VIDEO_PRIMARIO =
+  "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-uva-md border-0 bg-uva-btn px-4.5 text-uva-detalle font-semibold text-uva-on-accent hover:bg-uva-btn-hover hover:no-underline";
+const BOTON_VIDEO_SECUNDARIO =
+  "inline-flex min-h-11 items-center justify-center rounded-uva-md border-[1.5px] border-uva-line-strong px-4.5 text-uva-detalle font-semibold text-uva-text hover:border-uva-text hover:no-underline";
 
 // Cada cuánto se guarda el segundo actual mientras el video se reproduce
 // (Revf3: "cada ~10 segundos con throttle, no en cada timeupdate").
@@ -81,6 +88,7 @@ export function VideoPlayer({
   reproducirAlCargar = false,
   onTerminado,
   controlRef,
+  rutaCurso,
 }: {
   leccionId: string;
   titulo: string;
@@ -92,11 +100,15 @@ export function VideoPlayer({
   reproducirAlCargar?: boolean;
   /** Se llama una sola vez cuando el video llega al final. */
   onTerminado?: () => void;
+  /** Ficha del curso: salida del aviso de acceso vencido. */
+  rutaCurso?: string;
   /** Se llena con el control del reproductor mientras está montado. */
   controlRef?: RefObject<ControlReproductor | null>;
 }) {
   const [estado, setEstado] = useState<
-    { tipo: "cargando" } | { tipo: "error"; mensaje: string } | { tipo: "listo"; playbackId: string; token: string }
+    | { tipo: "cargando" }
+    | { tipo: "error"; mensaje: string; sinAcceso: boolean }
+    | { tipo: "listo"; playbackId: string; token: string }
   >({ tipo: "cargando" });
 
   const mediaRef = useRef<MuxPlayerElement | null>(null);
@@ -173,7 +185,7 @@ export function VideoPlayer({
     try {
       const resultado = await obtenerTokenReproduccion(leccionId);
       if ("error" in resultado) {
-        setEstado({ tipo: "error", mensaje: resultado.error });
+        setEstado({ tipo: "error", mensaje: resultado.error, sinAcceso: resultado.sinAcceso === true });
         return true;
       }
       setEstado({ tipo: "listo", playbackId: resultado.playbackId, token: resultado.token });
@@ -183,7 +195,14 @@ export function VideoPlayer({
       // Falla de red al pedir el token (no un rechazo de acceso): no se
       // toca `estado`, así que una renovación no derriba una reproducción
       // que sigue siendo válida con el token anterior. Se reintenta pronto
-      // en vez de dejar de reprogramar renovaciones futuras.
+      // en vez de dejar de reprogramar renovaciones futuras. Si todavía no
+      // había token (primera carga), se avisa con "Reintentar" en vez de
+      // dejar el póster cargando sin fin; el reintento automático sigue.
+      setEstado((actual) =>
+        actual.tipo === "cargando"
+          ? { tipo: "error", mensaje: "No pudimos cargar el video. Revisa tu conexión.", sinAcceso: false }
+          : actual,
+      );
       return false;
     }
   }, [leccionId]);
@@ -332,9 +351,42 @@ export function VideoPlayer({
     return (
       <div
         role="alert"
-        className="flex aspect-video items-center justify-center bg-uva-badge-danger-bg px-4 text-center text-sm text-uva-badge-danger-fg"
+        className="flex aspect-video flex-col items-center justify-center gap-3 bg-uva-bg px-6 text-center text-uva-text"
       >
-        {estado.mensaje}
+        {estado.sinAcceso ? (
+          <>
+            <p className="m-0 text-uva-cuerpo font-bold">Tu acceso a este curso terminó.</p>
+            <p className="m-0 max-w-[46ch] text-uva-detalle text-uva-text-muted">
+              {PRECIOS_HABILITADOS
+                ? "Para seguir viendo las clases, renueva tu suscripción."
+                : "Para seguir viendo las clases necesitas un código de invitación nuevo."}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2.5">
+              <Link href="/dashboard/suscripcion" className={BOTON_VIDEO_PRIMARIO}>
+                {PRECIOS_HABILITADOS ? "Renovar suscripción" : "Canjear un código"}
+              </Link>
+              {rutaCurso && (
+                <Link href={rutaCurso} className={BOTON_VIDEO_SECUNDARIO}>
+                  Ir a la ficha del curso
+                </Link>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="m-0 text-uva-cuerpo font-bold">{estado.mensaje}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setEstado({ tipo: "cargando" });
+                void cargarToken();
+              }}
+              className={BOTON_VIDEO_PRIMARIO}
+            >
+              Reintentar
+            </button>
+          </>
+        )}
       </div>
     );
   }
