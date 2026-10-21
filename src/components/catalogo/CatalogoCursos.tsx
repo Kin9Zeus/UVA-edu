@@ -162,7 +162,11 @@ export function CatalogoCursos({
         <nav aria-label="Ruta" className="text-uva-detalle text-uva-text-muted">
           <ol className="flex flex-wrap items-center gap-2">
             <li>
-              <Link href="/" className="text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text">
+              {/* En táctil, relleno con margen negativo: 44×44 sin mover la ruta. */}
+              <Link
+                href="/"
+                className="inline-block text-uva-text-muted underline underline-offset-[3px] hover:text-uva-text pointer-coarse:-mx-1.5 pointer-coarse:-my-3.5 pointer-coarse:px-1.5 pointer-coarse:py-3.5"
+              >
                 Inicio
               </Link>
             </li>
