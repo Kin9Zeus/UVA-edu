@@ -15,6 +15,7 @@ import {
   normalizarCodigoPegado,
 } from "@/lib/codigoInvitacion";
 import { urlWhatsapp } from "@/lib/contacto";
+import { logErrorDelCliente } from "@/lib/reportar-cliente";
 import { avisarPestanas } from "@/lib/sesion/pestanas";
 
 function formatearEspera(segundos: number): string {
@@ -94,6 +95,14 @@ export function CanjearCodigoForm({
 
   function handleCodigoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const valorCrudo = event.target.value;
+
+    // Entró más de un carácter de golpe sin pasar por `onPaste`: autocompletar,
+    // dictado o el menú de pegar de algunos teclados. Se trata como un pegado.
+    if (valorCrudo.length > codigo.length + 1) {
+      setCodigo(normalizarCodigoPegado(valorCrudo));
+      return;
+    }
+
     const sinGuionesAnterior = codigo.replace(/-/g, "");
     let sinGuionesNuevo = valorCrudo.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -127,7 +136,15 @@ export function CanjearCodigoForm({
 
     // Se normaliza también en el cliente para que un pegado con espacios o
     // en minúsculas no se lea como "código inválido".
-    const resultado = await canjearCodigoInvitacion(normalizarCodigo(codigo));
+    // Si la llamada no llega al servidor (se cayó la red) lanza en vez de
+    // devolver `{ error }`: sin esto el botón se queda en "Canjeando…".
+    let resultado: Awaited<ReturnType<typeof canjearCodigoInvitacion>>;
+    try {
+      resultado = await canjearCodigoInvitacion(normalizarCodigo(codigo));
+    } catch (fallo) {
+      logErrorDelCliente("CanjearCodigoForm", "el canje no llegó al servidor", fallo);
+      resultado = { error: "No pudimos conectar. Revisa tu conexión e intenta de nuevo." };
+    }
     setPending(false);
 
     if (resultado.error) {

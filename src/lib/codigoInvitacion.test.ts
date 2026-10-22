@@ -54,6 +54,9 @@ describe("normalizarCodigoPegado", () => {
     ["UVAK7M2QP4X", "UVA-K7M2-QP4X"],
     ["K7M2QP4X", "UVA-K7M2-QP4X"],
     ["k7m2-qp4x", "UVA-K7M2-QP4X"],
+    ["Tu código: UVA-K7M2-QP4X", "UVA-K7M2-QP4X"],
+    ["tu código: uva k7m2 qp4x", "UVA-K7M2-QP4X"],
+    ["¡Hola! Bienvenida a U.V.A.\nTu código de invitación es UVA-K7M2-QP4X.\nÚsalo en la plataforma.", "UVA-K7M2-QP4X"],
   ])("%j → %s", (pegado, esperado) => {
     expect(normalizarCodigoPegado(pegado)).toBe(esperado);
   });

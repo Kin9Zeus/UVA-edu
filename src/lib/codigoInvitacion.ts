@@ -64,10 +64,18 @@ export function normalizarCodigo(entrada: string): string {
  * Limpia un código pegado tal como llegó (WhatsApp, correo, una diapositiva):
  * espacios y saltos de línea alrededor o en medio, minúsculas, guiones de
  * más. Si pegan solo los 8 caracteres de después del prefijo, lo antepone.
+ * Si el código viene dentro de un texto ("Tu código: UVA-K7M2-QP4X", el
+ * mensaje entero de WhatsApp), se saca de ahí: limpiar todo el texto juntaría
+ * las letras de "Tu código" con las del código.
  * Solo para pegado: al teclear, "UVA" se escribe letra por letra y no puede
  * confundirse con un cuerpo sin prefijo.
  */
 export function normalizarCodigoPegado(entrada: string): string {
+  const enTexto = entrada
+    .toUpperCase()
+    .match(/(?<![A-Z0-9])UVA[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/);
+  if (enTexto) return `UVA-${enTexto[1]}-${enTexto[2]}`;
+
   const limpio = entrada.toUpperCase().replace(/[^A-Z0-9]/g, "");
   return formatearCodigoMientrasEscribe(limpio.length === LARGO ? `UVA${limpio}` : limpio);
 }
