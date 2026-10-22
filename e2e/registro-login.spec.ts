@@ -22,7 +22,7 @@ test.afterEach(async () => {
   await borrarUsuarioPorEmail(admin, email);
 });
 
-test("registro -> verificación de correo -> login llega al dashboard", async ({ page }) => {
+test("registro -> verificación de correo -> login llega a canjear el código", async ({ page }) => {
   await test.step("paso de correo en /login decide que la cuenta no existe", async () => {
     await page.goto("/login");
     await page.fill("#auth-email", email);
@@ -70,6 +70,9 @@ test("registro -> verificación de correo -> login llega al dashboard", async ({
   await test.step("inicia sesión con la contraseña recién creada", async () => {
     await page.fill("#login-pass", password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+    // Una cuenta nueva no tiene acceso: el login la lleva a canjear su
+    // invitación (destinoTrasEntrar en actions/auth/login.ts), no al panel.
+    await expect(page).toHaveURL(/\/canjear$/, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Canjea tu invitación" })).toBeVisible();
   });
 });

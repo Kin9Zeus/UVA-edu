@@ -80,19 +80,21 @@ test("código inválido, agotado, vencido y ya canjeado muestran el motivo corre
     await expect(page).toHaveURL(/\/dashboard\/suscripcion/, { timeout: 30_000 });
   });
 
-  await test.step("código que no existe -> 'Ese código no existe.'", async () => {
+  // `toContainText`: el aviso agrega qué hacer (otra frase o «Pedir otra
+  // invitación»), así que solo se exige que diga el motivo.
+  await test.step("código que no existe -> 'No encontramos ese código.'", async () => {
     await intentarCanjear(page, codigoInvalido);
-    await expect(page.locator("form").getByRole("alert")).toHaveText("Ese código no existe.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("No encontramos ese código.");
   });
 
-  await test.step("código agotado -> 'Ese código ya alcanzó su límite de usos.'", async () => {
+  await test.step("código agotado -> 'Ese código ya se usó el máximo de veces.'", async () => {
     await intentarCanjear(page, codigoAgotado);
-    await expect(page.locator("form").getByRole("alert")).toHaveText("Ese código ya alcanzó su límite de usos.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya se usó el máximo de veces.");
   });
 
-  await test.step("código vencido -> 'Ese código venció.'", async () => {
+  await test.step("código vencido -> 'Ese código ya venció.'", async () => {
     await intentarCanjear(page, codigoVencido);
-    await expect(page.locator("form").getByRole("alert")).toHaveText("Ese código venció.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya venció.");
   });
 
   await test.step("código válido se canjea, y reintentarlo -> 'Ya canjeaste este código antes.'", async () => {
@@ -112,6 +114,6 @@ test("código inválido, agotado, vencido y ya canjeado muestran el motivo corre
 
     await page.reload();
     await intentarCanjear(page, codigoValido);
-    await expect(page.locator("form").getByRole("alert")).toHaveText("Ya canjeaste este código antes.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ya canjeaste este código antes.");
   });
 });

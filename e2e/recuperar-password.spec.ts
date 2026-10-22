@@ -69,7 +69,8 @@ test("enlace de recuperación ya usado no deja volver a entrar con él", async (
     // de Next.js (#__next-route-announcer__, siempre presente y también
     // role="alert"), así que se excluye para no confundirlo con el mensaje
     // real de la app.
-    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toHaveText(
+    // `toContainText`: MensajeError antepone el círculo con "!".
+    await expect(page.locator('[role="alert"]:not(#__next-route-announcer__)')).toContainText(
       "Ese enlace ya no es válido o ya venció. Pide uno nuevo.",
     );
   });
