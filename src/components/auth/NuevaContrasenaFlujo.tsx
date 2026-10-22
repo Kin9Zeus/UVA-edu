@@ -31,7 +31,7 @@ import {
  * guardar, actualizarPassword cierra la sesión del enlace y esta pantalla
  * pasa a "Contraseña guardada" con "Iniciar sesión", que precarga el correo.
  */
-export function NuevaContrasenaFlujo() {
+export function NuevaContrasenaFlujo({ correo }: { correo: string }) {
   const [state, formAction, pending] = useActionState<ActualizarPasswordState, FormData>(
     actualizarPassword,
     null,
@@ -90,6 +90,9 @@ export function NuevaContrasenaFlujo() {
         </>
       ) : (
         <form action={formAction} className="grid grid-cols-1 gap-2.5 bajo:gap-2" noValidate>
+          {/* Sin nombre: no viaja al servidor. Solo le dice al gestor de
+              contraseñas qué cuenta actualizar (sin esto guarda una nueva). */}
+          {correo && <input type="email" autoComplete="username" value={correo} readOnly hidden />}
           <div>
             <Label htmlFor="nueva-pass" className={ACCESO_LABEL}>
               Nueva contraseña

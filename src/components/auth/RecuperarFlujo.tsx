@@ -104,7 +104,7 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
       {enviado ? (
         <div ref={exitoRef} tabIndex={-1} className="focus:outline-none">
           <AvisoAcceso icono="ok">
-            Si el correo existe en nuestra base de datos, te llegará un enlace en unos minutos.
+            Si hay una cuenta con ese correo, te llegará un enlace en unos minutos.
           </AvisoAcceso>
           <p className={`mt-3 ${ACCESO_NOTA}`}>
             Si abres el enlace en este mismo navegador, esta pantalla se actualiza sola cuando

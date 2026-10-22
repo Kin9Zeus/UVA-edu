@@ -41,9 +41,16 @@ export default async function ActualizarPasswordPage({
     redirect("/actualizar-password");
   }
 
+  // Solo para el gestor de contraseñas (el usuario del formulario). Sin sesión
+  // no es un fallo de esta pantalla: el guardado responde «Tu enlace expiró».
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <AccesoMarco>
-      <NuevaContrasenaFlujo />
+      <NuevaContrasenaFlujo correo={user?.email ?? ""} />
     </AccesoMarco>
   );
 }
