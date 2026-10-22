@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { buscarPaisPorCodigo } from "@/lib/paises";
 import { getUsuarioActual } from "@/lib/perfil";
+import { LARGO_MAXIMO_NOMBRE, MENSAJE_NOMBRE_LARGO } from "@/lib/nombre";
 
 const MAXIMO_ROL_GREMIO = 60;
 
@@ -23,6 +24,9 @@ export async function actualizarPerfil(
 
   if (!nombre) {
     return { error: "El nombre no puede estar vacío." };
+  }
+  if (nombre.length > LARGO_MAXIMO_NOMBRE) {
+    return { error: MENSAJE_NOMBRE_LARGO };
   }
 
   // Mismo tope que la columna (VARCHAR(60)): mejor un mensaje claro que el

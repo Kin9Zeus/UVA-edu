@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
-import { normalizarCodigoCertificado } from "@/lib/certificados/codigo";
+import {
+  LARGO_MAXIMO_CODIGO_CERTIFICADO,
+  formatearCodigoCertificadoEscribiendo,
+  normalizarCodigoCertificado,
+} from "@/lib/certificados/codigo";
 import { cn } from "@/lib/utils";
 
 type Props =
@@ -33,6 +37,11 @@ export function VerificarCertificadoForm(props: Props) {
   const pagina = props.variante === "pagina" ? props : null;
   const [codigo, setCodigo] = useState(pagina?.valorInicial ?? "");
 
+  function escribir(event: React.ChangeEvent<HTMLInputElement>) {
+    const nuevo = event.target.value;
+    setCodigo(formatearCodigoCertificadoEscribiendo(nuevo, nuevo.length < codigo.length));
+  }
+
   function verificar(event: React.FormEvent) {
     event.preventDefault();
     const limpio = normalizarCodigoCertificado(codigo);
@@ -56,7 +65,8 @@ export function VerificarCertificadoForm(props: Props) {
             autoCapitalize="characters"
             spellCheck={false}
             value={codigo}
-            onChange={(event) => setCodigo(event.target.value)}
+            onChange={escribir}
+            maxLength={LARGO_MAXIMO_CODIGO_CERTIFICADO}
             placeholder="XXXXX-XXXXX"
             aria-invalid={pagina.invalido || undefined}
             aria-describedby={pagina.ayudaId}
@@ -83,7 +93,9 @@ export function VerificarCertificadoForm(props: Props) {
         autoComplete="off"
         spellCheck={false}
         value={codigo}
-        onChange={(event) => setCodigo(event.target.value)}
+        onChange={escribir}
+        maxLength={LARGO_MAXIMO_CODIGO_CERTIFICADO}
+        autoCapitalize="characters"
         placeholder="Ej. K7M2Q-XP4TB"
         aria-label="Código de verificación del certificado"
         className="h-12 min-w-0 flex-[1_1_12rem] rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3 font-codigo text-base text-uva-text placeholder:text-uva-text-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"

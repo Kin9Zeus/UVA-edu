@@ -24,6 +24,7 @@ import {
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
+import { LARGO_MAXIMO_NOMBRE } from "@/lib/nombre";
 import { ExportarDatosButton } from "@/components/dashboard/ExportarDatosButton";
 import { EliminarCuentaCard } from "@/components/dashboard/EliminarCuentaCard";
 import type { EstadoAcceso } from "@/lib/estadoAcceso";
@@ -246,6 +247,7 @@ export function PerfilForm({
                     key={nombre}
                     defaultValue={nombre}
                     autoComplete="name"
+                    maxLength={LARGO_MAXIMO_NOMBRE}
                     onChange={(e) => setVista((v) => ({ ...v, nombre: e.target.value }))}
                     required
                     className={CLASE_CAMPO_PERFIL}
@@ -364,7 +366,7 @@ export function PerfilForm({
           </section>
 
           <div className="order-3 @min-[900px]:order-none">
-            <CambiarPasswordForm />
+            <CambiarPasswordForm tienePassword={tienePassword} />
           </div>
 
           <section aria-labelledby="perfil-exportar-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-6 @min-[900px]:order-none")}>

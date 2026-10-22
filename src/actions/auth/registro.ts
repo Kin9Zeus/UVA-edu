@@ -7,6 +7,7 @@ import { checkEmail } from "@/actions/auth/check-email";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import { LARGO_MAXIMO_NOMBRE, MENSAJE_NOMBRE_LARGO } from "@/lib/nombre";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never; email?: never }
@@ -28,6 +29,9 @@ export async function registro(
   }
   if (!nombre) {
     return { error: "Completa tu nombre." };
+  }
+  if (nombre.length > LARGO_MAXIMO_NOMBRE) {
+    return { error: MENSAJE_NOMBRE_LARGO };
   }
   if (!isPasswordValid(password)) {
     return { error: "La contraseña no cumple los requisitos." };

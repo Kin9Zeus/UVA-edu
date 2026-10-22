@@ -19,7 +19,7 @@ import {
  * <form>) porque cambiarPassword() reautentica con la contraseña actual
  * antes de aplicar la nueva (ver el comentario en esa action).
  */
-export function CambiarPasswordForm() {
+export function CambiarPasswordForm({ tienePassword }: { tienePassword: boolean }) {
   const [state, formAction, pending] = useActionState<
     CambiarPasswordState,
     FormData
@@ -41,12 +41,31 @@ export function CambiarPasswordForm() {
     setPasswordNueva2("");
   }
 
+  const titulo = (
+    <h2 id="perfil-clave-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
+      <KeyRound className="size-5 text-uva-text-muted" strokeWidth={1.8} aria-hidden />
+      Contraseña
+    </h2>
+  );
+
+  // Cuenta creada con Google: no hay contraseña actual que verificar, así que
+  // el formulario no tiene sentido (y la acción tampoco lo aceptaría).
+  if (!tienePassword) {
+    return (
+      <section aria-labelledby="perfil-clave-titulo" className={CLASE_BLOQUE_PERFIL}>
+        {titulo}
+        <p className="max-w-[68ch] text-uva-cuerpo text-uva-text-muted">
+          Entras con tu cuenta de Google, por eso no tienes una contraseña en U.V.A. Google
+          protege tu acceso. Si prefieres entrar también con correo y contraseña, usa «¿Olvidaste
+          tu contraseña?» en la pantalla de inicio de sesión y te enviamos un enlace para crearla.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section aria-labelledby="perfil-clave-titulo" className={CLASE_BLOQUE_PERFIL}>
-      <h2 id="perfil-clave-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
-        <KeyRound className="size-5 text-uva-text-muted" strokeWidth={1.8} aria-hidden />
-        Contraseña
-      </h2>
+      {titulo}
 
       {/* Plegado hasta que se pide: casi nadie cambia la contraseña y los tres
           campos empujaban el resto del perfil. Se queda abierto mientras haya
