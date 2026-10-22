@@ -28,5 +28,12 @@ export const ACCESO_TITULO =
 
 export const ACCESO_SUBTITULO = "text-uva-cuerpo text-uva-text-muted";
 
+/**
+ * Lo que viene después en el recorrido de una invitación ("Después de entrar,
+ * canjeas tu código"), bajo el subtítulo. Una raya de acento y no una ruta de
+ * pasos: cabe igual en celular y en PC, al lado del carné.
+ */
+export const ACCESO_SIGUIENTE = "border-l-2 border-uva-accent pl-3 text-uva-detalle text-uva-text";
+
 /** Notas de ayuda bajo una acción ("¿No te llegó?…"). */
 export const ACCESO_NOTA = "text-uva-detalle text-uva-text-muted";

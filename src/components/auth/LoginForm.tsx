@@ -40,7 +40,10 @@ export function LoginForm({
 
   return (
     <form className="grid grid-cols-1 gap-3 bajo:gap-2" action={formAction} noValidate>
-      <input type="hidden" name="email" value={email} />
+      {/* El correo se escribió en el paso anterior. Un `type="hidden"` lo
+          ignoran los gestores de contraseñas: este campo oculto con
+          `autocomplete="username"` les dice de qué cuenta es la clave. */}
+      <input type="email" name="email" autoComplete="username" value={email} readOnly hidden />
       <input type="hidden" name="redirect" value={redirectTo} />
 
       <div>

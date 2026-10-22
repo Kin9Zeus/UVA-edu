@@ -24,6 +24,7 @@ import {
   ACCESO_INPUT,
   ACCESO_LABEL,
   ACCESO_NOTA,
+  ACCESO_SIGUIENTE,
   ACCESO_SUBTITULO,
   ACCESO_TITULO,
 } from "@/components/auth/acceso";
@@ -208,6 +209,16 @@ export function AuthFlow({
 
   const { title, subtitle } = STEP_COPY[step];
 
+  // Lo que viene después de este paso, para quien entra con una invitación:
+  // al crear la cuenta siempre (el acceso es solo por código), y en el correo
+  // solo si llegó desde «Tengo un código» (/canjear).
+  const siguiente =
+    step === "signup"
+      ? "Después de crear tu cuenta, confirmas tu correo y canjeas tu código de invitación."
+      : step === "email" && redirectTo === "/canjear"
+        ? "Después de entrar, canjeas tu código de invitación."
+        : null;
+
   // `subtituloClase`: el registro es más alto que el login; en una pantalla
   // muy baja su subtítulo queda solo para el lector de pantalla.
   const encabezado = (className: string, subtituloClase = "") => (
@@ -216,6 +227,7 @@ export function AuthFlow({
         {title}
       </h1>
       <p className={`${ACCESO_SUBTITULO} ${subtituloClase}`}>{subtitle}</p>
+      {siguiente && <p className={`mt-1 ${ACCESO_SIGUIENTE}`}>{siguiente}</p>}
     </div>
   );
 
