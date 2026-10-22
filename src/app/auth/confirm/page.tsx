@@ -95,7 +95,9 @@ export default async function ConfirmarEnlacePage({
         >
           Iniciar sesión
         </Link>
-        <p className={ACCESO_NOTA}>Entra con el correo y la contraseña que acabas de crear.</p>
+        <p className={ACCESO_NOTA}>
+          Entra con tu correo y tu contraseña. Después canjeas tu código de invitación.
+        </p>
         {/* La pestaña del registro sigue en "¡Ya casi!": que pase sola al login. */}
         <AvisarPestanas aviso={{ tipo: "correo-confirmado", correo: confirmado.correo }} />
       </PantallaCorreo>
