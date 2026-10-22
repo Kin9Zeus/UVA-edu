@@ -33,7 +33,7 @@ export function RutaPasos({
             <span
               aria-hidden="true"
               className={cn(
-                "relative z-[1] grid size-8 place-items-center rounded-full border-2 font-heading text-[15px] font-extrabold bajo:size-7",
+                "relative z-[1] grid size-8 place-items-center rounded-full border-2 font-heading text-uva-detalle font-extrabold bajo:size-7",
                 hecho
                   ? "border-uva-text bg-uva-accent-2 text-uva-on-bright"
                   : esActual

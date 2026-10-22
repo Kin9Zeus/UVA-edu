@@ -68,12 +68,12 @@ export function CanjearFlujo({ vigencia }: { vigencia: string | null }) {
       posicionNivel={POSICION_NIVEL.centro}
       titulo="Canjea tu invitación"
       subtitulo="Pega el código tal como te llegó. Nosotros lo ordenamos."
-      paso={1}
+      paso={2}
       pasos={PASOS_CANJEAR}
       etiquetaPasos="Pasos para canjear tu invitación"
       tituloRef={tituloRef}
     >
-      <CanjearCodigoForm tieneSuscripcion={false} embebido sinEncabezado />
+      <CanjearCodigoForm tieneSuscripcion={false} embebido sinEncabezado apilado />
       <p>
         <Link href="/dashboard" className={ACCESO_ENLACE}>
           Ahora no, ir a mi panel

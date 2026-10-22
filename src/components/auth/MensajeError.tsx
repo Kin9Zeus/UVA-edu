@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
+
 /**
  * Error del login, debajo del campo al que se refiere (Login lab 7). El
  * círculo con "!" hace que no dependa solo del color. `uva-danger-text` es
  * #C2005B en claro y #FF7AB8 en oscuro: AA sobre la tarjeta en los dos.
  */
-export function MensajeError({ id, children }: { id: string; children: string }) {
+export function MensajeError({ id, children }: { id: string; children: ReactNode }) {
   return (
     <p
       id={id}
@@ -16,7 +18,7 @@ export function MensajeError({ id, children }: { id: string; children: string })
       >
         !
       </span>
-      {children}
+      <span>{children}</span>
     </p>
   );
 }

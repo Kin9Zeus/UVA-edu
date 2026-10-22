@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MensajeError } from "@/components/auth/MensajeError";
 import { canjearCodigoInvitacion } from "@/actions/codigos-invitacion/canjear";
 import {
   formatearCodigoMientrasEscribe,
@@ -42,6 +43,7 @@ export function CanjearCodigoForm({
   embebido = false,
   alCanjear,
   sinEncabezado = false,
+  apilado = false,
 }: {
   tieneSuscripcion: boolean;
   /**
@@ -54,6 +56,12 @@ export function CanjearCodigoForm({
    * explicación (/canjear): se omiten aquí para no repetirlos.
    */
   sinEncabezado?: boolean;
+  /**
+   * `true` en el recorrido de acceso (/canjear): campo y botón a todo el
+   * ancho, uno debajo del otro, y el error debajo del campo, como en el
+   * login. En «Mi suscripción» van en una fila, con el error arriba.
+   */
+  apilado?: boolean;
   /**
    * `true` cuando esto ya vive DENTRO de otra sección con su propio
    * encabezado — hoy, "¿Cómo quieres recuperar el acceso?" en
@@ -148,6 +156,28 @@ export function CanjearCodigoForm({
   // literal. El nivel depende de si hay un encabezado de sección por encima.
   const Titulo = (embebido ? "h3" : "h2") as "h2" | "h3";
 
+  const detalleError = (
+    <>
+      {error}
+      {bloqueado && (
+        <span className="block mt-0.5 font-medium">
+          Podrás volver a intentar en {formatearEspera(segundosRestantes!)}.
+        </span>
+      )}
+      {ofrecerInvitacion && (
+        <a
+          href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a U.V.A.")}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 block min-h-11 py-2.5 font-bold underline underline-offset-4"
+        >
+          Pedir otra invitación
+          <span className="sr-only"> (abre WhatsApp en otra pestaña)</span>
+        </a>
+      )}
+    </>
+  );
+
   const contenido = (
     <>
       {!sinEncabezado && (
@@ -171,29 +201,13 @@ export function CanjearCodigoForm({
       )}
 
       <form onSubmit={handleSubmit} className={cn("flex flex-col gap-3.5", !sinEncabezado && "mt-4")}>
-        {error && (
+        {error && !apilado && (
           <div
             id="codigo-error"
             role="alert"
             className="max-w-[56ch] rounded-uva-md bg-uva-error-soft px-3.5 py-3 text-uva-cuerpo font-semibold text-uva-error-text"
           >
-            {error}
-            {bloqueado && (
-              <span className="block mt-0.5 font-medium">
-                Podrás volver a intentar en {formatearEspera(segundosRestantes!)}.
-              </span>
-            )}
-            {ofrecerInvitacion && (
-              <a
-                href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a U.V.A.")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 block min-h-11 py-2.5 font-bold underline underline-offset-4"
-              >
-                Pedir otra invitación
-                <span className="sr-only"> (abre WhatsApp en otra pestaña)</span>
-              </a>
-            )}
+            {detalleError}
           </div>
         )}
 
@@ -201,7 +215,7 @@ export function CanjearCodigoForm({
           <Label htmlFor="codigo-invitacion" className="mb-1.5 text-uva-cuerpo font-semibold text-uva-text">
             Código
           </Label>
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className={apilado ? "grid grid-cols-1 gap-3" : "flex flex-wrap items-center gap-2.5"}>
             <Input
               id="codigo-invitacion"
               value={codigo}
@@ -216,15 +230,19 @@ export function CanjearCodigoForm({
               onPaste={handlePaste}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "codigo-error" : undefined}
-              className="h-13 w-[min(100%,260px)] border-[1.5px] border-uva-line-strong font-codigo text-uva-titulo-4 font-bold tracking-[0.08em] uppercase placeholder:font-medium placeholder:text-uva-text-muted sm:text-uva-titulo-4"
+              className={cn(
+                "h-13 border-[1.5px] border-uva-line-strong font-codigo text-uva-titulo-4 font-bold tracking-[0.08em] uppercase placeholder:font-medium placeholder:text-uva-text-muted sm:text-uva-titulo-4",
+                apilado ? "w-full" : "w-[min(100%,260px)]",
+              )}
               disabled={bloqueado}
               required
             />
+            {error && apilado && <MensajeError id="codigo-error">{detalleError}</MensajeError>}
             <Button
               type="submit"
               variant="uva-primary"
               size="uva"
-              className="min-h-13 w-auto px-[22px] text-base"
+              className={apilado ? "h-12 text-uva-cuerpo" : "min-h-13 w-auto px-[22px] text-base"}
               disabled={pending || bloqueado || codigo.trim() === ""}
             >
               {pending ? "Canjeando…" : bloqueado ? "Bloqueado" : "Canjear código"}

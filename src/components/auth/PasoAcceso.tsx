@@ -10,8 +10,12 @@ export const PASOS_RECUPERAR = [
   "Creas una contraseña nueva",
 ];
 
-/** Los tres pasos de canjear una invitación (/canjear). */
-export const PASOS_CANJEAR = ["Tu cuenta", "Tu código", "Listo"];
+/**
+ * Los pasos de quien entra con una invitación, vistos desde /canjear: la
+ * cuenta y el correo ya están hechos al llegar (el login exige el correo
+ * confirmado; Google ya lo trae) y falta el código.
+ */
+export const PASOS_CANJEAR = ["Tu cuenta", "Tu correo", "Tu código"];
 
 /**
  * Contenido de la tarjeta de AccesoMarco en recuperar contraseña: el nivel,
