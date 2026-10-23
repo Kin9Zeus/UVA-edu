@@ -58,9 +58,9 @@
     "@mux/mux-node": "^14.1.1",
     "@mux/mux-player-react": "^3.13.2",
     "@pdf-lib/fontkit": "^1.1.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^7.10.1",
     "@react-email/components": "^1.0.12",
-    "@sentry/nextjs": "^10.71.0",
+    "@sentry/nextjs": "^10.76.2",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.2",
     "@tiptap/core": "^3.31.3",
@@ -75,7 +75,7 @@
     "file-type": "^22.0.2",
     "flag-icons": "^7.5.0",
     "lucide-react": "^1.29.0",
-    "next": "16.3.8",
+    "next": "16.4.3",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
@@ -93,7 +93,7 @@
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.62.1",
-    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/adapter-pg": "^7.10.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
@@ -102,9 +102,9 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "pg": "^8.23.0",
-    "prisma": "^7.9.1",
+    "prisma": "^7.10.1",
     "shadcn": "^4.16.2",
     "tailwindcss": "^4",
     "typescript": "^5",
@@ -115,7 +115,7 @@
     "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
     "@sentry/cli@2.58.6": true,
-    "prisma@7.10.0": true,
-    "@prisma/engines@7.10.0": true
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
   }
 }

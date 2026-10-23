@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // P2-8 (AUDIT-2026-09-04.md): portadas de curso viven en el bucket público
 // `portadas-cursos` de Supabase Storage — se deriva del mismo
