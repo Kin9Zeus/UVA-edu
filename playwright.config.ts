@@ -14,6 +14,7 @@ try {
 // mismo patrón que scripts/rls-test.ts y scripts/webhook-test.ts.
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false, // los specs comparten el mismo servidor de dev; evita pisarse
   // next dev compila cada ruta la primera vez que se pide (on-demand); una
   // cadena de redirects que toca 3-4 rutas nuevas puede tardar bastante

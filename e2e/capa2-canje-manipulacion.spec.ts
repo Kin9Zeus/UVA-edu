@@ -232,7 +232,12 @@ test("dos pestañas: canjear un código en cada una deja una sola suscripción",
   const pestana1 = await context.newPage();
   const excepciones = vigilarExcepciones(pestana1);
   await iniciarSesion(pestana1, email);
-  const pestana2 = await context.newPage();
+  // Otro contexto con la misma sesión, no otra pestaña del mismo: las
+  // pestañas se avisan entre sí (lib/sesion/pestanas.ts) y la segunda a veces
+  // se refrescaba sola antes del clic. Lo que se prueba es que el SERVIDOR
+  // rechace el segundo código cuando la pantalla todavía no se enteró.
+  const context2 = await browser.newContext({ storageState: await context.storageState() });
+  const pestana2 = await context2.newPage();
   excepciones.push(...vigilarExcepciones(pestana2));
   await pestana2.goto(RUTA);
   await expect(pestana2.locator("#codigo-invitacion")).toBeVisible();
@@ -252,6 +257,7 @@ test("dos pestañas: canjear un código en cada una deja una sola suscripción",
   expect(await vecesUsado(segundo.id), "el segundo código no debe gastarse").toBe(0);
   expect(excepciones).toEqual([]);
   await context.close();
+  await context2.close();
 });
 
 test("probar códigos al azar bloquea el formulario, y recargar no se salta el bloqueo", async ({ page }) => {

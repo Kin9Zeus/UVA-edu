@@ -136,13 +136,20 @@ export function CanjearCodigoForm({
 
     // Se normaliza también en el cliente para que un pegado con espacios o
     // en minúsculas no se lea como "código inválido".
-    // Si la llamada no llega al servidor (se cayó la red) lanza en vez de
-    // devolver `{ error }`: sin esto el botón se queda en "Canjeando…".
+    // La llamada lanza en vez de devolver `{ error }` cuando no llega al
+    // servidor: sin esto el botón se queda en "Canjeando…". Sin red, `fetch`
+    // lanza un TypeError. Cualquier otra respuesta rara suele ser la sesión
+    // vencida (el proxy redirige la acción al login): se recarga la página,
+    // que sin sesión lleva al login, en vez de culpar a la conexión.
     let resultado: Awaited<ReturnType<typeof canjearCodigoInvitacion>>;
     try {
       resultado = await canjearCodigoInvitacion(normalizarCodigo(codigo));
     } catch (fallo) {
       logErrorDelCliente("CanjearCodigoForm", "el canje no llegó al servidor", fallo);
+      if (!(fallo instanceof TypeError)) {
+        window.location.reload();
+        return;
+      }
       resultado = { error: "No pudimos conectar. Revisa tu conexión e intenta de nuevo." };
     }
     setPending(false);
