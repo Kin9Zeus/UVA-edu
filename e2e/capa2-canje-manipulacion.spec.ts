@@ -41,9 +41,10 @@ async function nuevoUsuario(etiqueta: string) {
 let contadorCodigos = 0;
 async function nuevoCodigo(params: { limiteUsos?: number } = {}) {
   contadorCodigos += 1;
-  // 11 caracteres como un código real (UVA-XXXX-XXXX): con uno más corto, el
-  // recorte del campo (maxLength) no se nota y el test daría falsos positivos.
-  const codigo = formatearCodigoDePrueba(`UV${contadorCodigos}${sufijo.toString(36).toUpperCase()}`.slice(0, 11));
+  // Formato real (UVA-XXXX-XXXX, ver generarCodigoInvitacion): con uno más
+  // corto el recorte del campo no se nota, y sin el prefijo "UVA" el pegado
+  // dentro de un texto ("Tu código: …") no tiene cómo encontrarlo.
+  const codigo = formatearCodigoDePrueba(`UVA${contadorCodigos}${sufijo.toString(36).toUpperCase()}`.slice(0, 11));
   const fila = await crearCodigoInvitacion(admin, { codigo, limiteUsos: params.limiteUsos ?? 1 });
   codigos.push(fila.id);
   return { codigo, id: fila.id as string };

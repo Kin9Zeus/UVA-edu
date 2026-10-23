@@ -81,20 +81,21 @@ test("código inválido, agotado, vencido y ya canjeado muestran el motivo corre
   });
 
   // `toContainText`: el aviso agrega qué hacer (otra frase o «Pedir otra
-  // invitación»), así que solo se exige que diga el motivo.
+  // invitación»), así que solo se exige que diga el motivo. 15 s como el resto
+  // de los canjes: contra staging el Server Action a veces pasa de 5 s.
   await test.step("código que no existe -> 'No encontramos ese código.'", async () => {
     await intentarCanjear(page, codigoInvalido);
-    await expect(page.locator("form").getByRole("alert")).toContainText("No encontramos ese código.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("No encontramos ese código.", { timeout: 15_000 });
   });
 
   await test.step("código agotado -> 'Ese código ya se usó el máximo de veces.'", async () => {
     await intentarCanjear(page, codigoAgotado);
-    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya se usó el máximo de veces.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya se usó el máximo de veces.", { timeout: 15_000 });
   });
 
   await test.step("código vencido -> 'Ese código ya venció.'", async () => {
     await intentarCanjear(page, codigoVencido);
-    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya venció.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ese código ya venció.", { timeout: 15_000 });
   });
 
   await test.step("código válido se canjea, y reintentarlo -> 'Ya canjeaste este código antes.'", async () => {
@@ -108,12 +109,17 @@ test("código inválido, agotado, vencido y ya canjeado muestran el motivo corre
     // propio caso de renovación.
     const { error: errorCaducar } = await admin
       .from("suscripciones")
-      .update({ fecha_renovacion: new Date(Date.now() - 86_400_000).toISOString() })
+      // El inicio también va al pasado: la base exige renovación > inicio
+      // (suscripciones_renovacion_posterior, 071).
+      .update({
+        fecha_inicio: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+        fecha_renovacion: new Date(Date.now() - 86_400_000).toISOString(),
+      })
       .eq("id_usuario", usuarioId);
     expect(errorCaducar).toBeNull();
 
     await page.reload();
     await intentarCanjear(page, codigoValido);
-    await expect(page.locator("form").getByRole("alert")).toContainText("Ya canjeaste este código antes.");
+    await expect(page.locator("form").getByRole("alert")).toContainText("Ya canjeaste este código antes.", { timeout: 15_000 });
   });
 });
