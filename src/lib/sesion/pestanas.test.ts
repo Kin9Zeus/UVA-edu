@@ -54,10 +54,13 @@ describe("reaccionAlCambio", () => {
     expect(reaccionAlCambio("/login", null, null)).toBe("ninguna");
   });
 
-  it("en login, registro o recuperar, entrar en otra pestaña lleva al destino", () => {
+  it("en login o registro, entrar en otra pestaña lleva al destino", () => {
     expect(reaccionAlCambio("/login", null, ID)).toBe("ir-al-destino");
-    expect(reaccionAlCambio("/recuperar", null, ID)).toBe("ir-al-destino");
     expect(reaccionAlCambio("/registro", null, ID)).toBe("ir-al-destino");
+  });
+
+  it("en recuperar no salta al panel: la sesión nueva es la del enlace y aún falta la contraseña", () => {
+    expect(reaccionAlCambio("/recuperar", null, ID)).toBe("ninguna");
   });
 
   it("en login, cerrar sesión en otra pestaña no hace nada", () => {

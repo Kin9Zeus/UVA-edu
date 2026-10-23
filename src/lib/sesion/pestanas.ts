@@ -142,7 +142,11 @@ export function usuarioDeCookies(cookies: string): string | null {
   return CON_SESION;
 }
 
-const RUTAS_DE_ACCESO = ["/login", "/registro", "/recuperar"];
+// `/recuperar` no está aquí a propósito: el enlace del correo abre una sesión de
+// recuperación en este mismo navegador, y la pestaña que pidió el enlace la
+// tomaría por un inicio de sesión y saltaría al panel antes de que se guarde la
+// contraseña nueva. Esa pestaña avanza sola con el aviso "contrasena-guardada".
+const RUTAS_DE_ACCESO = ["/login", "/registro"];
 const RUTAS_CON_SESION = ["/dashboard", "/admin"];
 
 function empiezaCon(ruta: string, prefijos: string[]): boolean {
@@ -153,8 +157,9 @@ export type Reaccion = "ninguna" | "ir-al-destino" | "recargar";
 
 /**
  * Qué hace una pestaña cuando nota que la sesión del navegador cambió.
- *   - En login, registro o recuperar, si ahora hay sesión: ir al destino
- *     (se entró en otra pestaña).
+ *   - En login o registro, si ahora hay sesión: ir al destino (se entró en
+ *     otra pestaña). En /recuperar no: ahí la sesión nueva es la del enlace de
+ *     recuperación y todavía falta guardar la contraseña.
  *   - En un panel: recargar entera, para que el servidor decida (sin sesión,
  *     el proxy manda al login; con otro usuario, no quedan en pantalla datos
  *     del anterior). Un `router.refresh()` no sirve aquí: no sigue la

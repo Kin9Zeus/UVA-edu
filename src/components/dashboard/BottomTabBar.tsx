@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, Users, TrendingUp, User, type LucideIcon } from "lucide-react";
+import { Home, Compass, Users, BookOpen, User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Cinco accesos, en el mismo orden e íconos que el Sidebar de escritorio. La
@@ -15,7 +15,7 @@ const items: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/catalogo", label: "Catálogo", icon: Compass },
   { href: "/dashboard/comunidad", label: "Comunidad", icon: Users },
-  { href: "/dashboard/progreso", label: "Progreso", icon: TrendingUp },
+  { href: "/dashboard/progreso", label: "Mis cursos", icon: BookOpen },
   { href: "/dashboard/perfil", label: "Cuenta", icon: User },
 ];
 

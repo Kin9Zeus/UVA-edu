@@ -32,6 +32,8 @@ import { formatFecha } from "@/lib/admin/format";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 import { cn } from "@/lib/utils";
+import { LogOut } from "lucide-react";
+import { logout } from "@/actions/auth/logout";
 
 type Certificado = {
   id: string;
@@ -61,7 +63,8 @@ export const CLASE_BLOQUE_PERFIL = "grid gap-4 border-t border-uva-divider pt-[2
  * Las columnas dependen del ancho del contenido (`@container`), no de la
  * ventana: el menú lateral del panel se lleva 256 px. Por debajo de 900 px
  * las dos columnas se "disuelven" (`contents`) y cada bloque se reubica con
- * `order`: carné, datos, contraseña, acceso, certificados, exportar y eliminar.
+ * `order`: carné, datos, acceso, certificados, contraseña, sesión, exportar y
+ * eliminar (lo que se viene a mirar antes que lo que casi no se toca).
  */
 export function PerfilForm({
   nombre,
@@ -171,7 +174,7 @@ export function PerfilForm({
           </div>
 
           {estadoAcceso && (
-            <div className="order-4 @min-[900px]:order-none">
+            <div className="order-3 @min-[900px]:order-none">
               <EstadoAccesoCard
                 tipo={estadoAcceso.tipo}
                 fechaVigencia={estadoAcceso.fechaVigencia}
@@ -181,7 +184,7 @@ export function PerfilForm({
             </div>
           )}
 
-          <div className="order-5 grid gap-2.5 @min-[900px]:order-none">
+          <div className="order-4 grid gap-2.5 @min-[900px]:order-none">
             <div className="flex items-center justify-between gap-2.5">
               <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Mis certificados</h2>
               {certificados.length > 0 && (
@@ -365,11 +368,28 @@ export function PerfilForm({
             </form>
           </section>
 
-          <div className="order-3 @min-[900px]:order-none">
+          <div className="order-5 @min-[900px]:order-none">
             <CambiarPasswordForm tienePassword={tienePassword} />
           </div>
 
-          <section aria-labelledby="perfil-exportar-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-6 @min-[900px]:order-none")}>
+          <section aria-labelledby="perfil-sesion-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-6 @min-[900px]:order-none")}>
+            <h2 id="perfil-sesion-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
+              <LogOut className="size-5 text-uva-text-muted" strokeWidth={1.8} aria-hidden />
+              Sesión
+            </h2>
+            <p className="max-w-[68ch] text-uva-cuerpo text-uva-text-muted">
+              Cierra la sesión en este dispositivo. Tu avance queda guardado.
+            </p>
+            {/* Formulario y no onClick: funciona aunque el JavaScript no haya cargado. */}
+            <form action={logout}>
+              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
+                <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
+                Cerrar sesión
+              </Button>
+            </form>
+          </section>
+
+          <section aria-labelledby="perfil-exportar-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-7 @min-[900px]:order-none")}>
             <h2 id="perfil-exportar-titulo" className="text-uva-titulo-4 font-extrabold text-uva-text">
               Tus datos
             </h2>
@@ -380,7 +400,7 @@ export function PerfilForm({
             <ExportarDatosButton />
           </section>
 
-          <div className="order-7 @min-[900px]:order-none">
+          <div className="order-8 @min-[900px]:order-none">
             <EliminarCuentaCard correo={correo} tienePassword={tienePassword} />
           </div>
         </div>

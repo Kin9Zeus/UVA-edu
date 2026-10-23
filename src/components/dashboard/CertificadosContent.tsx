@@ -60,7 +60,7 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
             size="uva"
             className="min-h-11 text-uva-cuerpo sm:w-auto"
           >
-            Ver tu progreso
+            Ver mis cursos
           </Button>
         </div>
       ) : (
@@ -100,14 +100,20 @@ export function CertificadosContent({ certificados }: { certificados: Certificad
                   {certificado.duracionTexto && (
                     <p className="text-uva-cuerpo text-uva-text-muted">{certificado.duracionTexto}</p>
                   )}
-                  <p className="text-uva-cuerpo text-uva-text-muted">
-                    Código{" "}
-                    <span className="font-codigo font-bold tracking-[0.06em] text-uva-text">
+                  {/* Rótulo arriba y código en su propia línea, sin partirse en
+                      los guiones: en letra de detalle cabe entero desde 320 px. */}
+                  <p className="mt-1 grid text-uva-detalle text-uva-text-muted">
+                    Código de verificación
+                    <span className="font-codigo font-bold tracking-[0.04em] whitespace-nowrap text-uva-text">
                       {certificado.codigoVerificacion}
                     </span>
                   </p>
                 </div>
-                <AccionesCertificado certificadoId={certificado.id} urlVerificacion={certificado.urlVerificacion} />
+                <AccionesCertificado
+                  certificadoId={certificado.id}
+                  urlVerificacion={certificado.urlVerificacion}
+                  cursoTitulo={certificado.cursoTitulo}
+                />
               </li>
             ))}
           </ul>

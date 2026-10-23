@@ -6,6 +6,7 @@ import { buscarCatalogoPublico, type CategoriaChip, type CursoDeCategoria } from
 import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { calcularRacha, hoyEnBogota } from "@/lib/racha";
 import { estadoDeCurso, porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
+import { temarioListo } from "@/lib/temario";
 
 export type ClaseEnProgreso = {
   leccionId: string;
@@ -163,26 +164,18 @@ export async function getInicioData() {
     // curso: ver el comentario de P3-3 junto a moduloRowsTodos.
     const moduloRows = modulosPorCursoMap.get(curso.curso_id as string) ?? [];
 
-    const leccionesOrdenadas = moduloRows
-      .slice()
-      .sort((a, b) => a.orden - b.orden)
-      .flatMap((modulo) =>
-        (modulo.lecciones ?? [])
-          .filter((leccion) => leccion.estado_procesamiento === "LISTO")
-          .slice()
-          .sort((a, b) => a.orden - b.orden)
-          .map((leccion) => ({
-            id: leccion.id as string,
-            slug: leccion.slug as string,
-            titulo: leccion.titulo as string,
-            duracion: leccion.duracion as number | null,
-            idVideoMux: (leccion.id_video_mux as string | null) ?? null,
-            completada: !!leccion.progreso?.[0]?.completado,
-            segundoActual: (leccion.progreso?.[0]?.segundo_actual as number | undefined) ?? 0,
-            vistaEn: (leccion.progreso?.[0]?.actualizado_en as string | undefined) ?? null,
-            moduloTitulo: modulo.titulo as string,
-          })),
-      );
+    // Mismo orden que "Continuar donde quedaste" en Mis cursos (temarioListo).
+    const leccionesOrdenadas = temarioListo(moduloRows).map(({ leccion, modulo }) => ({
+      id: leccion.id as string,
+      slug: leccion.slug as string,
+      titulo: leccion.titulo as string,
+      duracion: leccion.duracion as number | null,
+      idVideoMux: (leccion.id_video_mux as string | null) ?? null,
+      completada: !!leccion.progreso?.[0]?.completado,
+      segundoActual: (leccion.progreso?.[0]?.segundo_actual as number | undefined) ?? 0,
+      vistaEn: (leccion.progreso?.[0]?.actualizado_en as string | undefined) ?? null,
+      moduloTitulo: modulo.titulo as string,
+    }));
 
     if (leccionesOrdenadas.length === 0) continue;
 

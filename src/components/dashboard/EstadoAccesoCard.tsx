@@ -2,15 +2,33 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatFecha } from "@/lib/admin/format";
 import {
-  ETIQUETA_TIPO_ACCESO,
   type EstadoVigencia,
   type TipoAccesoGratuito,
 } from "@/lib/estadoAcceso";
 
-const DESCRIPCION_TIPO: Record<TipoAccesoGratuito, string> = {
-  INVITACION: "Canjeaste un código de invitación con usos limitados.",
-  OTORGADO_ADMIN: "El equipo de U.V.A. te dio acceso completo a la plataforma.",
+/** De dónde salió el acceso, dicho como el estudiante lo vivió. */
+const ORIGEN_TIPO: Record<TipoAccesoGratuito, string> = {
+  INVITACION: "Lo obtuviste con un código de invitación.",
+  OTORGADO_ADMIN: "Te lo dio el equipo de U.V.A.",
 };
+
+/** "12 de marzo de 2027": la frase principal se lee completa, sin abreviar. */
+const FECHA_COMPLETA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "America/Bogota",
+});
+
+/**
+ * Lo que el estudiante puede hacer hoy y hasta cuándo, en una frase. Va antes
+ * que el origen del acceso porque es lo que vino a averiguar.
+ */
+export function fraseAcceso(vigencia: EstadoVigencia, fechaVigencia: string | null): string {
+  if (vigencia === "VENCIDO") return "Tu acceso a los cursos terminó.";
+  if (vigencia === "SIN_LIMITE" || !fechaVigencia) return "Puedes ver todos los cursos, sin fecha de cierre.";
+  return `Puedes ver todos los cursos hasta el ${FECHA_COMPLETA.format(new Date(fechaVigencia))}.`;
+}
 
 /**
  * Cómo se lee la fecha límite según en qué punto del periodo esté el
@@ -80,31 +98,39 @@ export function EstadoAccesoCard({
 }) {
   const vencido = vigencia === "VENCIDO";
   const aviso = textoAviso(vigencia, diasRestantes);
-  const linea = lineaVigencia(vigencia, fechaVigencia, diasRestantes);
+  // Vencido: la frase dice que terminó y esta línea, hasta cuándo estuvo (si
+  // la fecha ya pasó; ver lineaVigencia).
+  const linea = vencido ? lineaVigencia(vigencia, fechaVigencia, diasRestantes) : null;
+  // "Te quedan N días" ya lo dice el aviso cuando está por vencer.
+  const quedan =
+    !vencido && vigencia !== "POR_VENCER" && diasRestantes !== null ? diasRestantes : null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-uva-lg border border-uva-divider bg-uva-surface p-[18px]">
+    <div className="flex flex-col gap-2 rounded-uva-lg border border-uva-divider bg-uva-surface p-[18px] [&_p]:mb-0 [&_h2]:mb-0">
       <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Tu acceso</h2>
-      <p className="flex flex-wrap items-baseline justify-between gap-x-2.5 text-uva-cuerpo font-bold text-uva-text">
-        <span className={vencido ? "text-uva-text-muted" : undefined}>
-          {/* Antes decía "Acceso otorgado"/"Invitación gratuita" (el
-              ORIGEN del acceso) incluso ya terminado, y la línea de abajo
-              decía "estuvo vigente hasta X, ya terminó" justo debajo — dos
-              frases contradiciéndose en la misma tarjeta. El badge ahora
-              habla del ESTADO actual; el origen queda solo en el párrafo
-              de descripción. */}
-          {vencido ? "Acceso finalizado" : ETIQUETA_TIPO_ACCESO[tipo]}
-        </span>
-        {!vencido && diasRestantes !== null && (
-          <b className="font-mono text-uva-accent-ink">
-            {diasRestantes} {diasRestantes === 1 ? "día" : "días"}
-          </b>
-        )}
+      {/* El estado de hoy en una frase y, debajo, el origen. Antes la
+          etiqueta era el origen ("Invitación gratuita") y la fecha iba
+          aparte: había que juntar las dos para saber qué se podía hacer. */}
+      <p className={vencido ? "text-uva-cuerpo font-bold text-uva-text-muted" : "text-uva-cuerpo font-bold text-uva-text"}>
+        {fraseAcceso(vigencia, fechaVigencia)}
       </p>
 
-      <p className="text-uva-cuerpo text-uva-text-muted">{DESCRIPCION_TIPO[tipo]}</p>
-
       {linea && <p className="text-uva-cuerpo text-uva-text-muted">{linea}</p>}
+
+      {!vencido && (
+        <p className="text-uva-cuerpo text-uva-text-muted">
+          {quedan !== null && (
+            <>
+              Te quedan{" "}
+              <b className="font-mono text-uva-text">
+                {quedan} {quedan === 1 ? "día" : "días"}
+              </b>
+              .{" "}
+            </>
+          )}
+          {ORIGEN_TIPO[tipo]}
+        </p>
+      )}
 
       {aviso && (
         <div
