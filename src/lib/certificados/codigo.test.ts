@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatearCodigoCertificadoEscribiendo, normalizarCodigoCertificado } from "@/lib/certificados/codigo";
+import {
+  extraerCodigoCertificado,
+  formatearCodigoCertificadoEscribiendo,
+  normalizarCodigoCertificado,
+} from "@/lib/certificados/codigo";
 
 describe("formatearCodigoCertificadoEscribiendo", () => {
   it("pasa a mayúsculas y descarta lo que no es letra o número", () => {
@@ -42,5 +46,29 @@ describe("normalizarCodigoCertificado", () => {
 
   it("devuelve vacío si no hay nada escrito", () => {
     expect(normalizarCodigoCertificado("   ")).toBe("");
+  });
+});
+
+describe("extraerCodigoCertificado (lo que se pega en el campo)", () => {
+  it("toma el código del enlace del QR", () => {
+    expect(extraerCodigoCertificado("https://uva.test/verificar-certificado/K7M2Q-XP4TB")).toBe("K7M2Q-XP4TB");
+    expect(extraerCodigoCertificado("https://uva.test/verificar-certificado/k7m2q%20xp4tb?x=1")).toBe("K7M2Q-XP4TB");
+  });
+
+  it("no pierde el último carácter si viene con espacios del PDF", () => {
+    expect(extraerCodigoCertificado(" K7M2Q-XP4TB ")).toBe("K7M2Q-XP4TB");
+    expect(extraerCodigoCertificado("K7M2Q-XP4TB.")).toBe("K7M2Q-XP4TB");
+  });
+
+  it("encuentra el código entre otras palabras", () => {
+    expect(extraerCodigoCertificado("Código: k7m2q xp4tb")).toBe("K7M2Q-XP4TB");
+    expect(extraerCodigoCertificado("k7m2qxp4tb")).toBe("K7M2Q-XP4TB");
+  });
+
+  it("no corta los códigos de siembra", () => {
+    expect(extraerCodigoCertificado("UVA-2026-REVIT-7F3A9C2E")).toBe("UVA-2026-REVIT-7F3A9C2E");
+    expect(extraerCodigoCertificado("https://uva.test/verificar-certificado/UVA-2026-REVIT-7F3A9C2E")).toBe(
+      "UVA-2026-REVIT-7F3A9C2E",
+    );
   });
 });
