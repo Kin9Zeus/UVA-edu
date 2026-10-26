@@ -14,6 +14,7 @@ import {
 import { generarContenidoLeccionConIa } from "@/actions/admin/descripcionesIa";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
@@ -97,6 +98,8 @@ export function LeccionEditorPanel({
   });
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
+  const [confirmandoIa, setConfirmandoIa] = useState(false);
+  const [borrandoRecurso, setBorrandoRecurso] = useState<RecursoDetalle | null>(null);
 
   const sinGuardar =
     titulo !== guardadoComo.titulo ||
@@ -121,14 +124,14 @@ export function LeccionEditorPanel({
     }
   }
 
-  async function handleGenerarConIa() {
-    if (
-      !contenidoEstaVacio(contenido) &&
-      !window.confirm("La IA va a reemplazar el contenido actual del editor. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
-    ) {
-      return;
-    }
+  // Con contenido escrito, la propuesta lo reemplaza: se pregunta antes
+  // (diálogo propio, no window.confirm, que cada navegador pinta distinto).
+  function handleGenerarConIa() {
+    if (contenidoEstaVacio(contenido)) generarConIa();
+    else setConfirmandoIa(true);
+  }
 
+  async function generarConIa() {
     setGenerando(true);
     setError(null);
     const resultado = await generarContenidoLeccionConIa(leccion.id, cursoId);
@@ -370,7 +373,7 @@ export function LeccionEditorPanel({
                       aria-label={`Eliminar ${recurso.nombre}`}
                       title="Eliminar material"
                       className="shrink-0 text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3.5"
-                      onClick={() => handleEliminarRecurso(recurso)}
+                      onClick={() => setBorrandoRecurso(recurso)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -420,6 +423,29 @@ export function LeccionEditorPanel({
       <Button type="button" variant="primary" className="lg:self-end" onClick={handleGuardar} disabled={pending}>
         {pending ? "Guardando…" : "Guardar cambios"}
       </Button>
+
+      <ConfirmDialog
+        open={confirmandoIa}
+        onOpenChange={setConfirmandoIa}
+        title="Reemplazar el contenido con IA"
+        description="La propuesta de la IA reemplaza lo que hay ahora en el editor. Nada se guarda hasta que pulses «Guardar cambios»."
+        confirmLabel="Reemplazar contenido"
+        onConfirm={() => {
+          setConfirmandoIa(false);
+          generarConIa();
+        }}
+      />
+      <ConfirmDialog
+        open={borrandoRecurso !== null}
+        onOpenChange={(open) => !open && setBorrandoRecurso(null)}
+        title="Eliminar material"
+        description={`¿Eliminar "${borrandoRecurso?.nombre ?? ""}"? Los estudiantes dejarán de poder descargarlo. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar material"
+        destructive
+        onConfirm={async () => {
+          if (borrandoRecurso) await handleEliminarRecurso(borrandoRecurso);
+        }}
+      />
     </div>
   );
 }

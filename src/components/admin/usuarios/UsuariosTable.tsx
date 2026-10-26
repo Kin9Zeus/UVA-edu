@@ -25,6 +25,7 @@ import { AdminCard } from "@/components/admin/AdminCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Paginacion } from "@/components/Paginacion";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { exportarUsuariosCsv } from "@/actions/admin/exportarUsuarios";
 import { formatFecha } from "@/lib/admin/format";
@@ -63,6 +64,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const showToast = useAdminToast();
+  const [suspendiendo, setSuspendiendo] = useState<UsuarioListado | null>(null);
   const [pendiente, startTransition] = useTransition();
   const [exportando, setExportando] = useState(false);
 
@@ -112,8 +114,14 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
     });
   }
 
-  async function handleToggleEstado(usuario: UsuarioListado) {
-    const nuevoEstado = usuario.estado === "ACTIVO" ? "SUSPENDIDO" : "ACTIVO";
+  // Suspender cierra la sesión del usuario y le corta el acceso: se pide
+  // confirmación. Reactivar no hace daño, así que va directo.
+  function handleToggleEstado(usuario: UsuarioListado) {
+    if (usuario.estado === "ACTIVO") setSuspendiendo(usuario);
+    else cambiarEstado(usuario, "ACTIVO");
+  }
+
+  async function cambiarEstado(usuario: UsuarioListado, nuevoEstado: "ACTIVO" | "SUSPENDIDO") {
     const respuesta = await suspenderActivarUsuario(usuario.id, nuevoEstado);
     if (respuesta.error) {
       showToast(respuesta.error, "error");
@@ -270,7 +278,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             que por debajo de `pointer-fine:md` se ve una lista de tarjetas
             en vez de la tabla. */}
         {usuarios.length > 0 && (
-          <div className={`flex flex-col pointer-fine:md:hidden ${pendiente ? "opacity-60" : ""}`}>
+          <div className={`flex flex-col pointer-fine:md:hidden lg:hidden ${pendiente ? "opacity-60" : ""}`}>
             {usuarios.map((usuario) => (
               <div
                 key={usuario.id}
@@ -334,7 +342,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
         )}
 
         {usuarios.length > 0 && (
-          <Table className="hidden pointer-fine:md:table">
+          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de usuarios">
             <TableHeader>
               <TableRow>
                 <TableHead />
@@ -433,6 +441,18 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
           onCambiarPagina={(destino) => actualizarUrl({ page: String(destino) })}
         />
       </div>
+
+      <ConfirmDialog
+        open={suspendiendo !== null}
+        onOpenChange={(open) => !open && setSuspendiendo(null)}
+        title={`Suspender a ${suspendiendo?.nombre ?? ""}`}
+        description="Se cerrará su sesión y no podrá entrar ni ver sus cursos hasta que lo vuelvas a activar. Su avance y sus certificados se conservan."
+        confirmLabel="Suspender usuario"
+        destructive
+        onConfirm={async () => {
+          if (suspendiendo) await cambiarEstado(suspendiendo, "SUSPENDIDO");
+        }}
+      />
     </div>
   );
 }

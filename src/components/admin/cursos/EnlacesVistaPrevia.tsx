@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   crearEnlaceVistaPrevia,
   revocarEnlaceVistaPrevia,
@@ -106,13 +107,17 @@ export function EnlacesVistaPrevia({
     }
   }
 
+  // Quien tenga el enlace deja de poder abrirlo y no hay forma de
+  // reactivarlo: se confirma antes.
+  const [anulando, setAnulando] = useState<string | null>(null);
+
   async function handleRevocar(tokenId: string) {
     const resultado = await revocarEnlaceVistaPrevia(tokenId, cursoId);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast("Enlace revocado.");
+    showToast("Enlace anulado.");
   }
 
   return (
@@ -228,7 +233,7 @@ export function EnlacesVistaPrevia({
                 aria-label="Anular enlace"
                 title="Anular enlace: dejará de abrir, pero queda el registro"
                 className="text-uva-muted-2 hover:text-uva-accent-ink"
-                onClick={() => handleRevocar(enlace.id)}
+                onClick={() => setAnulando(enlace.id)}
               >
                 <Ban className="size-4" />
               </Button>
@@ -236,6 +241,18 @@ export function EnlacesVistaPrevia({
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={anulando !== null}
+        onOpenChange={(open) => !open && setAnulando(null)}
+        title="Anular enlace de vista previa"
+        description="Quien tenga este enlace ya no podrá abrir el curso. No se puede volver a activar: si lo necesitas otra vez, crea uno nuevo."
+        confirmLabel="Anular enlace"
+        destructive
+        onConfirm={async () => {
+          if (anulando) await handleRevocar(anulando);
+        }}
+      />
     </div>
   );
 }

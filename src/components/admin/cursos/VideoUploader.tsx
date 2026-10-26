@@ -216,6 +216,7 @@ export function VideoUploader({
         </>
       }
       confirmLabel="Reemplazar video"
+      destructive
       onConfirm={() => {
         setConfirmandoReemplazo(null);
         handleElegirArchivo();
@@ -253,6 +254,7 @@ export function VideoUploader({
         </>
       }
       confirmLabel="Quitar video"
+      destructive
       onConfirm={handleQuitar}
     />
   );

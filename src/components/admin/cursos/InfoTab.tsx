@@ -19,6 +19,7 @@ import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstruct
 import { subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { generarDescripcionCursoConIa } from "@/actions/admin/descripcionesIa";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   ACCEPT_PORTADA,
   ERROR_FORMATO_PORTADA,
@@ -86,17 +87,16 @@ export function InfoTab({
   const showToast = useAdminToast();
   const [generandoDescripcion, setGenerandoDescripcion] = useState(false);
   const [errorDescripcion, setErrorDescripcion] = useState<string | null>(null);
+  const [confirmandoIa, setConfirmandoIa] = useState(false);
 
   /** Carga la propuesta en el campo sin guardarla: queda como un cambio más
    * del formulario, que se guarda (o se descarta) con el botón de la cabecera. */
-  async function handleGenerarDescripcion() {
-    if (
-      descripcion.trim() !== "" &&
-      !window.confirm("La IA va a reemplazar la descripción actual. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
-    ) {
-      return;
-    }
+  function handleGenerarDescripcion() {
+    if (descripcion.trim() === "") generarDescripcion();
+    else setConfirmandoIa(true);
+  }
 
+  async function generarDescripcion() {
     setGenerandoDescripcion(true);
     setErrorDescripcion(null);
     const resultado = await generarDescripcionCursoConIa(cursoId);
@@ -355,6 +355,18 @@ export function InfoTab({
           onChange={onIdsInstructoresChange}
         />
       </div>
+
+      <ConfirmDialog
+        open={confirmandoIa}
+        onOpenChange={setConfirmandoIa}
+        title="Reemplazar la descripción con IA"
+        description="La propuesta de la IA reemplaza la descripción actual. Nada se guarda hasta que pulses «Guardar cambios»."
+        confirmLabel="Reemplazar descripción"
+        onConfirm={() => {
+          setConfirmandoIa(false);
+          generarDescripcion();
+        }}
+      />
     </div>
   );
 }

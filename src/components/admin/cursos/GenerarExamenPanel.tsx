@@ -238,7 +238,7 @@ export function GenerarExamenPanel({
       ) : null}
 
       {faltan.length > 0 ? (
-        <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+        <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
           <p className="flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-badge-warn-fg">
             <AlertTriangle className="size-3.5" />
             Faltan {faltan.length} {faltan.length === 1 ? "transcripción" : "transcripciones"}
@@ -330,6 +330,7 @@ export function GenerarExamenPanel({
           `Las que hayas escrito o editado a mano se conservan, y el examen sigue en borrador.`
         }
         confirmLabel="Regenerar"
+        destructive
         onConfirm={lanzar}
       />
     </div>
@@ -356,7 +357,7 @@ function ResultadoTrabajo({
 }) {
   if (trabajo.estado === "FALLIDO") {
     return (
-      <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+      <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
         <StatusBadge tone="error">Falló</StatusBadge>
         <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-muted">
           {trabajo.error ?? "No quedó registrado el motivo."}
@@ -368,7 +369,7 @@ function ResultadoTrabajo({
   const descartadas = trabajo.preguntasRecibidas - trabajo.preguntasValidadas;
 
   return (
-    <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+    <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
       <StatusBadge tone="success">Última generación</StatusBadge>
       <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-muted">
         {trabajo.preguntasValidadas} preguntas guardadas
