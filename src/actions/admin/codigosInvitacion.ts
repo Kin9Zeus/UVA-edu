@@ -161,12 +161,22 @@ export async function toggleActivoCodigoInvitacion(
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { error } = await admin.supabase
+  const { data: codigo, error } = await admin.supabase
     .from("codigos_invitacion")
     .update({ activo })
-    .eq("id", id);
+    .eq("id", id)
+    .select("codigo")
+    .maybeSingle();
 
   if (error) return { error: "No pudimos actualizar el código." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: activo ? "Activó un código de invitación" : "Desactivó un código de invitación",
+    entidadAfectada: "codigos_invitacion",
+    idEntidadAfectada: id,
+    detalles: codigo?.codigo,
+  });
 
   revalidatePath("/admin/codigos");
   return { success: true };

@@ -81,6 +81,14 @@ export async function actualizarPlan(id: string, input: PlanInput): Promise<Admi
 
   if (error) return { error: "No pudimos actualizar el plan." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó un plan",
+    entidadAfectada: "planes",
+    idEntidadAfectada: id,
+    detalles: input.nombre.trim(),
+  });
+
   revalidatePath("/admin/planes");
   revalidatePath("/planes");
   revalidatePath("/dashboard/planes");
@@ -103,8 +111,21 @@ export async function toggleActivoPlan(id: string, activo: boolean): Promise<Adm
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { error } = await admin.supabase.from("planes").update({ activo }).eq("id", id);
+  const { data: plan, error } = await admin.supabase
+    .from("planes")
+    .update({ activo })
+    .eq("id", id)
+    .select("nombre")
+    .maybeSingle();
   if (error) return { error: "No pudimos actualizar el plan." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: activo ? "Activó un plan" : "Desactivó un plan",
+    entidadAfectada: "planes",
+    idEntidadAfectada: id,
+    detalles: plan?.nombre,
+  });
 
   revalidatePath("/admin/planes");
   revalidatePath("/planes");

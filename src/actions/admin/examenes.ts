@@ -191,6 +191,14 @@ export async function actualizarConfiguracionExamen(
 
   if (error) return { error: "No pudimos guardar la configuración del examen." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó la configuración del examen final",
+    entidadAfectada: "examenes",
+    idEntidadAfectada: cursoId,
+    detalles: config.titulo,
+  });
+
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
   return { success: true };
 }
@@ -376,6 +384,13 @@ export async function crearPregunta(
 
   if (error) return { error: "No pudimos crear la pregunta." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Agregó una pregunta al examen final",
+    entidadAfectada: "examenes",
+    idEntidadAfectada: cursoId,
+  });
+
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
   return { success: true, id: data.id };
 }
@@ -456,6 +471,13 @@ export async function actualizarPregunta(
 
   if (error) return { error: "No pudimos guardar la pregunta." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó una pregunta del examen final",
+    entidadAfectada: "examenes",
+    idEntidadAfectada: cursoId,
+  });
+
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
   return { success: true };
 }
@@ -470,6 +492,13 @@ export async function eliminarPregunta(
 
   const { error } = await admin.supabase.from("preguntas_examen").delete().eq("id", preguntaId);
   if (error) return { error: "No pudimos eliminar la pregunta." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Eliminó una pregunta del examen final",
+    entidadAfectada: "examenes",
+    idEntidadAfectada: cursoId,
+  });
 
   revalidarExamen(cursoId, await slugDelCurso(admin.supabase, cursoId));
   return { success: true };

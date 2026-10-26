@@ -126,7 +126,7 @@ export async function generarExamenDelCurso(
   // `trabajos_generacion_examen`, que es su propia bitácora.
   await registrarBitacora(admin.supabase, {
     idAdmin,
-    accion: "GENERAR_EXAMEN_IA",
+    accion: "Generó el examen final con IA",
     entidadAfectada: "trabajos_generacion_examen",
     idEntidadAfectada: trabajoId,
     detalles: `Generación disparada para el curso ${cursoId} (${totalPreguntas} preguntas en total).`,
