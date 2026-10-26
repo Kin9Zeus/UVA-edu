@@ -69,6 +69,8 @@ export const PARES: Par[] = [
   { tipo: "relleno", frente: "uva-on-accent", fondo: "uva-btn", minimo: 4.5 },
   { tipo: "relleno", frente: "uva-on-accent", fondo: "uva-btn-hover", minimo: 4.5 },
   { tipo: "relleno", frente: "uva-on-accent", fondo: "uva-btn-active", minimo: 4.5 },
+  { tipo: "relleno", frente: "uva-on-accent", fondo: "uva-btn-peligro", minimo: 4.5 },
+  { tipo: "relleno", frente: "uva-on-accent", fondo: "uva-btn-peligro-hover", minimo: 4.5 },
   { tipo: "relleno", frente: "uva-on-bright", fondo: "uva-accent", minimo: 4.5 },
   { tipo: "relleno", frente: "uva-on-bright", fondo: "uva-accent-2", minimo: 4.5 },
   { tipo: "relleno", frente: "uva-on-bright", fondo: "uva-whatsapp", minimo: 4.5 },

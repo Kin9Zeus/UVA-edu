@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -11,11 +12,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAdminToast } from "@/components/admin/Toast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { useRecienMovido } from "@/components/admin/BotonesMover";
+import { moverA } from "@/lib/admin/reordenar";
 import { ModuloCard } from "@/components/admin/cursos/ModuloCard";
 import { crearModulo, moverModulo } from "@/actions/admin/cursos";
 import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
@@ -75,6 +78,7 @@ export function ContenidoTab({
   const resolverSalirRef = useRef<((continuar: boolean) => void) | null>(null);
   const showToast = useAdminToast();
   const router = useRouter();
+  const [movidoId, marcarMovido] = useRecienMovido();
 
   const handleDirtyChange = useCallback(
     (dirty: boolean) => {
@@ -188,38 +192,49 @@ export function ContenidoTab({
     router.refresh();
   }
 
-  async function handleModuloDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  // Arrastre y botones subir/bajar terminan aquí: los dos guardan igual.
+  async function moverModuloA(moduloId: string, destino: number) {
+    const movimiento = moverA(modulos, moduloId, destino);
+    if (!movimiento) return;
     if (!(await confirmarSalirSinGuardar())) return;
 
     const anteriores = modulos;
-    const origenIndex = modulos.findIndex((modulo) => modulo.id === active.id);
-    const targetIndex = modulos.findIndex((modulo) => modulo.id === over.id);
-    if (origenIndex === -1 || targetIndex === -1) return;
+    setModulos(movimiento.lista);
+    marcarMovido(moduloId);
 
-    const reordenados = arrayMove(modulos, origenIndex, targetIndex);
-    setModulos(reordenados);
-
-    const idAnterior = reordenados[targetIndex - 1]?.id ?? null;
-    const idSiguiente = reordenados[targetIndex + 1]?.id ?? null;
-
-    moverModulo(cursoId, String(active.id), idAnterior, idSiguiente).then((resultado) => {
-      if (resultado.error) {
-        showToast(resultado.error, "error");
-        // Reversión visible: sin esto el orden en pantalla queda mintiendo
-        // sobre lo que de verdad quedó guardado.
-        setModulos(anteriores);
-      }
-    });
+    const resultado = await moverModulo(cursoId, moduloId, movimiento.idAnterior, movimiento.idSiguiente);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      // Reversión visible: sin esto el orden en pantalla queda mintiendo
+      // sobre lo que de verdad quedó guardado.
+      setModulos(anteriores);
+      return;
+    }
+    showToast(`Módulo movido a la posición ${destino + 1} de ${movimiento.lista.length}.`);
   }
+
+  function handleModuloDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    moverModuloA(String(active.id), modulos.findIndex((modulo) => modulo.id === over.id));
+  }
+
+  const totalLecciones = modulos.reduce((total, modulo) => total + modulo.lecciones.length, 0);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <h4 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
-          Módulos y lecciones
-        </h4>
+        <div>
+          <h4 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
+            Módulos y lecciones
+          </h4>
+          {modulos.length > 0 && (
+            <p className="text-uva-detalle text-uva-muted">
+              {modulos.length} {modulos.length === 1 ? "módulo" : "módulos"}, {totalLecciones}{" "}
+              {totalLecciones === 1 ? "lección" : "lecciones"}
+            </p>
+          )}
+        </div>
         {agregando ? (
           <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
             <Input
@@ -228,7 +243,7 @@ export function ContenidoTab({
               value={nombreModulo}
               onChange={(event) => setNombreModulo(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAgregarModulo()}
-              className="h-8 text-uva-detalle sm:max-w-[240px]"
+              className="sm:max-w-[240px]"
             />
             <div className="flex items-center gap-2">
               <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
@@ -241,7 +256,8 @@ export function ContenidoTab({
           </div>
         ) : (
           <Button type="button" size="sm" className="sm:ml-auto" onClick={() => setAgregando(true)}>
-            + Módulo
+            <Plus aria-hidden="true" />
+            Añadir módulo
           </Button>
         )}
       </div>
@@ -257,7 +273,10 @@ export function ContenidoTab({
               key={modulo.id}
               modulo={modulo}
               posicion={index + 1}
-              totalLeccionesCurso={modulos.reduce((total, m) => total + m.lecciones.length, 0)}
+              totalModulos={modulos.length}
+              recienMovido={movidoId === modulo.id}
+              onMover={(destino) => moverModuloA(modulo.id, destino)}
+              totalLeccionesCurso={totalLecciones}
               cursoId={cursoId}
               leccionActivaId={leccionActivaId}
               onSeleccionarLeccion={seleccionarLeccion}
@@ -279,6 +298,7 @@ export function ContenidoTab({
         title="Cambios sin guardar"
         description="Tienes cambios sin guardar en esta lección. ¿Salir sin guardarlos?"
         confirmLabel="Salir sin guardar"
+        destructive
         cancelLabel="Seguir editando"
         onConfirm={() => resolverDialogSalir(true)}
       />

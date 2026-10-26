@@ -38,6 +38,10 @@ const buttonVariants = cva(
         /* `.btn-danger` — borde neutro y texto rojo, nunca relleno rojo */
         destructive:
           "border-uva-divider bg-transparent text-uva-error hover:bg-[color-mix(in_srgb,var(--uva-error)_12%,transparent)] active:bg-[color-mix(in_srgb,var(--uva-error)_22%,transparent)]",
+        /* Confirmar un borrado (ConfirmDialog destructivo): relleno rojo con
+           letra blanca, AA en los dos temas */
+        "destructive-solid":
+          "border-uva-btn-peligro bg-uva-btn-peligro text-uva-on-accent hover:border-uva-btn-peligro-hover hover:bg-uva-btn-peligro-hover active:bg-uva-btn-peligro-hover",
         link: "border-transparent text-uva-accent-ink underline-offset-4 hover:underline active:opacity-70",
         /* U.V.A — variantes del sitio público (auth.css / home.css migrados).
            El original no define `transition` en .btn, así que se cancela la

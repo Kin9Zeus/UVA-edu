@@ -13,7 +13,6 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  arrayMove,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -26,6 +25,9 @@ import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
+import { BotonesMover, CLASE_RECIEN_MOVIDO, useRecienMovido } from "@/components/admin/BotonesMover";
+import { moverA } from "@/lib/admin/reordenar";
+import { cn } from "@/lib/utils";
 import { PreguntaEditor } from "@/components/admin/cursos/PreguntaEditor";
 import { GenerarExamenPanel } from "@/components/admin/cursos/GenerarExamenPanel";
 import { IntentoRevisionDialog } from "@/components/admin/cursos/IntentoRevisionDialog";
@@ -198,6 +200,7 @@ function ExamenExistente({
   const [intentoRevisionId, setIntentoRevisionId] = useState<string | null>(null);
 
   const showToast = useAdminToast();
+  const [movidaId, marcarMovida] = useRecienMovido();
   const router = useRouter();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -339,29 +342,23 @@ function ExamenExistente({
     router.refresh();
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const anteriores = preguntas;
-    const origen = preguntas.findIndex((pregunta) => pregunta.id === active.id);
-    const destino = preguntas.findIndex((pregunta) => pregunta.id === over.id);
-    if (origen === -1 || destino === -1) return;
+  // Arrastre y botones subir/bajar terminan aquí: los dos guardan igual.
+  async function moverPreguntaA(preguntaId: string, destino: number) {
+    const movimiento = moverA(preguntas, preguntaId, destino);
+    if (!movimiento) return;
 
     // Optimista: se reordena en pantalla y se revierte si el servidor falla —
     // mismo criterio que el reordenamiento de módulos y lecciones.
-    const reordenadas = arrayMove(preguntas, origen, destino);
-    setPreguntas(reordenadas);
-
-    const idAnterior = destino > 0 ? reordenadas[destino - 1].id : null;
-    const idSiguiente = destino < reordenadas.length - 1 ? reordenadas[destino + 1].id : null;
+    const anteriores = preguntas;
+    setPreguntas(movimiento.lista);
+    marcarMovida(preguntaId);
 
     const resultado = await moverPregunta(
       examen.id,
       cursoId,
-      String(active.id),
-      idAnterior,
-      idSiguiente,
+      preguntaId,
+      movimiento.idAnterior,
+      movimiento.idSiguiente,
     );
 
     if (resultado.error) {
@@ -369,7 +366,14 @@ function ExamenExistente({
       showToast(resultado.error, "error");
       return;
     }
+    showToast(`Pregunta movida a la posición ${destino + 1} de ${movimiento.lista.length}.`);
     router.refresh();
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    moverPreguntaA(String(active.id), preguntas.findIndex((pregunta) => pregunta.id === over.id));
   }
 
   return (
@@ -600,6 +604,9 @@ function ExamenExistente({
                     key={pregunta.id}
                     pregunta={pregunta}
                     numero={indice + 1}
+                    total={preguntas.length}
+                    recienMovida={movidaId === pregunta.id}
+                    onMover={(destino) => moverPreguntaA(pregunta.id, destino)}
                     abierta={preguntaAbiertaId === pregunta.id}
                     pending={pending}
                     onAbrir={() =>
@@ -695,6 +702,7 @@ function ExamenExistente({
           </>
         }
         confirmLabel="Eliminar examen"
+        destructive
         onConfirm={handleEliminarExamen}
       />
 
@@ -704,6 +712,7 @@ function ExamenExistente({
         title="Eliminar la pregunta"
         description="Los intentos ya presentados conservan la pregunta tal como se la mostraron al estudiante; solo desaparece de los intentos futuros."
         confirmLabel="Eliminar pregunta"
+        destructive
         onConfirm={async () => {
           if (preguntaAEliminar) await handleEliminarPregunta(preguntaAEliminar);
         }}
@@ -721,6 +730,9 @@ function ExamenExistente({
 function PreguntaFila({
   pregunta,
   numero,
+  total,
+  recienMovida,
+  onMover,
   abierta,
   pending,
   onAbrir,
@@ -730,6 +742,9 @@ function PreguntaFila({
 }: {
   pregunta: PreguntaCompleta;
   numero: number;
+  total: number;
+  recienMovida: boolean;
+  onMover: (destino: number) => void;
   abierta: boolean;
   pending: boolean;
   onAbrir: () => void;
@@ -753,15 +768,19 @@ function PreguntaFila({
     <div
       ref={setNodeRef}
       style={style}
-      className="rounded-uva-md border border-uva-divider bg-uva-surface"
+      className={cn(
+        "rounded-uva-md border border-uva-divider bg-uva-surface transition-colors duration-700 motion-reduce:transition-none",
+        recienMovida && CLASE_RECIEN_MOVIDO,
+      )}
     >
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+      <div className="flex items-center gap-2.5 py-1.5 pr-2 pl-3.5">
+        {/* Asa de arrastre solo desde 640 px: en celular, subir/bajar. */}
         <button
           type="button"
           {...attributes}
           {...listeners}
-          aria-label={`Reordenar la pregunta ${numero}`}
-          className="cursor-grab text-uva-text-faint hover:text-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          aria-label={`Arrastrar la pregunta ${numero}`}
+          className="cursor-grab touch-none text-uva-text-faint max-sm:hidden hover:text-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         >
           <GripVertical className="size-4" />
         </button>
@@ -770,7 +789,7 @@ function PreguntaFila({
           type="button"
           onClick={onAbrir}
           aria-expanded={abierta}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 text-left sm:pointer-fine:min-h-9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         >
           <span className="shrink-0 font-mono text-uva-detalle text-uva-text-faint">{numero}.</span>
           <span className="min-w-0 flex-1 truncate text-uva-detalle text-uva-text">
@@ -801,6 +820,15 @@ function PreguntaFila({
             className={`size-4 shrink-0 text-uva-text-faint transition-transform ${abierta ? "rotate-180" : ""}`}
           />
         </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <BotonesMover
+            nombre={`la pregunta ${numero}`}
+            posicion={numero - 1}
+            total={total}
+            disabled={pending}
+            onMover={onMover}
+          />
+        </div>
       </div>
 
       {abierta && (
@@ -836,7 +864,7 @@ function PreguntaFila({
  */
 function Procedencia({ origen }: { origen: NonNullable<PreguntaCompleta["origen"]> }) {
   return (
-    <div className="mb-3.5 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+    <div className="mb-3.5 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone={origen.validada === true ? "accent" : "warning"}>
           <Sparkles className="size-3" />

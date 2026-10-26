@@ -51,6 +51,8 @@ Estado: todos los pares obligatorios pasan AA en los dos temas.
 | `--uva-on-accent` sobre `--uva-btn` | 4,50 | 5,54 | 5,54 |
 | `--uva-on-accent` sobre `--uva-btn-hover` | 4,50 | 6,56 | 6,56 |
 | `--uva-on-accent` sobre `--uva-btn-active` | 4,50 | 7,82 | 7,82 |
+| `--uva-on-accent` sobre `--uva-btn-peligro` | 4,50 | 5,74 | 5,74 |
+| `--uva-on-accent` sobre `--uva-btn-peligro-hover` | 4,50 | 7,45 | 7,45 |
 | `--uva-on-bright` sobre `--uva-accent` | 4,50 | 5,24 | 5,24 |
 | `--uva-on-bright` sobre `--uva-accent-2` | 4,50 | 12,46 | 12,46 |
 | `--uva-on-bright` sobre `--uva-whatsapp` | 4,50 | 10,03 | 10,03 |

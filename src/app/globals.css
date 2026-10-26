@@ -105,6 +105,8 @@
   --color-uva-btn: var(--uva-btn);
   --color-uva-btn-hover: var(--uva-btn-hover);
   --color-uva-btn-active: var(--uva-btn-active);
+  --color-uva-btn-peligro: var(--uva-btn-peligro);
+  --color-uva-btn-peligro-hover: var(--uva-btn-peligro-hover);
   --color-uva-accent-soft: var(--uva-accent-soft);
   --color-uva-accent-text: var(--uva-accent-text);
   --color-uva-accent-ink: var(--uva-accent-ink);
@@ -309,6 +311,11 @@
   --uva-btn: #cc006d;
   --uva-btn-hover: #b8005f;
   --uva-btn-active: #a30054;
+  /* Botón que confirma un borrado (ConfirmDialog destructivo), igual en los
+     dos temas con texto blanco: rojo y no magenta, para que no se confunda
+     con la acción principal de la pantalla. */
+  --uva-btn-peligro: #c81e1e;
+  --uva-btn-peligro-hover: #a81919;
   --uva-accent-soft: rgba(255, 0, 122, 0.1);
   --uva-accent-text: #b30054;
   --uva-accent-warm: #ff6a3d;
