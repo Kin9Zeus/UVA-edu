@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import {
   Dialog,
@@ -54,9 +55,9 @@ export function EliminarCuentaCard({
         Los certificados que hayas obtenido siguen siendo válidos y
         conservan el nombre con el que se emitieron, para que cualquiera
         pueda seguir verificándolos con su código — ver{" "}
-        <a href="/soporte/privacidad" className="font-bold text-uva-accent-ink underline underline-offset-3">
+        <Link href="/soporte/privacidad" className="font-bold text-uva-accent-ink underline underline-offset-3">
           nuestra política de datos
-        </a>
+        </Link>
         .
       </p>
 
