@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import {
-  LARGO_MAXIMO_CODIGO_CERTIFICADO,
+  extraerCodigoCertificado,
   formatearCodigoCertificadoEscribiendo,
   normalizarCodigoCertificado,
 } from "@/lib/certificados/codigo";
@@ -42,6 +42,19 @@ export function VerificarCertificadoForm(props: Props) {
     setCodigo(formatearCodigoCertificadoEscribiendo(nuevo, nuevo.length < codigo.length));
   }
 
+  // Lo pegado no pasa por el formateador de teclear: el enlace del QR o un
+  // código con espacios saldrían destrozados (ver extraerCodigoCertificado).
+  function pegar(event: React.ClipboardEvent<HTMLInputElement>) {
+    const { value, selectionStart, selectionEnd } = event.currentTarget;
+    const pegado = event.clipboardData.getData("text");
+    event.preventDefault();
+    setCodigo(
+      extraerCodigoCertificado(
+        value.slice(0, selectionStart ?? value.length) + pegado + value.slice(selectionEnd ?? value.length),
+      ),
+    );
+  }
+
   function verificar(event: React.FormEvent) {
     event.preventDefault();
     const limpio = normalizarCodigoCertificado(codigo);
@@ -66,7 +79,7 @@ export function VerificarCertificadoForm(props: Props) {
             spellCheck={false}
             value={codigo}
             onChange={escribir}
-            maxLength={LARGO_MAXIMO_CODIGO_CERTIFICADO}
+            onPaste={pegar}
             placeholder="XXXXX-XXXXX"
             aria-invalid={pagina.invalido || undefined}
             aria-describedby={pagina.ayudaId}
@@ -94,7 +107,7 @@ export function VerificarCertificadoForm(props: Props) {
         spellCheck={false}
         value={codigo}
         onChange={escribir}
-        maxLength={LARGO_MAXIMO_CODIGO_CERTIFICADO}
+        onPaste={pegar}
         autoCapitalize="characters"
         placeholder="Ej. K7M2Q-XP4TB"
         aria-label="Código de verificación del certificado"
