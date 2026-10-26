@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { ArrowDownUp, Search, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Mismo criterio que CatalogoCursos (Revf3): no disparar una consulta al
@@ -66,7 +66,10 @@ export function ComunidadFiltros() {
   }
 
   return (
-    <div className="grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+    // Una sola fila también en celular: el orden se encoge a su ícono (el
+    // nombre de la opción sigue en el `aria-label`) y el buscador se queda
+    // con el resto del ancho.
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-4">
       <div className="relative min-w-0">
         <Search
           className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-uva-text-muted"
@@ -79,7 +82,7 @@ export function ComunidadFiltros() {
           onChange={(event) => alEscribir(event.target.value)}
           placeholder="Buscar publicaciones o personas"
           aria-label="Buscar publicaciones o personas en Comunidad"
-          className="h-11 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:pointer-fine:h-9 md:pointer-fine:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
+          className="h-11 w-full text-ellipsis rounded-uva-md border border-uva-line-strong bg-uva-surface py-2 pr-11 pl-11 text-base text-uva-text md:pointer-fine:h-9 md:pointer-fine:text-uva-detalle outline-hidden placeholder:text-uva-text-muted hover:border-uva-text focus-visible:border-uva-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-uva-accent"
         />
         {texto && (
           <button
@@ -104,10 +107,11 @@ export function ComunidadFiltros() {
           items={Object.fromEntries(OPCIONES_ORDEN.map((o) => [o.valor, o.label]))}
         >
           <SelectTrigger
-            aria-label="Ordenar publicaciones"
-            className="min-h-11.25 w-full gap-2.5 rounded-uva-md border border-uva-line-strong bg-uva-surface px-3.5 text-uva-cuerpo font-semibold text-uva-text md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle md:pointer-fine:font-medium sm:w-auto dark:bg-uva-surface dark:hover:bg-uva-surface"
+            aria-label={`Ordenar publicaciones: ${OPCIONES_ORDEN.find((o) => o.valor === ordenActual)?.label}`}
+            className="min-h-11 w-auto gap-2 rounded-uva-md border border-uva-line-strong bg-uva-surface px-3 text-uva-cuerpo font-semibold text-uva-text sm:px-3.5 md:pointer-fine:h-9 md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle md:pointer-fine:font-medium dark:bg-uva-surface dark:hover:bg-uva-surface"
           >
-            <SelectValue />
+            <ArrowDownUp aria-hidden="true" className="size-5 sm:hidden" />
+            <SelectValue className="max-sm:sr-only" />
           </SelectTrigger>
           <SelectContent>
             {OPCIONES_ORDEN.map((opcion) => (

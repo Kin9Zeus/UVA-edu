@@ -2,21 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CATEGORIAS_COMUNIDAD, CATEGORIA_LABEL, type CategoriaComunidad } from "@/lib/comunidad-tipos";
+import { CATEGORIAS_COMUNIDAD, CATEGORIA_LABEL, ICONO_CATEGORIA, type CategoriaComunidad } from "@/lib/comunidad-tipos";
 
-function CategoriaTab({ href, label, active }: { href: string; label: string; active: boolean }) {
+function CategoriaTab({ href, label, icono: Icono, active }: { href: string; label: string; icono?: LucideIcon; active: boolean }) {
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        // Pestaña subrayada en todos los anchos (Cartelera): la activa, en
-        // negrita y con la línea del color del botón.
-        "inline-flex min-h-11 shrink-0 items-center border-b-[3px] border-transparent px-1 text-uva-cuerpo font-semibold whitespace-nowrap text-uva-text-muted transition-colors hover:text-uva-text",
-        active && "border-uva-btn font-extrabold text-uva-text",
+        // Píldoras con el ícono amarillo de cada categoría (el mismo de las
+        // tarjetas). La activa se rellena con el color del texto: se
+        // distingue de un vistazo y el magenta queda para "Nueva publicación".
+        "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-uva-line-strong px-4 text-uva-cuerpo font-semibold whitespace-nowrap text-uva-text transition-colors hover:border-uva-text sm:pointer-fine:min-h-9 sm:pointer-fine:text-uva-detalle",
+        active && "border-uva-text bg-uva-text font-extrabold text-uva-bg",
       )}
     >
+      {Icono && <Icono aria-hidden="true" className={cn("size-4", active ? "text-uva-bg" : "text-uva-accent-2-text")} />}
       {label}
     </Link>
   );
@@ -24,7 +27,7 @@ function CategoriaTab({ href, label, active }: { href: string; label: string; ac
 
 /**
  * Navegación de Comunidad: categorías + "Mis publicaciones", en una fila de
- * pestañas arriba del muro (con scroll horizontal si no caben).
+ * píldoras arriba del muro (con scroll horizontal si no caben).
  *
  * Antes la fila hacía `flex-wrap`: a 375 px las seis pestañas ocupaban 4
  * filas (162 px) y el primer post empezaba pasada la mitad de la pantalla.
@@ -86,8 +89,10 @@ export function ComunidadCategoriaTabs({
     <div className="relative">
       <nav
         ref={navRef}
-        className="flex gap-[18px] overflow-x-auto border-b border-uva-divider [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        aria-label="Navegación de la comunidad"
+        // `p-0.5`: el contorno de foco de la píldora no se corta contra el
+        // borde de la fila con scroll.
+        className="flex gap-2 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Categorías de la comunidad"
       >
         <CategoriaTab href="/dashboard/comunidad" label="Todas" active={!sinActivo && !categoriaActiva && !soloPropios} />
         {CATEGORIAS_COMUNIDAD.map((categoria) => (
@@ -95,10 +100,11 @@ export function ComunidadCategoriaTabs({
             key={categoria}
             href={`/dashboard/comunidad?categoria=${categoria}`}
             label={CATEGORIA_LABEL[categoria]}
+            icono={ICONO_CATEGORIA[categoria]}
             active={!sinActivo && categoriaActiva === categoria}
           />
         ))}
-        <CategoriaTab href="/dashboard/comunidad?mias=1" label="Mis publicaciones" active={!sinActivo && !!soloPropios} />
+        <CategoriaTab href="/dashboard/comunidad?mias=1" label="Mis publicaciones" icono={User} active={!sinActivo && !!soloPropios} />
       </nav>
       {hayAntes && (
         <div

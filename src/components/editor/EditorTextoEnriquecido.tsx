@@ -68,9 +68,13 @@ export const EditorTextoEnriquecido = forwardRef<
     /** Oculta el botón de adjuntar: solo Comunidad sube archivos. Las
      * notas de clase (NotasTab) reusan el editor sin adjuntos. */
     sinAdjuntos?: boolean;
+    /** Id de una etiqueta visible: el campo se llama como ella y no como
+     * su placeholder, que desaparece al escribir. */
+    etiquetadoPor?: string;
   }
 >(function EditorTextoEnriquecido(
   {
+    etiquetadoPor,
     placeholder,
     autoFocus,
     onCambiar,
@@ -156,7 +160,7 @@ export const EditorTextoEnriquecido = forwardRef<
 
   return (
     <div className="flex flex-col rounded-uva-md border border-uva-divider bg-uva-bg focus-within:border-uva-accent">
-      <div className="flex items-center gap-0.5 border-b border-uva-divider px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-uva-divider px-1 py-0.5 sm:pointer-fine:px-2 sm:pointer-fine:py-1.5">
         {BOTONES_FORMATO.map(({ tipo, icono: Icono, etiqueta }) => (
           <button
             key={tipo}
@@ -173,7 +177,8 @@ export const EditorTextoEnriquecido = forwardRef<
               alternarFormato(editorRef.current, tipo);
               actualizarActivos();
             }}
-            className={`grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 ${
+            // 44 px en pantallas táctiles (y bajo 640 px), 28 px con mouse.
+            className={`grid size-11 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 sm:pointer-fine:size-7 ${
               activos[tipo]
                 ? "bg-uva-btn text-uva-on-accent"
                 : "bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text"
@@ -191,7 +196,7 @@ export const EditorTextoEnriquecido = forwardRef<
               aria-label="Adjuntar imagen o archivo"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => fileInputRef.current?.click()}
-              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text"
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-uva-xs border-0 bg-transparent text-uva-text-faint hover:bg-uva-hover hover:text-uva-text sm:pointer-fine:size-7"
             >
               <Paperclip className="size-[15px]" strokeWidth={2.2} />
             </button>
@@ -209,9 +214,20 @@ export const EditorTextoEnriquecido = forwardRef<
         autoFocus={autoFocus}
         role="textbox"
         aria-multiline="true"
-        aria-label={placeholder}
+        aria-labelledby={etiquetadoPor}
+        aria-label={etiquetadoPor ? undefined : placeholder}
         data-placeholder={placeholder}
         onKeyDown={(event) => editorRef.current && manejarEnterEnLista(event.nativeEvent, editorRef.current)}
+        // Se pega como texto plano: el HTML que trae el portapapeles (Word,
+        // una web) entraba con sus colores y letras — negro sobre el fondo
+        // oscuro — y nada de eso se guarda, el serializador solo conserva
+        // negrita, cursiva, subrayado y listas.
+        onPaste={(event) => {
+          const texto = event.clipboardData.getData("text/plain");
+          if (!texto) return;
+          event.preventDefault();
+          document.execCommand("insertText", false, texto);
+        }}
         onKeyUp={actualizarActivos}
         onMouseUp={actualizarActivos}
         onInput={() => {
