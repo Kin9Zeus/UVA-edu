@@ -88,7 +88,7 @@ export function VerificarCertificadoForm(props: Props) {
         </div>
         <button
           type="submit"
-          className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "min-h-13 text-uva-cuerpo")}
+          className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "h-auto min-h-13 text-uva-cuerpo whitespace-normal")}
         >
           {pagina.textoBoton}
         </button>
@@ -115,7 +115,7 @@ export function VerificarCertificadoForm(props: Props) {
       />
       <button
         type="submit"
-        className="h-12 shrink-0 rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent px-4 text-uva-cuerpo font-semibold text-uva-text hover:border-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="min-h-12 max-w-full shrink-0 rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent px-4 text-uva-cuerpo font-semibold text-uva-text hover:border-uva-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       >
         Verificar certificado
       </button>

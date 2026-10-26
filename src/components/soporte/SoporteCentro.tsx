@@ -162,12 +162,14 @@ export function SoporteCentro({
               <li key={documento} className="border-t border-uva-divider first:border-t-0">
                 <Link
                   href={`/soporte/${documento}`}
-                  className="flex min-h-[60px] items-center gap-3 px-4 text-uva-cuerpo font-bold text-uva-text hover:text-uva-accent-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-uva-accent sm:px-[22px]"
+                  className="flex min-h-[60px] items-center gap-3 px-4 py-2 text-uva-cuerpo font-bold text-uva-text hover:text-uva-accent-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-uva-accent sm:px-[22px]"
                 >
-                  <span className="flex-1">{titulo}</span>
-                  {secciones.length === 0 && (
-                    <span className="text-uva-detalle font-normal text-uva-text-muted">En preparación</span>
-                  )}
+                  <span className="min-w-0 flex-1">
+                    {titulo}
+                    {secciones.length === 0 && (
+                      <span className="block text-uva-detalle font-normal text-uva-text-muted">En preparación</span>
+                    )}
+                  </span>
                   <ChevronRight aria-hidden="true" className="size-[18px] shrink-0 text-uva-text-muted" strokeWidth={2} />
                 </Link>
               </li>
@@ -209,13 +211,13 @@ export function SoporteCentro({
           <div className="flex flex-wrap gap-2.5">
             <Link
               href="/login"
-              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "h-12 w-auto px-6 text-uva-cuerpo")}
+              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "h-auto min-h-12 w-auto max-w-full px-6 text-uva-cuerpo whitespace-normal")}
             >
               Acceder
             </Link>
             <Link
               href="/dashboard/suscripcion"
-              className={cn(buttonVariants({ variant: "uva-secondary", size: "uva" }), "h-12 w-auto border-[1.5px] border-uva-line-strong px-6 text-uva-cuerpo")}
+              className={cn(buttonVariants({ variant: "uva-secondary", size: "uva" }), "h-auto min-h-12 w-auto max-w-full border-[1.5px] border-uva-line-strong px-6 text-uva-cuerpo whitespace-normal")}
             >
               Tengo un código
             </Link>

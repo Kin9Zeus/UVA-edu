@@ -130,7 +130,7 @@ export const ENLACES_SOPORTE = [
   { titulo: "Centro de ayuda", href: "/soporte" },
   { titulo: "Contacto", href: "/soporte#contacto" },
   { titulo: "Términos y condiciones", href: "/soporte/terminos" },
-  { titulo: "Privacidad", href: "/soporte/privacidad" },
+  { titulo: "Política de privacidad", href: "/soporte/privacidad" },
 ] as const;
 
 /**
