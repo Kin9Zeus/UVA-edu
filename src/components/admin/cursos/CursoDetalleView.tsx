@@ -246,7 +246,7 @@ export function CursoDetalleView({
             />
           )}
           <div>
-            <h1 className="font-heading text-uva-titulo-4 text-uva-text">
+            <h1 className="text-uva-titulo-3 text-balance text-uva-text">
               {titulo}
             </h1>
             <p className="mt-0.5 text-uva-detalle text-uva-muted">

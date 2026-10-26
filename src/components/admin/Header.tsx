@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, LayoutDashboard, LogOut, Search, User } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { LogoUva } from "@/components/home/LogoUva";
+import { EtiquetaAdmin } from "@/components/admin/Sidebar";
+import { CLASE_CAMPO_BUSCADOR, CLASE_ICONO_BUSCADOR } from "@/components/catalogo/campoBuscador";
 import { useAdminSearch } from "@/components/admin/SearchContext";
 import { BuscadorMovilDialog } from "@/components/admin/BuscadorMovilDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,29 +20,9 @@ import {
 import { logout } from "@/actions/auth/logout";
 import { SelectorTemaBoton } from "@/components/tema/SelectorTema";
 import { SelectorTemaSistemaMenuItem } from "@/components/tema/SelectorTemaMenu";
+import { cn } from "@/lib/utils";
 
-/**
- * Mapa `titles` del mockup: el titulo de cada pantalla vive en el header, no
- * en el cuerpo de la pagina.
- */
-function tituloDeSeccion(pathname: string) {
-  if (pathname === "/admin") return "Dashboard";
-  if (pathname === "/admin/cursos") return "Cursos";
-  if (pathname === "/admin/cursos/nuevo") return "Crear curso";
-  if (pathname.startsWith("/admin/cursos/")) return "Editar curso";
-  if (pathname === "/admin/usuarios") return "Usuarios";
-  if (pathname.startsWith("/admin/usuarios/")) return "Detalle de usuario";
-  if (pathname.startsWith("/admin/categorias")) return "Categorías";
-  if (pathname.startsWith("/admin/planes")) return "Planes";
-  if (pathname.startsWith("/admin/cupones")) return "Cupones";
-  if (pathname.startsWith("/admin/codigos")) return "Códigos de invitación";
-  if (pathname.startsWith("/admin/comunidad")) return "Moderación de comunidad";
-  if (pathname.startsWith("/admin/bitacora")) return "Bitácora";
-  if (pathname.startsWith("/admin/configuracion")) return "Perfil";
-  return "Panel";
-}
-
-/** `showSearch` del mockup: solo los dos listados largos lo muestran. */
+/** Solo los dos listados largos tienen buscador: filtra esa lista, no busca en todo el panel. */
 function buscadorDeSeccion(pathname: string) {
   if (pathname === "/admin/cursos") return "Buscar cursos...";
   if (pathname === "/admin/usuarios") return "Buscar por nombre o correo...";
@@ -59,50 +41,43 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
   const placeholder = buscadorDeSeccion(pathname);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-2 sm:gap-4 border-b border-uva-divider bg-[color-mix(in_srgb,var(--uva-bg)_82%,transparent)] px-[clamp(20px,3vw,36px)] py-4 backdrop-blur-[12px]">
-      {/* El Sidebar (con su propio logo) se oculta por debajo de `md`; sin
-          esto el mobile se queda sin ninguna marca U.V.A visible. Por debajo de
-          360px no caben logo, título e íconos (la página se desbordaba): ahí
-          manda el título, la barra inferior ya marca la sección. */}
+    // Mismo encabezado que el panel del estudiante: 64 px, fondo translúcido
+    // y el logo solo en celular (en escritorio ya está en el menú). El
+    // título de cada pantalla va en la página (EncabezadoPagina), no aquí.
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
       <Link
         href="/admin"
-        className="shrink-0 font-heading text-uva-titulo-4 tracking-[.1em] text-uva-text no-underline hover:no-underline max-[359px]:hidden md:hidden"
+        aria-label="U.V.A. Admin, ir al inicio del panel"
+        className="mr-auto inline-flex min-h-11 shrink-0 items-center gap-2 text-uva-text no-underline hover:no-underline md:hidden"
       >
-        U.V.A<span className="text-uva-accent">.</span>
+        <LogoUva className="h-[25px] w-[77px]" />
+        <EtiquetaAdmin />
       </Link>
 
-      <h2 className="min-w-0 truncate font-heading text-uva-titulo-4 text-uva-text">
-        {tituloDeSeccion(pathname)}
-      </h2>
-
       {placeholder && (
-        <div className="relative hidden max-w-[320px] flex-1 md:block">
-          <Search
-            className="pointer-events-none absolute top-[11px] left-[13px] size-[15px] text-uva-muted-2"
-            strokeWidth={2.4}
-          />
-          <Input
+        <div className="relative hidden max-w-[420px] flex-1 md:block">
+          <Search className={cn(CLASE_ICONO_BUSCADOR, "size-4")} strokeWidth={2.2} aria-hidden />
+          <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}
             aria-label={placeholder}
-            className="pl-9"
+            className={CLASE_CAMPO_BUSCADOR}
           />
         </div>
       )}
 
-      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3.5">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         {placeholder && <BuscadorMovilDialog placeholder={placeholder} className="md:hidden" />}
         {/* Visible siempre, no escondido en el menú de usuario. -my-0.5: área
             táctil de 44px sin crecer el header (lo fija el avatar). */}
-        <SelectorTemaBoton className="-my-0.5 text-uva-muted hover:bg-uva-hover hover:text-uva-text" />
+        <SelectorTemaBoton className="-my-0.5 text-uva-text hover:bg-uva-hover hover:text-uva-text" />
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={`Menú de ${nombre.trim().split(/\s+/)[0] ?? nombre}`} className="flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-uva-detalle text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
-            {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}
-            <Avatar className="size-[34px] bg-uva-divider after:hidden">
+            <Avatar className="size-10 bg-uva-surface-2 after:hidden">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
-              <AvatarFallback className="bg-uva-divider font-heading text-uva-detalle font-bold text-uva-muted">
+              <AvatarFallback className="bg-uva-surface-2 font-heading text-uva-detalle font-bold text-uva-text">
                 {iniciales(nombre)}
               </AvatarFallback>
             </Avatar>
@@ -117,7 +92,7 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
               className="text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text"
             >
               <LayoutDashboard className="size-4" />
-              Volver al dashboard
+              Ir a mi panel de estudiante
             </DropdownMenuLinkItem>
             <DropdownMenuSeparator />
             <DropdownMenuLinkItem

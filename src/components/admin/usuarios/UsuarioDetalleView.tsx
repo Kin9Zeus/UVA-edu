@@ -158,7 +158,7 @@ export function UsuarioDetalleView({
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-heading text-uva-titulo-4 text-uva-text">
+            <h1 className="text-uva-titulo-3 text-balance text-uva-text">
               {usuario.nombre}
             </h1>
             <p className="text-uva-detalle text-uva-muted">

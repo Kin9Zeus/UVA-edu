@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getBitacora } from "@/lib/admin/bitacora";
 import { BitacoraTable } from "@/components/admin/bitacora/BitacoraTable";
 import { fechaDeFiltro, numeroDePagina, type ParametroUrl } from "@/lib/parametros-url";
+import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Bitácora",
@@ -24,10 +25,10 @@ export default async function AdminBitacoraPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
-        Quién hizo qué en el panel: cada acción administrativa queda aquí, sin poder editarse ni
-        borrarse.
-      </p>
+      <EncabezadoPagina
+        titulo="Bitácora"
+        descripcion="Quién hizo qué en el panel: cada acción administrativa queda aquí, sin poder editarse ni borrarse."
+      />
       <BitacoraTable resultado={resultado} />
     </div>
   );

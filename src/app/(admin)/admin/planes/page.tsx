@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPlanesAdmin } from "@/lib/admin/planes";
 import { PlanesTable } from "@/components/admin/planes/PlanesTable";
+import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Planes",
@@ -11,10 +12,10 @@ export default async function AdminPlanesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
-        Planes de membresía del catálogo — un plan inactivo deja de ofrecerse, pero las suscripciones que ya
-        lo tienen siguen mostrándolo.
-      </p>
+      <EncabezadoPagina
+        titulo="Planes"
+        descripcion="Planes de membresía del catálogo. Un plan inactivo deja de ofrecerse, pero las suscripciones que ya lo tienen siguen mostrándolo."
+      />
       <PlanesTable planes={planes} />
     </div>
   );

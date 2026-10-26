@@ -12,6 +12,7 @@ import {
   textoDeBusqueda,
   type ParametroUrl,
 } from "@/lib/parametros-url";
+import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Usuarios",
@@ -60,9 +61,10 @@ export default async function AdminUsuariosPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
-        Quién está usando la plataforma: invitaciones, acceso y avance real.
-      </p>
+      <EncabezadoPagina
+        titulo="Usuarios"
+        descripcion="Quién está usando la plataforma: invitaciones, acceso y avance real."
+      />
 
       {/* Las cuatro tarjetas responden, en orden, las tres preguntas de la
           "Definición de terminado" de RevUsuariof4: cuántas invitaciones

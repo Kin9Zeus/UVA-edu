@@ -15,6 +15,7 @@ import {
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { getDashboardData, type ActividadItem } from "@/lib/admin/dashboard";
 import { tiempoRelativo } from "@/lib/admin/format";
+import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Dashboard",
@@ -94,9 +95,10 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
-        Resumen general de la plataforma.
-      </p>
+      <EncabezadoPagina
+        titulo="Inicio"
+        descripcion="Resumen general de la plataforma."
+      />
 
       {/* El mockup solo pinta etiqueta y valor; el icono es un añadido del
           panel, así que va como acento en la esquina para no romper esa
