@@ -136,43 +136,54 @@ export function ComunidadRespuestasList({
       </div>
 
       <div className="divide-y divide-uva-divider border-t border-uva-divider">
-        {principales.map((respuesta) => (
-          <div key={respuesta.id}>
-            <ComunidadRespuestaItem
-              respuesta={respuesta}
-              ruta={ruta}
-              usuarioActualId={usuarioActualId}
-              esAdmin={esAdmin}
-              onResponder={() =>
-                setObjetivo({
-                  id: respuesta.id,
-                  nombre: respuesta.autorNombre,
-                  esHija: false,
-                })
-              }
-            />
-            {campoPara(respuesta.id, false)}
-            {hijasDe(respuesta.id).map((hija) => (
-              <div key={hija.id} className="ml-9">
-                <ComunidadRespuestaItem
-                  respuesta={hija}
-                  ruta={ruta}
-                  usuarioActualId={usuarioActualId}
-                  esAdmin={esAdmin}
-                  onResponder={() =>
-                    setObjetivo({
-                      id: hija.id,
-                      nombre: hija.autorNombre,
-                      esHija: true,
-                    })
-                  }
-                  nombresMencionables={nombresMencionables}
-                />
-                {campoPara(hija.id, true)}
-              </div>
-            ))}
-          </div>
-        ))}
+        {principales.map((respuesta) => {
+          const hijas = hijasDe(respuesta.id);
+          return (
+            <div key={respuesta.id}>
+              <ComunidadRespuestaItem
+                respuesta={respuesta}
+                ruta={ruta}
+                usuarioActualId={usuarioActualId}
+                esAdmin={esAdmin}
+                onResponder={() =>
+                  setObjetivo({
+                    id: respuesta.id,
+                    nombre: respuesta.autorNombre,
+                    esHija: false,
+                  })
+                }
+              />
+              {campoPara(respuesta.id, false)}
+              {/* Línea de cota: baja por el centro del avatar de la principal
+                (`size-7`, 28px → `ml-3.5`) y amarra sus respuestas sin
+                tarjetas. `pl-5` + el borde dejan las hijas donde estaban
+                con el antiguo `ml-9`. Decorativa: `uva-divider`. */}
+              {hijas.length > 0 && (
+                <div className="mb-3 ml-3.5 border-l border-uva-divider pl-5">
+                  {hijas.map((hija) => (
+                    <div key={hija.id}>
+                      <ComunidadRespuestaItem
+                        respuesta={hija}
+                        ruta={ruta}
+                        usuarioActualId={usuarioActualId}
+                        esAdmin={esAdmin}
+                        onResponder={() =>
+                          setObjetivo({
+                            id: hija.id,
+                            nombre: hija.autorNombre,
+                            esHija: true,
+                          })
+                        }
+                        nombresMencionables={nombresMencionables}
+                      />
+                      {campoPara(hija.id, true)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
