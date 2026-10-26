@@ -94,7 +94,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-sm text-uva-muted">
+      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
         Resumen general de la plataforma.
       </p>
 
@@ -124,12 +124,12 @@ export default async function AdminDashboardPage() {
             desde `lg` (donde vuelven a ir lado a lado) recupera su lugar
             original a la izquierda. */}
         <AdminCard className="order-2 lg:order-1">
-          <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+          <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
             Actividad reciente
           </h2>
           <div className="flex flex-col gap-3.5">
             {actividad.length === 0 && (
-              <p className="text-sm text-uva-muted-2">
+              <p className="text-uva-detalle text-uva-muted-2">
                 Todavía no hay actividad registrada.
               </p>
             )}
@@ -140,8 +140,8 @@ export default async function AdminDashboardPage() {
                   className={cn("mt-1.5 size-2 shrink-0 rounded-full", COLOR_PUNTO[item.tono])}
                 />
                 <div className="flex-1">
-                  <p className="text-sm text-uva-text-muted">{item.texto}</p>
-                  <p className="font-mono text-xs text-uva-text-faint">
+                  <p className="text-uva-detalle text-uva-text-muted">{item.texto}</p>
+                  <p className="font-mono text-uva-etiqueta text-uva-text-faint">
                     {tiempoRelativo(item.fecha)}
                   </p>
                 </div>
@@ -154,12 +154,12 @@ export default async function AdminDashboardPage() {
             tabla va a sangre, como en el mockup. */}
         <AdminCard flush className="order-1 gap-3 lg:order-2">
           <div className="px-5 pt-[18px]">
-            <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+            <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
               Cursos más populares
             </h2>
           </div>
           {cursosPopulares.length === 0 && (
-            <p className="px-5 pb-[18px] text-sm text-uva-muted-2">
+            <p className="px-5 pb-[18px] text-uva-detalle text-uva-muted-2">
               Aún no hay cursos creados.
             </p>
           )}
@@ -182,7 +182,7 @@ export default async function AdminDashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <Link
                       href={`/admin/cursos/${curso.slug}`}
-                      className="text-sm font-medium text-uva-text hover:text-uva-accent-text"
+                      className="text-uva-detalle font-medium text-uva-text hover:text-uva-accent-text"
                     >
                       {curso.titulo}
                     </Link>
@@ -190,8 +190,8 @@ export default async function AdminDashboardPage() {
                       {curso.mostrado ? "Publicado" : "Borrador"}
                     </StatusBadge>
                   </div>
-                  <p className="text-xs text-uva-muted">{curso.categoria}</p>
-                  <div className="flex items-center gap-2 font-mono text-xs text-uva-muted-2 tabular-nums">
+                  <p className="text-uva-detalle text-uva-muted">{curso.categoria}</p>
+                  <div className="flex items-center gap-2 font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                     <span>{curso.estudiantes} estudiantes</span>
                     <span aria-hidden>·</span>
                     <span>{curso.porcentajeFinalizacion}% completado</span>

@@ -87,7 +87,7 @@ export function CategoriaFormDialog({
 
           <div className="flex flex-col gap-3.5">
             {error && (
-              <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+              <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
                 {error}
               </div>
             )}
@@ -107,7 +107,7 @@ export function CategoriaFormDialog({
                   Al cambiar el nombre sí se previsualiza el que se generaría,
                   advirtiendo que la URL se va a mover. */}
               {slugPrevisto && (
-                <p className="mt-1.5 font-mono text-xs text-uva-text-faint">
+                <p className="mt-1.5 font-mono text-uva-etiqueta text-uva-text-faint">
                   /catalogo/{slugPrevisto}
                   {urlVaACambiar && (
                     <span className="ml-1.5 font-sans text-uva-badge-warn-fg">

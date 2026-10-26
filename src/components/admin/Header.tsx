@@ -66,12 +66,12 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
           manda el título, la barra inferior ya marca la sección. */}
       <Link
         href="/admin"
-        className="shrink-0 font-heading text-lg font-bold tracking-[.1em] text-uva-text no-underline hover:no-underline max-[359px]:hidden md:hidden"
+        className="shrink-0 font-heading text-uva-titulo-4 tracking-[.1em] text-uva-text no-underline hover:no-underline max-[359px]:hidden md:hidden"
       >
         U.V.A<span className="text-uva-accent">.</span>
       </Link>
 
-      <h2 className="min-w-0 truncate font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+      <h2 className="min-w-0 truncate font-heading text-uva-titulo-4 text-uva-text">
         {tituloDeSeccion(pathname)}
       </h2>
 
@@ -98,15 +98,15 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
             táctil de 44px sin crecer el header (lo fija el avatar). */}
         <SelectorTemaBoton className="-my-0.5 text-uva-muted hover:bg-uva-hover hover:text-uva-text" />
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label={`Menú de ${nombre.trim().split(/\s+/)[0] ?? nombre}`} className="flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-sm text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
+          <DropdownMenuTrigger aria-label={`Menú de ${nombre.trim().split(/\s+/)[0] ?? nombre}`} className="flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-uva-detalle text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
             {/* `.avatar` del mockup: 34px, sin anillo, mono-espaciado no: Plus Jakarta 700/12 */}
             <Avatar className="size-[34px] bg-uva-divider after:hidden">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
-              <AvatarFallback className="bg-uva-divider font-heading text-[12px] font-bold text-uva-muted">
+              <AvatarFallback className="bg-uva-divider font-heading text-uva-detalle font-bold text-uva-muted">
                 {iniciales(nombre)}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-[180px] truncate text-[13px] font-semibold sm:inline">
+            <span className="hidden max-w-[180px] truncate text-uva-detalle font-semibold sm:inline">
               {nombre}
             </span>
             <ChevronDown className="hidden size-3 text-uva-muted-2 sm:block" aria-hidden />

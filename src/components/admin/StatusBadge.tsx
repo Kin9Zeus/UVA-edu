@@ -24,7 +24,7 @@ export function StatusBadge({
     <span
       className={cn(
         // `.badge` del mockup: mono 11px/600, tracking .04em, radio 6px.
-        "inline-flex w-fit items-center gap-1.5 rounded-[6px] px-[9px] py-1 font-mono text-[11px] font-semibold tracking-[0.04em] whitespace-nowrap",
+        "inline-flex w-fit items-center gap-1.5 rounded-[6px] px-[9px] py-1 font-mono text-uva-etiqueta font-semibold tracking-[0.04em] whitespace-nowrap",
         TONES[tone],
         className,
       )}

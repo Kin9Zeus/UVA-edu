@@ -226,7 +226,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             disponibles" es un saldo y acotarlo a un periodo no significa
             nada. */}
         <div className="flex flex-wrap items-center gap-2">
-          <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="filtro-desde">
+          <label className="shrink-0 text-uva-detalle text-uva-muted" htmlFor="filtro-desde">
             Registro
           </label>
           <input
@@ -234,15 +234,15 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             type="date"
             value={searchParams.get("desde") ?? ""}
             onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-0 md:pointer-fine:text-uva-detalle"
             aria-label="Registrados desde"
           />
-          <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
+          <span className="shrink-0 text-uva-detalle text-uva-muted-2">a</span>
           <input
             type="date"
             value={searchParams.get("hasta") ?? ""}
             onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-0 md:pointer-fine:text-uva-detalle"
             aria-label="Registrados hasta"
           />
         </div>
@@ -251,7 +251,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
           type="button"
           onClick={handleExportar}
           disabled={exportando || total === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-uva-md border border-uva-divider px-3.5 py-2 text-[13px] text-uva-text hover:border-uva-accent hover:text-uva-accent-text disabled:opacity-40 md:ml-auto md:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-uva-md border border-uva-divider px-3.5 py-2 text-uva-detalle text-uva-text hover:border-uva-accent hover:text-uva-accent-text disabled:opacity-40 md:ml-auto md:w-auto"
         >
           <Download className="size-4" strokeWidth={1.9} />
           {exportando ? "Preparando..." : "Exportar CSV"}
@@ -260,7 +260,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
 
       <AdminCard flush>
         {usuarios.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">
             No hay usuarios que coincidan con los filtros.
           </p>
         )}
@@ -282,11 +282,11 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                     className="flex min-w-0 items-center gap-2.5"
                   >
                     <Avatar className="size-[30px] shrink-0 bg-uva-divider after:hidden">
-                      <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
+                      <AvatarFallback className="bg-uva-divider font-heading text-uva-etiqueta font-bold text-uva-muted">
                         {iniciales(usuario.nombre)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate text-sm font-semibold text-uva-text">{usuario.nombre}</span>
+                    <span className="truncate text-uva-detalle font-semibold text-uva-text">{usuario.nombre}</span>
                   </Link>
                   <SwitchEstado
                     checked={usuario.estado === "ACTIVO"}
@@ -295,8 +295,8 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                     acciones={["Activar usuario", "Suspender usuario"]}
                   />
                 </div>
-                <p className="truncate text-xs text-uva-muted">{usuario.correo}</p>
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <p className="truncate text-uva-detalle text-uva-muted">{usuario.correo}</p>
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {ROL_LABEL[usuario.rol]} · {usuario.cursosInscritos} curso
                   {usuario.cursosInscritos === 1 ? "" : "s"}
                 </p>
@@ -324,7 +324,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                       </StatusBadge>
                     )}
                 </div>
-                <p className="font-mono text-[11.5px] text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                   Registro {formatFecha(usuario.fechaRegistro)}
                   {usuario.ultimaActividad && ` · Actividad ${formatFecha(usuario.ultimaActividad)}`}
                 </p>
@@ -356,7 +356,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                 <TableRow key={usuario.id} className={pendiente ? "opacity-60" : undefined}>
                   <TableCell className="w-px pr-0">
                     <Avatar className="size-[30px] bg-uva-divider after:hidden">
-                      <AvatarFallback className="bg-uva-divider font-heading text-[11px] font-bold text-uva-muted">
+                      <AvatarFallback className="bg-uva-divider font-heading text-uva-etiqueta font-bold text-uva-muted">
                         {iniciales(usuario.nombre)}
                       </AvatarFallback>
                     </Avatar>
@@ -410,10 +410,10 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
                         )}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     {formatFecha(usuario.fechaRegistro)}
                   </TableCell>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     {usuario.ultimaActividad ? formatFecha(usuario.ultimaActividad) : "—"}
                   </TableCell>
                 </TableRow>
@@ -424,7 +424,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
       </AdminCard>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-mono text-xs text-uva-text-faint tabular-nums">
+        <p className="font-mono text-uva-etiqueta text-uva-text-faint tabular-nums">
           {total} usuario{total === 1 ? "" : "s"}
         </p>
         <Paginacion

@@ -121,7 +121,7 @@ export function CodigoFormDialog({
             {error && (
               <div
                 role="alert"
-                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
               >
                 {error}
               </div>
@@ -134,7 +134,7 @@ export function CodigoFormDialog({
                 // quizá se canjeó) prometiendo ese acceso concreto, y
                 // cambiarla no corregiría las suscripciones ya creadas —
                 // su fecha de fin se calculó en el momento del canje.
-                <p className="mt-1 text-[13.5px] text-uva-muted">
+                <p className="mt-1 text-uva-detalle text-uva-muted">
                   {codigo.duracionDias} días{" "}
                   <span className="text-uva-text-faint">· no se puede cambiar</span>
                 </p>
@@ -151,7 +151,7 @@ export function CodigoFormDialog({
                     className="max-w-[120px]"
                     required
                   />
-                  <p className="mt-1.5 text-xs text-uva-text-faint">
+                  <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                     Cuánto dura el acceso desde el momento en que se canjea, sin cobro.
                   </p>
                 </>
@@ -168,7 +168,7 @@ export function CodigoFormDialog({
                 onChange={(event) => setVencimiento(event.target.value)}
                 required
               />
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Después de esa fecha el código deja de canjearse. No afecta a las suscripciones
                 ya otorgadas.
               </p>
@@ -189,7 +189,7 @@ export function CodigoFormDialog({
                 className="max-w-[120px]"
                 required
               />
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Cuántas personas distintas pueden canjearlo. Cada una solo puede una vez.
               </p>
             </div>

@@ -217,7 +217,7 @@ export function ContenidoTab({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <h4 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+        <h4 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
           Módulos y lecciones
         </h4>
         {agregando ? (
@@ -228,7 +228,7 @@ export function ContenidoTab({
               value={nombreModulo}
               onChange={(event) => setNombreModulo(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAgregarModulo()}
-              className="h-8 text-sm sm:max-w-[240px]"
+              className="h-8 text-uva-detalle sm:max-w-[240px]"
             />
             <div className="flex items-center gap-2">
               <Button type="button" size="sm" disabled={pending} onClick={handleAgregarModulo}>
@@ -247,7 +247,7 @@ export function ContenidoTab({
       </div>
 
       {modulos.length === 0 && (
-        <p className="text-sm text-uva-muted-2">Este curso todavía no tiene módulos.</p>
+        <p className="text-uva-detalle text-uva-muted-2">Este curso todavía no tiene módulos.</p>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuloDragEnd}>

@@ -102,7 +102,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
 
       <AdminCard flush>
         {filtrados.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-text-faint">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-text-faint">
             No hay estudiantes inscritos que coincidan.
           </p>
         )}
@@ -124,11 +124,11 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                     className="flex min-w-0 items-center gap-2.5"
                   >
                     <Avatar size="sm" className="shrink-0 bg-uva-divider">
-                      <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
+                      <AvatarFallback className="bg-uva-divider text-uva-detalle text-uva-text">
                         {iniciales(estudiante.nombre)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate text-sm text-uva-text">{estudiante.nombre}</span>
+                    <span className="truncate text-uva-detalle text-uva-text">{estudiante.nombre}</span>
                   </Link>
                   <StatusBadge tone={ESTADO_BADGE[estudiante.estado].tone} className="shrink-0">
                     {ESTADO_BADGE[estudiante.estado].etiqueta}
@@ -136,7 +136,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                 </div>
                 <div className="flex items-center gap-2">
                   <Progress value={estudiante.progreso} aria-label={`Progreso de ${estudiante.nombre}`} className="flex-1" />
-                  <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
+                  <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                     {estudiante.progreso}%
                   </span>
                 </div>
@@ -169,7 +169,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                   <TableCell>
                     <Link href={`/admin/usuarios/${estudiante.usuarioSlug}`} className="flex items-center gap-2.5">
                       <Avatar size="sm" className="bg-uva-divider">
-                        <AvatarFallback className="bg-uva-divider text-xs text-uva-text">
+                        <AvatarFallback className="bg-uva-divider text-uva-detalle text-uva-text">
                           {iniciales(estudiante.nombre)}
                         </AvatarFallback>
                       </Avatar>
@@ -179,7 +179,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
                   <TableCell className="min-w-[140px]">
                     <div className="flex items-center gap-2">
                       <Progress value={estudiante.progreso} aria-label={`Progreso de ${estudiante.nombre}`} className="w-24" />
-                      <span className="font-mono text-xs tabular-nums">{estudiante.progreso}%</span>
+                      <span className="font-mono text-uva-etiqueta tabular-nums">{estudiante.progreso}%</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -11,7 +11,7 @@ export default async function AdminCuponesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-sm text-uva-muted">
+      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
         Cupones de descuento del checkout — se aplican sobre el precio del plan al pagar. Un
         cupón deja de servir cuando pasa su fecha o cuando alcanza su límite de usos.
       </p>

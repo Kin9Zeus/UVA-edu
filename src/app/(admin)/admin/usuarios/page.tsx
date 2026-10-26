@@ -60,7 +60,7 @@ export default async function AdminUsuariosPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-sm text-uva-muted">
+      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
         Quién está usando la plataforma: invitaciones, acceso y avance real.
       </p>
 
@@ -117,7 +117,7 @@ export default async function AdminUsuariosPage({
           ya canjeado no se puede borrar, solo desactivar) y el banner
           terminaba prendido para siempre sin ninguna acción real que lo
           apagara. */}
-      <p className="-mt-2 text-[12.5px] text-uva-muted-2">
+      <p className="-mt-2 text-uva-detalle text-uva-muted-2">
         {metricas.cuposTotales} invitaciones emitidas en total:{" "}
         <span className="font-mono tabular-nums">{metricas.cuposCanjeados}</span> {metricas.cuposCanjeados === 1 ? "usada" : "usadas"},{" "}
         <span className="font-mono tabular-nums">{metricas.cuposDisponibles}</span> sin usar,{" "}
@@ -131,15 +131,15 @@ export default async function AdminUsuariosPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <AdminCard>
-          <h2 className="font-heading text-[15px] font-bold">Cursos con más avance</h2>
+          <h2 className="font-heading text-uva-cuerpo font-bold">Cursos con más avance</h2>
           {avanceCursos.length === 0 ? (
-            <p className="text-[13px] text-uva-muted-2">Todavía nadie ha empezado un curso.</p>
+            <p className="text-uva-detalle text-uva-muted-2">Todavía nadie ha empezado un curso.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {avanceCursos.map((curso) => (
                 <li key={curso.cursoId} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[13px]">{curso.titulo}</span>
-                  <span className="shrink-0 font-mono text-[12px] text-uva-muted tabular-nums">
+                  <span className="min-w-0 truncate text-uva-detalle">{curso.titulo}</span>
+                  <span className="shrink-0 font-mono text-uva-detalle text-uva-muted tabular-nums">
                     {curso.avancePromedio}% · {curso.participantes}
                   </span>
                 </li>
@@ -149,20 +149,20 @@ export default async function AdminUsuariosPage({
         </AdminCard>
 
         <AdminCard>
-          <h2 className="font-heading text-[15px] font-bold">Dónde se atasca la gente</h2>
+          <h2 className="font-heading text-uva-cuerpo font-bold">Dónde se atasca la gente</h2>
           {abandono.length === 0 ? (
-            <p className="text-[13px] text-uva-muted-2">
+            <p className="text-uva-detalle text-uva-muted-2">
               Ninguna lección lleva más de 14 días empezada sin terminar.
             </p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {abandono.map((leccion) => (
                 <li key={leccion.leccionId} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[13px]">
+                  <span className="min-w-0 truncate text-uva-detalle">
                     {leccion.leccionTitulo}
                     <span className="text-uva-muted-2"> · {leccion.cursoTitulo}</span>
                   </span>
-                  <span className="shrink-0 font-mono text-[12px] text-uva-muted tabular-nums">
+                  <span className="shrink-0 font-mono text-uva-detalle text-uva-muted tabular-nums">
                     {leccion.abandonos}
                   </span>
                 </li>

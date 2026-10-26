@@ -264,7 +264,7 @@ export function VideoUploader({
     return (
       <div className="rounded-uva-md border border-uva-divider bg-uva-surface px-3.5 py-3">
         {inputOculto}
-        <div className="flex items-center justify-between text-xs text-uva-muted-2">
+        <div className="flex items-center justify-between text-uva-detalle text-uva-muted-2">
           <span>Subiendo video…</span>
           <span className="font-mono">{local.porcentaje}%</span>
         </div>
@@ -284,7 +284,7 @@ export function VideoUploader({
         {inputOculto}
         <div className="flex items-center gap-2">
           <StatusBadge tone="warning">Procesando</StatusBadge>
-          <span className="text-xs text-uva-muted-2">Mux está preparando el video…</span>
+          <span className="text-uva-detalle text-uva-muted-2">Mux está preparando el video…</span>
         </div>
         <Button type="button" variant="ghost" size="xs" onClick={handleElegirArchivo}>
           Cancelar y reintentar
@@ -300,7 +300,7 @@ export function VideoUploader({
         {inputOculto}
         <div className="flex items-center gap-2">
           <StatusBadge tone="error">Error</StatusBadge>
-          <span className="flex-1 text-xs text-uva-badge-danger-fg">
+          <span className="flex-1 text-uva-detalle text-uva-badge-danger-fg">
             {mensajeError ?? "Mux no pudo procesar el video."}
           </span>
         </div>
@@ -336,7 +336,7 @@ export function VideoUploader({
     <button
       type="button"
       onClick={handleElegirArchivo}
-      className="flex w-full flex-col items-center gap-1.5 rounded-uva-md border-[1.5px] border-dashed border-uva-divider px-3 py-5 text-center text-xs text-uva-muted-2 hover:border-uva-accent hover:text-uva-text"
+      className="flex w-full flex-col items-center gap-1.5 rounded-uva-md border-[1.5px] border-dashed border-uva-divider px-3 py-5 text-center text-uva-detalle text-uva-muted-2 hover:border-uva-accent hover:text-uva-text"
     >
       {inputOculto}
       <UploadCloud className="size-5" />

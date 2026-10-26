@@ -246,7 +246,7 @@ export function LeccionEditorPanel({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center">
-        <h4 className="font-heading text-[14.5px] font-bold tracking-[-0.02em] text-uva-text">
+        <h4 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
           Editor de lección
         </h4>
         <Button
@@ -262,7 +262,7 @@ export function LeccionEditorPanel({
       </div>
 
       {error && (
-        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
           {error}
         </div>
       )}
@@ -284,7 +284,7 @@ export function LeccionEditorPanel({
                 opciones que no hacen nada. */}
             <div
               id="leccion-tipo"
-              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text"
+              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-uva-detalle text-uva-text"
             >
               Video
             </div>
@@ -315,7 +315,7 @@ export function LeccionEditorPanel({
             <Label htmlFor="leccion-duracion">Duración</Label>
             <div
               id="leccion-duracion"
-              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text-muted"
+              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-uva-detalle text-uva-text-muted"
             >
               {duracion != null
                 ? formatHoras(duracion)
@@ -349,7 +349,7 @@ export function LeccionEditorPanel({
             </div>
 
             {recursos.length === 0 && !subiendoRecurso && (
-              <p className="mt-1.5 text-xs text-uva-muted-2">Sin materiales adicionales todavía.</p>
+              <p className="mt-1.5 text-uva-detalle text-uva-muted-2">Sin materiales adicionales todavía.</p>
             )}
 
             {recursos.length > 0 && (
@@ -359,8 +359,8 @@ export function LeccionEditorPanel({
                     key={recurso.id}
                     className="flex items-center gap-2 rounded-uva-md border border-uva-divider px-2.5 py-1.5"
                   >
-                    <span className="flex-1 truncate text-xs text-uva-text">{recurso.nombre}</span>
-                    <span className="shrink-0 font-mono text-[10.5px] text-uva-muted-2">
+                    <span className="flex-1 truncate text-uva-detalle text-uva-text">{recurso.nombre}</span>
+                    <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2">
                       {formatTamanoArchivo(recurso.tamanoBytes)}
                     </span>
                     <Button
@@ -379,7 +379,7 @@ export function LeccionEditorPanel({
               </ul>
             )}
 
-            {subiendoRecurso && <p className="mt-1.5 text-xs text-uva-muted-2">Subiendo…</p>}
+            {subiendoRecurso && <p className="mt-1.5 text-uva-detalle text-uva-muted-2">Subiendo…</p>}
           </div>
         </div>
 
@@ -393,7 +393,7 @@ export function LeccionEditorPanel({
               type="button"
               variant="ghost"
               size="auto"
-              className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent-ink"
+              className="ml-auto gap-1.5 px-2 py-1 text-uva-detalle text-uva-muted-2 hover:text-uva-accent-ink"
               onClick={handleGenerarConIa}
               disabled={generando || video.estadoProcesamiento !== "LISTO"}
               title={

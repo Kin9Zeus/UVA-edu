@@ -68,7 +68,7 @@ function Burbuja({
       )}
     >
       <Icon className="size-5" strokeWidth={active ? 2.2 : 1.9} />
-      <span className="text-[10px] leading-none font-medium">{label}</span>
+      <span className="text-uva-etiqueta leading-none font-medium">{label}</span>
     </Link>
   );
 }
@@ -101,7 +101,7 @@ export function AdminBottomTabBar() {
             )}
           >
             <Menu className="size-5" strokeWidth={enSecundario ? 2.2 : 1.9} />
-            <span className="text-[10px] leading-none font-medium">Más</span>
+            <span className="text-uva-etiqueta leading-none font-medium">Más</span>
           </DialogPrimitive.Trigger>
 
           <DialogPrimitive.Portal>
@@ -125,7 +125,7 @@ export function AdminBottomTabBar() {
                     onClick={() => setOpen(false)}
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 border-b border-uva-divider py-3 text-[15px] text-uva-text no-underline last:border-b-0 hover:no-underline",
+                      "flex items-center gap-3 border-b border-uva-divider py-3 text-uva-cuerpo text-uva-text no-underline last:border-b-0 hover:no-underline",
                       isActive(item.href) && "text-uva-accent-ink",
                     )}
                   >
@@ -138,7 +138,7 @@ export function AdminBottomTabBar() {
               <button
                 type="button"
                 onClick={() => logout()}
-                className="mt-3 flex w-full items-center gap-3 py-3 text-[15px] text-uva-badge-danger-fg"
+                className="mt-3 flex w-full items-center gap-3 py-3 text-uva-cuerpo text-uva-badge-danger-fg"
               >
                 <LogOut className="size-[18px] shrink-0" strokeWidth={1.9} />
                 Cerrar sesión

@@ -136,7 +136,7 @@ export function LotesTable({
 
       <AdminCard flush>
         {lotes.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">
             No hay lotes de códigos todavía.
           </p>
         )}
@@ -151,19 +151,19 @@ export function LotesTable({
                 className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[13px] font-semibold text-uva-text">
+                  <span className="font-mono text-uva-detalle font-semibold text-uva-text">
                     {lote.cantidad} código(s)
                   </span>
-                  <span className="shrink-0 font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <span className="shrink-0 font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     Vence {formatFecha(lote.fechaVencimiento)}
                   </span>
                 </div>
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {lote.duracionDias} días de acceso · {lote.canjeados}/{lote.cantidad} canjeados ·{" "}
                   {lote.activos} activos
                 </p>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-uva-muted-2">Creado por {lote.creadoPor}</span>
+                  <span className="text-uva-detalle text-uva-muted-2">Creado por {lote.creadoPor}</span>
                   <div className="flex items-center gap-1.5">
                     <Button
                       type="button"
@@ -210,7 +210,7 @@ export function LotesTable({
           <TableBody>
             {lotes.map((lote) => (
               <TableRow key={lote.id}>
-                <TableCell className="font-mono text-[13px] font-semibold text-uva-text">
+                <TableCell className="font-mono text-uva-detalle font-semibold text-uva-text">
                   {lote.totalActual} código(s)
                   {/* `cantidad` es lo que se pidió generar al crear el lote,
                       fijo para siempre (auditoría) — cuando ya no coincide
@@ -218,7 +218,7 @@ export function LotesTable({
                       y vale la pena que quede a la vista por qué el número
                       no es "redondo". */}
                   {lote.totalActual !== lote.cantidad && (
-                    <span className="ml-1 font-sans text-[11px] font-normal text-uva-muted-2">
+                    <span className="ml-1 font-sans text-uva-etiqueta font-normal text-uva-muted-2">
                       (de {lote.cantidad} originales)
                     </span>
                   )}
@@ -229,10 +229,10 @@ export function LotesTable({
                   <span className="text-uva-muted-2">/{lote.totalActual}</span>
                 </TableCell>
                 <TableCell className="font-mono tabular-nums text-uva-muted">{lote.activos}</TableCell>
-                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {formatFecha(lote.fechaVencimiento)}
                 </TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">{lote.creadoPor}</TableCell>
+                <TableCell className="text-uva-detalle text-uva-muted-2">{lote.creadoPor}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <Button
@@ -292,7 +292,7 @@ export function LotesTable({
                       type="button"
                       onClick={() => handleCopiar(codigo.codigo)}
                       title="Copiar código"
-                      className="flex items-center gap-1.5 font-codigo text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                      className="flex items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
                     >
                       {codigo.codigo}
                       {copiado === codigo.codigo ? (
@@ -356,7 +356,7 @@ export function LotesTable({
                         type="button"
                         onClick={() => handleCopiar(codigo.codigo)}
                         title="Copiar código"
-                        className="flex items-center gap-1.5 font-codigo text-[12.5px] font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
+                        className="flex items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.05em] text-uva-text hover:text-uva-accent-text"
                       >
                         {codigo.codigo}
                         {copiado === codigo.codigo ? (

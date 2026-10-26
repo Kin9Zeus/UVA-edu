@@ -94,7 +94,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
           en UsuariosTable): vive en la URL para que la página, y no solo la
           tabla, se recargue con el rango aplicado. */}
       <div className="flex flex-wrap items-center gap-2">
-        <label className="shrink-0 text-[12.5px] text-uva-muted" htmlFor="bitacora-filtro-desde">
+        <label className="shrink-0 text-uva-detalle text-uva-muted" htmlFor="bitacora-filtro-desde">
           Fecha
         </label>
         <input
@@ -102,22 +102,22 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
           type="date"
           value={searchParams.get("desde") ?? ""}
           onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-0 md:pointer-fine:text-uva-detalle"
           aria-label="Desde"
         />
-        <span className="shrink-0 text-[12.5px] text-uva-muted-2">a</span>
+        <span className="shrink-0 text-uva-detalle text-uva-muted-2">a</span>
         <input
           type="date"
           value={searchParams.get("hasta") ?? ""}
           onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:min-h-0 md:flex-none md:text-[13px]"
+          className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-0 md:pointer-fine:text-uva-detalle"
           aria-label="Hasta"
         />
         {(searchParams.get("desde") || searchParams.get("hasta")) && (
           <button
             type="button"
             onClick={() => actualizarUrl({ desde: null, hasta: null })}
-            className="shrink-0 text-[12.5px] text-uva-muted-2 hover:text-uva-text"
+            className="shrink-0 text-uva-detalle text-uva-muted-2 hover:text-uva-text"
           >
             Limpiar
           </button>
@@ -126,7 +126,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
 
       <AdminCard flush className="gap-0">
         {resultado.entradas.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-text-faint">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-text-faint">
             {searchParams.get("desde") || searchParams.get("hasta")
               ? "No hay acciones registradas en ese rango de fechas."
               : "Todavía no hay acciones registradas."}
@@ -163,17 +163,17 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                     <StatusBadge tone={tonoAccion(entrada.accion)} className="whitespace-normal">
                       {entrada.accion}
                     </StatusBadge>
-                    <span className="shrink-0 font-mono text-[11.5px] text-uva-muted-2 tabular-nums">
+                    <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                       {formatFechaHora(entrada.creadoEn)}
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm text-uva-text">{entrada.adminNombre}</span>
+                    <span className="text-uva-detalle text-uva-text">{entrada.adminNombre}</span>
                     {entrada.adminCorreo && (
-                      <span className="text-[11px] text-uva-muted-2">{entrada.adminCorreo}</span>
+                      <span className="text-uva-etiqueta text-uva-muted-2">{entrada.adminCorreo}</span>
                     )}
                   </div>
-                  <p className="text-[13px]">
+                  <p className="text-uva-detalle">
                     {ruta ? (
                       <Link href={ruta} className="text-uva-text hover:text-uva-accent-text">
                         {nombreSujeto}
@@ -183,7 +183,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                     )}
                   </p>
                   {entrada.detalles && (
-                    <p className="text-[12.5px] text-uva-muted-2">{entrada.detalles}</p>
+                    <p className="text-uva-detalle text-uva-muted-2">{entrada.detalles}</p>
                   )}
                 </div>
               );
@@ -220,14 +220,14 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
 
               return (
                 <TableRow key={entrada.id}>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums whitespace-nowrap">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums whitespace-nowrap">
                     {formatFechaHora(entrada.creadoEn)}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-uva-text">{entrada.adminNombre}</span>
                       {entrada.adminCorreo && (
-                        <span className="text-[11px] text-uva-muted-2">{entrada.adminCorreo}</span>
+                        <span className="text-uva-etiqueta text-uva-muted-2">{entrada.adminCorreo}</span>
                       )}
                     </div>
                   </TableCell>
@@ -241,7 +241,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                       {entrada.accion}
                     </StatusBadge>
                   </TableCell>
-                  <TableCell className="text-[13px]">
+                  <TableCell className="text-uva-detalle">
                     {ruta ? (
                       <Link href={ruta} className="text-uva-text hover:text-uva-accent-text">
                         {nombreSujeto}
@@ -258,7 +258,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
                       porque el resto de columnas de la fila siguen en una
                       línea — sin esto, una celda de 2-3 líneas quedaba
                       centrada verticalmente contra celdas de una sola. */}
-                  <TableCell className="max-w-[320px] align-top text-[12.5px] whitespace-normal text-uva-muted-2">
+                  <TableCell className="max-w-[320px] align-top text-uva-detalle whitespace-normal text-uva-muted-2">
                     {entrada.detalles ?? "—"}
                   </TableCell>
                 </TableRow>

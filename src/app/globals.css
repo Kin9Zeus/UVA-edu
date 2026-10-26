@@ -173,6 +173,10 @@
   --text-uva-cuerpo--line-height: 1.55;
   --text-uva-detalle: clamp(0.8125rem, 0.7917rem + 0.0926vw, 0.875rem); /* 13 → 14 */
   --text-uva-detalle--line-height: 1.45;
+  /* Etiqueta: solo insignias de estado, duraciones y metadatos de una fila
+     densa del panel (Listo, 12:40). Nunca texto de lectura. */
+  --text-uva-etiqueta: 0.75rem; /* 12 */
+  --text-uva-etiqueta--line-height: 1.35;
 
   /* Espacio entre secciones (56 → 112), margen lateral de página (20 → 56)
      y ancho máximo del contenido: de 1440 px para arriba no crece más. */

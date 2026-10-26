@@ -132,7 +132,7 @@ export function CuponFormDialog({
             {error && (
               <div
                 role="alert"
-                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
               >
                 {error}
               </div>
@@ -145,7 +145,7 @@ export function CuponFormDialog({
                 // cambiarlo no lo renombra, mata el que está publicado y crea
                 // otro que nadie tiene. Para corregir un código mal escrito
                 // que nunca se usó, se elimina y se vuelve a crear.
-                <p className="mt-1 font-codigo text-[13.5px] tracking-[0.06em] text-uva-muted">
+                <p className="mt-1 font-codigo text-uva-detalle tracking-[0.06em] text-uva-muted">
                   {cupon.codigo} <span className="font-sans tracking-normal text-uva-text-faint">· no se puede cambiar</span>
                 </p>
               ) : (
@@ -163,7 +163,7 @@ export function CuponFormDialog({
                     className="font-codigo tracking-[0.06em] uppercase"
                     required
                   />
-                  <p className="mt-1.5 text-xs text-uva-text-faint">
+                  <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                     Es lo que teclea el estudiante en el checkout. Se guarda siempre en
                     mayúsculas y sin espacios, porque así se compara al canjearlo.
                   </p>
@@ -178,12 +178,13 @@ export function CuponFormDialog({
                   // El tipo decide cómo se lee `valor` (porcentaje o
                   // centavos). Cambiarlo sin tocar el número convertiría un
                   // 20% en veinte centavos — ver `actualizarCupon`.
-                  <p className="mt-1 text-[13.5px] text-uva-muted">
+                  <p className="mt-1 text-uva-detalle text-uva-muted">
                     {ETIQUETA_TIPO[cupon.tipoDescuento]}{" "}
                     <span className="text-uva-text-faint">· no se puede cambiar</span>
                   </p>
                 ) : (
                   <Select
+                    items={ETIQUETA_TIPO}
                     value={tipo}
                     onValueChange={(value) => setTipo(value as TipoDescuentoCupon)}
                   >
@@ -214,7 +215,7 @@ export function CuponFormDialog({
                   placeholder={esPorcentaje ? "20" : "30000"}
                   required
                 />
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   {esPorcentaje
                     ? "Entero entre 1 y 100. Se descuenta sobre el precio del plan."
                     : // La columna no guarda moneda, así que el monto se
@@ -236,7 +237,7 @@ export function CuponFormDialog({
                 onChange={(event) => setVencimiento(event.target.value)}
                 required
               />
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Vale hasta el final de ese día. Después deja de aplicarse, pero los cobros que
                 ya descontó no cambian.
               </p>
@@ -260,14 +261,14 @@ export function CuponFormDialog({
                   SÍ es nullable: un cupón de descuento no regala acceso, así
                   que una campaña abierta ("20% todo noviembre") es un caso
                   legítimo y no el agujero que sería un código sin tope. */}
-              <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-[13px] text-uva-muted">
+              <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-uva-detalle text-uva-muted">
                 <Checkbox
                   checked={sinLimite}
                   onCheckedChange={(marcado) => setSinLimite(marcado === true)}
                 />
                 Sin límite de usos
               </label>
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Solo cuenta los pagos aprobados: validar el código o abandonar el checkout no
                 gasta un uso.
               </p>

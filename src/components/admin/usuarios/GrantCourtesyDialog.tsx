@@ -62,7 +62,7 @@ export function GrantCourtesyDialog({
         </DialogHeader>
 
         {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </div>
         )}
@@ -70,7 +70,7 @@ export function GrantCourtesyDialog({
         {!cursoElegido && (
           <div className="flex max-h-[280px] flex-col gap-2 overflow-y-auto">
             {cursos.length === 0 && (
-              <p className="text-sm text-uva-text-faint">El usuario ya tiene acceso a todos los cursos.</p>
+              <p className="text-uva-detalle text-uva-text-faint">El usuario ya tiene acceso a todos los cursos.</p>
             )}
             {cursos.map((curso) => (
               <button
@@ -78,7 +78,7 @@ export function GrantCourtesyDialog({
                 type="button"
                 onClick={() => setCursoElegido(curso)}
                 className={cn(
-                  "w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-[13.5px] font-semibold text-uva-text hover:bg-uva-hover",
+                  "w-full rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-uva-detalle font-semibold text-uva-text hover:bg-uva-hover",
                 )}
               >
                 {curso.titulo}
@@ -88,7 +88,7 @@ export function GrantCourtesyDialog({
         )}
 
         {cursoElegido && (
-          <p className="text-sm text-uva-text-muted">
+          <p className="text-uva-detalle text-uva-text-muted">
             ¿Otorgar <span className="text-uva-accent-text">{cursoElegido.titulo}</span> como cortesía a este
             usuario?
           </p>

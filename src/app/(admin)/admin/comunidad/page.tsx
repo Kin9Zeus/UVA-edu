@@ -11,7 +11,7 @@ export default async function AdminComunidadPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-sm text-uva-muted">
+      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
         Reportes pendientes de la Comunidad — cada uno queda acá hasta que un administrador lo elimina o lo
         descarta.
       </p>

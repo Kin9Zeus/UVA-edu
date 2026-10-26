@@ -126,15 +126,15 @@ function ExamenVacio({ cursoId }: { cursoId: string }) {
 
   return (
     <div className="max-w-[560px] rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-      <h2 className="font-heading text-[16.5px] font-bold tracking-[-0.02em] text-uva-text">
+      <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
         Este curso no tiene examen final
       </h2>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-uva-muted">
+      <p className="mt-2 text-uva-detalle leading-relaxed text-uva-muted">
         Tal como está, el estudiante completa el curso y recibe su certificado al terminar el 100% de
         las clases. Si creas un examen y lo publicas, además tendrá que aprobarlo para que el curso
         cuente como completo.
       </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-uva-text-faint">
+      <p className="mt-2 text-uva-detalle leading-relaxed text-uva-text-faint">
         Se crea en borrador: mientras no lo publiques no le aparece a nadie ni bloquea ningún
         certificado.
       </p>
@@ -377,7 +377,7 @@ function ExamenExistente({
       {error && (
         <div
           role="alert"
-          className="max-w-[640px] rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+          className="max-w-[640px] rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
         >
           {error}
         </div>
@@ -390,12 +390,12 @@ function ExamenExistente({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <p className="text-sm font-semibold text-uva-text">Examen obligatorio</p>
+              <p className="text-uva-detalle font-semibold text-uva-text">Examen obligatorio</p>
               <StatusBadge tone={examen.publicado ? "success" : "neutral"}>
                 {examen.publicado ? "Publicado" : "Borrador"}
               </StatusBadge>
             </div>
-            <p className="mt-1 text-xs text-uva-text-faint">
+            <p className="mt-1 text-uva-detalle text-uva-text-faint">
               {examen.publicado
                 ? "Los estudiantes deben aprobarlo para completar el curso y recibir certificado."
                 : "Mientras esté en borrador, el curso certifica solo con el 100% de las clases."}
@@ -413,8 +413,8 @@ function ExamenExistente({
 
         {bloqueadoParaPublicar && (
           <div id="examen-bloqueo-publicacion" className="mt-3 rounded-uva-md bg-uva-surface-2 px-3.5 py-2.5">
-            <p className="text-xs font-semibold text-uva-text">Falta esto para poder publicarlo:</p>
-            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-xs text-uva-muted">
+            <p className="text-uva-detalle font-semibold text-uva-text">Falta esto para poder publicarlo:</p>
+            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-uva-detalle text-uva-muted">
               {motivosSinPublicar.map((motivo) => (
                 <li key={motivo}>{motivo}</li>
               ))}
@@ -425,7 +425,7 @@ function ExamenExistente({
         {/* Despublicar no revoca certificados ya emitidos (Revf3) — se dice
             explícito porque es justo lo que un admin teme al apagar esto. */}
         {examen.publicado && examen.aprobados > 0 && (
-          <p className="mt-3 text-xs text-uva-muted">
+          <p className="mt-3 text-uva-detalle text-uva-muted">
             {examen.aprobados}{" "}
             {examen.aprobados === 1 ? "estudiante ya lo aprobó" : "estudiantes ya lo aprobaron"}. Si lo
             despublicas conservan su certificado; solo deja de exigirse a quien venga después.
@@ -435,7 +435,7 @@ function ExamenExistente({
 
       {/* ---------------- Configuración ---------------- */}
       <section className="flex max-w-[640px] flex-col gap-4">
-        <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+        <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
           Configuración
         </h2>
 
@@ -451,7 +451,7 @@ function ExamenExistente({
 
         <div>
           <Label htmlFor="examen-instrucciones">Instrucciones para el estudiante</Label>
-          <p className="mt-0.5 mb-1.5 text-xs text-uva-text-faint">
+          <p className="mt-0.5 mb-1.5 text-uva-detalle text-uva-text-faint">
             Se muestran en la pantalla previa, antes de que inicie el intento.
           </p>
           <div className="rounded-uva-md border border-uva-divider bg-uva-surface">
@@ -478,7 +478,7 @@ function ExamenExistente({
               disabled={!conLimiteIntentos}
               onChange={(event) => setIntentosMaximos(Number(event.target.value))}
             />
-            <label className="mt-1.5 flex items-center gap-2 text-xs text-uva-muted">
+            <label className="mt-1.5 flex items-center gap-2 text-uva-detalle text-uva-muted">
               <input
                 type="checkbox"
                 checked={!conLimiteIntentos}
@@ -500,7 +500,7 @@ function ExamenExistente({
               disabled={!conTiempo}
               onChange={(event) => setMinutosLimite(Number(event.target.value))}
             />
-            <label className="mt-1.5 flex items-center gap-2 text-xs text-uva-muted">
+            <label className="mt-1.5 flex items-center gap-2 text-uva-detalle text-uva-muted">
               <input
                 type="checkbox"
                 checked={!conTiempo}
@@ -514,8 +514,8 @@ function ExamenExistente({
 
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm text-uva-text">Barajar preguntas</p>
-            <p className="text-xs text-uva-text-faint">Cada estudiante las ve en distinto orden.</p>
+            <p className="text-uva-detalle text-uva-text">Barajar preguntas</p>
+            <p className="text-uva-detalle text-uva-text-faint">Cada estudiante las ve en distinto orden.</p>
           </div>
           <Switch
             className="shrink-0"
@@ -527,8 +527,8 @@ function ExamenExistente({
 
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm text-uva-text">Barajar opciones</p>
-            <p className="text-xs text-uva-text-faint">
+            <p className="text-uva-detalle text-uva-text">Barajar opciones</p>
+            <p className="text-uva-detalle text-uva-text-faint">
               El orden de las respuestas cambia en cada intento.
             </p>
           </div>
@@ -555,10 +555,10 @@ function ExamenExistente({
       {/* ---------------- Preguntas ---------------- */}
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+          <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
             Preguntas
           </h2>
-          <p className="text-xs text-uva-text-faint">
+          <p className="text-uva-detalle text-uva-text-faint">
             {preguntas.length} {preguntas.length === 1 ? "pregunta" : "preguntas"} · {puntosTotales}{" "}
             {puntosTotales === 1 ? "punto" : "puntos"} en total
           </p>
@@ -579,13 +579,13 @@ function ExamenExistente({
             CursoDetalleView) ya bloquea salir de la pantalla, pero no se ve
             hasta que se intenta salir: esto lo hace visible mientras se edita. */}
         {preguntaSinGuardar && (
-          <p role="status" className="text-xs text-uva-warn">
+          <p role="status" className="text-uva-detalle text-uva-warn">
             Tienes cambios sin guardar en una pregunta.
           </p>
         )}
 
         {preguntas.length === 0 ? (
-          <p className="rounded-uva-md border border-dashed border-uva-divider px-4 py-6 text-center text-[13.5px] text-uva-text-faint">
+          <p className="rounded-uva-md border border-dashed border-uva-divider px-4 py-6 text-center text-uva-detalle text-uva-text-faint">
             Todavía no hay preguntas. Agrega la primera con los botones de abajo.
           </p>
         ) : (
@@ -617,7 +617,7 @@ function ExamenExistente({
 
         {preguntas.length < MAXIMO_PREGUNTAS_POR_EXAMEN && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-uva-text-faint">Agregar:</span>
+            <span className="text-uva-detalle text-uva-text-faint">Agregar:</span>
             {TIPOS_CREABLES.map((tipo) => (
               <Button
                 key={tipo}
@@ -637,12 +637,12 @@ function ExamenExistente({
 
       {/* ---------------- Estudiantes ---------------- */}
       <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+        <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
           Estudiantes
         </h2>
 
         {examen.estudiantes.length === 0 ? (
-          <p className="text-[13.5px] text-uva-text-faint">Nadie ha presentado este examen todavía.</p>
+          <p className="text-uva-detalle text-uva-text-faint">Nadie ha presentado este examen todavía.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {examen.estudiantes.map((estudiante) => (
@@ -678,7 +678,7 @@ function ExamenExistente({
         >
           Eliminar examen
         </Button>
-        <p className="mt-1.5 text-xs text-uva-text-faint">
+        <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
           Solo si nadie lo ha presentado todavía. Si ya hay intentos, despublícalo en vez de borrarlo.
         </p>
       </section>
@@ -772,8 +772,8 @@ function PreguntaFila({
           aria-expanded={abierta}
           className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
         >
-          <span className="shrink-0 font-mono text-[12px] text-uva-text-faint">{numero}.</span>
-          <span className="min-w-0 flex-1 truncate text-[13.5px] text-uva-text">
+          <span className="shrink-0 font-mono text-uva-detalle text-uva-text-faint">{numero}.</span>
+          <span className="min-w-0 flex-1 truncate text-uva-detalle text-uva-text">
             {sinEnunciado ? (
               <span className="text-uva-text-faint italic">Pregunta sin enunciado</span>
             ) : (
@@ -791,10 +791,10 @@ function PreguntaFila({
               IA
             </StatusBadge>
           ) : null}
-          <span className="hidden shrink-0 text-xs text-uva-text-faint sm:inline">
+          <span className="hidden shrink-0 text-uva-detalle text-uva-text-faint sm:inline">
             {ETIQUETA_TIPO[pregunta.tipo]}
           </span>
-          <span className="shrink-0 font-mono text-xs text-uva-text-faint">
+          <span className="shrink-0 font-mono text-uva-etiqueta text-uva-text-faint">
             {pregunta.puntos} {pregunta.puntos === 1 ? "pt" : "pts"}
           </span>
           <ChevronDown
@@ -842,12 +842,12 @@ function Procedencia({ origen }: { origen: NonNullable<PreguntaCompleta["origen"
           <Sparkles className="size-3" />
           {origen.validada === true ? "Generada y verificada" : "Generada sin verificar"}
         </StatusBadge>
-        <span className="text-[12.5px] text-uva-muted">
+        <span className="text-uva-detalle text-uva-muted">
           {origen.leccionTitulo ?? "clase eliminada"}
         </span>
       </div>
       {origen.fragmento ? (
-        <blockquote className="mt-2 border-l-2 border-uva-divider pl-2.5 text-[12.5px] leading-relaxed text-uva-text-faint italic">
+        <blockquote className="mt-2 border-l-2 border-uva-divider pl-2.5 text-uva-detalle leading-relaxed text-uva-text-faint italic">
           «{origen.fragmento}»
         </blockquote>
       ) : null}
@@ -893,12 +893,12 @@ function EstudianteFila({
             sola fila, intentos + mejor puntaje + estado se comían todo el ancho
             y el nombre quedaba en 0 px, una fila sin saber de quién era. */}
         <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2.5">
-          <span className="min-w-0 truncate text-[13.5px] text-uva-text sm:flex-1">{estudiante.nombre}</span>
+          <span className="min-w-0 truncate text-uva-detalle text-uva-text sm:flex-1">{estudiante.nombre}</span>
           <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:shrink-0">
-            <span className="font-mono text-xs text-uva-text-faint">
+            <span className="font-mono text-uva-etiqueta text-uva-text-faint">
               {estudiante.intentos.length} {estudiante.intentos.length === 1 ? "intento" : "intentos"}
             </span>
-            <span className="font-mono text-xs text-uva-muted">
+            <span className="font-mono text-uva-etiqueta text-uva-muted">
               {estudiante.mejorPuntaje === null ? "—" : `mejor: ${estudiante.mejorPuntaje}%`}
             </span>
             <StatusBadge tone={badge.tone}>{badge.etiqueta}</StatusBadge>
@@ -913,7 +913,7 @@ function EstudianteFila({
         <div className="border-t border-uva-divider">
           {estudiante.estado === "EN_ESPERA_LARGA" && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-uva-divider bg-uva-warning-soft px-3.5 py-2.5">
-              <p className="text-[12.5px] text-uva-text">
+              <p className="text-uva-detalle text-uva-text">
                 Agotó sus {intentosMaximos} intentos sin aprobar. Se le habilita una tanda nueva sola
                 cuando pase la espera larga — o puedes saltártela.
               </p>
@@ -937,14 +937,14 @@ function EstudianteFila({
               <li key={intento.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[13px] text-uva-muted">
+                    <span className="font-mono text-uva-detalle text-uva-muted">
                       Intento {intento.numeroIntento} de {intentosMaximos ?? "∞"}
                     </span>
                     <StatusBadge tone={tonoIntento(intento.estado)}>
                       {ETIQUETA_ESTADO_INTENTO[intento.estado]}
                     </StatusBadge>
                   </div>
-                  <p className="mt-1 text-xs text-uva-text-faint">
+                  <p className="mt-1 text-uva-detalle text-uva-text-faint">
                     <span className="font-mono text-uva-muted">
                       {intento.puntajePct === null ? "—" : `${intento.puntajePct}%`}
                     </span>
@@ -968,7 +968,7 @@ function EstudianteFila({
           </ul>
 
           <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full min-w-[480px] text-left text-[13px]">
+            <table className="w-full min-w-[480px] text-left text-uva-detalle">
               <thead className="bg-uva-surface-2 text-uva-muted">
                 <tr>
                   <th scope="col" className="px-3.5 py-2 font-semibold">Intento</th>

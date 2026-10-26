@@ -106,14 +106,14 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
 
       {/* Vive junto a la tabla y no solo en el toast, igual que el aviso de
           Códigos: es la diferencia que hay que saber ANTES de tocar nada. */}
-      <p className="text-[12.5px] text-uva-muted-2">
+      <p className="text-uva-detalle text-uva-muted-2">
         Un cupón descuenta sobre el precio de un plan: no da acceso por sí solo, siempre hay un
         pago detrás. Para regalar acceso sin cobrar están los códigos de invitación.
       </p>
 
       <AdminCard flush>
         {cupones.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">
             No hay cupones todavía.
           </p>
         )}
@@ -132,7 +132,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                     type="button"
                     onClick={() => handleCopiar(cupon.codigo)}
                     title="Copiar código"
-                    className="flex min-w-0 items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex min-w-0 items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     <span className="truncate">{cupon.codigo}</span>
                     {copiado === cupon.codigo ? (
@@ -145,11 +145,11 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                     {ETIQUETA_ESTADO[cupon.estado]}
                   </StatusBadge>
                 </div>
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   −{descuento(cupon)} · {cupon.vecesUsado}/{cupon.limiteUsos ?? "∞"} usos
                 </p>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <span className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     Vence {formatFecha(cupon.fechaVencimiento)}
                   </span>
                   <Acciones
@@ -186,7 +186,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                       type="button"
                       onClick={() => handleCopiar(cupon.codigo)}
                       title="Copiar código"
-                      className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] whitespace-nowrap text-uva-text hover:text-uva-accent-text"
+                      className="flex items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.06em] whitespace-nowrap text-uva-text hover:text-uva-accent-text"
                     >
                       {cupon.codigo}
                       {copiado === cupon.codigo ? (
@@ -203,7 +203,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                     {cupon.vecesUsado}
                     <span className="text-uva-muted-2">/{cupon.limiteUsos ?? "∞"}</span>
                   </TableCell>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     {formatFecha(cupon.fechaVencimiento)}
                   </TableCell>
                   <TableCell>
@@ -211,7 +211,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
                       {ETIQUETA_ESTADO[cupon.estado]}
                     </StatusBadge>
                   </TableCell>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     {formatFecha(cupon.creadoEn)}
                   </TableCell>
                   <TableCell className="text-right">

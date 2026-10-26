@@ -167,7 +167,7 @@ export function CrearCursoForm({
 
       <div className="flex flex-col gap-4">
         {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </div>
         )}
@@ -199,7 +199,7 @@ export function CrearCursoForm({
           {errorPortada && (
             <div
               role="alert"
-              className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+              className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
             >
               {errorPortada}
             </div>
@@ -207,7 +207,7 @@ export function CrearCursoForm({
           <button
             type="button"
             onClick={() => inputPortadaRef.current?.click()}
-            className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint"
+            className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-uva-detalle text-uva-muted-2 hover:border-uva-text-faint"
           >
             {previewPortada ? (
               // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
@@ -219,9 +219,9 @@ export function CrearCursoForm({
             )}
           </button>
           {previewPortada && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
+            <p className="mt-1.5 text-uva-detalle text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
           )}
-          <p className="mt-1 text-xs text-uva-text-faint">
+          <p className="mt-1 text-uva-detalle text-uva-text-faint">
             {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
             recortada a 1280 × 720 px (16:9), igual que la vista previa.
           </p>

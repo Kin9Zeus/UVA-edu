@@ -38,20 +38,20 @@ export function MetricaCard({
   const contenido = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[12.5px] text-uva-muted">{label}</p>
+        <p className="text-uva-detalle text-uva-muted">{label}</p>
         <div className="flex size-9 shrink-0 items-center justify-center rounded-uva-md bg-uva-accent-soft text-uva-accent-text">
           <Icon className="size-[18px]" strokeWidth={1.9} />
         </div>
       </div>
       <p
         className={cn(
-          "font-mono text-[28px] leading-none font-bold tabular-nums text-uva-text",
+          "font-mono text-uva-titulo-3 leading-none font-bold tabular-nums text-uva-text",
           href && "transition-colors group-hover:text-uva-accent-text",
         )}
       >
         {valor}
       </p>
-      {detalle && <p className="text-[12px] text-uva-muted-2">{detalle}</p>}
+      {detalle && <p className="text-uva-detalle text-uva-muted-2">{detalle}</p>}
     </>
   );
 

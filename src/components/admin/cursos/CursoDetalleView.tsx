@@ -208,7 +208,7 @@ export function CursoDetalleView({
           necesita una salida hacia el listado. */}
       <Link
         href="/admin/cursos"
-        className="-mb-2 flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
+        className="-mb-2 flex w-fit items-center gap-1.5 text-uva-detalle text-uva-muted-2 hover:text-uva-text"
       >
         <ArrowLeft className="size-4" />
         Volver a cursos
@@ -233,12 +233,12 @@ export function CursoDetalleView({
               width={1280}
               height={720}
               sizes="80px"
-              className="aspect-video h-11 w-auto shrink-0 rounded-lg object-cover"
+              className="aspect-video h-11 w-auto shrink-0 rounded-uva-sm object-cover"
             />
           ) : (
             <div
               aria-hidden
-              className="aspect-video h-11 shrink-0 rounded-lg bg-uva-surface-2"
+              className="aspect-video h-11 shrink-0 rounded-uva-sm bg-uva-surface-2"
               style={{
                 backgroundImage:
                   "repeating-linear-gradient(135deg, var(--uva-stripe) 0 2px, transparent 2px 9px)",
@@ -246,10 +246,10 @@ export function CursoDetalleView({
             />
           )}
           <div>
-            <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+            <h1 className="font-heading text-uva-titulo-4 text-uva-text">
               {titulo}
             </h1>
-            <p className="mt-0.5 text-[12.5px] text-uva-muted">
+            <p className="mt-0.5 text-uva-detalle text-uva-muted">
               {categoria} · {NIVEL_LABEL[nivel]}
             </p>
           </div>
@@ -262,7 +262,7 @@ export function CursoDetalleView({
           <Button type="button" variant="primary" size="sm" disabled={pending} onClick={handleGuardar}>
             {pending ? "Guardando…" : "Guardar cambios"}
           </Button>
-          <div className="text-[13px] text-uva-muted sm:ml-auto">
+          <div className="text-uva-detalle text-uva-muted sm:ml-auto">
             {curso.estudiantes.length} {curso.estudiantes.length === 1 ? "estudiante" : "estudiantes"}
           </div>
         </div>

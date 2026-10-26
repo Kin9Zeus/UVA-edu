@@ -284,14 +284,14 @@ export function ModuloCard({
               }
             }}
             onBlur={handleGuardarTitulo}
-            className="h-7 max-w-[240px] text-[13.5px] font-bold"
+            className="h-7 max-w-[240px] text-uva-detalle font-bold"
           />
         ) : (
-          <span className="text-[13.5px] font-bold text-uva-text">{modulo.titulo}</span>
+          <span className="text-uva-detalle font-bold text-uva-text">{modulo.titulo}</span>
         )}
         {/* Índice decorativo (1..N): en mobile se quita para darle más
             espacio al título, que ya lo dice todo lo que hace falta. */}
-        <span className="hidden font-mono text-[11.5px] text-uva-muted-2 sm:inline">{posicion}</span>
+        <span className="hidden font-mono text-uva-etiqueta text-uva-muted-2 sm:inline">{posicion}</span>
         <div className="ml-auto flex items-center gap-1">
           {!editandoTitulo && (
             <Button
@@ -381,7 +381,7 @@ export function ModuloCard({
               value={nombreLeccion}
               onChange={(event) => setNombreLeccion(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAgregarLeccion()}
-              className="h-8 text-sm sm:max-w-[280px]"
+              className="h-8 text-uva-detalle sm:max-w-[280px]"
             />
             <div className="flex items-center gap-2">
               <Button type="button" size="sm" onClick={handleAgregarLeccion}>
@@ -396,7 +396,7 @@ export function ModuloCard({
           <button
             type="button"
             onClick={() => setAgregandoLeccion(true)}
-            className="w-full border-t border-uva-divider px-4 py-[9px] text-left text-xs text-uva-muted hover:bg-uva-hover"
+            className="w-full border-t border-uva-divider px-4 py-[9px] text-left text-uva-detalle text-uva-muted hover:bg-uva-hover"
           >
             + Añadir lección
           </button>
@@ -525,25 +525,25 @@ function LeccionRow({
           decorativo — se quita en mobile junto con la duración para darle
           más aire al título, que es lo único que hace falta para elegir la
           lección; ambos siguen visibles en el editor de la derecha. */}
-      <span className="hidden w-[14px] shrink-0 font-mono text-xs text-uva-muted sm:inline">
+      <span className="hidden w-[14px] shrink-0 font-mono text-uva-etiqueta text-uva-muted sm:inline">
         &#9654;
       </span>
       <button
         type="button"
         onClick={onSeleccionar}
-        className="flex-1 truncate text-left text-[13px] text-uva-text"
+        className="flex-1 truncate text-left text-uva-detalle text-uva-text"
       >
         {leccion.titulo}
       </button>
       {esIntroduccion && (
-        <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.1em] text-uva-accent-text uppercase">
+        <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-uva-etiqueta font-semibold tracking-[.1em] text-uva-accent-text uppercase">
           Introducción
         </span>
       )}
-      <span className="hidden shrink-0 font-mono text-[11.5px] text-uva-muted-2 sm:inline">
+      <span className="hidden shrink-0 font-mono text-uva-etiqueta text-uva-muted-2 sm:inline">
         {formatDuracion(leccion.duracion)}
       </span>
-      <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]} className="shrink-0 text-[10px]">
+      <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]} className="shrink-0 text-uva-etiqueta">
         {ESTADO_LABEL[leccion.estadoProcesamiento]}
       </StatusBadge>
       <Button

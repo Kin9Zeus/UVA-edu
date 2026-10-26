@@ -45,7 +45,7 @@ export function ConfiguracionTab({
       {error && (
         <div
           role="alert"
-          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
         >
           {error}
         </div>
@@ -54,8 +54,8 @@ export function ConfiguracionTab({
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-uva-text">Curso visible</p>
-            <p className="text-xs text-uva-text-faint">
+            <p className="text-uva-detalle text-uva-text">Curso visible</p>
+            <p className="text-uva-detalle text-uva-text-faint">
               Se muestra en el catálogo público.
             </p>
           </div>
@@ -76,10 +76,10 @@ export function ConfiguracionTab({
             id="config-bloqueo-publicacion"
             className="mt-2.5 rounded-uva-md bg-uva-surface-2 px-3.5 py-2.5"
           >
-            <p className="text-xs font-semibold text-uva-text">
+            <p className="text-uva-detalle font-semibold text-uva-text">
               Falta esto para poder publicarlo:
             </p>
-            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-xs text-uva-muted">
+            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-uva-detalle text-uva-muted">
               {motivosSinPublicar.map((motivo) => (
                 <li key={motivo}>{motivo}</li>
               ))}
@@ -90,8 +90,8 @@ export function ConfiguracionTab({
 
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-uva-text">Curso destacado</p>
-          <p className="text-xs text-uva-text-faint">
+          <p className="text-uva-detalle text-uva-text">Curso destacado</p>
+          <p className="text-uva-detalle text-uva-text-faint">
             Aparece resaltado en el catálogo.
           </p>
         </div>

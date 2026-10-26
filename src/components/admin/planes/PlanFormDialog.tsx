@@ -104,7 +104,7 @@ export function PlanFormDialog({
 
           <div className="flex flex-col gap-3.5">
             {error && (
-              <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+              <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
                 {error}
               </div>
             )}
@@ -150,7 +150,7 @@ export function PlanFormDialog({
                     navegador rechazaba cualquier valor con decimales antes
                     de que la Server Action (que sí los acepta, ver
                     validar() en actions/admin/planes.ts) llegara a verlo. */}
-                <p className="mt-1 text-[11px] text-uva-text-faint">Admite centavos: 69.99, 89900, etc.</p>
+                <p className="mt-1 text-uva-etiqueta text-uva-text-faint">Admite centavos: 69.99, 89900, etc.</p>
               </div>
               <div>
                 <Label htmlFor="plan-moneda">Moneda</Label>

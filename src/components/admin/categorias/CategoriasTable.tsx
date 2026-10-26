@@ -127,7 +127,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
 
       <AdminCard flush>
         {categorias.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">
             No hay categorías todavía.
           </p>
         )}
@@ -145,7 +145,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                   <button
                     type="button"
                     onClick={() => setVerCursosDe(categoria)}
-                    className="text-left text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                    className="text-left text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {categoria.nombre}
                   </button>
@@ -157,9 +157,9 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                   />
                 </div>
                 {categoria.descripcion && (
-                  <p className="text-xs text-uva-muted">{categoria.descripcion}</p>
+                  <p className="text-uva-detalle text-uva-muted">{categoria.descripcion}</p>
                 )}
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {categoria.numeroCursos} curso{categoria.numeroCursos === 1 ? "" : "s"} · Creado por{" "}
                   {categoria.creadoPor}
                 </p>
@@ -226,7 +226,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                   {categoria.descripcion ?? "—"}
                 </TableCell>
                 <TableCell className="font-mono tabular-nums">{categoria.numeroCursos}</TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">{categoria.creadoPor}</TableCell>
+                <TableCell className="text-uva-detalle text-uva-muted-2">{categoria.creadoPor}</TableCell>
                 <TableCell>
                   <SwitchEstado
                     checked={categoria.activo}
@@ -301,20 +301,20 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             {errorReasignar && (
               <div
                 role="alert"
-                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
               >
                 {errorReasignar}
               </div>
             )}
 
-            <p className="text-[13.5px] text-uva-muted">
+            <p className="text-uva-detalle text-uva-muted">
               Esta categoría tiene {reasignando?.numeroCursos}{" "}
               {reasignando?.numeroCursos === 1 ? "curso asociado" : "cursos asociados"}. Elige a
               dónde moverlos: se reasignan y después se elimina la categoría.
             </p>
 
             {destinos.length === 0 ? (
-              <p className="text-[13.5px] text-uva-error-text">
+              <p className="text-uva-detalle text-uva-error-text">
                 No hay otra categoría a la que mover los cursos. Crea una antes de eliminar esta.
               </p>
             ) : (
@@ -338,7 +338,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                 </Select>
                 {/* Un curso que ya esté en el destino no se duplica: la
                     reasignación solo le quita la categoría que se elimina. */}
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   Los cursos que ya estén en la categoría de destino no se duplican.
                 </p>
               </div>
@@ -376,7 +376,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
           </DialogHeader>
           <div className="flex max-h-[300px] flex-col gap-1.5 overflow-auto">
             {verCursosDe?.cursos.length === 0 && (
-              <p className="text-[13.5px] text-uva-muted-2">
+              <p className="text-uva-detalle text-uva-muted-2">
                 Esta categoría todavía no tiene cursos asignados.
               </p>
             )}
@@ -384,7 +384,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
               <Link
                 key={curso.id}
                 href={`/admin/cursos/${curso.slug}`}
-                className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
+                className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
               >
                 <span className="min-w-0 truncate">{curso.titulo}</span>
                 <StatusBadge tone={curso.mostrado ? "success" : "neutral"} className="shrink-0">

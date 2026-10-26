@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 function TituloTarjeta({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+    <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
       {children}
     </h2>
   );

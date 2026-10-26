@@ -107,14 +107,14 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
 
       {recienCreado && (
         <div className="rounded-uva-md border border-uva-accent/40 bg-uva-accent-soft px-4 py-3.5">
-          <p className="text-xs font-semibold text-uva-accent-text">
+          <p className="text-uva-detalle font-semibold text-uva-accent-text">
             Código generado. Compártelo con quien va a recibir el acceso:
           </p>
           {/* `flex-wrap` es el fix real: sin él, código + Copiar + Listo en
               una sola fila rígida se salía del ancho en un teléfono angosto
               en vez de solo verse apretado. */}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-codigo text-[15px] font-semibold tracking-[0.08em] text-uva-text">
+            <code className="rounded-uva-md bg-uva-surface-2 px-3 py-2 font-codigo text-uva-cuerpo font-semibold tracking-[0.08em] text-uva-text">
               {recienCreado}
             </code>
             <Button
@@ -143,14 +143,14 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
       {/* Explícito a propósito (rev.md): desactivar y revocar acceso son dos
           acciones distintas. Vive junto a la tabla, no solo en el toast,
           para que quien nunca haya tocado el switch lo sepa de antemano. */}
-      <p className="text-[12.5px] text-uva-muted-2">
+      <p className="text-uva-detalle text-uva-muted-2">
         Desactivar un código impide que se siga canjeando, pero no revoca el acceso de quien ya lo
         usó — para eso está la revocación manual en la ficha de cada usuario.
       </p>
 
       <AdminCard flush>
         {codigos.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">
             No hay códigos de invitación todavía.
           </p>
         )}
@@ -170,7 +170,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     type="button"
                     onClick={() => handleCopiar(codigo.codigo)}
                     title="Copiar código"
-                    className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (
@@ -183,7 +183,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     {ETIQUETA_ESTADO[codigo.estado]}
                   </StatusBadge>
                 </div>
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {codigo.duracionDias} días de acceso · {codigo.vecesUsado}/{codigo.limiteUsos} usos
                 </p>
                 <div className="flex items-center justify-between gap-2">
@@ -192,12 +192,12 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     codigo={codigo.codigo}
                     vecesUsado={codigo.vecesUsado}
                   />
-                  <span className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <span className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     Vence {formatFecha(codigo.fechaVencimiento)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-uva-muted-2">Creado por {codigo.creadoPor}</span>
+                  <span className="text-uva-detalle text-uva-muted-2">Creado por {codigo.creadoPor}</span>
                   <div className="grid grid-cols-[auto_auto_28px] items-center gap-1.5">
                     <SwitchEstado
                       checked={codigo.activo}
@@ -260,7 +260,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     type="button"
                     onClick={() => handleCopiar(codigo.codigo)}
                     title="Copiar código"
-                    className="flex items-center gap-1.5 font-codigo text-[13px] font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
+                    className="flex items-center gap-1.5 font-codigo text-uva-detalle font-semibold tracking-[0.06em] text-uva-text hover:text-uva-accent-text"
                   >
                     {codigo.codigo}
                     {copiado === codigo.codigo ? (
@@ -282,7 +282,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     vecesUsado={codigo.vecesUsado}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {formatFecha(codigo.fechaVencimiento)}
                 </TableCell>
                 <TableCell>
@@ -290,7 +290,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
                     {ETIQUETA_ESTADO[codigo.estado]}
                   </StatusBadge>
                 </TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">{codigo.creadoPor}</TableCell>
+                <TableCell className="text-uva-detalle text-uva-muted-2">{codigo.creadoPor}</TableCell>
                 <TableCell className="text-right">
                   {/* `justify-end` con un tercer botón condicional corría todo
                       el grupo hacia la derecha cuando la papelera no aparecía:

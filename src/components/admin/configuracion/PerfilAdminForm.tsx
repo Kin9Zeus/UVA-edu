@@ -22,16 +22,16 @@ export function PerfilAdminForm({
     <form action={formAction} className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
         <EditorFotoPerfil nombre={nombre} fotoUrl={fotoUrl} />
-        <p className="text-xs text-uva-muted-2">Haz clic en la foto para cambiarla.</p>
+        <p className="text-uva-detalle text-uva-muted-2">Haz clic en la foto para cambiarla.</p>
       </div>
 
       {state?.error && (
-        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
           {state.error}
         </div>
       )}
       {state?.success && (
-        <div role="status" className="rounded-uva-md bg-uva-badge-success-bg px-3.5 py-2.5 text-sm text-uva-badge-success-fg">
+        <div role="status" className="rounded-uva-md bg-uva-badge-success-bg px-3.5 py-2.5 text-uva-detalle text-uva-badge-success-fg">
           Perfil actualizado.
         </div>
       )}

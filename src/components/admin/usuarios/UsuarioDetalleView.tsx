@@ -55,7 +55,7 @@ function iniciales(nombre: string) {
 
 /** Etiqueta gris de 11px que el mockup antepone a cada badge de la cabecera. */
 function EtiquetaBadge({ children }: { children: React.ReactNode }) {
-  return <span className="text-[11px] text-uva-muted-2">{children}</span>;
+  return <span className="text-uva-etiqueta text-uva-muted-2">{children}</span>;
 }
 
 export function UsuarioDetalleView({
@@ -138,7 +138,7 @@ export function UsuarioDetalleView({
       {/* El mockup no lleva este enlace; se conserva como salida al listado. */}
       <Link
         href="/admin/usuarios"
-        className="-mb-2 flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
+        className="-mb-2 flex w-fit items-center gap-1.5 text-uva-detalle text-uva-muted-2 hover:text-uva-text"
       >
         <ArrowLeft className="size-4" />
         Volver a usuarios
@@ -158,10 +158,10 @@ export function UsuarioDetalleView({
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
+            <h1 className="font-heading text-uva-titulo-4 text-uva-text">
               {usuario.nombre}
             </h1>
-            <p className="text-[12.5px] text-uva-muted">
+            <p className="text-uva-detalle text-uva-muted">
               {usuario.correo} ·{" "}
               {rol === "ADMINISTRADOR" ? "Administrador" : rol === "PROFESOR" ? "Profesor" : "Estudiante"}
             </p>
@@ -205,7 +205,7 @@ export function UsuarioDetalleView({
               <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
             </div>
           )}
-          <div className="text-[12px] text-uva-muted-2 sm:ml-auto">
+          <div className="text-uva-detalle text-uva-muted-2 sm:ml-auto">
             Registrado {formatFecha(usuario.fechaRegistro)}
           </div>
         </div>
@@ -217,7 +217,7 @@ export function UsuarioDetalleView({
           empezó a tener acceso). "Vence" para código/cortesía (no hay cobro
           automático detrás); "Renueva" para una suscripción de pago. */}
       {!esAdministrador && usuario.suscripcionInicio && (
-        <p className="-mt-2 text-[12px] text-uva-muted-2">
+        <p className="-mt-2 text-uva-detalle text-uva-muted-2">
           Suscripción desde {formatFecha(usuario.suscripcionInicio)}
           {usuario.suscripcionEstado === "CANCELADA" ? (
             // Revocada a mano (revocarMembresia): no tiene sentido seguir
@@ -290,7 +290,7 @@ export function UsuarioDetalleView({
               onChange={(event) => setEspecialidad(event.target.value)}
               placeholder="Modelado BIM y coordinación de disciplinas"
             />
-            <p className="mt-1.5 text-xs text-uva-text-faint">
+            <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
               Se muestra bajo su nombre en la ficha pública de los cursos que dicta.
             </p>
           </div>
@@ -310,26 +310,26 @@ export function UsuarioDetalleView({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Cursos inscritos</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
+          <div className="text-uva-etiqueta text-uva-muted">Cursos inscritos</div>
+          <div className="font-mono text-uva-titulo-4 font-bold tabular-nums">
             {usuario.metricas.cursosInscritos}
           </div>
         </AdminCard>
         <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Completados</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
+          <div className="text-uva-etiqueta text-uva-muted">Completados</div>
+          <div className="font-mono text-uva-titulo-4 font-bold tabular-nums">
             {usuario.metricas.cursosCompletados}
           </div>
         </AdminCard>
         <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Progreso promedio</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
+          <div className="text-uva-etiqueta text-uva-muted">Progreso promedio</div>
+          <div className="font-mono text-uva-titulo-4 font-bold tabular-nums">
             {usuario.metricas.progresoPromedio}%
           </div>
         </AdminCard>
         <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Última actividad</div>
-          <div className="mt-1 text-[13px]">
+          <div className="text-uva-etiqueta text-uva-muted">Última actividad</div>
+          <div className="mt-1 text-uva-detalle">
             {usuario.metricas.ultimaActividad
               ? formatFecha(usuario.metricas.ultimaActividad)
               : "Sin actividad"}
@@ -339,13 +339,13 @@ export function UsuarioDetalleView({
 
       <AdminCard flush className="gap-0">
         <div className="px-[18px] pt-4 pb-1">
-          <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+          <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
             Cursos del usuario
           </h2>
         </div>
 
         {usuario.cursos.length === 0 && (
-          <p className="px-[18px] py-4 text-center text-sm text-uva-muted-2">
+          <p className="px-[18px] py-4 text-center text-uva-detalle text-uva-muted-2">
             Este usuario no está inscrito en ningún curso.
           </p>
         )}
@@ -362,7 +362,7 @@ export function UsuarioDetalleView({
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
-                    className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                    className="text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}
                   </Link>
@@ -375,7 +375,7 @@ export function UsuarioDetalleView({
                 </div>
                 <div className="flex items-center gap-2">
                   <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
-                  <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
+                  <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                     {curso.progreso}%
                   </span>
                 </div>
@@ -390,7 +390,7 @@ export function UsuarioDetalleView({
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-uva-muted-2">
+                  <span className="text-uva-detalle text-uva-muted-2">
                     {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "Sin actividad"}
                   </span>
                   {curso.tipoAcceso === "CORTESIA" && curso.activo && curso.inscripcionId && (
@@ -437,7 +437,7 @@ export function UsuarioDetalleView({
                 <TableCell className="min-w-[140px]">
                   <div className="flex items-center gap-2">
                     <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
-                    <span className="font-mono text-xs text-uva-muted-2 tabular-nums">
+                    <span className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                       {curso.progreso}%
                     </span>
                   </div>
@@ -459,7 +459,7 @@ export function UsuarioDetalleView({
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">
+                <TableCell className="text-uva-detalle text-uva-muted-2">
                   {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
                 </TableCell>
                 <TableCell className="text-right">

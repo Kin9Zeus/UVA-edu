@@ -65,7 +65,7 @@ function NavLink({
       // acento magenta a la izquierda en el item activo, no solo cambio de
       // fondo.
       className={cn(
-        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3 py-2.5 text-sm font-medium text-uva-muted transition-colors hover:bg-uva-hover",
+        "flex items-center gap-3 rounded-uva-md border-l-[3px] border-transparent px-3 py-2.5 text-uva-detalle font-medium text-uva-muted transition-colors hover:bg-uva-hover",
         active && "border-uva-accent bg-uva-surface text-uva-text",
         collapsed && "justify-center px-0",
       )}
@@ -114,11 +114,11 @@ export function Sidebar({ colapsadoInicial = false }: { colapsadoInicial?: boole
       >
         {!collapsed && (
           <Link href="/admin" className="flex items-center whitespace-nowrap no-underline hover:no-underline">
-            <span className="font-heading text-[18px] font-bold tracking-[.08em] text-uva-text">
+            <span className="font-heading text-uva-titulo-4 font-bold tracking-[.08em] text-uva-text">
               U.V.A<span className="text-uva-accent">.</span>
             </span>
             {/* El mockup lo escribe como texto suelto, sin pildora de fondo */}
-            <span className="ml-2 font-mono text-[10px] font-semibold tracking-[.1em] text-uva-muted-2">
+            <span className="ml-2 font-mono text-uva-etiqueta font-semibold tracking-[.1em] text-uva-muted-2">
               ADMIN
             </span>
           </Link>
@@ -166,7 +166,7 @@ function CerrarSesionButton({ collapsed }: { collapsed: boolean }) {
       onClick={() => logout()}
       aria-label="Cerrar sesión"
       className={cn(
-        "flex w-full items-center gap-3 rounded-uva-md px-3 py-2.5 text-sm text-uva-muted hover:bg-uva-hover hover:text-uva-text",
+        "flex w-full items-center gap-3 rounded-uva-md px-3 py-2.5 text-uva-detalle text-uva-muted hover:bg-uva-hover hover:text-uva-text",
         collapsed && "justify-center px-0",
       )}
     >

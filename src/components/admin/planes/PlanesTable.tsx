@@ -55,7 +55,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
 
       <AdminCard flush>
         {planes.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">No hay planes todavía.</p>
+          <p className="px-5 py-6 text-center text-uva-detalle text-uva-muted-2">No hay planes todavía.</p>
         )}
 
         {planes.length > 0 && (
@@ -66,7 +66,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                   <button
                     type="button"
                     onClick={() => abrirEditar(plan)}
-                    className="text-left text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                    className="text-left text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {plan.nombre}
                   </button>
@@ -77,13 +77,13 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                     acciones={["Activar plan", "Desactivar plan"]}
                   />
                 </div>
-                {plan.descripcion && <p className="text-xs text-uva-muted">{plan.descripcion}</p>}
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                {plan.descripcion && <p className="text-uva-detalle text-uva-muted">{plan.descripcion}</p>}
+                <p className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                   {formatMoneda(plan.precioCentavos, plan.moneda)} · {plan.duracionDias} días
                   {plan.nivelAcceso ? ` · ${plan.nivelAcceso}` : ""}
                 </p>
                 {plan.suscripcionesVigentes > 0 && (
-                  <p className="text-xs text-uva-muted">
+                  <p className="text-uva-detalle text-uva-muted">
                     {plan.suscripcionesVigentes} suscripción{plan.suscripcionesVigentes === 1 ? "" : "es"} vigente
                     {plan.suscripcionesVigentes === 1 ? "" : "s"}
                   </p>
@@ -127,7 +127,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
                     <span className="font-mono tabular-nums text-uva-text">
                       {formatMoneda(plan.precioCentavos, plan.moneda)}
                     </span>
-                    <span className="ml-1.5 font-mono text-[12px] tabular-nums text-uva-muted-2">
+                    <span className="ml-1.5 font-mono text-uva-detalle tabular-nums text-uva-muted-2">
                       / {plan.duracionDias}d
                     </span>
                   </TableCell>

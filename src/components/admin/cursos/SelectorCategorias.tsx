@@ -38,7 +38,7 @@ export function SelectorCategorias({
 
   if (categorias.length === 0) {
     return (
-      <p className="text-xs text-uva-text-faint">
+      <p className="text-uva-detalle text-uva-text-faint">
         Todavía no hay categorías. Crea la primera en Admin → Categorías.
       </p>
     );
@@ -59,7 +59,7 @@ export function SelectorCategorias({
           <label
             key={categoria.id}
             htmlFor={inputId}
-            className="flex cursor-pointer items-center gap-2.5 rounded-uva-md px-2 py-1.5 text-[13.5px] text-uva-text hover:bg-uva-surface-2"
+            className="flex cursor-pointer items-center gap-2.5 rounded-uva-md px-2 py-1.5 text-uva-detalle text-uva-text hover:bg-uva-surface-2"
           >
             <Checkbox
               id={inputId}

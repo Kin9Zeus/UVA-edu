@@ -197,7 +197,7 @@ export function CursosTable({
 
       <AdminCard flush>
         {filtrados.length === 0 && (
-          <p className="px-5 py-4 text-center text-sm text-uva-muted-2">
+          <p className="px-5 py-4 text-center text-uva-detalle text-uva-muted-2">
             No hay cursos que coincidan con los filtros.
           </p>
         )}
@@ -217,7 +217,7 @@ export function CursosTable({
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     href={`/admin/cursos/${curso.slug}`}
-                    className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                    className="text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}
                   </Link>
@@ -258,7 +258,7 @@ export function CursosTable({
                   </div>
                 )}
 
-                <p className="font-mono text-xs text-uva-muted-2 tabular-nums">
+                <p className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
                   {NIVEL_LABEL[curso.nivel]} · {curso.estudiantes} estudiantes · {formatFecha(curso.fechaCreacion)}
                 </p>
 
@@ -320,7 +320,7 @@ export function CursosTable({
                       acciones={["Publicar curso", "Despublicar curso"]}
                     />
                   </TableCell>
-                  <TableCell className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
+                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
                     {formatFecha(curso.fechaCreacion)}
                   </TableCell>
                   <TableCell className="text-right">

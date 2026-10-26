@@ -181,7 +181,7 @@ export function InfoTab({
       {error && (
         <div
           role="alert"
-          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
         >
           {error}
         </div>
@@ -205,7 +205,7 @@ export function InfoTab({
             type="button"
             variant="ghost"
             size="auto"
-            className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent-ink"
+            className="ml-auto gap-1.5 px-2 py-1 text-uva-detalle text-uva-muted-2 hover:text-uva-accent-ink"
             onClick={handleGenerarDescripcion}
             disabled={generandoDescripcion}
             title="Escribe la descripción a partir del temario y el contenido de las lecciones"
@@ -217,7 +217,7 @@ export function InfoTab({
         {errorDescripcion && (
           <div
             role="alert"
-            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
           >
             {errorDescripcion}
           </div>
@@ -235,7 +235,7 @@ export function InfoTab({
         {errorPortada && (
           <div
             role="alert"
-            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
           >
             {errorPortada}
           </div>
@@ -248,7 +248,7 @@ export function InfoTab({
           type="button"
           onClick={() => inputPortadaRef.current?.click()}
           disabled={subiendoPortada}
-          className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
+          className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-uva-detalle text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
         >
           {previewPendiente ? (
             // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
@@ -293,13 +293,13 @@ export function InfoTab({
           </div>
         ) : (
           esPortadaReal(imagenPortada) && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">
+            <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
               Haz clic en la imagen para reemplazarla.
             </p>
           )
         )}
 
-        <p className="mt-1 text-xs text-uva-text-faint">
+        <p className="mt-1 text-uva-detalle text-uva-text-faint">
           {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
           recortada a 1280 × 720 px (16:9), igual que la vista previa.
         </p>

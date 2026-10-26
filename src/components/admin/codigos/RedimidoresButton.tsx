@@ -34,7 +34,7 @@ export function RedimidoresButton({
   const showToast = useAdminToast();
 
   if (vecesUsado === 0) {
-    return <span className="text-[12px] text-uva-text-faint">—</span>;
+    return <span className="text-uva-detalle text-uva-text-faint">—</span>;
   }
 
   async function abrir() {
@@ -70,10 +70,10 @@ export function RedimidoresButton({
             <DialogTitle>Quién canjeó {codigo}</DialogTitle>
           </DialogHeader>
 
-          {cargando && <p className="text-sm text-uva-muted">Cargando…</p>}
+          {cargando && <p className="text-uva-detalle text-uva-muted">Cargando…</p>}
 
           {!cargando && redimidores && redimidores.length === 0 && (
-            <p className="text-sm text-uva-muted">Nadie lo ha canjeado todavía.</p>
+            <p className="text-uva-detalle text-uva-muted">Nadie lo ha canjeado todavía.</p>
           )}
 
           {!cargando && redimidores && redimidores.length > 0 && (
@@ -84,10 +84,10 @@ export function RedimidoresButton({
                   className="flex items-center justify-between gap-3 rounded-uva-md border border-uva-divider px-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-[13.5px] font-medium text-uva-text">{redimidor.nombre}</p>
-                    <p className="truncate text-[12px] text-uva-muted-2">{redimidor.correo}</p>
+                    <p className="truncate text-uva-detalle font-medium text-uva-text">{redimidor.nombre}</p>
+                    <p className="truncate text-uva-detalle text-uva-muted-2">{redimidor.correo}</p>
                   </div>
-                  <span className="shrink-0 font-mono text-[11.5px] text-uva-muted-2">
+                  <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2">
                     {formatFechaHora(redimidor.canjeadoEn)}
                   </span>
                 </li>

@@ -138,7 +138,7 @@ export function LoteFormDialog({
               {error && (
                 <div
                   role="alert"
-                  className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                  className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
                 >
                   {error}
                 </div>
@@ -157,7 +157,7 @@ export function LoteFormDialog({
                   className="max-w-[120px]"
                   required
                 />
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   Cada código generado sirve para un solo canje, de una sola persona.
                 </p>
               </div>
@@ -175,7 +175,7 @@ export function LoteFormDialog({
                   className="max-w-[120px]"
                   required
                 />
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   Cuánto dura el acceso de cada persona desde el momento en que canjea su código.
                 </p>
               </div>
@@ -190,7 +190,7 @@ export function LoteFormDialog({
                   onChange={(event) => setVencimiento(event.target.value)}
                   required
                 />
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   Fecha límite para canjear cualquier código del lote. Aplica igual a los{" "}
                   {cantidad || "N"} códigos.
                 </p>
@@ -219,7 +219,7 @@ export function LoteFormDialog({
 
             <div className="flex flex-col gap-3">
               <div className="max-h-[240px] overflow-y-auto rounded-uva-md border border-uva-divider bg-uva-surface-2 p-3">
-                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 font-codigo text-[12.5px] text-uva-text">
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 font-codigo text-uva-detalle text-uva-text">
                   {loteCreado.codigos.map((codigo) => (
                     <li key={codigo}>{codigo}</li>
                   ))}

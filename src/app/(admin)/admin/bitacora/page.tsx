@@ -24,7 +24,7 @@ export default async function AdminBitacoraPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="-mt-3.5 text-sm text-uva-muted">
+      <p className="-mt-3.5 text-uva-detalle text-uva-muted">
         Quién hizo qué en el panel: cada acción administrativa queda aquí, sin poder editarse ni
         borrarse.
       </p>

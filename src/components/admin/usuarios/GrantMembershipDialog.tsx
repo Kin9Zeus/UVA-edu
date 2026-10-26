@@ -67,7 +67,7 @@ export function GrantMembershipDialog({
         </DialogHeader>
 
         {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </div>
         )}
@@ -75,7 +75,7 @@ export function GrantMembershipDialog({
         {paso === "elegir" && (
           <div className="flex flex-col gap-2">
             {planes.length === 0 && (
-              <p className="text-[13.5px] text-uva-muted-2">No hay planes activos configurados.</p>
+              <p className="text-uva-detalle text-uva-muted-2">No hay planes activos configurados.</p>
             )}
             {planes.map((plan) => (
               <button
@@ -86,11 +86,11 @@ export function GrantMembershipDialog({
                   setPaso("confirmar");
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-[13.5px] font-semibold text-uva-text hover:bg-uva-hover",
+                  "flex w-full items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-uva-detalle font-semibold text-uva-text hover:bg-uva-hover",
                 )}
               >
                 <span>{plan.nombre}</span>
-                <span className="font-mono text-[12px] font-normal text-uva-muted-2 tabular-nums">
+                <span className="font-mono text-uva-detalle font-normal text-uva-muted-2 tabular-nums">
                   {formatMoneda(plan.precio_centavos, plan.moneda)}
                 </span>
               </button>
@@ -99,7 +99,7 @@ export function GrantMembershipDialog({
         )}
 
         {paso === "confirmar" && planElegido && (
-          <div className="flex flex-col gap-3 text-sm">
+          <div className="flex flex-col gap-3 text-uva-detalle">
             <p className="text-uva-text-muted">
               Plan actual: <span className="text-uva-text">{planActual ?? "Ninguno"}</span>
             </p>
