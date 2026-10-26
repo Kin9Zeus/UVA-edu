@@ -140,6 +140,11 @@
   --color-uva-pair-5-soft: var(--uva-pair-5-soft);
   --color-uva-pair-6: var(--uva-pair-6);
   --color-uva-pair-6-soft: var(--uva-pair-6-soft);
+  --color-uva-serie-1: var(--uva-serie-1);
+  --color-uva-serie-2: var(--uva-serie-2);
+  --color-uva-serie-3: var(--uva-serie-3);
+  --color-uva-serie-4: var(--uva-serie-4);
+  --color-uva-serie-5: var(--uva-serie-5);
   /* Escala de letra fluida (CLAUDE.md 3.3): cada tamaño va de su mínimo en
      360 px de ancho a su máximo en 1440 px, en línea recta, y no pasa de ahí.
      Fórmula: clamp(mín, mín − (máx − mín)·360/1080 + (máx − mín)/1080·100vw, máx),
@@ -390,6 +395,17 @@
   --uva-pair-5-soft: rgba(255, 196, 0, 0.16);
   --uva-pair-6: #6366f1; /* índigo */
   --uva-pair-6-soft: rgba(99, 102, 241, 0.12);
+  /* Series de gráficas (azul, naranja, aguamarina, ámbar, violeta), en ese
+     orden y sin repetir. Validadas con el script de la skill dataviz: banda
+     de luminosidad, separación para daltonismo y contraste con la tarjeta.
+     En claro, aguamarina y ámbar quedan bajo 3:1 sobre blanco: toda gráfica
+     que las use lleva leyenda y el dato en texto (tooltip o lista). Sin
+     magenta (es el acento) ni rojo (se reserva para "sensible" o error). */
+  --uva-serie-1: #2a78d6;
+  --uva-serie-2: #eb6834;
+  --uva-serie-3: #1baf7a;
+  --uva-serie-4: #eda100;
+  --uva-serie-5: #6250d6;
 }
 
 .dark {
@@ -494,6 +510,11 @@
   --uva-pair-4-soft: rgba(6, 182, 212, 0.16);
   --uva-pair-5-soft: rgba(255, 196, 0, 0.16);
   --uva-pair-6-soft: rgba(99, 102, 241, 0.16);
+  --uva-serie-1: #3987e5;
+  --uva-serie-2: #d95926;
+  --uva-serie-3: #199e70;
+  --uva-serie-4: #c98500;
+  --uva-serie-5: #9085e9;
 }
 
 /* Examen final — animaciones de la pantalla de rendir y del resultado. La
