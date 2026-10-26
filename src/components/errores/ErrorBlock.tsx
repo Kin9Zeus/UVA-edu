@@ -1,93 +1,100 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { LogoUva } from "@/components/home/LogoUva";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type AccionPrimaria =
   | { label: string; href: string; onClick?: never }
   | { label: string; onClick: () => void; href?: never };
 
+type Cajetin = {
+  /** Datos de la pantalla: "Error 404", "Ruta /cursos/x", "Referencia 3f9a1c2e". */
+  /** `texto`: el valor es una frase ("Esperando conexión…"), no un código: va en la letra de lectura. */
+  celdas: { etiqueta: string; valor: ReactNode; texto?: boolean }[];
+  /** Fila de abajo con una pregunta y a dónde escribir. */
+  pie?: { pregunta: string; enlace: { label: string; href: string; externo?: boolean } };
+  /** El valor cambia solo (sin conexión → "Esperando conexión…"): lo anuncia el lector de pantalla. */
+  enVivo?: boolean;
+};
+
 type ErrorBlockProps = {
-  /** Standalone en rutas públicas (min-h-screen); dentro del layout con sidebar, min-h-full. */
+  /** En rutas sin layout propio (pantalla completa, con el logo arriba); dentro del panel o de admin, no. */
   standalone?: boolean;
-  codigo: string;
-  /** 500 usa el código en gris apagado en vez del texto principal. */
+  /** "404", "500"… Sin código (sin conexión) va el `icono`. */
+  codigo?: string;
+  /** 500 usa el código en gris: el número no es la noticia. */
   codigoMuted?: boolean;
-  /** 404 usa un punto magenta; 403 usa una raya. Se omite en 500. */
+  /** 404 usa un punto magenta; 403, una raya. */
   indicador?: "punto" | "raya";
+  icono?: ReactNode;
   titulo: string;
   texto: string;
   accionPrimaria: AccionPrimaria;
-  accionSecundaria: { label: string; href: string };
-  /** Línea corta tipo "HTTP 404 · /catalogo" (404 y 403). */
-  meta?: string;
-  /** Bloque con borde tipo "error_id: …" (500). */
-  trace?: string;
+  accionSecundaria?: { label: string; href: string };
+  cajetin: Cajetin;
 };
 
+const FOCO = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent";
+const BOTON = "min-h-12 text-uva-cuerpo sm:w-auto sm:px-6";
+
 /**
- * Área táctil de mínimo 44 px (CLAUDE.md 3.4): el botón primario mide h-11, y
- * el enlace secundario —un texto con subrayado de ~20 px— amplía su zona de
- * toque con un pseudo-elemento invisible en vez de crecer, para no separar el
- * subrayado del texto.
+ * Bloque de las pantallas de error (404, 403, 500 y sin conexión), con los
+ * tokens de letra del sistema (CLAUDE.md 3.3): ningún texto de lectura baja
+ * de 16 px y los dos botones miden 48 px.
+ *
+ * Abajo va el cajetín, como el rótulo de una lámina: datos reales de la
+ * pantalla (la ruta pedida, la referencia del error) que el usuario puede
+ * dictarle a soporte.
+ *
+ * Dentro del panel y de admin se pinta en un `<div>`: el layout ya tiene su
+ * `<main id="contenido">` y uno anidado repetía el id.
  */
-const CLASE_ACCION_PRIMARIA =
-  "inline-flex h-11 items-center rounded-uva-md bg-uva-btn px-5 text-sm font-semibold text-uva-on-accent transition-colors hover:bg-uva-btn-hover";
-
-const CLASE_ACCION_SECUNDARIA =
-  "relative border-b border-uva-divider pb-0.5 text-[13.5px] text-uva-muted transition-colors after:absolute after:inset-x-[-8px] after:inset-y-[-12px] after:content-[''] hover:border-uva-dim hover:text-uva-text";
-
 export function ErrorBlock({
   standalone,
   codigo,
   codigoMuted,
   indicador,
+  icono,
   titulo,
   texto,
   accionPrimaria,
   accionSecundaria,
-  meta,
-  trace,
+  cajetin,
 }: ErrorBlockProps) {
-  return (
-    <main
-      id="contenido"
-      tabIndex={-1}
-      className={cn(
-        "flex items-center justify-center bg-[linear-gradient(168deg,var(--uva-bg-gradient-start)_0%,var(--uva-bg)_52%,var(--uva-bg)_100%)] px-[clamp(20px,5vw,48px)] py-[clamp(40px,8vh,88px)]",
-        standalone ? "min-h-screen" : "min-h-full",
-      )}
-    >
-      <div className="flex w-full max-w-[480px] flex-col items-start gap-[18px]">
-        <div className="flex items-baseline gap-3.5">
-          <span
-            className={cn(
-              "font-heading text-[64px] leading-[0.85] font-extrabold tracking-[-0.055em] sm:text-[92px]",
-              codigoMuted ? "text-uva-muted-2" : "text-uva-text",
-            )}
-          >
-            {codigo}
-          </span>
-          {indicador === "punto" && (
-            <span aria-hidden className="mb-3 size-3 rounded-full bg-uva-accent" />
-          )}
-          {indicador === "raya" && (
-            <span aria-hidden className="mb-4 h-0.5 w-9 bg-uva-accent" />
-          )}
+  const bloque = (
+    <div className="relative isolate flex flex-1 items-center justify-center px-uva-margen py-[clamp(40px,8vh,88px)]">
+      <div aria-hidden="true" className="uva-reticula pointer-events-none absolute inset-0 -z-10" />
+      <div className="flex w-full max-w-[560px] flex-col items-start gap-4">
+        {codigo ? (
+          <div className="flex items-baseline gap-3">
+            <span className={cn("text-uva-display", codigoMuted ? "text-uva-muted-2" : "text-uva-text")}>
+              {codigo}
+            </span>
+            {indicador === "punto" && <span aria-hidden="true" className="size-3 rounded-full bg-uva-accent" />}
+            {indicador === "raya" && <span aria-hidden="true" className="mb-2 h-0.5 w-9 bg-uva-accent" />}
+          </div>
+        ) : (
+          icono && (
+            <span
+              aria-hidden="true"
+              className="grid size-14 place-items-center rounded-uva-lg border-[1.5px] border-uva-line-strong text-uva-text [&_svg]:size-7"
+            >
+              {icono}
+            </span>
+          )
+        )}
+
+        <div className="grid gap-2">
+          <h1 className="text-uva-titulo-3 text-balance text-uva-text">{titulo}</h1>
+          <p className="text-uva-lead text-pretty text-uva-text-muted">{texto}</p>
         </div>
 
-        <div className="flex flex-col gap-[9px]">
-          <h1 className="m-0 font-heading text-xl leading-[1.25] font-bold tracking-[-0.03em] text-uva-text sm:text-[23px]">
-            {titulo}
-          </h1>
-          <p className="m-0 text-pretty text-[14.5px] leading-[1.6] text-uva-muted">
-            {texto}
-          </p>
-        </div>
-
-        <div className="mt-0.5 flex flex-wrap items-center gap-3.5 sm:gap-[18px]">
+        <div className="mt-1 flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           {accionPrimaria.href ? (
             <Link
               href={accionPrimaria.href}
-              className={CLASE_ACCION_PRIMARIA}
+              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), BOTON)}
             >
               {accionPrimaria.label}
             </Link>
@@ -95,30 +102,92 @@ export function ErrorBlock({
             <button
               type="button"
               onClick={accionPrimaria.onClick}
-              className={CLASE_ACCION_PRIMARIA}
+              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), BOTON)}
             >
               {accionPrimaria.label}
             </button>
           )}
-          <Link
-            href={accionSecundaria.href}
-            className={CLASE_ACCION_SECUNDARIA}
-          >
-            {accionSecundaria.label}
-          </Link>
+          {accionSecundaria && (
+            <Link
+              href={accionSecundaria.href}
+              className={cn(buttonVariants({ variant: "uva-secondary", size: "uva" }), BOTON)}
+            >
+              {accionSecundaria.label}
+            </Link>
+          )}
         </div>
 
-        {meta && (
-          <div className="mt-1.5 font-mono text-[11px] tracking-[0.1em] text-uva-text-muted">
-            {meta}
-          </div>
-        )}
-        {trace && (
-          <div className="mt-1.5 w-full rounded-uva-md border border-uva-divider bg-uva-surface-2 px-3 py-2.5 font-mono text-[11px] leading-[1.5] text-uva-muted-2">
-            {trace}
-          </div>
-        )}
+        <CajetinError {...cajetin} />
       </div>
-    </main>
+    </div>
+  );
+
+  if (!standalone) return <div className="flex min-h-full flex-col">{bloque}</div>;
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-uva-bg text-uva-text">
+      <header className="border-b border-uva-divider">
+        <div className="mx-auto max-w-uva px-uva-margen py-2.5">
+          <Link
+            href="/"
+            aria-label="U.V.A., ir al inicio"
+            className={cn("inline-flex min-h-11 items-center rounded-uva-xs text-uva-text", FOCO)}
+          >
+            <LogoUva className="h-7 w-[86px]" />
+          </Link>
+        </div>
+      </header>
+      <main id="contenido" tabIndex={-1} className="flex flex-1 flex-col">
+        {bloque}
+      </main>
+    </div>
+  );
+}
+
+function CajetinError({ celdas, pie, enVivo }: Cajetin) {
+  return (
+    <div
+      role={enVivo ? "status" : undefined}
+      className={cn(
+        "mt-2 grid w-full rounded-uva-xs border-[1.5px] border-uva-line-strong bg-uva-surface",
+        celdas.length > 1 ? "grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]" : "grid-cols-1",
+      )}
+    >
+      {celdas.map(({ etiqueta, valor, texto }) => (
+        <div key={etiqueta} className="min-w-0 border-l border-uva-line-strong px-3 py-2.5 first:border-l-0">
+          <p className="text-uva-detalle text-uva-text-muted">{etiqueta}</p>
+          <p className={cn("text-uva-cuerpo font-medium text-uva-text", texto ? "" : "font-codigo break-all")}>{valor}</p>
+        </div>
+      ))}
+      {pie && (
+        <div className="col-span-full border-t border-uva-line-strong px-3 pt-2.5 pb-1">
+          <p className="text-uva-detalle text-uva-text-muted">{pie.pregunta}</p>
+          {pie.enlace.externo ? (
+            <a
+              href={pie.enlace.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "inline-flex min-h-11 items-center rounded-uva-xs font-semibold text-uva-accent-ink underline underline-offset-3",
+                FOCO,
+              )}
+            >
+              {pie.enlace.label}
+              <span className="sr-only"> (abre en otra pestaña)</span>
+            </a>
+          ) : (
+            <Link
+              href={pie.enlace.href}
+              className={cn(
+                "inline-flex min-h-11 items-center rounded-uva-xs font-semibold text-uva-accent-ink underline underline-offset-3",
+                FOCO,
+              )}
+            >
+              {pie.enlace.label}
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

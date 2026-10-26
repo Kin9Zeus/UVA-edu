@@ -1,6 +1,6 @@
 "use client";
 
-import { ErrorBlock } from "@/components/errores/ErrorBlock";
+import { PantallaError } from "@/components/errores/PantallaError";
 
 // "Reintentar" usa `retry` (vuelve a pedir el contenido al servidor), no
 // `reset`, que solo repinta y no recupera de un error de servidor. Ver
@@ -13,14 +13,11 @@ export default function DashboardError({
   retry: () => void;
 }) {
   return (
-    <ErrorBlock
-      codigo="500"
-      codigoMuted
-      titulo="Algo salió mal de nuestro lado"
-      texto="El error ya quedó registrado y nuestro equipo fue notificado. Puedes reintentar en unos segundos; tu progreso no se pierde."
-      accionPrimaria={{ label: "Reintentar", onClick: retry }}
-      accionSecundaria={{ label: "Ir al inicio", href: "/dashboard" }}
-      trace={`error_id: ${error.digest ?? "sin-id"}`}
+    <PantallaError
+      error={error}
+      reintentar={retry}
+      salida={{ label: "Ir al inicio", href: "/dashboard" }}
+      soporteHref="/dashboard/soporte#contacto"
     />
   );
 }

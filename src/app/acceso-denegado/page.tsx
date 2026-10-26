@@ -41,7 +41,7 @@ export default async function AccesoDenegadoPage() {
         texto="Esta sección está reservada para el equipo administrativo de U.V.A. Inicia sesión con una cuenta de administrador para entrar."
         accionPrimaria={{ label: "Iniciar sesión", href: "/login" }}
         accionSecundaria={{ label: "Volver al inicio", href: "/" }}
-        meta="HTTP 403"
+        cajetin={{ celdas: [{ etiqueta: "Error", valor: "403" }, { etiqueta: "Sesión", valor: "Sin iniciar" }] }}
       />
     );
   }
@@ -60,7 +60,7 @@ export default async function AccesoDenegadoPage() {
       texto={`Esta sección está reservada para el equipo administrativo de U.V.A. ${cuenta} no tiene acceso a esta ruta.`}
       accionPrimaria={{ label: "Volver al inicio", href: "/" }}
       accionSecundaria={{ label: "Ver mis cursos", href: "/dashboard" }}
-      meta={rol ? `HTTP 403 · rol: ${rol}` : "HTTP 403"}
+      cajetin={{ celdas: [{ etiqueta: "Error", valor: "403" }, ...(rol ? [{ etiqueta: "Rol", valor: rol }] : [])] }}
     />
   );
 }
