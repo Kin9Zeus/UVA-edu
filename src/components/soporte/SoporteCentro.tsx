@@ -234,13 +234,13 @@ export function SoporteCentro({
           <div className="flex flex-wrap gap-2.5">
             <Link
               href="/login"
-              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "h-12 w-auto px-6 text-uva-cuerpo")}
+              className={cn(buttonVariants({ variant: "uva-primary", size: "uva" }), "h-auto min-h-12 w-auto max-w-full px-6 text-uva-cuerpo whitespace-normal")}
             >
               Acceder
             </Link>
             <Link
               href="/dashboard/suscripcion"
-              className={cn(buttonVariants({ variant: "uva-secondary", size: "uva" }), "h-12 w-auto border-[1.5px] border-uva-line-strong px-6 text-uva-cuerpo")}
+              className={cn(buttonVariants({ variant: "uva-secondary", size: "uva" }), "h-auto min-h-12 w-auto max-w-full border-[1.5px] border-uva-line-strong px-6 text-uva-cuerpo whitespace-normal")}
             >
               Tengo un código
             </Link>

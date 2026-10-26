@@ -229,7 +229,9 @@ function Estado({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-4">
+    // flex-wrap: con la letra del sistema muy grande, el texto baja debajo del
+    // sello en vez de salirse de la tarjeta.
+    <div className="flex flex-wrap items-start gap-4">
       <span
         aria-hidden="true"
         className={cn(
@@ -239,7 +241,7 @@ function Estado({
       >
         {icono}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-[1_1_14rem]">
         <h1 className="m-0 text-uva-titulo-3 text-uva-text">{titulo}</h1>
         <p className="mt-1.5 mb-0 text-uva-cuerpo text-uva-text-muted">
           {children}
