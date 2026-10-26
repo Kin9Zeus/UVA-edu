@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { reportarErrorDelCliente } from "@/lib/reportar-cliente";
-import { ErrorBlock } from "@/components/errores/ErrorBlock";
+import { PantallaError } from "@/components/errores/PantallaError";
 import "./globals.css";
 
 /**
@@ -12,28 +10,24 @@ import "./globals.css";
  * de App Router nunca cubre a su propio layout padre — y por eso Next.js
  * exige que este archivo reemplace `<html>`/`<body>` enteros en vez de
  * anidarse dentro de ellos.
+ *
+ * "Reintentar" recarga la página entera: lo que falló es el layout raíz, y
+ * `retry` volvería a pintarlo sobre lo mismo. Antes era un enlace a "/" con
+ * la etiqueta "Recargar", que no recargaba.
  */
 export default function GlobalError({
   error,
 }: {
   error: Error & { digest?: string };
 }) {
-  useEffect(() => {
-    reportarErrorDelCliente(error);
-  }, [error]);
-
   return (
     <html lang="es" className="dark antialiased">
       <body className="min-h-full">
-        <ErrorBlock
+        <PantallaError
           standalone
-          codigo="500"
-          codigoMuted
-          titulo="Algo salió mal de nuestro lado"
-          texto="El error ya quedó registrado y nuestro equipo fue notificado. Intenta recargar la página en unos segundos."
-          accionPrimaria={{ label: "Recargar", href: "/" }}
-          accionSecundaria={{ label: "Volver al inicio", href: "/" }}
-          trace={`error_id: ${error.digest ?? "sin-id"}`}
+          error={error}
+          reintentar={() => window.location.reload()}
+          salida={{ label: "Ir al inicio", href: "/" }}
         />
       </body>
     </html>
