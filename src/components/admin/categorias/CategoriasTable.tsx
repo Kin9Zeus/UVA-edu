@@ -135,7 +135,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         {/* Mismo criterio que el resto del panel: 6 columnas (una un switch
             funcional) no caben sin scroll horizontal en un touch. */}
         {categorias.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {categorias.map((categoria) => (
               <div
                 key={categoria.id}
@@ -193,7 +193,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         )}
 
         {categorias.length > 0 && (
-        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de categorías">
+        <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de categorías">
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>

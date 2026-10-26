@@ -137,7 +137,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
             scroll horizontal en un touch, y acá "Detalle" puede ser texto
             largo — el que peor se desborda de todas las tablas. */}
         {resultado.entradas.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {resultado.entradas.map((entrada) => {
               const info = ENTIDAD_INFO[entrada.entidadAfectada];
               const nombreSujeto = entrada.usuarioAfectadoNombre ?? info?.etiqueta ?? entrada.entidadAfectada;
@@ -192,7 +192,7 @@ export function BitacoraTable({ resultado }: { resultado: ResultadoBitacora }) {
         )}
 
         {resultado.entradas.length > 0 && (
-        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de la bitácora">
+        <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de la bitácora">
           {/* Encabezado con más presencia: `bg-uva-hover` (el mismo tono
               que ya usa el resto del panel para "esto está resaltado", ej.
               el hover de la Sidebar) separa visualmente la fila de

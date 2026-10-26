@@ -565,7 +565,10 @@ function LeccionRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2.5 border-t border-uva-divider py-1.5 pr-2 pl-4 transition-colors duration-700 hover:bg-uva-hover motion-reduce:transition-none",
+        // En celular, dos líneas: número y título arriba (el título se lleva
+        // todo el ancho), insignias y botones abajo. En una sola, los tres
+        // botones de 44 px dejaban el título en una columna de 80 px.
+        "flex flex-wrap items-center gap-x-2.5 border-t border-uva-divider py-1.5 pr-2 pl-4 transition-colors duration-700 hover:bg-uva-hover motion-reduce:transition-none",
         activa && "bg-uva-hover",
         recienMovida && CLASE_RECIEN_MOVIDO,
       )}
@@ -580,30 +583,30 @@ function LeccionRow({
         <GripVertical className="size-4 shrink-0" strokeWidth={2} />
       </button>
       <span className="w-8 shrink-0 font-mono text-uva-etiqueta text-uva-muted tabular-nums">{indice}</span>
-      {/* Título e insignias se parten en dos líneas en celular, para que los
-          botones de 44 px no dejen el título en tres letras. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-        <button
-          type="button"
-          onClick={onSeleccionar}
-          aria-expanded={activa}
-          className="min-h-11 min-w-0 flex-1 basis-40 text-left sm:pointer-fine:min-h-9 text-uva-detalle text-uva-text"
-        >
-          {leccion.titulo}
-        </button>
-        <span className="flex shrink-0 items-center gap-2">
-          {/* Vista previa pública del curso: el que lo arma necesita saber
-              cuál es antes de subir el video. */}
-          {esIntroduccion && <StatusBadge tone="accent">Introducción</StatusBadge>}
-          <span className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums max-sm:hidden">
+      <button
+        type="button"
+        onClick={onSeleccionar}
+        aria-expanded={activa}
+        className="min-h-11 min-w-0 flex-1 text-left text-uva-detalle text-uva-text max-sm:basis-[calc(100%-2.625rem)] sm:pointer-fine:min-h-9"
+      >
+        {leccion.titulo}
+      </button>
+      <span className="flex shrink-0 items-center gap-2 max-sm:pl-[2.625rem]">
+        {/* Vista previa pública del curso: el que lo arma necesita saber
+            cuál es antes de subir el video. */}
+        {esIntroduccion && <StatusBadge tone="accent">Introducción</StatusBadge>}
+        {/* Sin video todavía no hay duración: la insignia de estado ya lo
+            dice, un "—" no agrega nada. */}
+        {leccion.duracion ? (
+          <span className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
             {formatDuracion(leccion.duracion)}
           </span>
-          <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]}>
-            {ESTADO_LABEL[leccion.estadoProcesamiento]}
-          </StatusBadge>
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
+        ) : null}
+        <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]}>
+          {ESTADO_LABEL[leccion.estadoProcesamiento]}
+        </StatusBadge>
+      </span>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         <BotonesMover
           nombre={`la lección ${leccion.titulo}`}
           posicion={posicion}

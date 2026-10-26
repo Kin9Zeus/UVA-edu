@@ -121,7 +121,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         {/* Mismo criterio que el resto del panel: 7 columnas con tres
             acciones no caben sin scroll horizontal en un touch. */}
         {cupones.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {cupones.map((cupon) => (
               <div
                 key={cupon.id}
@@ -166,7 +166,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         )}
 
         {cupones.length > 0 && (
-          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cupones">
+          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de cupones">
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>

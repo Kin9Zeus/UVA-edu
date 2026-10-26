@@ -59,7 +59,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
         )}
 
         {planes.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {planes.map((plan) => (
               <div key={plan.id} className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0">
                 <div className="flex items-center justify-between gap-2">
@@ -94,7 +94,7 @@ export function PlanesTable({ planes }: { planes: PlanAdmin[] }) {
         )}
 
         {planes.length > 0 && (
-          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de planes">
+          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de planes">
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>

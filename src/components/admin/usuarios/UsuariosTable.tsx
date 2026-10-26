@@ -278,7 +278,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
             que por debajo de `pointer-fine:md` se ve una lista de tarjetas
             en vez de la tabla. */}
         {usuarios.length > 0 && (
-          <div className={`flex flex-col pointer-fine:md:hidden lg:hidden ${pendiente ? "opacity-60" : ""}`}>
+          <div className={`flex flex-col pointer-fine:md:hidden ${pendiente ? "opacity-60" : ""}`}>
             {usuarios.map((usuario) => (
               <div
                 key={usuario.id}
@@ -342,7 +342,7 @@ export function UsuariosTable({ resultado }: { resultado: ResultadoUsuarios }) {
         )}
 
         {usuarios.length > 0 && (
-          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de usuarios">
+          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de usuarios">
             <TableHeader>
               <TableRow>
                 <TableHead />

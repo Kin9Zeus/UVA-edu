@@ -208,7 +208,7 @@ export function CursosTable({
             eso el corte no es solo `md`: `pointer-fine:` exige además mouse o
             trackpad antes de mostrar la tabla, sin importar el ancho. */}
         {filtrados.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {filtrados.map((curso) => (
               <div
                 key={curso.id}
@@ -274,7 +274,7 @@ export function CursosTable({
         )}
 
         {filtrados.length > 0 && (
-          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cursos">
+          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de cursos">
             <TableHeader>
               <TableRow>
                 <TableHead>Curso</TableHead>

@@ -353,7 +353,7 @@ export function UsuarioDetalleView({
         {/* Mismo criterio que las demás tablas del panel: 6 columnas (una un
             botón de acción) no caben sin scroll horizontal en un touch. */}
         {usuario.cursos.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden">
             {usuario.cursos.map((curso) => (
               <div
                 key={curso.inscripcionId ?? curso.cursoId}
@@ -412,7 +412,7 @@ export function UsuarioDetalleView({
         )}
 
         {usuario.cursos.length > 0 && (
-        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cursos del usuario">
+        <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de cursos del usuario">
           <TableHeader>
             <TableRow>
               <TableHead>Curso</TableHead>
