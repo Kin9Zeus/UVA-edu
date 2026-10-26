@@ -5,6 +5,7 @@ import { logError } from "@/lib/log";
 import { ANCHO_MINIATURA_TARJETA, getMiniaturaUrl } from "@/lib/mux/miniatura";
 import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado } from "@/lib/examenes/estadoPorCurso";
 import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { temarioListo } from "@/lib/temario";
 import { calcularRacha, hoyEnBogota, semanasDeActividad, type SemanaActividad } from "@/lib/racha";
 
 export type CursoConProgreso = {
@@ -30,8 +31,22 @@ export type CursoConProgreso = {
   ultimaActividad: string | null;
   /** Fecha de emisión del certificado (ISO): "Terminado el…" se mide con él. */
   certificadoEmitido: string | null;
-  /** Clase a retomar (la primera sin completar con video listo); null si no queda ninguna. */
-  siguienteLeccionSlug: string | null;
+  /** Clase a retomar: la primera sin completar del temario con video listo
+   *  (misma regla que Inicio, ver `temarioListo`). null si no queda ninguna o
+   *  si no se pudo leer el temario: "Continuar" lleva entonces a la ficha. */
+  siguienteLeccion: {
+    slug: string;
+    titulo: string;
+    /** Posición en el temario con video listo, desde 1 ("Clase 8"). */
+    numero: number;
+    moduloTitulo: string;
+    /** Segundos; null si la clase no tiene duración registrada. */
+    duracion: number | null;
+  } | null;
+  /** false si el curso salió del catálogo. Quien ya lo estaba viendo puede
+   *  terminarlo (supabase/sql/030), así que se lista con un aviso en vez de
+   *  ocultarse. true también cuando no se pudo leer: es solo el aviso. */
+  publicado: boolean;
   /** Segundos de clase vistos: lo que duran las clases terminadas más lo
    *  avanzado en las que van a medias. No es tiempo real de estudio. */
   segundosVistos: number;
@@ -81,7 +96,14 @@ export async function getProgresoData(): Promise<ProgresoData> {
   // mostrarlas (ver el comentario en ProgresoContent), y era una ida entera
   // a `curso_categorias` por cada carga de la pantalla.
 
-  const cursos: CursoConProgreso[] = (filas ?? []).map((fila) => {
+  // Un curso sin ninguna clase con video listo no tiene nada que retomar ni
+  // avance que medir ("0/0 clases" con un botón Continuar). Se queda solo si
+  // ya aprobó su examen: entonces está completo y tiene certificado.
+  const conClases = (filas ?? []).filter(
+    (fila) => (fila.lecciones_total as number) > 0 || fila.examen_aprobado === true,
+  );
+
+  const cursos: CursoConProgreso[] = conClases.map((fila) => {
     const total = fila.lecciones_total as number;
     const completadas = fila.lecciones_completadas as number;
     const porcentaje = porcentajeLecciones(completadas, total);
@@ -121,7 +143,8 @@ export async function getProgresoData(): Promise<ProgresoData> {
       categoria: null as string | null,
       ultimaActividad: (fila.ultima_actividad as string | null) ?? null,
       certificadoEmitido: null as string | null,
-      siguienteLeccionSlug: null as string | null,
+      siguienteLeccion: null as CursoConProgreso["siguienteLeccion"],
+      publicado: true,
       segundosVistos: 0,
       reanudarEn: null as CursoConProgreso["reanudarEn"],
     };
@@ -270,14 +293,25 @@ async function completarDetalle(supabase: SupabaseClient, cursos: CursoConProgre
     { data: categorias, error: errorCategorias },
     { data: certificados, error: errorCertificados },
     { data: modulos, error: errorModulos },
+    { data: publicacion, error: errorPublicacion },
   ] = await Promise.all([
     supabase.from("curso_categorias").select("id_curso, categoria:categorias(nombre)").in("id_curso", ids),
     supabase.from("certificados").select("id_curso, fecha_emision").in("id_curso", ids),
     supabase
       .from("modulos")
-      .select("id_curso, orden, lecciones(slug, orden, duracion, estado_procesamiento, progreso(completado, segundo_actual))")
+      .select(
+        "id_curso, orden, titulo, lecciones(slug, titulo, orden, duracion, estado_procesamiento, progreso(completado, segundo_actual))",
+      )
       .in("id_curso", ids),
+    supabase.from("cursos").select("id, mostrado").in("id", ids),
   ]);
+
+  if (!registrarSiFalla(errorPublicacion, "progreso:publicacion", "no se pudo leer si los cursos siguen publicados")) {
+    for (const fila of publicacion ?? []) {
+      const curso = porId.get(fila.id as string);
+      if (curso) curso.publicado = fila.mostrado === true;
+    }
+  }
 
   if (!registrarSiFalla(errorCategorias, "progreso:categorias", "no se pudieron leer las categorías de los cursos")) {
     for (const fila of categorias ?? []) {
@@ -305,25 +339,26 @@ async function completarDetalle(supabase: SupabaseClient, cursos: CursoConProgre
     const curso = porId.get(cursoId);
     if (!curso) continue;
     // Mismo temario que cuenta el progreso: solo clases con video listo.
-    const lecciones = lista
-      .slice()
-      .sort((a, b) => a.orden - b.orden)
-      .flatMap((modulo) =>
-        (modulo.lecciones ?? [])
-          .filter((leccion) => leccion.estado_procesamiento === "LISTO")
-          .slice()
-          .sort((a, b) => a.orden - b.orden),
-      );
+    const temario = temarioListo(lista);
     let segundos = 0;
-    for (const leccion of lecciones) {
+    for (const { leccion } of temario) {
       const avance = leccion.progreso?.[0];
       const duracion = (leccion.duracion as number | null) ?? 0;
       if (avance?.completado) segundos += duracion;
       else if (avance) segundos += duracion > 0 ? Math.min(avance.segundo_actual as number, duracion) : 0;
     }
     curso.segundosVistos = segundos;
-    curso.siguienteLeccionSlug =
-      (lecciones.find((leccion) => !leccion.progreso?.[0]?.completado)?.slug as string | undefined) ?? null;
+    const indice = temario.findIndex(({ leccion }) => !leccion.progreso?.[0]?.completado);
+    if (indice >= 0) {
+      const { leccion, modulo } = temario[indice];
+      curso.siguienteLeccion = {
+        slug: leccion.slug as string,
+        titulo: leccion.titulo as string,
+        numero: indice + 1,
+        moduloTitulo: modulo.titulo as string,
+        duracion: (leccion.duracion as number | null) ?? null,
+      };
+    }
   }
 }
 

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
+import { LARGO_MAXIMO_NOMBRE } from "@/lib/nombre";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
@@ -108,6 +109,7 @@ export function RegistroForm({
           name="nombre"
           placeholder="Tu nombre y apellido"
           autoComplete="name"
+          maxLength={LARGO_MAXIMO_NOMBRE}
           value={nombre}
           onChange={(event) => {
             setNombre(event.target.value);

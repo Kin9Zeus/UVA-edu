@@ -55,7 +55,7 @@ Estado: todos los pares obligatorios pasan AA en los dos temas.
 | `--uva-on-bright` sobre `--uva-accent-2` | 4,50 | 12,46 | 12,46 |
 | `--uva-on-bright` sobre `--uva-whatsapp` | 4,50 | 10,03 | 10,03 |
 | `--uva-bg` sobre `--uva-valid` | 4,50 | 5,27 | 8,73 |
-| `--uva-badge-success-fg` sobre `--uva-badge-success-bg` | 4,50 | 4,81 | 9,04 |
+| `--uva-badge-success-fg` sobre `--uva-badge-success-bg` | 4,50 | 6,73 | 9,04 |
 | `--uva-badge-warn-fg` sobre `--uva-badge-warn-bg` | 4,50 | 5,31 | 9,20 |
 | `--uva-badge-danger-fg` sobre `--uva-badge-danger-bg` | 4,50 | 5,53 | 7,90 |
 | `--uva-badge-neutral-fg` sobre `--uva-badge-neutral-bg` | 4,50 | 7,03 | 7,23 |

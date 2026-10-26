@@ -6,6 +6,7 @@ import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
+import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 
 export type CambiarPasswordState =
   | { error: string; success?: never }
@@ -56,6 +57,16 @@ export async function cambiarPassword(
 
   if (!user?.email) {
     return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+  }
+
+  // Una cuenta que entró solo con Google no tiene contraseña que verificar:
+  // sin este corte, signInWithPassword fallaría y cada intento sumaría un
+  // fallo al límite de login de un usuario que no hizo nada mal.
+  if (!tienePasswordPropia(user)) {
+    return {
+      error:
+        "Tu cuenta entra con Google y no tiene contraseña. Si quieres crear una, usa «¿Olvidaste tu contraseña?» en el inicio de sesión.",
+    };
   }
 
   const admin = createAdminClient();

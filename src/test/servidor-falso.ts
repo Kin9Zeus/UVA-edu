@@ -61,7 +61,12 @@ export class RedireccionFalsa extends Error {
 }
 
 const estado = {
-  usuario: null as { id: string; email?: string; email_confirmed_at?: string | null } | null,
+  usuario: null as {
+    id: string;
+    email?: string;
+    email_confirmed_at?: string | null;
+    identities?: { provider: string }[];
+  } | null,
   respuestas: new Map<string, RespuestaFalsa>(),
   /** Respuestas que se consumen en orden antes de caer en `respuestas`. */
   colas: new Map<string, RespuestaFalsa[]>(),

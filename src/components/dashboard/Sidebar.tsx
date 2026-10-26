@@ -8,7 +8,7 @@ import {
   Home,
   Compass,
   Users,
-  TrendingUp,
+  BookOpen,
   Award,
   NotebookPen,
   User,
@@ -48,7 +48,7 @@ const SOLO_COMPLETO: Record<Modo, string> = { compacto: "hidden", completo: "", 
 const SOLO_COMPACTO: Record<Modo, string> = { compacto: "", completo: "hidden", auto: "xl:hidden" };
 
 const navProgreso = [
-  { href: "/dashboard/progreso", label: "Progreso", icon: TrendingUp },
+  { href: "/dashboard/progreso", label: "Mis cursos", icon: BookOpen },
   { href: "/dashboard/certificados", label: "Certificados", icon: Award },
   { href: "/dashboard/notas", label: "Mis notas", icon: NotebookPen },
   { href: "/dashboard/perfil", label: "Perfil", icon: User },

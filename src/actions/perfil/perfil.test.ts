@@ -62,6 +62,17 @@ describe("cambiarPassword", () => {
     expect(servidorFalso.clientesCreados).toEqual({ sesion: 0, admin: 0 });
   });
 
+  it("cuenta solo de Google: rechaza sin reautenticar ni sumar intentos fallidos", async () => {
+    servidorFalso.conUsuario({ ...ESTUDIANTE, identities: [{ provider: "google" }] });
+
+    const resultado = await cambiar();
+
+    expect(resultado?.error).toMatch(/entra con Google/);
+    expect(servidorFalso.llamadasA("auth:signInWithPassword")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("auth:updateUser")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("rpc:registrar_login_fallido")).toHaveLength(0);
+  });
+
   it("la contraseña actual se verifica contra el correo de la SESIÓN antes de cambiar nada", async () => {
     await cambiarPassword(null, formulario({ ...VALIDO, email: "otra-persona@uva.co" }));
 
@@ -120,6 +131,13 @@ describe("cambiarPassword", () => {
 });
 
 describe("actualizarPerfil", () => {
+  it("rechaza un nombre de más de 70 caracteres sin tocar la base", async () => {
+    const resultado = await actualizarPerfil(null, formulario({ nombre: "A".repeat(71), pais: "CO" }));
+
+    expect(resultado).toEqual({ error: "El nombre no puede superar 70 caracteres." });
+    expect(servidorFalso.encadenado("from:perfiles", "update")).toEqual([]);
+  });
+
   it("el UPDATE solo lleva nombre, celular, país y rol en el gremio — `rol` o `estado` colados en el formulario no llegan", async () => {
     const resultado = await actualizarPerfil(
       null,

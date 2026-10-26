@@ -5,6 +5,7 @@ import { getPerfilActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 import { calcularEstadoAcceso, suscripcionDaAcceso } from "@/lib/estadoAcceso";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 import { PerfilForm } from "@/components/dashboard/PerfilForm";
 
 export const metadata: Metadata = {
@@ -52,9 +53,7 @@ export default async function PerfilPage() {
   // Una cuenta que entró solo con "Continuar con Google" nunca creó
   // contraseña: EliminarCuentaCard no debe pedir un campo que no puede
   // llenar.
-  const tienePassword = (usuarioAuth.user?.identities ?? []).some(
-    (identidad) => identidad.provider === "email",
-  );
+  const tienePassword = usuarioAuth.user ? tienePasswordPropia(usuarioAuth.user) : false;
 
   // `nombre_curso` es el título congelado al momento de la emisión
   // (Deteccion.md), no el título vigente de `cursos`.
