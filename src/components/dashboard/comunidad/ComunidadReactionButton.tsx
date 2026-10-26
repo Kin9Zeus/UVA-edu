@@ -36,7 +36,7 @@ export function ComunidadReactionButton({
   const total = optimista?.total ?? totalInicial;
 
   function toggle() {
-    if (!usuarioActualId) return;
+    if (!usuarioActualId || pending) return;
     const siguiente = { meReaccione: !meReaccione, total: meReaccione ? total - 1 : total + 1 };
     setOptimista(siguiente);
     startTransition(async () => {
@@ -57,16 +57,24 @@ export function ComunidadReactionButton({
     });
   }
 
+  // El nombre del botón dice qué hace y `aria-pressed` si ya está activo; el
+  // número va aparte (antes era el único texto del botón y el lector de
+  // pantalla anunciaba "0"). Mientras guarda: `aria-disabled` y no
+  // `disabled`, que le quitaba el foco a quien lo activó con el teclado.
   return (
-    <button
-      type="button"
-      disabled={!usuarioActualId || pending}
-      onClick={toggle}
-      // `min-h-6`: objetivo táctil de 24 px, igual que CLASE_BOTON_ACCION_COMUNIDAD.
-      className={`inline-flex min-h-11 pointer-coarse:min-w-11 pointer-fine:min-h-6 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 whitespace-nowrap text-uva-text-faint transition-colors hover:text-uva-text-muted disabled:cursor-not-allowed ${meReaccione ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
-    >
-      <Heart className="size-3.5" strokeWidth={2.4} fill={meReaccione ? "currentColor" : "none"} />
-      {total}
-    </button>
+    <span className="inline-flex items-center">
+      <button
+        type="button"
+        disabled={!usuarioActualId}
+        aria-disabled={pending || undefined}
+        aria-label={meReaccione ? "Quitar me gusta" : "Me gusta"}
+        aria-pressed={meReaccione}
+        onClick={toggle}
+        className={`grid size-11 cursor-pointer place-items-center rounded-uva-sm border-0 bg-transparent text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text disabled:cursor-not-allowed sm:pointer-fine:size-9 ${meReaccione ? "text-uva-accent-ink hover:text-uva-accent-ink" : ""}`}
+      >
+        <Heart aria-hidden="true" className="size-[18px]" strokeWidth={2.2} fill={meReaccione ? "currentColor" : "none"} />
+      </button>
+      <span className={`-ml-1 pr-1 font-bold tabular-nums ${meReaccione ? "text-uva-accent-ink" : "text-uva-text-muted"}`}>{total}</span>
+    </span>
   );
 }

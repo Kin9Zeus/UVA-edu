@@ -21,7 +21,7 @@ export async function ComunidadSidebarDerecho() {
           no competir con él. Una línea basta para separar las dos. */}
       {destacados.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-uva-detalle font-semibold tracking-[.08em] text-uva-text-muted uppercase">
+          <h2 className="text-uva-detalle font-bold text-uva-text">
             Más respondidas esta semana
           </h2>
           <ul className="flex flex-col gap-2.5">
@@ -47,7 +47,7 @@ export async function ComunidadSidebarDerecho() {
             destacados.length > 0 && "border-t border-uva-divider pt-5",
           )}
         >
-          <h2 className="text-uva-detalle font-semibold tracking-[.08em] text-uva-text-muted uppercase">Publicaciones recientes</h2>
+          <h2 className="text-uva-detalle font-bold text-uva-text">Publicaciones recientes</h2>
           <ul className="flex flex-col gap-3">
             {actividad.map((item) => (
               <li key={item.id} className="text-uva-detalle">

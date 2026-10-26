@@ -9,6 +9,7 @@
  * separa `tipos.ts` de la lógica de servidor.
  */
 
+import { Briefcase, Megaphone, MessageCircleQuestion, PencilRuler } from "lucide-react";
 import type { EmpleoModalidad } from "@/lib/comunidad-validacion";
 export type { EmpleoModalidad } from "@/lib/comunidad-validacion";
 
@@ -42,15 +43,14 @@ export const CATEGORIA_LABEL: Record<CategoriaComunidad, string> = {
   EMPLEO: "Empleo",
 };
 
-/** Clases del badge de categoría, una por categoría, para que se distingan
- * de un vistazo en el feed — reusa los 4 tokens `--uva-badge-*` que ya
- * existen en globals.css exactamente para esto (no son colores nuevos). */
-export const CATEGORIA_ESTILO: Record<CategoriaComunidad, string> = {
-  ANUNCIOS: "bg-uva-badge-danger-bg text-uva-badge-danger-fg",
-  EMPLEO: "bg-uva-badge-success-bg text-uva-badge-success-fg",
-  PROYECTOS: "bg-uva-badge-warn-bg text-uva-badge-warn-fg",
-  PREGUNTAS: "bg-uva-badge-neutral-bg text-uva-badge-neutral-fg",
-};
+/** Ícono de cada categoría (en amarillo, al lado de su nombre): el mismo en
+ * las píldoras de navegación, las tarjetas y el formulario de publicar. */
+export const ICONO_CATEGORIA = {
+  ANUNCIOS: Megaphone,
+  PROYECTOS: PencilRuler,
+  PREGUNTAS: MessageCircleQuestion,
+  EMPLEO: Briefcase,
+} as const satisfies Record<CategoriaComunidad, unknown>;
 
 /** Botones de texto de las filas de acciones (Fijar/Editar/Eliminar, el
  * enlace "N respuestas") de posts y respuestas. `min-h-6`: con `p-0` y texto

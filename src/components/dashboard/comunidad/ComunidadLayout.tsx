@@ -13,13 +13,19 @@ import { cn } from "@/lib/utils";
  *
  * `ocultarNavEnMovil`: en el detalle de un post las pestañas no marcan nada
  * activo y ya está "Volver"; en celular solo empujaban la publicación.
+ *
+ * `accion`: el botón de la acción principal. Desde `lg` encabeza el riel
+ * (sticky, siempre a la vista); antes se posiciona solo (flota), por eso
+ * vive fuera del `<aside>`, que se oculta en esos anchos.
  */
 export function ComunidadLayout({
   nav,
+  accion,
   ocultarNavEnMovil = false,
   children,
 }: {
   nav: ReactNode;
+  accion?: ReactNode;
   ocultarNavEnMovil?: boolean;
   children: ReactNode;
 }) {
@@ -39,10 +45,18 @@ export function ComunidadLayout({
         <div className={cn("min-w-0", ocultarNavEnMovil && "hidden lg:block")}>{nav}</div>
 
         <div className="grid grid-cols-1 items-start gap-[22px] lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-x-10">
-          <div className="@container flex min-w-0 flex-col gap-[18px]">{children}</div>
-          <aside aria-label="Actividad de la comunidad" className="hidden lg:sticky lg:top-8 lg:grid lg:gap-[22px]">
-            <ComunidadSidebarDerecho />
-          </aside>
+          {/* El riel va primero en el orden del documento para que "Nueva
+              publicación" sea de lo primero que alcanza el teclado, no lo
+              último después de 20 publicaciones; la rejilla lo pinta a la
+              derecha. Antes de `lg` es `contents`: el botón flota y el
+              contenedor no deja un hueco. */}
+          <div className="max-lg:contents lg:sticky lg:top-8 lg:col-start-2 lg:row-start-1 lg:grid lg:gap-[22px]">
+            {accion}
+            <aside aria-label="Actividad de la comunidad" className="hidden lg:grid lg:gap-[22px]">
+              <ComunidadSidebarDerecho />
+            </aside>
+          </div>
+          <div className="@container flex min-w-0 flex-col gap-[18px] lg:col-start-1 lg:row-start-1">{children}</div>
         </div>
       </div>
     </div>

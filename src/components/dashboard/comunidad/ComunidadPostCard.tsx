@@ -4,16 +4,20 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Briefcase,
   Building2,
   ExternalLink,
   MapPin,
-  Megaphone,
-  MessageCircleQuestion,
-  PencilRuler,
+  MessageCircle,
+  MoreHorizontal,
   Pin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { ComunidadReactionButton } from "@/components/dashboard/comunidad/ComunidadReactionButton";
 import { ComunidadAdjuntoVista } from "@/components/dashboard/comunidad/ComunidadAdjuntoVista";
@@ -27,18 +31,10 @@ import { fijarPostComunidad } from "@/actions/comunidad/fijar";
 import { renderizarTextoFormateado } from "@/lib/formato-texto";
 import {
   CATEGORIA_LABEL,
-  CLASE_BOTON_ACCION_COMUNIDAD,
+  ICONO_CATEGORIA,
   type ComunidadPostResumen,
 } from "@/lib/comunidad-tipos";
 import { cn } from "@/lib/utils";
-
-/** Ícono de cada categoría (en amarillo, al lado de su nombre). */
-const ICONO_CATEGORIA = {
-  ANUNCIOS: Megaphone,
-  PROYECTOS: PencilRuler,
-  PREGUNTAS: MessageCircleQuestion,
-  EMPLEO: Briefcase,
-} as const;
 
 function iniciales(nombre: string) {
   return (
@@ -51,9 +47,19 @@ function iniciales(nombre: string) {
   );
 }
 
+// Mismo criterio que MenuCuentaPanel: los ítems del menú con los tokens del
+// sistema, no los `accent` de shadcn.
+const ITEM_MENU =
+  "text-uva-detalle text-uva-text hover:bg-uva-hover hover:text-uva-text focus:bg-uva-hover focus:text-uva-text";
+
+/** Botón de texto de la barra inferior de la tarjeta ("N respuestas"). */
+const CLASE_ACCION_TARJETA =
+  "inline-flex min-h-11 items-center gap-2 rounded-uva-sm px-2.5 font-bold whitespace-nowrap text-uva-text-muted hover:bg-uva-hover hover:text-uva-text sm:pointer-fine:min-h-9";
+
 /**
  * Tarjeta de una publicación. `truncar`: el feed corta el contenido a 3
- * líneas y enlaza al detalle; el detalle la muestra completa y sin enlace.
+ * líneas, muestra la primera imagen y enlaza al detalle; el detalle la
+ * muestra completa, con todos sus adjuntos y sin enlace.
  */
 export function ComunidadPostCard({
   post,
@@ -83,8 +89,6 @@ export function ComunidadPostCard({
   // para el resto, que no tiene ninguna otra forma de escalar algo.
   const puedeReportar = Boolean(usuarioActualId) && !esAutor && !esAdmin;
   const hayAcciones = esAdmin || puedeEditar || puedeEliminar || puedeReportar;
-  // Si esta publicación lleva marco propio — ver el comentario del `article`.
-  const enmarcado = !truncar || post.fijado;
 
   async function confirmarReporte(motivo: string) {
     const resultado = await reportarComunidad({ idPost: post.id }, motivo);
@@ -134,11 +138,11 @@ export function ComunidadPostCard({
     });
   }
 
-  // En el feed truncado (`truncar`) no se pintan las imágenes/archivos
-  // reales dentro del recorte de 3 líneas — un adjunto de ancho completo
-  // metido en un `line-clamp` se ve roto. Se muestra en su lugar un texto
-  // corto en el mismo punto donde el autor lo puso, y la versión completa
-  // (con la imagen real) solo se ve al entrar al detalle.
+  // En el feed (`truncar`) no se pintan los adjuntos reales dentro del
+  // recorte de 3 líneas — uno de ancho completo metido en un `line-clamp`
+  // se ve roto. Las imágenes se sacan del texto y la primera va debajo,
+  // como portada; los archivos dejan un texto corto en su lugar. La
+  // versión completa solo se ve al entrar al detalle.
   const adjuntosPorId = new Map(
     post.adjuntos.map((adjunto) => [adjunto.id, adjunto]),
   );
@@ -148,6 +152,17 @@ export function ComunidadPostCard({
     if (!truncar) return <ComunidadAdjuntoVista adjunto={adjunto} />;
     return <span className="text-uva-text-muted">📎 {adjunto.nombre}</span>;
   }
+  const portada = truncar
+    ? post.adjuntos.find((adjunto) => adjunto.tipo === "imagen")
+    : undefined;
+  // Las líneas de marcador de imagen se quitan del texto del feed: aunque se
+  // pinten vacías, `line-clamp` las cuenta y ponía "…" en un texto completo.
+  const contenido = truncar
+    ? post.contenido
+        .split("\n")
+        .filter((linea) => adjuntosPorId.get(/^\[\[adjunto:([^\]]+)\]\]$/.exec(linea)?.[1] ?? "")?.tipo !== "imagen")
+        .join("\n")
+    : post.contenido;
 
   // `wrap-break-word` (título y contenido): una palabra larga sin espacios
   // que no sea URL — los enlaces ya traen `break-all` — desbordaba la tarjeta.
@@ -156,99 +171,122 @@ export function ComunidadPostCard({
       href={`/dashboard/comunidad/${post.slug}`}
       // En táctil el área sube a 44 px con relleno y margen negativo: el
       // título no se mueve, solo crece la zona que responde al dedo.
-      className="font-heading text-uva-cuerpo font-bold wrap-break-word text-uva-text hover:underline pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
+      className="text-uva-titulo-4 font-extrabold wrap-break-word text-uva-text hover:underline pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
     >
       {post.titulo}
     </Link>
   ) : (
-    <h1 className="font-heading text-uva-titulo-4 wrap-break-word text-uva-text">
+    <h1 className="text-uva-titulo-3 wrap-break-word text-uva-text">
       {post.titulo}
     </h1>
   );
 
   const IconoCategoria = ICONO_CATEGORIA[post.categoria];
+  const respuestas = `${post.totalRespuestas} respuesta${post.totalRespuestas === 1 ? "" : "s"}`;
 
   return (
+    // Tarjeta en el feed y en el detalle: cada publicación es un objeto con
+    // su autor, su portada y su barra de acciones. El fijado del feed no
+    // llega acá — va como franja (ComunidadFijadoFranja); en el detalle sí,
+    // con su marca de "Fijado".
     <article
       className={cn(
-        "flex flex-col gap-3",
-        // El feed es una corriente, no una rejilla: sus publicaciones son
-        // hermanas de una misma lista, así que van como filas separadas por
-        // una línea (el `divide-y` lo pone el contenedor, en
-        // ComunidadFeedContent) y no como tarjetas sueltas. Enmarcadas, la
-        // pantalla eran diez rectángulos idénticos —buscador, orden,
-        // composer, cada post, los dos bloques del riel— y ninguno pesaba
-        // más que otro.
-        //
-        // Dos excepciones conservan el marco, porque sí son objetos aparte:
-        // el detalle (`!truncar`), donde la publicación es el sujeto de la
-        // pantalla y no hay corriente a la que pertenecer, y el post fijado,
-        // que existe justamente para salirse de la corriente.
-        enmarcado ? "rounded-uva-md border p-4" : "py-4",
-        enmarcado &&
-          // Antes el fijado solo cambiaba unos puntos el fondo (#141417 vs
-          // uva-surface) y un texto gris apenas visible — se perdía en el
-          // feed en vez de destacar. Usa el mismo tratamiento de "destacado"
-          // que la tarjeta de plan resaltado (Pricing.tsx): borde y fondo con
-          // tinte del acento de marca.
-          (post.fijado
-            ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
-            : "border-uva-divider bg-uva-surface"),
+        "flex flex-col gap-3 rounded-uva-md border px-4 pt-4 pb-1 sm:px-5 sm:pt-5",
+        post.fijado
+          ? "border-uva-accent/50 bg-[color-mix(in_srgb,var(--uva-accent)_7%,var(--uva-surface))]"
+          : "border-uva-divider bg-uva-surface",
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
-          <IconoCategoria
-            className="size-4 text-uva-accent-2-text"
-            aria-hidden="true"
-          />
-          {CATEGORIA_LABEL[post.categoria]}
-        </span>
-        {post.fijado && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-uva-accent-soft px-2 py-0.5 text-uva-detalle font-semibold text-uva-accent-text">
-            <Pin className="size-3" strokeWidth={2.4} />
-            Fijado
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2.5">
-        <Avatar className="size-8 shrink-0 bg-uva-divider">
+      <div className="flex items-center gap-3">
+        <Avatar className="size-10 shrink-0 bg-uva-divider">
           {post.autorFotoUrl && <AvatarImage src={post.autorFotoUrl} alt="" />}
-          <AvatarFallback className="bg-uva-divider text-uva-detalle text-uva-text">
+          <AvatarFallback className="bg-uva-divider text-uva-detalle font-bold text-uva-text">
             {iniciales(post.autorNombre)}
           </AvatarFallback>
         </Avatar>
-        {/* La causa real del desalineado no era la altura de línea: `<p>`
-            trae un margin-bottom de 14px (~1em) que no queda reseteado en
-            este proyecto, y ese margen SÍ cuenta para el centrado de un
-            flex item — `m-0` lo confirma (medido con getBoundingClientRect
-            contra el avatar: diferencia de 0px). `leading-8` iguala la
-            altura de línea a la del avatar (`size-8`, 32px). */}
-        <p className="m-0 min-w-0 flex-1 truncate text-uva-detalle leading-8 text-uva-text">
-          {post.autorNombre}
-        </p>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-uva-detalle font-bold text-uva-text">
+            {post.autorNombre}
+          </span>
+          <span className="text-uva-detalle text-uva-text-muted">{post.tiempo}</span>
+        </div>
+        {post.fijado && !truncar && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-uva-accent-soft px-2 py-0.5 text-uva-detalle font-semibold text-uva-accent-text">
+            <Pin className="size-3" strokeWidth={2.4} aria-hidden="true" />
+            Fijado
+          </span>
+        )}
+        {hayAcciones && !editando && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Más acciones"
+              className="-mr-2 grid size-11 shrink-0 cursor-pointer place-items-center rounded-uva-sm text-uva-text-muted hover:bg-uva-hover hover:text-uva-text focus-visible:outline-2 focus-visible:outline-uva-accent sm:pointer-fine:size-9"
+            >
+              <MoreHorizontal className="size-5" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {esAdmin && (
+                <DropdownMenuItem
+                  className={ITEM_MENU}
+                  disabled={pendienteFijar}
+                  onClick={alternarFijado}
+                >
+                  {post.fijado ? "Desfijar" : "Fijar"}
+                </DropdownMenuItem>
+              )}
+              {puedeEditar && (
+                <DropdownMenuItem className={ITEM_MENU} onClick={() => setEditando(true)}>
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {puedeEliminar && (
+                <DropdownMenuItem className={ITEM_MENU} onClick={pedirEliminar}>
+                  Eliminar
+                </DropdownMenuItem>
+              )}
+              {puedeReportar && (
+                <DropdownMenuItem
+                  className={ITEM_MENU}
+                  onClick={() => setDialogoReporteAbierto(true)}
+                >
+                  Reportar
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {editando ? (
-        <ComunidadPostEditor
-          post={post}
-          ruta={ruta}
-          onCancelar={() => setEditando(false)}
-          onGuardado={() => {
-            setEditando(false);
-            router.refresh();
-          }}
+      <span className="inline-flex h-7 w-fit items-center gap-1.5 rounded-full bg-uva-divider px-2.5 text-uva-detalle font-semibold text-uva-text">
+        <IconoCategoria
+          className="size-4 text-uva-accent-2-text"
+          aria-hidden="true"
         />
+        {CATEGORIA_LABEL[post.categoria]}
+      </span>
+
+      {editando ? (
+        <div className="pb-3">
+          <ComunidadPostEditor
+            post={post}
+            ruta={ruta}
+            onCancelar={() => setEditando(false)}
+            onGuardado={() => {
+              setEditando(false);
+              router.refresh();
+            }}
+          />
+        </div>
       ) : (
         <>
           {Titulo}
           {post.datosEmpleo && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-uva-text-muted">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-uva-detalle text-uva-text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Building2
                   className="size-3.5 shrink-0 text-uva-text-muted"
                   strokeWidth={2}
+                  aria-hidden="true"
                 />
                 {post.datosEmpleo.empresa}
               </span>
@@ -256,10 +294,11 @@ export function ComunidadPostCard({
                 <MapPin
                   className="size-3.5 shrink-0 text-uva-text-muted"
                   strokeWidth={2}
+                  aria-hidden="true"
                 />
                 {MODALIDAD_LABEL[post.datosEmpleo.modalidad]}
                 {post.datosEmpleo.ubicacion &&
-                  ` · ${post.datosEmpleo.ubicacion}`}
+                  `, ${post.datosEmpleo.ubicacion}`}
               </span>
               <a
                 href={post.datosEmpleo.enlace}
@@ -268,7 +307,8 @@ export function ComunidadPostCard({
                 className="inline-flex items-center gap-1 font-semibold text-uva-accent-text hover:underline pointer-coarse:-my-3 pointer-coarse:py-3"
               >
                 Postularme
-                <ExternalLink className="size-3.5" strokeWidth={2.2} />
+                <ExternalLink className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
+                <span className="sr-only">(se abre en otra pestaña)</span>
               </a>
             </div>
           )}
@@ -280,15 +320,26 @@ export function ComunidadPostCard({
           <div
             className={`text-uva-cuerpo wrap-break-word text-uva-text ${truncar ? "line-clamp-3" : "flex flex-col gap-2"}`}
           >
-            {renderizarTextoFormateado(post.contenido, resolverAdjunto)}
+            {renderizarTextoFormateado(contenido, resolverAdjunto)}
           </div>
 
-          {/* `flex-wrap` + `whitespace-nowrap`: en una fila rígida, a 375 px
-              (admin y autora, en el detalle) "hace 3 horas" quedaba en 32 px
-              de ancho y 3 líneas. Ahora lo que no cabe baja entero a la
-              línea siguiente, y las acciones van juntas a la derecha. */}
-          <div className="flex flex-wrap items-center gap-x-4 text-uva-detalle text-uva-text-muted">
-            <span className="whitespace-nowrap">{post.tiempo}</span>
+          {portada?.tipo === "imagen" && (
+            // URL firmada de corta duración (src/lib/comunidad.ts): mismo
+            // motivo que ComunidadAdjuntoVista para no usar next/image. Acá
+            // sí se recorta (`object-cover`): es una portada, la imagen
+            // completa está en el detalle.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={portada.url}
+              alt={`Imagen adjunta: ${portada.nombre}`}
+              width={portada.ancho}
+              height={portada.alto}
+              loading="lazy"
+              className="aspect-[16/10] h-auto max-h-80 w-full rounded-uva-sm border border-uva-divider object-cover"
+            />
+          )}
+
+          <div className="-mx-2 flex flex-wrap items-center gap-x-1 border-t border-uva-divider pt-1 text-uva-detalle sm:-mx-3">
             <ComunidadReactionButton
               tipo="post"
               objetivoId={post.id}
@@ -300,60 +351,16 @@ export function ComunidadPostCard({
             {truncar ? (
               <Link
                 href={`/dashboard/comunidad/${post.slug}`}
-                className={cn(
-                  CLASE_BOTON_ACCION_COMUNIDAD,
-                  "whitespace-nowrap",
-                )}
+                className={CLASE_ACCION_TARJETA}
               >
-                {post.totalRespuestas} respuesta
-                {post.totalRespuestas === 1 ? "" : "s"}
+                <MessageCircle className="size-[18px]" aria-hidden="true" />
+                {respuestas}
               </Link>
             ) : (
-              <span className="whitespace-nowrap">
-                {post.totalRespuestas} respuesta
-                {post.totalRespuestas === 1 ? "" : "s"}
+              <span className="inline-flex min-h-11 items-center gap-2 px-2.5 font-bold text-uva-text-muted sm:pointer-fine:min-h-9">
+                <MessageCircle className="size-[18px]" aria-hidden="true" />
+                {respuestas}
               </span>
-            )}
-            {hayAcciones && (
-              <div className="ml-auto flex items-center gap-4">
-                {esAdmin && (
-                  <button
-                    type="button"
-                    disabled={pendienteFijar}
-                    onClick={alternarFijado}
-                    className={CLASE_BOTON_ACCION_COMUNIDAD}
-                  >
-                    {post.fijado ? "Desfijar" : "Fijar"}
-                  </button>
-                )}
-                {puedeEditar && (
-                  <button
-                    type="button"
-                    onClick={() => setEditando(true)}
-                    className={CLASE_BOTON_ACCION_COMUNIDAD}
-                  >
-                    Editar
-                  </button>
-                )}
-                {puedeEliminar && (
-                  <button
-                    type="button"
-                    onClick={pedirEliminar}
-                    className={CLASE_BOTON_ACCION_COMUNIDAD}
-                  >
-                    Eliminar
-                  </button>
-                )}
-                {puedeReportar && (
-                  <button
-                    type="button"
-                    onClick={() => setDialogoReporteAbierto(true)}
-                    className={CLASE_BOTON_ACCION_COMUNIDAD}
-                  >
-                    Reportar
-                  </button>
-                )}
-              </div>
             )}
           </div>
         </>
