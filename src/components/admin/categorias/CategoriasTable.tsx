@@ -135,7 +135,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         {/* Mismo criterio que el resto del panel: 6 columnas (una un switch
             funcional) no caben sin scroll horizontal en un touch. */}
         {categorias.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {categorias.map((categoria) => (
               <div
                 key={categoria.id}
@@ -193,7 +193,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         )}
 
         {categorias.length > 0 && (
-        <Table className="hidden pointer-fine:md:table">
+        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de categorías">
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
@@ -284,6 +284,8 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar categoría"
+        confirmLabel="Eliminar categoría"
+        destructive
         description={`¿Seguro que quieres eliminar "${borrando?.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleEliminar}
       />

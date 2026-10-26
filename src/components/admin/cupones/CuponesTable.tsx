@@ -121,7 +121,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         {/* Mismo criterio que el resto del panel: 7 columnas con tres
             acciones no caben sin scroll horizontal en un touch. */}
         {cupones.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {cupones.map((cupon) => (
               <div
                 key={cupon.id}
@@ -166,7 +166,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         )}
 
         {cupones.length > 0 && (
-          <Table className="hidden pointer-fine:md:table">
+          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cupones">
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>
@@ -242,6 +242,7 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         title="Vencer cupón"
         description={`"${venciendo?.codigo}" dejará de aplicarse desde este momento. Quienes ya lo usaron conservan su descuento, y puedes volver a abrirlo editándole la fecha.`}
         confirmLabel="Vencer ahora"
+        destructive
         onConfirm={handleVencer}
       />
 
@@ -249,6 +250,8 @@ export function CuponesTable({ cupones }: { cupones: CuponAdmin[] }) {
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar cupón"
+        confirmLabel="Eliminar cupón"
+        destructive
         description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se usó, así que no afecta a ningún cobro.`}
         onConfirm={handleEliminar}
       />

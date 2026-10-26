@@ -159,7 +159,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
             funcional, otra un menú de acciones) no caben sin scroll
             horizontal en un touch. */}
         {codigos.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {codigos.map((codigo) => (
               <div
                 key={codigo.id}
@@ -239,7 +239,7 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
         )}
 
         {codigos.length > 0 && (
-        <Table className="hidden pointer-fine:md:table">
+        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de códigos de invitación">
           <TableHeader>
             <TableRow>
               <TableHead>Código</TableHead>
@@ -360,6 +360,8 @@ export function CodigosTable({ codigos }: { codigos: CodigoInvitacion[] }) {
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar código"
+        confirmLabel="Eliminar código"
+        destructive
         description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se canjeó, así que no afecta a ninguna suscripción.`}
         onConfirm={handleEliminar}
       />

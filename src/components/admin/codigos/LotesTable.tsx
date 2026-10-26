@@ -144,7 +144,7 @@ export function LotesTable({
         {/* Mismo criterio que CodigosTable: 7 columnas no caben sin scroll
             horizontal en un touch. */}
         {lotes.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {lotes.map((lote) => (
               <div
                 key={lote.id}
@@ -195,7 +195,7 @@ export function LotesTable({
         )}
 
         {lotes.length > 0 && (
-        <Table className="hidden pointer-fine:md:table">
+        <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de lotes de códigos">
           <TableHeader>
             <TableRow>
               <TableHead>Lote</TableHead>
@@ -281,7 +281,7 @@ export function LotesTable({
                 y este contenedor solo tenía scroll vertical: la tabla de 4
                 columnas se salía del propio modal en vez de solo verse
                 apretada. */}
-            <div className="flex flex-col pointer-fine:md:hidden">
+            <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
               {codigosDelLoteAbierto.map((codigo) => (
                 <div
                   key={codigo.id}
@@ -339,7 +339,7 @@ export function LotesTable({
               ))}
             </div>
 
-            <Table className="hidden pointer-fine:md:table">
+            <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de códigos del lote">
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
@@ -415,6 +415,8 @@ export function LotesTable({
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar código"
+        confirmLabel="Eliminar código"
+        destructive
         description={`¿Seguro que quieres eliminar "${borrando?.codigo}"? Nunca se canjeó, así que no afecta a ninguna suscripción.`}
         onConfirm={handleEliminar}
       />

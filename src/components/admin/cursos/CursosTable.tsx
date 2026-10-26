@@ -208,7 +208,7 @@ export function CursosTable({
             eso el corte no es solo `md`: `pointer-fine:` exige además mouse o
             trackpad antes de mostrar la tabla, sin importar el ancho. */}
         {filtrados.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {filtrados.map((curso) => (
               <div
                 key={curso.id}
@@ -274,7 +274,7 @@ export function CursosTable({
         )}
 
         {filtrados.length > 0 && (
-          <Table className="hidden pointer-fine:md:table">
+          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cursos">
             <TableHeader>
               <TableRow>
                 <TableHead>Curso</TableHead>
@@ -361,6 +361,8 @@ export function CursosTable({
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
         title="Eliminar curso"
+        confirmLabel="Eliminar curso"
+        destructive
         description={
           <>
             ¿Seguro que quieres eliminar &quot;{borrando?.titulo}&quot;? Esta acción no se puede

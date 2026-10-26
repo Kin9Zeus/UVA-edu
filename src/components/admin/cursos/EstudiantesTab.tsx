@@ -112,7 +112,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
             de que hay más a la derecha), así que touch/tablet ve una lista de
             tarjetas y solo mouse ve la tabla. */}
         {filtrados.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
+          <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
             {filtrados.map((estudiante) => (
               <div
                 key={estudiante.inscripcionId ?? estudiante.usuarioId}
@@ -154,7 +154,7 @@ export function EstudiantesTab({ estudiantes }: { estudiantes: EstudianteDeCurso
         )}
 
         {filtrados.length > 0 && (
-          <Table className="hidden pointer-fine:md:table">
+          <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de estudiantes del curso">
             <TableHeader>
               <TableRow>
                 <TableHead>Estudiante</TableHead>

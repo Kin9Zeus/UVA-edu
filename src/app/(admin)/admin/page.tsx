@@ -164,16 +164,13 @@ export default async function AdminDashboardPage() {
             </p>
           )}
 
-          {/* Las 5 columnas de la tabla no caben sin scroll horizontal dentro
-              de una tarjeta ya vertical — la peor clase de interacción
-              táctil, porque nada avisa que hay más a la derecha. Por eso el
-              corte no es solo de ancho (`md`): un iPad Pro ya cruza esa
-              medida en `portrait` y sigue siendo dedo, no mouse, así que
-              `pointer-fine:` exige además un puntero preciso antes de
-              mostrar la tabla — un teléfono o tablet táctil ve la lista
-              apilada sin importar cuán ancha esté la pantalla. */}
+          {/* Tarjetas en celular y tableta vertical; tabla desde 768 px con
+              mouse o desde 1024 px con cualquier puntero. En una tableta
+              horizontal la tabla cabe y se recorre mejor que una columna de
+              tarjetas de 900 px de ancho; si alguna vez no cabe, se desplaza
+              dentro de su caja (ver Table en ui/table.tsx), no la página. */}
           {cursosPopulares.length > 0 && (
-            <div className="flex flex-col pointer-fine:md:hidden">
+            <div className="flex flex-col pointer-fine:md:hidden lg:hidden">
               {cursosPopulares.map((curso) => (
                 <div
                   key={curso.id}
@@ -202,7 +199,7 @@ export default async function AdminDashboardPage() {
           )}
 
           {cursosPopulares.length > 0 && (
-            <Table className="hidden pointer-fine:md:table">
+            <Table contenedorClassName="hidden pointer-fine:md:block lg:block" etiqueta="Tabla de cursos con más estudiantes">
               <TableHeader>
                 <TableRow>
                   <TableHead>Curso</TableHead>
