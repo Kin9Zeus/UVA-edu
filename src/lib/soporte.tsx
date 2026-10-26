@@ -1,23 +1,16 @@
 import type { ReactNode } from "react";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
-import { urlWhatsapp } from "@/lib/contacto";
 
-// Fuente única de los temas de soporte: la consume tanto la página /soporte
-// (pública y dentro del dashboard) como la columna "Soporte" del footer del
-// home. El `id` viaja en la URL (`/soporte?tema=terminos`) para abrir ese
-// acordeón de entrada, así que es parte del contrato público: cambiarlo
-// rompe enlaces ya compartidos.
+// Preguntas frecuentes de /soporte (pública y dentro del panel) y enlaces de
+// soporte del pie del home.
 //
-// Archivo .tsx (no .ts): el contenido de cada tema es JSX, no texto plano —
-// necesita negritas (ver `centro-de-ayuda` abajo). Lo pinta `SoporteCentro`
-// (components/soporte), en /soporte y en /dashboard/soporte.
-export type TemaSoporte =
-  "centro-de-ayuda" | "contacto" | "terminos" | "privacidad";
+// Archivo .tsx (no .ts): las respuestas son JSX, no texto plano — necesitan
+// negritas. Las pinta `SoporteCentro` (components/soporte).
 
 // Contenido redactado a partir de docs/legal/contenido-soporte.md (borrador
-// revisado). A diferencia de Contacto/Términos/Privacidad, esta sección no
-// depende de datos legales de la empresa ([RAZÓN SOCIAL], NIT, etc.) — por
-// eso es la única que ya se puede publicar tal cual.
+// revisado). A diferencia de Términos y Privacidad (src/content/legal.tsx),
+// no depende de datos legales de la empresa ([RAZÓN SOCIAL], NIT, etc.) — por
+// eso ya se puede publicar tal cual.
 //
 // Mientras los precios estén apagados (`PRECIOS_HABILITADOS`) se entra solo
 // con código de invitación: las respuestas sobre suscripciones pagadas y
@@ -125,70 +118,42 @@ export const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[
   {
     pregunta: "Encontré un error técnico en la plataforma, ¿qué hago?",
     respuesta:
-      'Repórtalo con el mayor detalle posible — qué hacías, qué esperabas que pasara y qué pasó — con el botón "Reportar un problema" que está debajo de estas preguntas. Para cualquier otro tema, revisa la sección Contacto.',
+      'Repórtalo con el mayor detalle posible — qué hacías, qué esperabas que pasara y qué pasó — con "Reportar un problema", en los accesos de arriba. Para cualquier otro tema, escríbenos por WhatsApp.',
   },
 ];
 
-function CentroDeAyudaContenido() {
-  return (
-    <dl className="m-0 flex flex-col gap-4">
-      {PREGUNTAS_CENTRO_AYUDA.map(({ pregunta, respuesta }) => (
-        <div key={pregunta}>
-          <dt className="mb-1 font-semibold text-uva-text">{pregunta}</dt>
-          <dd className="m-0">{respuesta}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
+/**
+ * Enlaces de soporte del pie del home. Cada documento tiene su dirección:
+ * los temas ya no se abren con `?tema=` (ver `destinoTemaViejo`).
+ */
+export const ENLACES_SOPORTE = [
+  { titulo: "Centro de ayuda", href: "/soporte" },
+  { titulo: "Contacto", href: "/soporte#contacto" },
+  { titulo: "Términos y condiciones", href: "/soporte/terminos" },
+  { titulo: "Privacidad", href: "/soporte/privacidad" },
+] as const;
 
-export const TEMAS_SOPORTE: {
-  id: TemaSoporte;
-  titulo: string;
-  contenido: ReactNode;
-}[] = [
-  {
-    id: "centro-de-ayuda",
-    titulo: "Centro de ayuda",
-    contenido: <CentroDeAyudaContenido />,
-  },
-  {
-    id: "contacto",
-    titulo: "Contacto",
-    contenido: (
-      <>
-        Escríbenos por{" "}
-        <a
-          href={urlWhatsapp()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-uva-accent-text underline-offset-2 hover:underline"
-        >
-          WhatsApp
-          <span className="sr-only"> (abre en otra pestaña)</span>
-        </a>{" "}
-        y te respondemos por ahí. Si encontraste un error en la plataforma, usa
-        «Reportar un problema», más abajo.
-      </>
-    ),
-  },
-  {
-    id: "terminos",
-    titulo: "Términos y condiciones",
-    contenido:
-      "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de U.V.A.",
-  },
-  {
-    id: "privacidad",
-    titulo: "Privacidad",
-    contenido:
-      "Contenido en preparación. Pronto encontrarás aquí la Política de privacidad de U.V.A.",
-  },
-];
-
-/** `?tema=` viene del cliente: solo se acepta si coincide con un tema real. */
-export function esTemaSoporte(valor: string | undefined): valor is TemaSoporte {
-  return TEMAS_SOPORTE.some((tema) => tema.id === valor);
+/**
+ * Soporte abría cada tema con `?tema=` (`/soporte?tema=terminos`), y esos
+ * enlaces ya están compartidos: se redirigen a la dirección nueva. `base` es
+ * el soporte desde el que se llegó (el público o el del panel). Términos y
+ * Privacidad son siempre las páginas públicas.
+ */
+export function destinoTemaViejo(
+  tema: string | string[] | undefined,
+  base: "/soporte" | "/dashboard/soporte",
+): string | null {
+  switch (tema) {
+    case "terminos":
+    case "privacidad":
+      return `/soporte/${tema}`;
+    case "contacto":
+      return `${base}#contacto`;
+    case "centro-de-ayuda":
+      return base;
+    default:
+      return null;
+  }
 }
 
 // Formulario público de Notion (vista "Reportar bug/incidencias" de la base

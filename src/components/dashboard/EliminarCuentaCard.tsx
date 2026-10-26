@@ -54,7 +54,7 @@ export function EliminarCuentaCard({
         Los certificados que hayas obtenido siguen siendo válidos y
         conservan el nombre con el que se emitieron, para que cualquiera
         pueda seguir verificándolos con su código — ver{" "}
-        <a href="/dashboard/soporte?tema=privacidad" className="font-bold text-uva-accent-ink underline underline-offset-3">
+        <a href="/soporte/privacidad" className="font-bold text-uva-accent-ink underline underline-offset-3">
           nuestra política de datos
         </a>
         .

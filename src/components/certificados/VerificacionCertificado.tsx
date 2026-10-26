@@ -99,7 +99,7 @@ export function VerificacionCertificado({
         <p className="mt-5.5 mb-0 text-center text-uva-detalle text-uva-text-muted">
           ¿Dudas sobre un certificado?{" "}
           <Link
-            href="/soporte?tema=contacto"
+            href="/soporte#contacto"
             className={cn(
               "rounded-uva-xs text-uva-accent-ink underline underline-offset-3",
               FOCO,

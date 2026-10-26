@@ -191,7 +191,7 @@ export function RegistroForm({
           <span>
             Acepto los{" "}
             <Link
-              href="/soporte?tema=terminos"
+              href="/soporte/terminos"
               className="text-uva-accent-ink underline underline-offset-3"
               target="_blank"
             >
@@ -199,7 +199,7 @@ export function RegistroForm({
             </Link>{" "}
             y la{" "}
             <Link
-              href="/soporte?tema=privacidad"
+              href="/soporte/privacidad"
               className="text-uva-accent-ink underline underline-offset-3"
               target="_blank"
             >

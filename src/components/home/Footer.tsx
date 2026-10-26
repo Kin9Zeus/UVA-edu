@@ -8,7 +8,7 @@ import {
 } from "@/components/home/icons";
 import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
-import { TEMAS_SOPORTE } from "@/lib/soporte";
+import { ENLACES_SOPORTE } from "@/lib/soporte";
 import { urlWhatsapp } from "@/lib/contacto";
 import { LogoUva } from "@/components/home/LogoUva";
 
@@ -133,15 +133,13 @@ export async function Footer({
               </div>
             ))}
 
-          {/* Cada enlace lleva a la misma pantalla de soporte con ese tema ya
-              desplegado (`?tema=`); los otros tres siguen visibles ahí. */}
           <nav aria-label="Soporte" className="lg:col-span-3">
             <h2 className={headingClass}>Soporte</h2>
             <ul className="grid grid-cols-2 gap-x-4 wrap-anywhere md:block">
-              {TEMAS_SOPORTE.map((tema) => (
-                <li key={tema.id}>
-                  <Link href={`/soporte?tema=${tema.id}`} className={linkClass}>
-                    {tema.titulo}
+              {ENLACES_SOPORTE.map((enlace) => (
+                <li key={enlace.href}>
+                  <Link href={enlace.href} className={linkClass}>
+                    {enlace.titulo}
                   </Link>
                 </li>
               ))}
