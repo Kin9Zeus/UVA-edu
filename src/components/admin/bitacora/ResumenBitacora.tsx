@@ -137,7 +137,19 @@ function Grafica({ dias }: { dias: DiaBitacora[] }) {
 
   return (
     <div ref={contenedor} className="relative">
-      <svg width={ancho} height={alto} role="group" aria-label="Acciones por día. Elige un día para ver solo sus acciones." className="block overflow-visible">
+      {/* Ancho 100 % con viewBox: lo que pinta el servidor (a 640 px) ya
+          cabe en la tarjeta antes de que cargue el JavaScript; si no, en un
+          celular quedaban recortadas justo las barras recientes, a la
+          derecha. Al medir, el viewBox pasa al ancho real y nada se deforma. */}
+      <svg
+        width="100%"
+        height={alto}
+        viewBox={`0 0 ${ancho} ${alto}`}
+        preserveAspectRatio="none"
+        role="group"
+        aria-label="Acciones por día. Elige un día para ver solo sus acciones."
+        className="block overflow-visible"
+      >
         {[tope / 2, tope].map((valor) => {
           const y = base - escala(valor);
           return (
