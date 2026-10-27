@@ -14,6 +14,9 @@ export const TIPOS_BITACORA = [
 
 export type TipoBitacora = (typeof TIPOS_BITACORA)[number]["clave"];
 
+/** La bitácora filtrada en Moderación: las decisiones anteriores de Comunidad. */
+export const RUTA_DECISIONES_COMUNIDAD = "/admin/bitacora?tipo=moderacion";
+
 /** Color de cada tipo en la gráfica y la lista: las series validadas de globals.css, en orden. */
 export const COLOR_TIPO: Record<TipoBitacora, string> = {
   contenido: "var(--uva-serie-1)",

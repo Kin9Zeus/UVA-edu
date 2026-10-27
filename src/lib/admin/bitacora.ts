@@ -146,7 +146,7 @@ export function sumarDias(dia: string, dias: number): string {
 }
 
 /** Inicio del día en Colombia como instante (UTC−5 todo el año, sin horario de verano). */
-function inicioDelDia(dia: string): string {
+export function inicioDelDia(dia: string): string {
   return `${dia}T00:00:00-05:00`;
 }
 

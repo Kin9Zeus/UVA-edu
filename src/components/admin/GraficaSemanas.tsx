@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { caminoSegmento, type SemanaGrafica, type SerieGrafica } from "@/lib/admin/grafica";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,8 @@ function nombreSemana(semana: SemanaGrafica, esActual: boolean) {
 
 /**
  * Barras por semana, apiladas por serie, con el detalle de cada semana al
- * pasar el mouse o el foco. La comparten Cupones (usos) y Planes (plata).
+ * pasar el mouse o el foco. La comparten Cupones (usos), Planes (plata) y
+ * Comunidad (publicaciones y respuestas).
  * Con `semanas` en null dibuja solo la base: quien la usa pone encima el
  * texto que explica por qué está vacía.
  */
@@ -35,6 +36,7 @@ export function GraficaSemanas<S extends SemanaGrafica>({
   formatoEje = formato,
   resumenSemana,
   notaDetalle,
+  extraDetalle,
   sinDatos,
   nombresEnCodigo,
 }: {
@@ -48,6 +50,8 @@ export function GraficaSemanas<S extends SemanaGrafica>({
   resumenSemana: (semana: S) => string;
   /** Lo que sigue al nombre en el detalle (", 8 ventas"); `null` es la fila Total. */
   notaDetalle?: (semana: S, clave: string | null) => string;
+  /** Lo que va debajo del Total: el reparto por categoría de Comunidad. */
+  extraDetalle?: (semana: S) => ReactNode;
   /** "Sin usos", "Sin ventas". */
   sinDatos: string;
   nombresEnCodigo?: boolean;
@@ -158,6 +162,7 @@ export function GraficaSemanas<S extends SemanaGrafica>({
           ancho={ancho}
           formato={formato}
           nota={notaDetalle}
+          extra={extraDetalle}
           sinDatos={sinDatos}
           nombresEnCodigo={nombresEnCodigo}
         />
@@ -174,6 +179,7 @@ function Detalle<S extends SemanaGrafica>({
   ancho,
   formato,
   nota,
+  extra,
   sinDatos,
   nombresEnCodigo,
 }: {
@@ -184,10 +190,11 @@ function Detalle<S extends SemanaGrafica>({
   ancho: number;
   formato: (valor: number) => string;
   nota?: (semana: S, clave: string | null) => string;
+  extra?: (semana: S) => ReactNode;
   sinDatos: string;
   nombresEnCodigo?: boolean;
 }) {
-  const anchoTip = nota ? 256 : 208;
+  const anchoTip = nota || extra ? 256 : 208;
   const izquierda = Math.max(0, Math.min(x - anchoTip / 2, ancho - anchoTip));
   return (
     <div
@@ -217,6 +224,7 @@ function Detalle<S extends SemanaGrafica>({
           <span className="font-mono">{formato(semana.total)}</span>
         </p>
       )}
+      {semana.total > 0 && extra?.(semana)}
     </div>
   );
 }

@@ -163,12 +163,13 @@ describe("control positivo", () => {
       adminId: "admin-1",
     });
 
-    const { descartarReporteComunidad } = await import("@/actions/admin/comunidadReportes");
-    const resultado = await descartarReporteComunidad("reporte-1", "spam");
+    servidorFalso.responder("from:comunidad_reportes", { data: [{ motivo: "spam" }], error: null });
+    const { descartarReportesComunidad } = await import("@/actions/admin/comunidadReportes");
+    const resultado = await descartarReportesComunidad({ tipo: "publicación", id: "post-1" });
 
     expect(resultado).toEqual({ success: true });
     expect(servidorFalso.operaciones()).toEqual(["from:comunidad_reportes"]);
-    expect(servidorFalso.llamadas[0].cadena.map((c) => c.metodo)).toEqual(["update", "eq"]);
+    expect(servidorFalso.llamadas[0].cadena.map((c) => c.metodo)).toEqual(["update", "eq", "eq", "select"]);
     expect(registrarBitacora).toHaveBeenCalledTimes(1);
     expect(servidorFalso.revalidaciones).toEqual(["/admin/comunidad"]);
   });
