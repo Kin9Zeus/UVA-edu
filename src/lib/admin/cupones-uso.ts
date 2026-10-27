@@ -1,24 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { diaEnColombia, sumarDias } from "@/lib/admin/bitacora";
+import { elegirSeries, lunesDe, OTROS, SEMANAS_GRAFICA, semanasRecientes } from "@/lib/admin/semanas";
+import type { SemanaGrafica, SerieGrafica } from "@/lib/admin/grafica";
 
-export const CUPONES_SEMANAS = 12;
+export const CUPONES_SEMANAS = SEMANAS_GRAFICA;
 const DIAS_CIFRAS = 30;
-const MAX_SERIES = 4;
-
-export type SerieCupon = { clave: string; nombre: string; color: string };
-
-export type SemanaCupones = {
-  /** Lunes de la semana, "YYYY-MM-DD" en hora de Colombia. */
-  inicio: string;
-  porSerie: Record<string, number>;
-  total: number;
-};
 
 export type UsoCupones = {
-  semanas: SemanaCupones[];
+  semanas: SemanaGrafica[];
   /** Hasta 4 cupones con nombre y, si hay más, "Otros". */
-  series: SerieCupon[];
+  series: SerieGrafica[];
   /** Cuántas veces se aplicó cada cupón en un intento de pago, pagado o no. */
   aplicaron: Record<string, number>;
   pagosConCupon: number;
@@ -36,20 +28,12 @@ export type IntentoConCupon = {
   actualizadoEn: string;
 };
 
-const OTROS = "otros";
-
-function lunesDe(dia: string): string {
-  const diaSemana = new Date(`${dia}T12:00:00Z`).getUTCDay();
-  return sumarDias(dia, -((diaSemana + 6) % 7));
-}
-
 /**
  * Agrupa los intentos con cupón en semanas, series y cifras. Pura para poder
  * probarla sin base.
  *
  * Los colores siguen al cupón, no a su puesto: entre los 4 con más usos de la
- * ventana, el más antiguo toma la serie 1. Así un cupón no cambia de color
- * porque otro lo pase en usos esta semana.
+ * ventana, el más antiguo toma la serie 1 (`elegirSeries`).
  */
 export function resumirUsoCupones(
   intentos: IntentoConCupon[],
@@ -58,7 +42,7 @@ export function resumirUsoCupones(
   ahora: Date = new Date(),
 ): UsoCupones {
   const hoy = diaEnColombia(ahora);
-  const primerLunes = sumarDias(lunesDe(hoy), -7 * (CUPONES_SEMANAS - 1));
+  const { semanas, primerLunes } = semanasRecientes(ahora);
   const desdeCifras = sumarDias(hoy, -(DIAS_CIFRAS - 1));
 
   const aplicaron: Record<string, number> = {};
@@ -79,29 +63,17 @@ export function resumirUsoCupones(
 
   const usosPorCupon = new Map<string, number>();
   for (const { idCupon } of aprobadosEnVentana) usosPorCupon.set(idCupon, (usosPorCupon.get(idCupon) ?? 0) + 1);
-  const porId = new Map(cupones.map((c) => [c.id, c]));
-  const conNombre = [...usosPorCupon.entries()]
-    .filter(([id]) => porId.has(id))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_SERIES)
-    .map(([id]) => porId.get(id)!)
-    .sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
-  const nombrados = new Set(conNombre.map((c) => c.id));
-  const series: SerieCupon[] = conNombre.map((c, i) => ({ clave: c.id, nombre: c.codigo, color: `var(--uva-serie-${i + 1})` }));
-  if (aprobadosEnVentana.some((a) => !nombrados.has(a.idCupon))) {
-    series.push({ clave: OTROS, nombre: "Otros", color: "var(--uva-serie-5)" });
-  }
+  const porAntiguedad = [...cupones].sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
+  const { series, nombradas } = elegirSeries(
+    usosPorCupon,
+    porAntiguedad.map((c) => ({ clave: c.id, nombre: c.codigo })),
+  );
 
-  const semanas: SemanaCupones[] = Array.from({ length: CUPONES_SEMANAS }, (_, i) => ({
-    inicio: sumarDias(primerLunes, 7 * i),
-    porSerie: {},
-    total: 0,
-  }));
   const indice = new Map(semanas.map((s, i) => [s.inicio, i]));
   for (const { idCupon, lunes } of aprobadosEnVentana) {
     const semana = semanas[indice.get(lunes) ?? -1];
     if (!semana) continue;
-    const clave = nombrados.has(idCupon) ? idCupon : OTROS;
+    const clave = nombradas.has(idCupon) ? idCupon : OTROS;
     semana.porSerie[clave] = (semana.porSerie[clave] ?? 0) + 1;
     semana.total += 1;
   }

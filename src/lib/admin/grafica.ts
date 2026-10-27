@@ -9,3 +9,13 @@ export function caminoSegmento(x: number, y: number, grosor: number, alto: numbe
   const r = Math.min(4, grosor / 2, alto);
   return `M${x} ${y}V${y - alto + r}Q${x} ${y - alto} ${x + r} ${y - alto}H${x + grosor - r}Q${x + grosor} ${y - alto} ${x + grosor} ${y - alto + r}V${y}Z`;
 }
+
+/** Una serie de una gráfica apilada: su clave, el nombre de la leyenda y su color. */
+export type SerieGrafica = { clave: string; nombre: string; color: string };
+
+export type SemanaGrafica = {
+  /** Lunes de la semana, "YYYY-MM-DD" en hora de Colombia. */
+  inicio: string;
+  porSerie: Record<string, number>;
+  total: number;
+};
