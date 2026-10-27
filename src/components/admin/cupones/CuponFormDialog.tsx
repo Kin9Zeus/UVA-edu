@@ -45,9 +45,9 @@ function VistaPrevia({ planes, tipo, valor }: { planes: PlanVistaPrevia[]; tipo:
   if (planes.length === 0) return null;
   return (
     <div className="flex flex-col gap-1.5 rounded-uva-md border border-uva-divider bg-uva-bg px-3.5 py-3">
-      <p className="text-uva-detalle font-bold text-uva-text-muted">Así queda cada plan</p>
+      <p className="m-0 text-uva-detalle font-bold text-uva-text-muted">Así queda cada plan</p>
       {!(numero > 0) ? (
-        <p className="text-uva-detalle text-uva-text-muted">Escribe el descuento para ver el precio final.</p>
+        <p className="m-0 text-uva-detalle text-uva-text-muted">Escribe el descuento para ver el precio final.</p>
       ) : (
         planes.map((plan) => {
           const { totalCentavos } = calcularDesglose(plan.precioCentavos, {
@@ -55,7 +55,7 @@ function VistaPrevia({ planes, tipo, valor }: { planes: PlanVistaPrevia[]; tipo:
             valor: tipo === "PORCENTAJE" ? numero : Math.round(numero * 100),
           });
           return (
-            <p key={plan.id} className="flex flex-wrap justify-between gap-x-3 text-uva-detalle text-uva-text">
+            <p key={plan.id} className="m-0 flex flex-wrap justify-between gap-x-3 text-uva-detalle text-uva-text">
               <span>{plan.nombre}</span>
               {totalCentavos <= 0 ? (
                 // El checkout rechaza un total en cero: Wompi no cobra $0.
@@ -175,7 +175,7 @@ export function CuponFormDialog({
         else onOpenChange(next);
       }}
     >
-      <DialogContent className="w-[460px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[460px] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{editando ? `Editar ${cupon.codigo}` : "Nuevo cupón"}</DialogTitle>

@@ -175,7 +175,7 @@ export function PlanFormDialog({
         else onOpenChange(next);
       }}
     >
-      <DialogContent className="w-[460px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[460px] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{plan ? `Editar ${plan.nombre}` : "Nuevo plan"}</DialogTitle>
