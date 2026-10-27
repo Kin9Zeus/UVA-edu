@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { COLOR_TIPO, TIPOS_BITACORA } from "@/lib/admin/bitacora-tipos";
 import type { DiaBitacora, ResultadoBitacora } from "@/lib/admin/bitacora";
+import { caminoSegmento } from "@/lib/admin/grafica";
 import { cn } from "@/lib/utils";
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -29,7 +30,7 @@ export function ResumenBitacora({
   return (
     <section
       aria-labelledby="bitacora-resumen"
-      className="grid overflow-hidden rounded-uva-lg border border-uva-divider bg-uva-surface lg:grid-cols-[minmax(0,1fr)_14rem]"
+      className="grid rounded-uva-lg border border-uva-divider bg-uva-surface lg:grid-cols-[minmax(0,1fr)_14rem]"
     >
       <div className="min-w-0 border-b border-uva-divider p-4 sm:p-5 lg:border-r lg:border-b-0 lg:px-6">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
@@ -196,11 +197,7 @@ function Grafica({ dias }: { dias: DiaBitacora[] }) {
                 const altoTipo = escala(dia.porTipo[tipo.clave] ?? 0);
                 // 2 px de separación entre segmentos; solo el de arriba lleva esquinas.
                 const visible = Math.max(1, altoTipo - (j < tipos.length - 1 ? 2 : 0));
-                const tope_ = j === tipos.length - 1;
-                const r = Math.min(4, grosor / 2, visible);
-                const camino = tope_
-                  ? `M${x} ${y}V${y - visible + r}Q${x} ${y - visible} ${x + r} ${y - visible}H${x + grosor - r}Q${x + grosor} ${y - visible} ${x + grosor} ${y - visible + r}V${y}Z`
-                  : `M${x} ${y}V${y - visible}H${x + grosor}V${y}Z`;
+                const camino = caminoSegmento(x, y, grosor, visible, j === tipos.length - 1);
                 y -= altoTipo;
                 return <path key={tipo.clave} d={camino} fill={COLOR_TIPO[tipo.clave]} className="pointer-events-none" aria-hidden />;
               })}

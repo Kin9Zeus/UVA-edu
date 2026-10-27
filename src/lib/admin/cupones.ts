@@ -18,6 +18,9 @@ export type CuponAdmin = {
   vecesUsado: number;
   creadoEn: string;
   estado: EstadoCupon;
+  /** Días que le quedan, redondeados hacia arriba. Se calcula en el servidor
+   *  para que el celular y el computador no difieran al hidratar. */
+  diasParaVencer: number;
 };
 
 /**
@@ -39,6 +42,7 @@ export async function getCuponesAdmin(): Promise<CuponAdmin[]> {
     .order("creado_en", { ascending: false });
   lanzarSiFalla(errorData, "cupones:cupones");
 
+  const ahora = Date.now();
   return (data ?? []).map((fila) => {
     const fechaVencimiento = fila.fecha_vencimiento as string;
     const limiteUsos = (fila.limite_usos as number | null) ?? null;
@@ -57,6 +61,7 @@ export async function getCuponesAdmin(): Promise<CuponAdmin[]> {
       vecesUsado,
       creadoEn: fila.creado_en as string,
       estado: estadoCupon({ fechaVencimiento, limiteUsos, vecesUsado }),
+      diasParaVencer: Math.ceil((new Date(fechaVencimiento).getTime() - ahora) / 86_400_000),
     };
   });
 }
