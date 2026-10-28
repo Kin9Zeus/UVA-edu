@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { Cifra } from "@/components/admin/GraficaSemanas";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { BotonesMover, CLASE_RECIEN_MOVIDO, useRecienMovido } from "@/components/admin/BotonesMover";
@@ -376,6 +377,8 @@ function ExamenExistente({
     moverPreguntaA(String(active.id), preguntas.findIndex((pregunta) => pregunta.id === over.id));
   }
 
+  const agotaron = examen.estudiantes.filter((estudiante) => estudiante.estado === "EN_ESPERA_LARGA").length;
+
   return (
     <div className="flex flex-col gap-6">
       {error && (
@@ -385,6 +388,28 @@ function ExamenExistente({
         >
           {error}
         </div>
+      )}
+
+      {/* Lo que el admin necesita saber primero: cuántos lo presentan, cuántos
+          lo aprueban y a quién le hace falta otro intento (abajo, en Estudiantes). */}
+      {examen.estudiantes.length > 0 && (
+        <dl className="grid max-w-[640px] grid-cols-2 rounded-uva-lg border border-uva-divider bg-uva-surface lg:grid-cols-3">
+          <Cifra enFila valor={String(examen.estudiantes.length)} etiqueta="lo presentaron" nota="Al menos un intento" />
+          <Cifra
+            enFila
+            valor={String(examen.aprobados)}
+            etiqueta="lo aprobaron"
+            nota={`${Math.round((examen.aprobados / examen.estudiantes.length) * 100)} % de los que lo presentaron`}
+          />
+          <Cifra
+            enFila
+            ancha
+            valor={String(agotaron)}
+            etiqueta="agotaron sus intentos"
+            nota={agotaron > 0 ? "Puedes darles otro intento en Estudiantes" : "Nadie está esperando"}
+            alerta={agotaron > 0}
+          />
+        </dl>
       )}
 
       {/* ---------------- Publicación ---------------- */}

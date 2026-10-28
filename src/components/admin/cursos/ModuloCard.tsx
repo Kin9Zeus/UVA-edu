@@ -215,6 +215,8 @@ export function ModuloCard({
         recursos: [],
         estudiantesConProgreso: 0,
         estudiantesConNotas: 0,
+        terminaron: 0,
+        seQuedaron: 0,
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);
       onSeleccionarLeccion(nueva);

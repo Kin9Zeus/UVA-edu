@@ -5,7 +5,7 @@ import { getExamenDeCurso } from "@/lib/admin/examenDetalle";
 import { getCategoriasParaEdicion } from "@/lib/admin/cursos";
 import { getPerfilesProfesor } from "@/lib/admin/profesores";
 import { esUuid } from "@/lib/slug";
-import { CursoDetalleView } from "@/components/admin/cursos/CursoDetalleView";
+import { CursoDetalleView, type PestanaCurso } from "@/components/admin/cursos/CursoDetalleView";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de curso",
@@ -24,12 +24,20 @@ export const metadata: Metadata = {
  * cambiar el título (actualizarInfoCurso) y un 308 lo guarda el navegador, que
  * seguiría mandando el UUID a un slug que ya no existe.
  */
+// Aquí y no importada de CursoDetalleView: una constante de un archivo
+// "use client" llega al servidor como referencia, no como valor.
+const PESTANAS: PestanaCurso[] = ["informacion", "contenido", "examen", "estudiantes"];
+
 export default async function AdminCursoDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ cursoSlug: string }>;
+  searchParams: Promise<{ pestana?: string | string[] }>;
 }) {
-  const { cursoSlug } = await params;
+  const [{ cursoSlug }, { pestana }] = await Promise.all([params, searchParams]);
+  // `?pestana=` repetido o inventado abre Información en vez de fallar.
+  const pestanaInicial = PESTANAS.find((valor) => valor === pestana) ?? "informacion";
   const referencia = await resolverCursoAdmin(cursoSlug);
   if (!referencia) notFound();
   if (esUuid(cursoSlug)) redirect(`/admin/cursos/${referencia.slug}`);
@@ -49,6 +57,7 @@ export default async function AdminCursoDetallePage({
       categorias={categorias}
       instructores={instructores}
       examen={examen}
+      pestanaInicial={pestanaInicial}
     />
   );
 }

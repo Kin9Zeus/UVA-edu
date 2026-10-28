@@ -34,23 +34,6 @@ export type MetricasPanel = {
   usuariosActivos7d: number;
 };
 
-export type AvanceCurso = {
-  cursoId: string;
-  titulo: string;
-  mostrado: boolean;
-  leccionesTotal: number;
-  participantes: number;
-  avancePromedio: number;
-};
-
-export type AbandonoLeccion = {
-  leccionId: string;
-  leccionTitulo: string;
-  moduloTitulo: string;
-  cursoTitulo: string;
-  abandonos: number;
-};
-
 const METRICAS_VACIAS: MetricasPanel = {
   cuposTotales: 0,
   cuposCanjeados: 0,
@@ -63,9 +46,6 @@ const METRICAS_VACIAS: MetricasPanel = {
   usuariosSinAcceso: 0,
   usuariosActivos7d: 0,
 };
-
-/** Cuántas filas se muestran en los dos rankings del panel. */
-const TOPE_RANKING = 5;
 
 export async function getMetricasPanel(): Promise<MetricasPanel> {
   const supabase = await createClient();
@@ -86,49 +66,4 @@ export async function getMetricasPanel(): Promise<MetricasPanel> {
     usuariosSinAcceso: Number(data.usuarios_sin_acceso),
     usuariosActivos7d: Number(data.usuarios_activos_7d),
   };
-}
-
-/** Cursos ordenados por avance promedio entre sus participantes, de mayor a menor. */
-export async function getAvanceCursos(): Promise<AvanceCurso[]> {
-  const supabase = await createClient();
-
-  const { data, error: errorData } = await supabase
-    .from("avance_cursos")
-    .select("*")
-    // Sin participantes no hay avance que rankear: un curso recién publicado
-    // saldría empatado en 0% con uno donde la gente se atascó, y son cosas
-    // distintas.
-    .gt("participantes", 0)
-    .order("avance_promedio", { ascending: false })
-    .limit(TOPE_RANKING);
-  lanzarSiFalla(errorData, "metricas:avance_cursos");
-
-  return (data ?? []).map((fila) => ({
-    cursoId: fila.curso_id,
-    titulo: fila.titulo,
-    mostrado: fila.mostrado,
-    leccionesTotal: Number(fila.lecciones_total),
-    participantes: Number(fila.participantes),
-    avancePromedio: Number(fila.avance_promedio),
-  }));
-}
-
-/** Lecciones empezadas y sin terminar hace más de 14 días, de mayor a menor. */
-export async function getAbandonoLecciones(): Promise<AbandonoLeccion[]> {
-  const supabase = await createClient();
-
-  const { data, error: errorData } = await supabase
-    .from("abandono_lecciones")
-    .select("*")
-    .order("abandonos", { ascending: false })
-    .limit(TOPE_RANKING);
-  lanzarSiFalla(errorData, "metricas:abandono_lecciones");
-
-  return (data ?? []).map((fila) => ({
-    leccionId: fila.leccion_id,
-    leccionTitulo: fila.leccion_titulo,
-    moduloTitulo: fila.modulo_titulo,
-    cursoTitulo: fila.curso_titulo,
-    abandonos: Number(fila.abandonos),
-  }));
 }

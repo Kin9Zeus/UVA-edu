@@ -17,7 +17,7 @@ vi.mock("@/lib/mux/client", () => import("@/test/servidor-falso").then((m) => m.
 vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
 vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.moduloNextNavigation()));
 
-const { getMetricasPanel, getAvanceCursos, getAbandonoLecciones } = await import("@/lib/admin/metricas");
+const { getMetricasPanel } = await import("@/lib/admin/metricas");
 const { getPlanesAdmin } = await import("@/lib/admin/planes");
 const { getCuponesAdmin } = await import("@/lib/admin/cupones");
 const { getCodigosInvitacion } = await import("@/lib/admin/codigosInvitacion");
@@ -39,8 +39,6 @@ beforeEach(() => {
 
 const loaders: Array<[string, () => Promise<unknown>, string]> = [
   ["getMetricasPanel", () => getMetricasPanel(), "from:metricas_panel_usuarios"],
-  ["getAvanceCursos", () => getAvanceCursos(), "from:avance_cursos"],
-  ["getAbandonoLecciones", () => getAbandonoLecciones(), "from:abandono_lecciones"],
   ["getPlanesAdmin", () => getPlanesAdmin(), "from:planes"],
   ["getCuponesAdmin", () => getCuponesAdmin(), "from:cupones"],
   ["getCodigosInvitacion", () => getCodigosInvitacion(), "from:codigos_invitacion"],
@@ -48,6 +46,8 @@ const loaders: Array<[string, () => Promise<unknown>, string]> = [
   ["getCategorias", () => getCategorias(), "from:categorias"],
   ["getCategorias (estudio)", () => getCategorias(), "rpc:admin_estudio_por_categoria"],
   ["getCursosListado", () => getCursosListado(), "from:cursos"],
+  ["getCursosListado (resumen)", () => getCursosListado(), "rpc:admin_resumen_cursos"],
+  ["getCursosListado (atascos)", () => getCursosListado(), "rpc:admin_clases_con_atascos"],
   ["getDashboardData", () => getDashboardData(), "from:cursos"],
   ["getUsuarios", () => getUsuarios(), "rpc:admin_listar_usuarios"],
   ["getReportesComunidadPendientes", () => getReportesComunidadPendientes(), "from:comunidad_reportes"],

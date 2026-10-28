@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { CircleAlert, Plus } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -19,6 +19,7 @@ import { useAdminToast } from "@/components/admin/Toast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useRecienMovido } from "@/components/admin/BotonesMover";
 import { moverA } from "@/lib/admin/reordenar";
+import { formatHoras } from "@/lib/admin/format";
 import { ModuloCard } from "@/components/admin/cursos/ModuloCard";
 import { crearModulo, moverModulo } from "@/actions/admin/cursos";
 import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
@@ -220,6 +221,10 @@ export function ContenidoTab({
   }
 
   const totalLecciones = modulos.reduce((total, modulo) => total + modulo.lecciones.length, 0);
+  const lecciones = modulos.flatMap((modulo) => modulo.lecciones);
+  const sinVideo = lecciones.filter((leccion) => leccion.estadoProcesamiento !== "LISTO").length;
+  // `duracion` ya viene nula si el video no está LISTO (cursoDetalle.ts).
+  const segundosDeVideo = lecciones.reduce((total, leccion) => total + (leccion.duracion ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -232,6 +237,7 @@ export function ContenidoTab({
             <p className="text-uva-detalle text-uva-muted">
               {modulos.length} {modulos.length === 1 ? "módulo" : "módulos"}, {totalLecciones}{" "}
               {totalLecciones === 1 ? "lección" : "lecciones"}
+              {segundosDeVideo > 0 && `, ${formatHoras(segundosDeVideo)} de video`}
             </p>
           )}
         </div>
@@ -261,6 +267,16 @@ export function ContenidoTab({
           </Button>
         )}
       </div>
+
+      {sinVideo > 0 && (
+        <p className="m-0 flex items-start gap-2 rounded-uva-md bg-uva-badge-warn-bg px-3.5 py-2.5 text-uva-detalle text-uva-text">
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-uva-badge-warn-fg" aria-hidden />
+          <span>
+            {sinVideo === 1 ? "1 lección no tiene" : `${sinVideo} lecciones no tienen`} el video listo: mientras tanto no
+            cuentan para el avance ni para el certificado.
+          </span>
+        </p>
+      )}
 
       {modulos.length === 0 && (
         <p className="text-uva-detalle text-uva-muted-2">Este curso todavía no tiene módulos.</p>

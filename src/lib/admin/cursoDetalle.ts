@@ -5,6 +5,8 @@ import { estadoDeCurso, porcentajeLecciones, porcentajeMostrado, type EstadoCurs
 import { esUuid } from "@/lib/slug";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { DIAS_SIN_AVANZAR } from "@/lib/admin/avance";
 
 export type RecursoDetalle = {
   id: string;
@@ -36,6 +38,10 @@ export type LeccionDetalle = {
    * número (admin_notas_por_leccion, 117): el admin no lee notas. Mismo
    * motivo de aviso que el progreso — el cascade también las borra. */
   estudiantesConNotas: number;
+  /** Personas que la terminaron. Alimenta la curva "Hasta qué clase llega la gente". */
+  terminaron: number;
+  /** La empezaron y llevan DIAS_SIN_AVANZAR o más sin terminarla. */
+  seQuedaron: number;
 };
 
 export type ModuloDetalle = {
@@ -68,6 +74,12 @@ export type EstudianteDeCurso = {
    * final y todavía no lo aprobó, así que no tiene certificado (Revf5). */
   estado: EstadoCursoConExamen;
   tipoAcceso: "MEMBRESIA" | "CORTESIA";
+  /** Última vez que tocó una clase del curso; `null` si nunca empezó. */
+  ultimaVez: string | null;
+  /** Terminó todas las clases con video (con o sin examen). */
+  terminoClases: boolean;
+  /** `null` si el curso no exige examen final. */
+  aproboExamen: boolean | null;
   /** Solo relevante para CORTESIA: false si el admin la revocó. Se mantiene
    * en la lista en vez de desaparecer — mismo criterio que la ficha de
    * usuario (UsuarioDetalleView) — porque el progreso que dejó sigue
@@ -89,6 +101,7 @@ export type EnlaceVistaPrevia = {
 
 export type CursoDetalle = {
   id: string;
+  slug: string;
   titulo: string;
   descripcion: string;
   imagenPortada: string;
@@ -106,6 +119,8 @@ export type CursoDetalle = {
   estudiantes: EstudianteDeCurso[];
   /** Solo los que siguen vigentes (ni revocados ni caducados). */
   enlacesVistaPrevia: EnlaceVistaPrevia[];
+  /** El curso que hoy sale en la portada (mismo criterio que lib/cursoDestacado.ts). */
+  enPortada: { id: string; titulo: string } | null;
 };
 
 /**
@@ -133,7 +148,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const { data: curso, error: errorCurso } = await supabase
     .from("cursos")
     .select(
-      "id, titulo, descripcion, imagen_portada, nivel, mostrado, destacado, orden_visualizacion",
+      "id, slug, titulo, descripcion, imagen_portada, nivel, mostrado, destacado, orden_visualizacion",
     )
     .eq("id", cursoId)
     .maybeSingle();
@@ -224,8 +239,8 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
 
   const [{ data: progreso, error: errorProgreso }, { data: notasPorNivel, error: errorNotas }] = await Promise.all([
     leccionIds.length > 0
-      ? supabase.from("progreso").select("id_usuario, id_leccion, completado").in("id_leccion", leccionIds)
-      : Promise.resolve({ data: [] as { id_usuario: string; id_leccion: string; completado: boolean }[], error: null }),
+      ? supabase.from("progreso").select("id_usuario, id_leccion, completado, actualizado_en").in("id_leccion", leccionIds)
+      : Promise.resolve({ data: [] as { id_usuario: string; id_leccion: string; completado: boolean; actualizado_en: string }[], error: null }),
     supabase.rpc("admin_notas_por_leccion", { p_id_curso: cursoId }),
   ]);
   lanzarSiFalla(errorProgreso, "cursoDetalle:progreso+admin_notas_por_leccion");
@@ -239,13 +254,22 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
     estudiantesConNotas.set(`${fila.nivel}:${fila.id}`, fila.estudiantes);
   }
 
-  const progresoPorUsuario = new Map<string, { total: number; completados: number }>();
+  const quieto = Date.now() - DIAS_SIN_AVANZAR * 86_400_000;
+  const progresoPorUsuario = new Map<string, { total: number; completados: number; ultimaVez: string }>();
   const usuariosPorLeccion = new Map<string, Set<string>>();
+  const avancePorLeccion = new Map<string, { terminaron: number; seQuedaron: number }>();
   for (const registro of progreso ?? []) {
-    const actual = progresoPorUsuario.get(registro.id_usuario) ?? { total: 0, completados: 0 };
+    const actual = progresoPorUsuario.get(registro.id_usuario) ?? { total: 0, completados: 0, ultimaVez: registro.actualizado_en };
     actual.total += 1;
     if (registro.completado && leccionesConVideo.has(registro.id_leccion)) actual.completados += 1;
+    if (registro.actualizado_en > actual.ultimaVez) actual.ultimaVez = registro.actualizado_en;
     progresoPorUsuario.set(registro.id_usuario, actual);
+
+    // Misma regla que admin_clases_con_atascos (SQL 129).
+    const avance = avancePorLeccion.get(registro.id_leccion) ?? { terminaron: 0, seQuedaron: 0 };
+    if (registro.completado) avance.terminaron += 1;
+    else if (new Date(registro.actualizado_en).getTime() < quieto) avance.seQuedaron += 1;
+    avancePorLeccion.set(registro.id_leccion, avance);
 
     const usuarios = usuariosPorLeccion.get(registro.id_leccion) ?? new Set<string>();
     usuarios.add(registro.id_usuario);
@@ -257,6 +281,8 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       ...leccion,
       estudiantesConProgreso: usuariosPorLeccion.get(leccion.id)?.size ?? 0,
       estudiantesConNotas: estudiantesConNotas.get(`leccion:${leccion.id}`) ?? 0,
+      terminaron: avancePorLeccion.get(leccion.id)?.terminaron ?? 0,
+      seQuedaron: avancePorLeccion.get(leccion.id)?.seQuedaron ?? 0,
     }));
     const usuariosModulo = new Set<string>();
     for (const leccion of lecciones) {
@@ -295,6 +321,14 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
   const aproboExamen = new Set((intentosAprobados ?? []).map((fila) => fila.id_usuario as string));
   const examenDe = (usuarioId: string) =>
     examenDelCurso ? { requerido: true, aprobado: aproboExamen.has(usuarioId) } : undefined;
+  const seguimiento = (usuarioId: string) => {
+    const agregados = progresoPorUsuario.get(usuarioId);
+    return {
+      ultimaVez: agregados?.ultimaVez ?? null,
+      terminoClases: leccionesConVideo.size > 0 && (agregados?.completados ?? 0) >= leccionesConVideo.size,
+      aproboExamen: examenDelCurso ? aproboExamen.has(usuarioId) : null,
+    };
+  };
 
   const estudiantes: EstudianteDeCurso[] = (inscripciones ?? []).map((inscripcion) => {
     const usuario = Array.isArray(inscripcion.usuario) ? inscripcion.usuario[0] : inscripcion.usuario;
@@ -324,6 +358,7 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
           : "EN_PROGRESO",
       tipoAcceso: inscripcion.tipo_acceso,
       activo: inscripcion.activo,
+      ...seguimiento(inscripcion.id_usuario),
     };
   });
 
@@ -361,12 +396,26 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
           leccionIds.length > 0 ? estadoDeCurso(porcentaje, examenDe(usuarioId)) : "EN_PROGRESO",
         tipoAcceso: "MEMBRESIA",
         activo: true,
+        ...seguimiento(usuarioId),
       });
     }
   }
 
+  // Dato secundario: sin él, la ficha solo no dice qué curso está hoy en la portada.
+  const { data: portada, error: errorPortada } = await supabase
+    .from("cursos")
+    .select("id, titulo")
+    .eq("destacado", true)
+    .eq("mostrado", true)
+    .order("orden_visualizacion", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  registrarSiFalla(errorPortada, "admin:cursoDetalle", "no se pudo leer el curso de la portada", { cursoId });
+
   return {
     id: curso.id,
+    slug: curso.slug,
     titulo: curso.titulo,
     descripcion: curso.descripcion,
     imagenPortada: curso.imagen_portada,
@@ -385,5 +434,6 @@ export async function getCursoDetalle(cursoId: string): Promise<CursoDetalle | n
       vecesUsado: enlace.veces_usado as number,
       creadoEn: enlace.creado_en as string,
     })),
+    enPortada: portada ? { id: portada.id as string, titulo: portada.titulo as string } : null,
   };
 }

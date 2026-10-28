@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -12,6 +12,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import {
   Select,
@@ -26,7 +33,6 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { useAdminSearch } from "@/components/admin/SearchContext";
 import { alternarPublicacionCurso, eliminarCurso } from "@/actions/admin/cursos";
-import { formatFecha } from "@/lib/admin/format";
 import type { CursoListado } from "@/lib/admin/cursos";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
@@ -34,27 +40,34 @@ const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Av
 const ESTADO_ITEMS = { todos: "Todos los estados", publicado: "Publicado", borrador: "Borrador" };
 const NIVEL_ITEMS = { todos: "Todos los niveles", ...NIVEL_LABEL };
 
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+const enLista = (partes: string[]) =>
+  partes.length < 2 ? partes.join("") : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
+
 export function CursosTable({
-  cursos: cursosIniciales,
+  cursos,
   categorias,
+  encabezado,
+  resumen,
 }: {
   cursos: CursoListado[];
   categorias: { id: string; nombre: string }[];
+  encabezado: ReactNode;
+  resumen: ReactNode;
 }) {
-  const [cursos, setCursos] = useState(cursosIniciales);
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [filtroNivel, setFiltroNivel] = useState("todos");
   const [borrando, setBorrando] = useState<CursoListado | null>(null);
+  const [despublicando, setDespublicando] = useState<CursoListado | null>(null);
+  const [leFalta, setLeFalta] = useState<CursoListado | null>(null);
   const showToast = useAdminToast();
   // El texto de búsqueda lo escribe el header (mockup: `showSearch`).
   const { query: busqueda } = useAdminSearch();
 
   // Degradado que avisa que hay más filtros a la derecha en la franja con
-  // scroll horizontal de mobile — sin esto, el borde queda limpio y no hay
-  // ninguna pista de que "Todos los niveles" está cortado. Solo se muestra
-  // cuando de verdad sobra contenido (no siempre), para no tapar el último
-  // chip cuando los tres ya entran completos.
+  // scroll horizontal de mobile. Solo se muestra cuando de verdad sobra
+  // contenido, para no tapar el último filtro cuando los tres ya entran.
   const filtrosRef = useRef<HTMLDivElement>(null);
   const [hayMasFiltros, setHayMasFiltros] = useState(false);
 
@@ -85,12 +98,9 @@ export function CursosTable({
       const coincideTexto =
         !texto ||
         curso.titulo.toLowerCase().includes(texto) ||
-        // `some`: basta con que coincida CUALQUIERA de los profesores del
-        // curso — buscar "Ana" tiene que encontrar un curso que dicta con
-        // alguien más, no solo los que dicta sola.
+        // `some`: buscar "Ana" encuentra también un curso que dicta con alguien más.
         curso.instructores.some((instructor) => instructor.nombre.toLowerCase().includes(texto));
-      // `some`: un curso aparece bajo el filtro de cualquiera de sus
-      // categorías, no solo de la primera.
+      // `some`: un curso aparece bajo el filtro de cualquiera de sus categorías.
       const coincideCategoria =
         filtroCategoria === "todas" ||
         curso.categorias.some((categoria) => categoria.id === filtroCategoria);
@@ -101,15 +111,28 @@ export function CursosTable({
     });
   }, [cursos, busqueda, filtroCategoria, filtroEstado, filtroNivel]);
 
-  async function handleTogglePublicacion(curso: CursoListado) {
-    const nuevoEstado = !curso.mostrado;
-    const resultado = await alternarPublicacionCurso(curso.id, nuevoEstado);
+  async function cambiarPublicacion(curso: CursoListado, mostrado: boolean) {
+    const resultado = await alternarPublicacionCurso(curso.id, mostrado);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;
     }
-    setCursos((current) => current.map((item) => (item.id === curso.id ? { ...item, mostrado: nuevoEstado } : item)));
-    showToast(nuevoEstado ? "Curso publicado." : "Curso despublicado.");
+    showToast(mostrado ? `Publicaste ${curso.titulo}.` : `Despublicaste ${curso.titulo}.`);
+  }
+
+  // Despublicar cambia lo que ve la gente: primero se explica qué pasa. Un
+  // borrador al que le falta algo abre la lista de lo que falta en vez de
+  // pedirle al servidor algo que va a rechazar.
+  function handleToggle(curso: CursoListado, mostrado: boolean) {
+    if (!mostrado) {
+      setDespublicando(curso);
+      return;
+    }
+    if (curso.faltas.length > 0) {
+      setLeFalta(curso);
+      return;
+    }
+    void cambiarPublicacion(curso, true);
   }
 
   async function handleEliminar() {
@@ -119,260 +142,313 @@ export function CursosTable({
       showToast(resultado.error, "error");
       return;
     }
-    setCursos((current) => current.filter((item) => item.id !== borrando.id));
-    showToast("Curso eliminado.");
+    showToast(`Eliminaste ${borrando.titulo}.`);
   }
 
+  const nombre = (curso: CursoListado) => (
+    <div className="min-w-0">
+      <Link
+        href={`/admin/cursos/${curso.slug}`}
+        className="font-bold break-words text-uva-text hover:text-uva-accent-text hover:underline"
+      >
+        {curso.titulo}
+      </Link>
+      <p className="m-0 text-uva-detalle text-uva-text-muted">
+        {curso.categorias.map((categoria) => categoria.nombre).join(", ") || "Sin categoría"} · {NIVEL_LABEL[curso.nivel]}
+      </p>
+    </div>
+  );
+
+  const clases = (curso: CursoListado) =>
+    curso.clases === 0 ? (
+      <span className="text-uva-detalle text-uva-text-muted">Sin clases</span>
+    ) : (
+      <span className="text-uva-detalle">
+        <span className="font-mono font-bold tabular-nums">{curso.clases}</span> {curso.clases === 1 ? "clase" : "clases"}
+        <span className={curso.sinVideo > 0 ? "block font-bold text-uva-accent-2-text" : "block text-uva-text-muted"}>
+          {curso.sinVideo > 0 ? `${curso.sinVideo} sin video listo` : "Todas con video"}
+        </span>
+      </span>
+    );
+
+  const gente = (curso: CursoListado) =>
+    curso.empezaron === 0 ? (
+      <span className="text-uva-detalle text-uva-text-muted">{curso.mostrado ? "Nadie lo ha empezado" : "Sin gente"}</span>
+    ) : (
+      <span className="text-uva-detalle">
+        <span className="font-mono font-bold tabular-nums">{curso.empezaron}</span> empezaron
+        <span className="block text-uva-text-muted">{curso.terminaron} terminaron</span>
+        {curso.seQuedaron > 0 && (
+          <span className="block font-bold text-uva-accent-2-text">
+            {curso.seQuedaron} {curso.seQuedaron === 1 ? "dejó de avanzar" : "dejaron de avanzar"}
+          </span>
+        )}
+      </span>
+    );
+
+  const estado = (curso: CursoListado) => (
+    <div className="flex flex-col items-start gap-1">
+      <SwitchEstado
+        checked={curso.mostrado}
+        onCheckedChange={(checked) => handleToggle(curso, checked)}
+        etiquetas={["Publicado", "Borrador"]}
+        acciones={[`Publicar ${curso.titulo}`, `Despublicar ${curso.titulo}`]}
+      />
+      {curso.mostrado ? (
+        curso.enPortada && <StatusBadge tone="accent">En la portada</StatusBadge>
+      ) : curso.faltas.length > 0 ? (
+        <span className="max-w-[30ch] text-uva-detalle font-semibold text-uva-accent-2-text">
+          Falta: {enLista(curso.faltas.map((falta) => falta.corto))}
+        </span>
+      ) : (
+        <span className="text-uva-detalle font-semibold text-uva-badge-success-fg">Listo para publicar</span>
+      )}
+    </div>
+  );
+
+  // Iconos en gris que se encienden en magenta al pasar el mouse; `title` da
+  // la etiqueta que el icono no muestra.
+  const acciones = (curso: CursoListado) => (
+    <div className="flex justify-end gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Editar ${curso.titulo}`}
+        title="Editar curso"
+        className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:size-11"
+        render={<Link href={`/admin/cursos/${curso.slug}`} />}
+        nativeButton={false}
+      >
+        <Pencil className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Eliminar ${curso.titulo}`}
+        title="Eliminar curso"
+        className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:size-11"
+        onClick={() => setBorrando(curso)}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </div>
+  );
+
+  const filtros = (
+    // Los 3 filtros no caben en una fila en celular: se deslizan en horizontal.
+    // El wrapper es `relative` y no se desplaza, así el degradado queda fijo
+    // contra el borde derecho.
+    <div className="relative min-w-0 max-md:w-full">
+      <div ref={filtrosRef} className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
+        <Select items={categoriaItems} value={filtroCategoria} onValueChange={(value) => setFiltroCategoria(value ?? "todas")}>
+          <SelectTrigger className="shrink-0" aria-label="Categoría"><SelectValue placeholder="Categoría" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas las categorías</SelectItem>
+            {categorias.map((categoria) => (
+              <SelectItem key={categoria.id} value={categoria.id}>
+                {categoria.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select items={ESTADO_ITEMS} value={filtroEstado} onValueChange={(value) => setFiltroEstado(value ?? "todos")}>
+          <SelectTrigger className="shrink-0" aria-label="Estado"><SelectValue placeholder="Estado" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="publicado">Publicado</SelectItem>
+            <SelectItem value="borrador">Borrador</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select items={NIVEL_ITEMS} value={filtroNivel} onValueChange={(value) => setFiltroNivel(value ?? "todos")}>
+          <SelectTrigger className="shrink-0" aria-label="Nivel"><SelectValue placeholder="Nivel" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los niveles</SelectItem>
+            <SelectItem value="BASICO">Básico</SelectItem>
+            <SelectItem value="INTERMEDIO">Intermedio</SelectItem>
+            <SelectItem value="AVANZADO">Avanzado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {hayMasFiltros && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent md:hidden"
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
-        {/* Los 3 filtros no caben en una fila en mobile sin envolver feo — acá
-            se deslizan en horizontal en vez de partirse en varias líneas.
-            `shrink-0` en cada trigger es lo que evita que el flex los
-            comprima antes de activar el scroll. El wrapper es `relative` y no
-            scrollea — así el degradado queda fijo contra el borde derecho en
-            vez de desplazarse con el contenido. */}
-        <div className="relative">
-          <div
-            ref={filtrosRef}
-            className="flex gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0"
-          >
-          <Select
-            items={categoriaItems}
-            value={filtroCategoria}
-            onValueChange={(value) => setFiltroCategoria(value ?? "todas")}
-          >
-            <SelectTrigger className="shrink-0"><SelectValue placeholder="Categoría" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas las categorías</SelectItem>
-              {categorias.map((categoria) => (
-                <SelectItem key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            items={ESTADO_ITEMS}
-            value={filtroEstado}
-            onValueChange={(value) => setFiltroEstado(value ?? "todos")}
-          >
-            <SelectTrigger className="shrink-0"><SelectValue placeholder="Estado" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="publicado">Publicado</SelectItem>
-              <SelectItem value="borrador">Borrador</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            items={NIVEL_ITEMS}
-            value={filtroNivel}
-            onValueChange={(value) => setFiltroNivel(value ?? "todos")}
-          >
-            <SelectTrigger className="shrink-0"><SelectValue placeholder="Nivel" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los niveles</SelectItem>
-              <SelectItem value="BASICO">Básico</SelectItem>
-              <SelectItem value="INTERMEDIO">Intermedio</SelectItem>
-              <SelectItem value="AVANZADO">Avanzado</SelectItem>
-            </SelectContent>
-          </Select>
-          </div>
-          {hayMasFiltros && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-uva-bg to-transparent md:hidden"
-            />
-          )}
-        </div>
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 flex-1 basis-[28rem]">{encabezado}</div>
         <Button
           variant="primary"
-          className="w-full md:ml-auto md:w-auto"
+          className="max-sm:w-full"
           render={<Link href="/admin/cursos/nuevo" />}
           nativeButton={false}
         >
-          + Crear curso
+          <Plus aria-hidden />
+          Nuevo curso
         </Button>
       </div>
 
-      <AdminCard flush>
-        {filtrados.length === 0 && (
-          <p className="px-5 py-4 text-center text-uva-detalle text-uva-muted-2">
-            No hay cursos que coincidan con los filtros.
-          </p>
-        )}
+      {cursos.length > 0 && resumen}
 
-        {/* 7 columnas (una de ellas un switch funcional, no un badge) no
-            entran en un touch sin scroll horizontal — y eso incluye tablets
-            grandes como un iPad Pro, que igual se manejan con el dedo. Por
-            eso el corte no es solo `md`: `pointer-fine:` exige además mouse o
-            trackpad antes de mostrar la tabla, sin importar el ancho. */}
-        {filtrados.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
-            {filtrados.map((curso) => (
-              <div
-                key={curso.id}
-                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    href={`/admin/cursos/${curso.slug}`}
-                    className="text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
-                  >
-                    {curso.titulo}
-                  </Link>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Editar curso"
-                      title="Editar curso"
-                      className="text-uva-muted-2 hover:text-uva-accent-ink"
-                      render={<Link href={`/admin/cursos/${curso.slug}`} />}
-                      nativeButton={false}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Eliminar curso"
-                      title="Eliminar curso"
-                      className="text-uva-muted-2 hover:text-uva-accent-ink"
-                      onClick={() => setBorrando(curso)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </div>
+      <section aria-labelledby="cursos-lista" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="cursos-lista" className="text-uva-titulo-4 text-uva-text">
+            {plural(cursos.length, "curso", "cursos")}
+          </h2>
+          {cursos.length > 0 && filtros}
+        </div>
+        <AdminCard flush>
+          {cursos.length === 0 && (
+            <div className="grid justify-items-center gap-1 px-5 py-10 text-center">
+              <p className="m-0 font-bold text-uva-text">Todavía no hay cursos</p>
+              <p className="m-0 max-w-[46ch] text-uva-detalle text-uva-text-muted">
+                Crea el primero: queda en borrador hasta que tenga portada y clases con video.
+              </p>
+            </div>
+          )}
+          {cursos.length > 0 && filtrados.length === 0 && (
+            <p className="m-0 px-5 py-6 text-center text-uva-detalle text-uva-text-muted">
+              No hay cursos que coincidan con la búsqueda o los filtros.
+            </p>
+          )}
 
-                {curso.categorias.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {curso.categorias.map((categoria) => (
-                      <StatusBadge key={categoria.id} tone="neutral">
-                        {categoria.nombre}
-                      </StatusBadge>
-                    ))}
-                  </div>
-                )}
-
-                <p className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
-                  {NIVEL_LABEL[curso.nivel]} · {curso.estudiantes} estudiantes · {formatFecha(curso.fechaCreacion)}
-                </p>
-
-                <SwitchEstado
-                  checked={curso.mostrado}
-                  onCheckedChange={() => handleTogglePublicacion(curso)}
-                  etiquetas={["Publicado", "Borrador"]}
-                  acciones={["Publicar curso", "Despublicar curso"]}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {filtrados.length > 0 && (
-          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de cursos">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Curso</TableHead>
-                <TableHead>Categorías</TableHead>
-                <TableHead>Nivel</TableHead>
-                <TableHead>Estudiantes</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Creado</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {/* En pantallas táctiles, tarjetas: la tabla no cabe sin desplazar
+              de lado, ni siquiera en una tableta grande. */}
+          {filtrados.length > 0 && (
+            <ul className="m-0 flex list-none flex-col p-0 pointer-fine:md:hidden">
               {filtrados.map((curso) => (
-                <TableRow key={curso.id}>
-                  <TableCell className="font-semibold">
-                    <Link href={`/admin/cursos/${curso.slug}`} className="text-uva-text hover:text-uva-accent-text">
-                      {curso.titulo}
-                    </Link>
-                  </TableCell>
-                  {/* Todas las categorías del curso, cada una como un chip. La
-                      celda envuelve en varias líneas si son varias, en vez de
-                      recortarlas. */}
-                  <TableCell className="whitespace-normal">
-                    {curso.categorias.length === 0 ? (
-                      <span className="text-uva-muted-2">Sin categoría</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {curso.categorias.map((categoria) => (
-                          <StatusBadge key={categoria.id} tone="neutral">
-                            {categoria.nombre}
-                          </StatusBadge>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-uva-muted">{NIVEL_LABEL[curso.nivel]}</TableCell>
-                  <TableCell className="font-mono tabular-nums">{curso.estudiantes}</TableCell>
-                  <TableCell>
-                    <SwitchEstado
-                      checked={curso.mostrado}
-                      onCheckedChange={() => handleTogglePublicacion(curso)}
-                      etiquetas={["Publicado", "Borrador"]}
-                      acciones={["Publicar curso", "Despublicar curso"]}
-                    />
-                  </TableCell>
-                  <TableCell className="font-mono text-uva-detalle text-uva-muted-2 tabular-nums">
-                    {formatFecha(curso.fechaCreacion)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Editar curso"
-                        title="Editar curso"
-                        className="text-uva-muted-2 hover:text-uva-accent-ink"
-                        render={<Link href={`/admin/cursos/${curso.slug}`} />}
-                        nativeButton={false}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Eliminar curso"
-                        title="Eliminar curso"
-                        className="text-uva-muted-2 hover:text-uva-accent-ink"
-                        onClick={() => setBorrando(curso)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <li key={curso.id} className="flex flex-col gap-3 border-b border-uva-divider px-4 py-4 last:border-b-0">
+                  {nombre(curso)}
+                  <div className="grid grid-cols-2 gap-3">
+                    {clases(curso)}
+                    {gente(curso)}
+                  </div>
+                  <div className="flex items-start justify-between gap-3 border-t border-uva-divider pt-2">
+                    {estado(curso)}
+                    {acciones(curso)}
+                  </div>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        )}
-      </AdminCard>
+            </ul>
+          )}
+
+          {filtrados.length > 0 && (
+            <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de cursos">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Curso</TableHead>
+                  <TableHead>Clases</TableHead>
+                  <TableHead>Gente</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Acciones</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtrados.map((curso) => (
+                  <TableRow key={curso.id}>
+                    <TableCell className="max-w-96 whitespace-normal">{nombre(curso)}</TableCell>
+                    <TableCell>{clases(curso)}</TableCell>
+                    <TableCell>{gente(curso)}</TableCell>
+                    <TableCell className="whitespace-normal">{estado(curso)}</TableCell>
+                    <TableCell className="text-right">{acciones(curso)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </AdminCard>
+      </section>
 
       <ConfirmDialog
-        open={borrando !== null}
+        open={despublicando !== null}
+        onOpenChange={(open) => !open && setDespublicando(null)}
+        title={`Despublicar ${despublicando?.titulo ?? ""}`}
+        confirmLabel="Despublicar"
+        description={despublicando && textoDespublicar(despublicando)}
+        onConfirm={async () => {
+          if (despublicando) await cambiarPublicacion(despublicando, false);
+        }}
+      />
+
+      <Dialog open={leFalta !== null} onOpenChange={(open) => !open && setLeFalta(null)}>
+        <DialogContent className="w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Todavía no se puede publicar</DialogTitle>
+          </DialogHeader>
+          <p className="text-uva-detalle text-uva-muted">A {leFalta?.titulo} le falta esto:</p>
+          <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-uva-detalle text-uva-text">
+            {leFalta?.faltas.map((falta) => <li key={falta.motivo}>{falta.motivo}</li>)}
+          </ul>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setLeFalta(null)}>
+              Cerrar
+            </Button>
+            <Button variant="primary" render={<Link href={`/admin/cursos/${leFalta?.slug ?? ""}`} />} nativeButton={false}>
+              Ir al curso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* eliminarCurso exige que no tenga módulos ni estudiantes inscritos:
+          si tiene módulos, se dice antes de pedir confirmación. */}
+      <Dialog open={borrando !== null && borrando.modulos > 0} onOpenChange={(open) => !open && setBorrando(null)}>
+        <DialogContent className="w-[440px]">
+          <DialogHeader>
+            <DialogTitle>No se puede eliminar {borrando?.titulo}</DialogTitle>
+          </DialogHeader>
+          <p className="text-uva-detalle text-uva-muted">
+            Tiene {borrando && plural(borrando.modulos, "módulo", "módulos")}. Para eliminarlo, borra primero sus módulos en
+            Contenido. Si solo quieres que nadie nuevo lo vea, despublícalo con el interruptor de la lista.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBorrando(null)}>
+              Cerrar
+            </Button>
+            <Button
+              variant="primary"
+              render={<Link href={`/admin/cursos/${borrando?.slug ?? ""}?pestana=contenido`} />}
+              nativeButton={false}
+            >
+              Ir al contenido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={borrando !== null && borrando.modulos === 0}
         onOpenChange={(open) => !open && setBorrando(null)}
-        title="Eliminar curso"
+        title={`Eliminar ${borrando?.titulo ?? ""}`}
         confirmLabel="Eliminar curso"
         destructive
-        description={
-          <>
-            ¿Seguro que quieres eliminar &quot;{borrando?.titulo}&quot;? Esta acción no se puede
-            deshacer. Si el curso tiene módulos o estudiantes inscritos, no se podrá eliminar —
-            despublícalo desde Configuración en su lugar.
-          </>
-        }
+        description="No tiene módulos. No se puede deshacer."
         confirmText={borrando?.titulo}
         onConfirm={handleEliminar}
       />
     </div>
+  );
+}
+
+/** Lo que pasa de verdad al despublicar (SQL 030): quien ya lo estudia sigue. */
+export function textoDespublicar(curso: { empezaron: number; enPortada: boolean }) {
+  return (
+    "Sale del catálogo y nadie nuevo lo puede empezar. " +
+    (curso.empezaron === 0
+      ? ""
+      : curso.empezaron === 1
+        ? "La persona que ya lo empezó puede terminarlo, y su avance no se borra. "
+        : `Las ${curso.empezaron} personas que ya lo empezaron pueden terminarlo, y su avance no se borra. `) +
+    (curso.enPortada ? "También deja de salir en la portada. " : "") +
+    "Lo puedes volver a publicar cuando quieras."
   );
 }
