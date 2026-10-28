@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getCategorias } from "@/lib/admin/categorias";
 import { CategoriasTable } from "@/components/admin/categorias/CategoriasTable";
+import { ResumenCategorias } from "@/components/admin/categorias/ResumenCategorias";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
@@ -8,12 +9,18 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCategoriasPage() {
-  const categorias = await getCategorias();
+  const resumen = await getCategorias();
 
   return (
-    <div className="flex flex-col gap-6">
-      <EncabezadoPagina titulo="Categorías" descripcion="Las áreas en que se agrupan los cursos del catálogo." />
-      <CategoriasTable categorias={categorias} />
-    </div>
+    <CategoriasTable
+      categorias={resumen.categorias}
+      encabezado={
+        <EncabezadoPagina
+          titulo="Categorías"
+          descripcion="Las áreas del catálogo: cuáles se ven, cuántos cursos tienen y dónde estudia la gente."
+        />
+      }
+      resumen={<ResumenCategorias resumen={resumen} />}
+    />
   );
 }

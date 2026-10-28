@@ -46,6 +46,7 @@ const loaders: Array<[string, () => Promise<unknown>, string]> = [
   ["getCodigosInvitacion", () => getCodigosInvitacion(), "from:codigos_invitacion"],
   ["getLotesCodigosInvitacion", () => getLotesCodigosInvitacion(), "from:lotes_codigos_invitacion"],
   ["getCategorias", () => getCategorias(), "from:categorias"],
+  ["getCategorias (estudio)", () => getCategorias(), "rpc:admin_estudio_por_categoria"],
   ["getCursosListado", () => getCursosListado(), "from:cursos"],
   ["getDashboardData", () => getDashboardData(), "from:cursos"],
   ["getUsuarios", () => getUsuarios(), "rpc:admin_listar_usuarios"],

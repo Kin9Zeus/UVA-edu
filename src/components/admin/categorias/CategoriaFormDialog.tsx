@@ -125,7 +125,11 @@ export function CategoriaFormDialog({
                 onChange={(event) => setDescripcion(event.target.value)}
                 className="min-h-[70px]"
                 placeholder="Descripción breve de la categoría"
+                aria-describedby="categoria-descripcion-ayuda"
               />
+              <p id="categoria-descripcion-ayuda" className="mt-1.5 text-uva-detalle text-uva-text-muted">
+                Sale arriba de los cursos, en la página de la categoría.
+              </p>
             </div>
           </div>
 
