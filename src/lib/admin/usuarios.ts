@@ -1,11 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
-import { tipoAccesoGratuito, type TipoAccesoGratuito } from "@/lib/estadoAcceso";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { PROVEEDORES_PASARELA } from "@/lib/pagos/proveedores";
 
 /** Filas por página en la tabla de usuarios del panel. */
 export const USUARIOS_POR_PAGINA = 25;
 
 export type EstadoSuscripcionListado = "ACTIVA" | "PAST_DUE" | "VENCIDA" | "CANCELADA";
+
+/** De dónde salió el acceso: un código, un administrador a mano o un pago. */
+export type OrigenAcceso = "INVITACION" | "MANUAL" | "PAGO";
+
+/** El acceso actual de una persona, para decir de dónde viene y cuándo se acaba. */
+export type AccesoListado = {
+  /**
+   * Estado EFECTIVO, no el crudo de `suscripciones.estado`: el RPC (127) ya
+   * reporta VENCIDA cuando la fecha pasó aunque nada haya actualizado la fila.
+   */
+  estado: EstadoSuscripcionListado;
+  origen: OrigenAcceso;
+  inicio: string;
+  /** null en una suscripción sin fecha de fin. */
+  fin: string | null;
+  /** null en un acceso por código, que no compra ningún plan. */
+  plan: string | null;
+  montoCentavos: number | null;
+  moneda: string | null;
+  proveedor: string;
+};
 
 export type UsuarioListado = {
   id: string;
@@ -16,21 +37,16 @@ export type UsuarioListado = {
   estado: "ACTIVO" | "SUSPENDIDO";
   fechaRegistro: string;
   cursosInscritos: number;
+  /** null = nunca tuvo ninguno. */
+  acceso: AccesoListado | null;
   /**
-   * Estado EFECTIVO, no el crudo de `suscripciones.estado`: el RPC
-   * (supabase/sql/040) ya reporta VENCIDA cuando la fecha pasó aunque nada
-   * haya actualizado la fila todavía. No hace falta re-derivarlo aquí.
-   */
-  suscripcionEstado: EstadoSuscripcionListado | null;
-  /** null = sin suscripción o de pago. Misma clasificación que ve el estudiante, ver src/lib/estadoAcceso.ts. */
-  tipoAccesoSuscripcion: TipoAccesoGratuito | null;
-  /**
-   * Máximo `progreso.actualizado_en` del usuario. Es actividad DE CONTENIDO,
-   * no último ingreso: quien entra, navega el catálogo y se va sin abrir un
-   * video sale aquí como `null`. La UI lo rotula en consecuencia.
+   * Máximo `progreso.actualizado_en` del usuario: la última vez que vio una
+   * clase, no la última vez que entró. null = nunca vio ninguna.
    */
   ultimaActividad: string | null;
 };
+
+export type FiltroEstudio = "SEMANA" | "PARADOS" | "NUNCA";
 
 export type FiltrosUsuarios = {
   /** Búsqueda por nombre o correo. La escribe el buscador del header y viaja por la URL. */
@@ -42,7 +58,11 @@ export type FiltrosUsuarios = {
   estado?: string;
   /** Estado de suscripción, o "SIN_SUSCRIPCION" para quienes no tienen ninguna. */
   suscripcion?: string;
+  estudio?: string;
+  origen?: string;
   pagina?: number;
+  /** Para contar sin traer filas: el total viene en cada una. */
+  porPagina?: number;
 };
 
 export type ResultadoUsuarios = {
@@ -58,22 +78,22 @@ function limpiar(valor: string | undefined): string | null {
   return valor;
 }
 
+export function origenDe(proveedor: string): OrigenAcceso {
+  if ((PROVEEDORES_PASARELA as readonly string[]).includes(proveedor)) return "PAGO";
+  return proveedor === "manual" ? "MANUAL" : "INVITACION";
+}
+
 /**
  * Una fila por usuario de la página pedida, con búsqueda, filtros y rango de
- * fechas resueltos en Postgres.
- *
- * Antes esta función traía TODAS las filas de `perfiles`, `suscripciones` e
- * `inscripciones` y las cruzaba con `Map` en JavaScript: tres escaneos
- * completos por carga de página. Ahora es una sola llamada a
- * `admin_listar_usuarios` (supabase/sql/037), que además devuelve el total de
- * resultados en cada fila para armar la paginación sin una segunda consulta —
- * mismo patrón que `buscarCatalogoPublico`/`buscarCatalogoConProgreso` en src/lib/categoria.ts.
+ * fechas resueltos en Postgres (`admin_listar_usuarios`, 127). El total de
+ * resultados viene en cada fila para armar la paginación sin otra consulta.
  */
 export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<ResultadoUsuarios> {
   const supabase = await createClient();
 
+  const porPagina = filtros.porPagina ?? USUARIOS_POR_PAGINA;
   const pagina = Math.max(1, filtros.pagina ?? 1);
-  const offset = (pagina - 1) * USUARIOS_POR_PAGINA;
+  const offset = (pagina - 1) * porPagina;
 
   const { data, error } = await supabase.rpc("admin_listar_usuarios", {
     p_query: filtros.query?.trim() || null,
@@ -82,7 +102,9 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
     p_rol: limpiar(filtros.rol),
     p_estado: limpiar(filtros.estado),
     p_suscripcion: limpiar(filtros.suscripcion),
-    p_limite: USUARIOS_POR_PAGINA,
+    p_estudio: limpiar(filtros.estudio),
+    p_origen: limpiar(filtros.origen),
+    p_limite: porPagina,
     p_offset: offset,
   });
 
@@ -95,6 +117,7 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
 
   const filas = data as Array<{
     id: string;
+    slug: string | null;
     nombre: string;
     correo: string;
     rol: UsuarioListado["rol"];
@@ -102,46 +125,50 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Result
     fecha_registro: string;
     cursos_inscritos: number;
     suscripcion_estado: EstadoSuscripcionListado | null;
-    suscripcion_acceso_manual: boolean | null;
-    suscripcion_tiene_codigo: boolean | null;
+    suscripcion_proveedor: string | null;
+    suscripcion_inicio: string | null;
+    suscripcion_fin: string | null;
+    suscripcion_plan: string | null;
+    suscripcion_monto: number | null;
+    suscripcion_moneda: string | null;
     ultima_actividad: string | null;
     total_resultados: number;
   }>;
 
   const total = Number(filas[0]?.total_resultados ?? 0);
 
-  // El slug no viene en el RPC a propósito: cambiar las columnas que devuelve
-  // `admin_listar_usuarios` obliga a DROP + CREATE, y `db:rls` vuelve a correr
-  // sus versiones anteriores (037, 040, 054, 074) con el tipo viejo — fallaría
-  // en cada aplicación. Es una consulta más, acotada a los ids de esta página.
-  const ids = filas.map((fila) => fila.id);
-  const { data: slugs, error: errorSlugs } = ids.length
-    ? await supabase.from("perfiles").select("id, slug").in("id", ids)
-    : { data: [] as { id: string; slug: string }[], error: null };
-  lanzarSiFalla(errorSlugs, "usuarios:perfiles");
-  const slugPorId = new Map((slugs ?? []).map((fila) => [fila.id as string, fila.slug as string]));
-
   return {
     usuarios: filas.map((fila) => ({
       id: fila.id,
-      slug: slugPorId.get(fila.id) ?? fila.id,
+      slug: fila.slug ?? fila.id,
       nombre: fila.nombre,
       correo: fila.correo,
       rol: fila.rol,
       estado: fila.estado,
       fechaRegistro: fila.fecha_registro,
       cursosInscritos: Number(fila.cursos_inscritos),
-      suscripcionEstado: fila.suscripcion_estado,
-      tipoAccesoSuscripcion: fila.suscripcion_estado
-        ? tipoAccesoGratuito({
-            accesoManual: fila.suscripcion_acceso_manual ?? false,
-            tieneCodigoInvitacion: fila.suscripcion_tiene_codigo ?? false,
-          })
-        : null,
+      acceso:
+        fila.suscripcion_estado && fila.suscripcion_proveedor && fila.suscripcion_inicio
+          ? {
+              estado: fila.suscripcion_estado,
+              origen: origenDe(fila.suscripcion_proveedor),
+              inicio: fila.suscripcion_inicio,
+              fin: fila.suscripcion_fin,
+              plan: fila.suscripcion_plan,
+              montoCentavos: fila.suscripcion_monto === null ? null : Number(fila.suscripcion_monto),
+              moneda: fila.suscripcion_moneda,
+              proveedor: fila.suscripcion_proveedor,
+            }
+          : null,
       ultimaActividad: fila.ultima_actividad,
     })),
     total,
     pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / USUARIOS_POR_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
   };
+}
+
+/** Cuántos usuarios cumplen un filtro, sin traerlos. */
+export async function contarUsuarios(filtros: Omit<FiltrosUsuarios, "pagina" | "porPagina">): Promise<number> {
+  return (await getUsuarios({ ...filtros, porPagina: 1 })).total;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { caminoSegmento, type SemanaGrafica, type SerieGrafica } from "@/lib/admin/grafica";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,8 @@ function nombreSemana(semana: SemanaGrafica, esActual: boolean) {
 /**
  * Barras por semana, apiladas por serie, con el detalle de cada semana al
  * pasar el mouse o el foco. La comparten Cupones (usos), Planes (plata) y
- * Comunidad (publicaciones y respuestas) y Códigos (canjes).
+ * Comunidad (publicaciones y respuestas), Códigos (canjes) y Usuarios (quién
+ * estudió y cuántos días estudió cada persona).
  * Con `semanas` en null dibuja solo la base: quien la usa pone encima el
  * texto que explica por qué está vacía.
  */
@@ -252,6 +254,7 @@ export function Cifra({
   pequena,
   ancha,
   enFila,
+  enlace,
 }: {
   valor: string;
   etiqueta: string;
@@ -262,6 +265,8 @@ export function Cifra({
   ancha?: boolean;
   /** Cuatro cifras debajo de la gráfica: en fila en computador, de dos en dos en celular. */
   enFila?: boolean;
+  /** Lleva a la lista de esas personas (Usuarios filtra la tabla). */
+  enlace?: { href: string; texto: string };
 }) {
   return (
     <div
@@ -276,6 +281,17 @@ export function Cifra({
         {valor}
       </dd>
       <dd className={cn("order-3 text-uva-detalle", alerta ? "font-bold text-uva-warning-text" : "text-uva-text-muted")}>{nota}</dd>
+      {enlace && (
+        <dd className="order-4 mt-1">
+          <Link
+            href={enlace.href}
+            scroll={false}
+            className="inline-flex min-h-11 items-center text-uva-detalle font-semibold text-uva-accent-text underline-offset-4 hover:underline pointer-fine:min-h-0"
+          >
+            {enlace.texto}
+          </Link>
+        </dd>
+      )}
     </div>
   );
 }

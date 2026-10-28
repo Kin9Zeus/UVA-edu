@@ -16,12 +16,14 @@ const CABECERAS = [
   "Nombre",
   "Correo",
   "Rol",
-  "Estado",
+  "Cuenta",
   "Fecha de registro",
-  "Cursos inscritos",
-  "Suscripción",
-  "Tipo de acceso",
-  "Última actividad en contenido",
+  "Cursos empezados",
+  "Acceso",
+  "Origen del acceso",
+  "Plan",
+  "Fin del acceso",
+  "Última vez que estudió",
 ] as const;
 
 function formatearFecha(iso: string | null): string {
@@ -31,16 +33,23 @@ function formatearFecha(iso: string | null): string {
   return new Date(iso).toISOString().slice(0, 10);
 }
 
-const SUSCRIPCION_LABEL: Record<string, string> = {
-  ACTIVA: "Activa",
+const ACCESO_LABEL: Record<string, string> = {
+  ACTIVA: "Con acceso",
   PAST_DUE: "Pago pendiente",
-  VENCIDA: "Vencida",
-  CANCELADA: "Cancelada",
+  VENCIDA: "Vencido",
+  CANCELADA: "Revocado o cancelado",
 };
 
-const TIPO_ACCESO_LABEL: Record<string, string> = {
-  INVITACION: "Invitación gratuita",
-  OTORGADO_ADMIN: "Acceso otorgado",
+const ORIGEN_LABEL: Record<string, string> = {
+  INVITACION: "Por invitación",
+  MANUAL: "Dado por U.V.A.",
+  PAGO: "Pagado",
+};
+
+const ROL_LABEL: Record<string, string> = {
+  ESTUDIANTE: "Estudiante",
+  PROFESOR: "Profesor",
+  ADMINISTRADOR: "Administrador",
 };
 
 /** Misma forma que `AdminActionResult`: el error es opcional y se comprueba con `if (resultado.error)`. */
@@ -90,12 +99,14 @@ export async function exportarUsuariosCsv(filtros: FiltrosUsuarios = {}): Promis
     usuarios.map((usuario) => [
       usuario.nombre,
       usuario.correo,
-      usuario.rol === "ADMINISTRADOR" ? "Administrador" : "Estudiante",
-      usuario.estado === "ACTIVO" ? "Activo" : "Suspendido",
+      ROL_LABEL[usuario.rol],
+      usuario.estado === "ACTIVO" ? "Activa" : "Suspendida",
       formatearFecha(usuario.fechaRegistro),
       usuario.cursosInscritos,
-      usuario.suscripcionEstado ? SUSCRIPCION_LABEL[usuario.suscripcionEstado] : "Sin suscripción",
-      usuario.tipoAccesoSuscripcion ? TIPO_ACCESO_LABEL[usuario.tipoAccesoSuscripcion] : "",
+      usuario.rol === "ADMINISTRADOR" ? "Permanente" : usuario.acceso ? ACCESO_LABEL[usuario.acceso.estado] : "Nunca tuvo",
+      usuario.acceso ? ORIGEN_LABEL[usuario.acceso.origen] : "",
+      usuario.acceso?.plan ?? "",
+      formatearFecha(usuario.acceso?.fin ?? null),
       formatearFecha(usuario.ultimaActividad),
     ]),
   );
