@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+import { clasesPorUsuario } from "@/lib/admin/codigos-uso";
 import {
   generarCodigoInvitacion,
   validarDuracionDias,
@@ -227,44 +228,64 @@ export async function eliminarCodigoInvitacion(id: string): Promise<AdminActionR
   return { success: true };
 }
 
-export type RedimidorCodigo = {
+export type CanjeCodigo = {
+  idCodigo: string;
   usuarioId: string;
   nombre: string;
   correo: string;
+  /** Para enlazar a su ficha; null si el perfil ya no existe. */
+  slug: string | null;
   canjeadoEn: string;
+  /** Clases que empezó (filas de `progreso`): 0 es que no ha estudiado. */
+  clases: number;
 };
 
 /**
- * Quiénes canjearon un código puntual (rev.md: "ver por código ... quiénes
- * lo canjearon"). Un código de uso único tiene a lo sumo un redimidor; uno
- * con `limite_usos` > 1 puede tener varios — de ahí que sea una consulta
- * aparte y no un campo más de `getCodigosInvitacion` (traer esto para cada
- * fila de la tabla haría un join innecesario en la carga inicial, cuando en
- * la práctica solo se consulta al abrir el detalle de un código puntual).
+ * Quiénes canjearon uno o varios códigos (todos los de un lote, de una vez)
+ * y cuánto han estudiado. Es una consulta aparte y no un campo más de
+ * `getCodigosInvitacion` porque solo se mira al abrir un código puntual.
  */
-export async function obtenerRedimidoresCodigo(
-  id: string,
-): Promise<AdminActionResult & { redimidores?: RedimidorCodigo[] }> {
+export async function obtenerCanjes(
+  idsCodigos: string[],
+): Promise<AdminActionResult & { canjes?: CanjeCodigo[] }> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
+  if (idsCodigos.length === 0) return { success: true, canjes: [] };
 
-  const { data, error } = await admin.supabase
-    .from("suscripciones")
-    .select("id_usuario, fecha_inicio, usuario:perfiles!suscripciones_id_usuario_fkey(nombre, correo)")
-    .eq("id_codigo_invitacion", id)
-    .order("fecha_inicio", { ascending: true });
+  const filas: Record<string, unknown>[] = [];
+  // En tandas por el mismo motivo que `clasesPorUsuario`: un lote llega a 500 códigos.
+  for (let i = 0; i < idsCodigos.length; i += 150) {
+    const { data, error } = await admin.supabase
+      .from("suscripciones")
+      .select(
+        "id_codigo_invitacion, id_usuario, fecha_inicio, usuario:perfiles!suscripciones_id_usuario_fkey(nombre, correo, slug)",
+      )
+      .in("id_codigo_invitacion", idsCodigos.slice(i, i + 150))
+      .order("fecha_inicio", { ascending: false });
+    if (error) return { error: "No pudimos cargar quiénes canjearon." };
+    filas.push(...(data ?? []));
+  }
 
-  if (error) return { error: "No pudimos cargar quiénes canjearon este código." };
+  const { clases, error } = await clasesPorUsuario(
+    admin.supabase,
+    filas.map((fila) => fila.id_usuario as string),
+  );
+  if (error) return { error: "No pudimos cargar cuánto ha estudiado cada persona." };
 
-  const redimidores: RedimidorCodigo[] = (data ?? []).map((fila) => {
-    const usuario = Array.isArray(fila.usuario) ? fila.usuario[0] : fila.usuario;
+  const canjes: CanjeCodigo[] = filas.map((fila) => {
+    const usuario = (Array.isArray(fila.usuario) ? fila.usuario[0] : fila.usuario) as
+      | { nombre: string | null; correo: string | null; slug: string | null }
+      | null;
     return {
+      idCodigo: fila.id_codigo_invitacion as string,
       usuarioId: fila.id_usuario as string,
       nombre: usuario?.nombre ?? "Usuario eliminado",
       correo: usuario?.correo ?? "",
+      slug: usuario?.slug ?? null,
       canjeadoEn: fila.fecha_inicio as string,
+      clases: clases.get(fila.id_usuario as string) ?? 0,
     };
   });
 
-  return { success: true, redimidores };
+  return { success: true, canjes };
 }

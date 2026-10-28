@@ -24,7 +24,7 @@ function nombreSemana(semana: SemanaGrafica, esActual: boolean) {
 /**
  * Barras por semana, apiladas por serie, con el detalle de cada semana al
  * pasar el mouse o el foco. La comparten Cupones (usos), Planes (plata) y
- * Comunidad (publicaciones y respuestas).
+ * Comunidad (publicaciones y respuestas) y Códigos (canjes).
  * Con `semanas` en null dibuja solo la base: quien la usa pone encima el
  * texto que explica por qué está vacía.
  */
@@ -218,7 +218,8 @@ function Detalle<S extends SemanaGrafica>({
             <span className="font-mono">{formato(semana.porSerie[serie.clave])}</span>
           </p>
         ))}
-      {semana.total > 0 && (
+      {/* Con una sola serie, el Total repetiría la fila de arriba. */}
+      {semana.total > 0 && series.length > 1 && (
         <p className="mt-1 flex justify-between gap-2 border-t border-uva-divider pt-1 font-bold text-uva-text">
           <span>Total{nota?.(semana, null)}</span>
           <span className="font-mono">{formato(semana.total)}</span>
@@ -250,6 +251,7 @@ export function Cifra({
   alerta,
   pequena,
   ancha,
+  enFila,
 }: {
   valor: string;
   etiqueta: string;
@@ -258,11 +260,14 @@ export function Cifra({
   pequena?: boolean;
   /** En celular ocupa la fila entera: un monto en pesos no cabe en media. */
   ancha?: boolean;
+  /** Cuatro cifras debajo de la gráfica: en fila en computador, de dos en dos en celular. */
+  enFila?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-0.5 border-uva-divider px-4 py-4 max-[359px]:px-3 sm:px-5 max-lg:even:border-l lg:border-t lg:first:border-t-0",
+        "flex min-w-0 flex-col gap-0.5 border-uva-divider px-4 py-4 max-[359px]:px-3 sm:px-5 max-lg:even:border-l",
+        enFila ? "max-lg:nth-[n+3]:border-t lg:not-first:border-l" : "lg:border-t lg:first:border-t-0",
         ancha && "max-lg:col-span-2 max-lg:border-t",
       )}
     >
