@@ -222,7 +222,8 @@ describe("eliminarModulo", () => {
         { id: "l3", id_mux_asset_id: "asset-3" },
       ],
     });
-    servidorFalso.responder("from:modulos", { error: null });
+    // Primero se lee el módulo (título y curso, para la bitácora) y después se borra.
+    servidorFalso.responderEnOrden("from:modulos", [{ data: { titulo: "Fundamentos", id_curso: "c1" } }, { error: null }]);
     colaResponde();
 
     expect(await eliminarModulo(MODULO)).toEqual({ success: true });
@@ -232,13 +233,18 @@ describe("eliminarModulo", () => {
       { id_leccion: "l1", id_asset_mux: "asset-1" },
       { id_leccion: "l3", id_asset_mux: "asset-3" },
     ]);
-    expect(indice(esEncolado)).toBeLessThan(indice((l) => l.operacion === "from:modulos"));
+    expect(indice(esEncolado)).toBeLessThan(
+      indice((l) => l.operacion === "from:modulos" && l.cadena.some((c) => c.metodo === "delete")),
+    );
     expect(borrarEnMux.mock.calls.map(([id]) => id).sort()).toEqual(["asset-1", "asset-3"]);
   });
 
   it("si el módulo no se puede borrar, sus videos salen de la cola y siguen en Mux", async () => {
     servidorFalso.responder("from:lecciones", { data: [{ id: "l1", id_mux_asset_id: "asset-1" }] });
-    servidorFalso.responder("from:modulos", { error: { message: "fk" } });
+    servidorFalso.responderEnOrden("from:modulos", [
+      { data: { titulo: "Fundamentos", id_curso: "c1" } },
+      { error: { message: "fk" } },
+    ]);
     colaResponde();
 
     expect(await eliminarModulo(MODULO)).toEqual({ error: "No pudimos eliminar el módulo." });

@@ -19,23 +19,24 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { Cifra, GraficaSemanas } from "@/components/admin/GraficaSemanas";
 import { GrantMembershipDialog } from "@/components/admin/usuarios/GrantMembershipDialog";
 import { GrantCourtesyDialog } from "@/components/admin/usuarios/GrantCourtesyDialog";
 import { RevokeAccessDialog } from "@/components/admin/usuarios/RevokeAccessDialog";
+import { ExtenderAccesoDialog } from "@/components/admin/usuarios/ExtenderAccesoDialog";
 import {
   quitarCortesia,
   revocarMembresia,
   cambiarRolProfesor,
   actualizarEspecialidadProfesor,
+  suspenderActivarUsuario,
 } from "@/actions/admin/usuarios";
 import { formatFecha } from "@/lib/admin/format";
+import { diasCalendario, nombrePasarela, textoAcceso } from "@/lib/admin/acceso-texto";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
-import {
-  ETIQUETA_TIPO_ACCESO,
-  ETIQUETA_ESTADO_SUSCRIPCION,
-  TONO_ESTADO_SUSCRIPCION,
-  suscripcionEstaVigentePorEstado,
-} from "@/lib/estadoAcceso";
+import type { SerieGrafica } from "@/lib/admin/grafica";
+import { cn } from "@/lib/utils";
 
 /* Tres estados desde Revf5 (docs/functional-spec.md Flujo 07): un curso con
    todas las clases vistas cuyo examen final no está aprobado no está
@@ -47,50 +48,86 @@ const ESTADO_CURSO_BADGE = {
   COMPLETADO: { tone: "success", etiqueta: "Completado" },
 } as const;
 
-/** Misma etiqueta que ve el estudiante en su tarjeta "Tu acceso" (perfil), para que admin y estudiante hablen el mismo idioma. */
+const ROL_LABEL = { ESTUDIANTE: "Estudiante", PROFESOR: "Profesor", ADMINISTRADOR: "Administrador" } as const;
+
+const SERIES_DIAS: SerieGrafica[] = [{ clave: "dias", nombre: "Días que estudió", color: "var(--uva-serie-1)" }];
+
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
 function iniciales(nombre: string) {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   return partes.slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "").join("") || "U";
 }
 
-/** Etiqueta gris de 11px que el mockup antepone a cada badge de la cabecera. */
-function EtiquetaBadge({ children }: { children: React.ReactNode }) {
-  return <span className="text-[11px] text-uva-muted-2">{children}</span>;
+function Bloque({ titulo, insignia, children }: { titulo: string; insignia?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 rounded-uva-lg border border-uva-divider bg-uva-surface p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="m-0 text-uva-cuerpo font-extrabold text-uva-text">{titulo}</h2>
+        {insignia}
+      </div>
+      {children}
+    </section>
+  );
 }
+
+const Linea = ({ children, alerta }: { children: React.ReactNode; alerta?: boolean }) => (
+  <p className={cn("m-0 text-uva-detalle", alerta ? "font-bold text-uva-warning-text" : "text-uva-text-muted")}>{children}</p>
+);
 
 export function UsuarioDetalleView({
   usuario,
   planes,
   cursosDisponibles,
+  conCobro,
+  ahora,
 }: {
   usuario: UsuarioDetalle;
-  planes: { id: string; nombre: string; precio_centavos: number; moneda: string }[];
+  planes: { id: string; nombre: string; precio_centavos: number; moneda: string; duracion_dias: number }[];
   cursosDisponibles: { id: string; titulo: string }[];
+  conCobro: boolean;
+  /** Del servidor: los "hace N días" no cambian entre el render del servidor y el del navegador. */
+  ahora: string;
 }) {
-  const [membresiaOpen, setMembresiaOpen] = useState(false);
-  const [cortesiaOpen, setCortesiaOpen] = useState(false);
-  const [revocandoMembresia, setRevocandoMembresia] = useState(false);
+  const [dialogo, setDialogo] = useState<
+    "dar" | "cortesia" | "revocar" | "extender" | "profesor" | "quitarProfesor" | "suspender" | null
+  >(null);
   const [quitando, setQuitando] = useState<{ inscripcionId: string; titulo: string } | null>(null);
   const [rol, setRol] = useState(usuario.rol);
-  const [pendienteRol, setPendienteRol] = useState(false);
+  const [cuenta, setCuenta] = useState(usuario.estado);
   const [especialidad, setEspecialidad] = useState(usuario.especialidad ?? "");
-  // Lo último confirmado por el servidor, para saber si hay cambios sin
-  // guardar y no dejar el botón activo sobre un valor que ya está guardado.
+  // Lo último confirmado por el servidor, para no dejar el botón activo
+  // sobre un valor que ya está guardado.
   const [especialidadGuardada, setEspecialidadGuardada] = useState(usuario.especialidad ?? "");
   const [pendienteEspecialidad, setPendienteEspecialidad] = useState(false);
   const showToast = useAdminToast();
+  const cerrar = (abierto: boolean) => !abierto && setDialogo(null);
 
-  async function handleToggleProfesor() {
-    const esProfesor = rol !== "PROFESOR";
-    setPendienteRol(true);
+  const esAdministrador = rol === "ADMINISTRADOR";
+  const acceso = usuario.acceso;
+  const actual = usuario.accesoActual;
+  const vigente = acceso !== null && (acceso.estado === "ACTIVA" || acceso.estado === "PAST_DUE");
+  const gratuito = actual !== null && (actual.proveedor === "manual" || actual.proveedor === "invitacion");
+  const texto = textoAcceso(acceso, rol, ahora, conCobro);
+
+  async function cambiarRol(esProfesor: boolean) {
     const resultado = await cambiarRolProfesor(usuario.id, esProfesor);
-    setPendienteRol(false);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;
     }
     setRol(esProfesor ? "PROFESOR" : "ESTUDIANTE");
-    showToast(esProfesor ? "Ahora es profesor." : "Ya no es profesor.");
+    showToast(esProfesor ? `${usuario.nombre} ahora es profesor. Ya lo puedes elegir en un curso.` : `${usuario.nombre} ya no es profesor.`);
+  }
+
+  async function cambiarCuenta(nueva: "ACTIVO" | "SUSPENDIDO") {
+    const resultado = await suspenderActivarUsuario(usuario.id, nueva);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    setCuenta(nueva);
+    showToast(nueva === "SUSPENDIDO" ? "Cuenta suspendida." : "Cuenta activada.");
   }
 
   async function handleGuardarEspecialidad() {
@@ -106,181 +143,101 @@ export function UsuarioDetalleView({
     showToast("Especialidad guardada.");
   }
 
-  // Solo se puede revocar una membresía manual todavía activa (f4accesos.md
-  // no diseña cancelación para las de Stripe/Wompi, y una ya CANCELADA/
-  // VENCIDA no tiene nada que revocar).
-  const suscripcionVigente = suscripcionEstaVigentePorEstado(usuario.suscripcionEstado);
-  // Un ADMINISTRADOR tiene acceso incondicional a todo el catálogo (ver
-  // obtenerAccesoAlCurso, src/lib/accesoCurso.ts): la fila de `suscripciones`
-  // que pueda tener (o no) es irrelevante para él, así que la cabecera no
-  // debe leer "Plan: —" ni un estado de suscripción que no decide nada, y
-  // otorgar/revocar membresía o cortesía no tiene ningún efecto sobre su
-  // acceso — ofrecérselo solo invitaría a un click que no hace nada.
-  const esAdministrador = rol === "ADMINISTRADOR";
-  const puedeRevocarMembresia = !esAdministrador && usuario.suscripcionEsManual && suscripcionVigente;
-
   async function handleQuitarCortesia(motivo: string) {
-    if (!quitando) return { error: "Selecciona qué cortesía revocar." };
+    if (!quitando) return { error: "Elige qué cortesía quitar." };
     const resultado = await quitarCortesia(quitando.inscripcionId, usuario.id, motivo);
-    if (!resultado.error) showToast("Cortesía revocada.");
+    if (!resultado.error) showToast("Cortesía quitada.");
     return resultado;
   }
 
-  async function handleRevocarMembresia(motivo: string) {
-    if (!usuario.suscripcionId) return { error: "No encontramos la membresía." };
-    const resultado = await revocarMembresia(usuario.suscripcionId, usuario.id, motivo);
-    if (!resultado.error) showToast("Membresía revocada.");
+  async function handleRevocar(motivo: string) {
+    if (!actual) return { error: "No encontramos el acceso." };
+    const resultado = await revocarMembresia(actual.id, usuario.id, motivo);
+    if (!resultado.error) showToast("Acceso revocado.");
     return resultado;
   }
 
-  return (
-    <div className="flex max-w-[900px] flex-col gap-5">
-      {/* El mockup no lleva este enlace; se conserva como salida al listado. */}
-      <Link
-        href="/admin/usuarios"
-        className="-mb-2 flex w-fit items-center gap-1.5 text-sm text-uva-muted-2 hover:text-uva-text"
-      >
-        <ArrowLeft className="size-4" />
-        Volver a usuarios
-      </Link>
+  /* ---------- Acceso ---------- */
+  const como =
+    actual && actual.proveedor === "invitacion"
+      ? actual.deLote || !actual.codigo
+        ? "Entró con un código de lote."
+        : (
+            <>
+              Entró con el código <span className="font-codigo text-uva-text">{actual.codigo}</span>.
+            </>
+          )
+      : actual && actual.proveedor === "manual"
+        ? "Se lo dio un administrador."
+        : null;
 
-      {/* Cabecera: el mockup la dibuja suelta sobre el fondo, sin tarjeta.
-          Nombre y badges van en filas separadas — juntos en una sola
-          `flex-wrap` (hasta 5 piezas: 4 pares etiqueta+badge más la fecha)
-          envolvían en cualquier orden en mobile, igual que le pasaba a la
-          cabecera de CursoDetalleView antes de agruparla. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3.5">
-          <Avatar className="size-[52px] shrink-0 bg-uva-divider after:hidden">
-            {usuario.fotoUrl && <AvatarImage src={usuario.fotoUrl} alt="" />}
-            <AvatarFallback className="bg-uva-divider font-heading text-base font-bold text-uva-muted">
-              {iniciales(usuario.nombre)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="font-heading text-[19px] font-bold tracking-[-0.02em] text-uva-text">
-              {usuario.nombre}
-            </h1>
-            <p className="text-[12.5px] text-uva-muted">
-              {usuario.correo} ·{" "}
-              {rol === "ADMINISTRADOR" ? "Administrador" : rol === "PROFESOR" ? "Profesor" : "Estudiante"}
-            </p>
-          </div>
-        </div>
+  const botonCortesia = (
+    <Button type="button" className="w-full sm:w-auto" onClick={() => setDialogo("cortesia")}>
+      Dar un curso de cortesía
+    </Button>
+  );
 
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-          <div className="flex items-center gap-[5px]">
-            <EtiquetaBadge>Cuenta:</EtiquetaBadge>
-            <StatusBadge tone={usuario.estado === "ACTIVO" ? "success" : "error"}>
-              {usuario.estado === "ACTIVO" ? "Activo" : "Suspendido"}
-            </StatusBadge>
-          </div>
-          <div className="flex items-center gap-[5px]">
-            <EtiquetaBadge>Plan:</EtiquetaBadge>
-            {/* Antes siempre gris, sin importar si seguía vigente — mismo plan
-                se veía igual de "activo" que uno ya cancelado hace meses. */}
-            <StatusBadge tone={esAdministrador || (usuario.planActual && suscripcionVigente) ? "accent" : "neutral"}>
-              {esAdministrador ? "Acceso permanente" : (usuario.planActual ?? "—")}
-            </StatusBadge>
-          </div>
-          {/* El listado de usuarios ya mostraba este estado; la ficha no lo
-              traía, así que revocar una membresía manual (revocarMembresia,
-              deja CANCELADA) no se notaba aquí — solo desaparecía el botón
-              "Revocar membresía", sin ninguna confirmación visual.
-              Se oculta para un administrador: cualquier fila de `suscripciones`
-              que tenga (o no) es historia, no lo que decide su acceso. */}
-          {!esAdministrador && usuario.suscripcionEstado && (
-            <div className="flex items-center gap-[5px]">
-              <EtiquetaBadge>Estado:</EtiquetaBadge>
-              <StatusBadge tone={TONO_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}>
-                {ETIQUETA_ESTADO_SUSCRIPCION[usuario.suscripcionEstado]}
-              </StatusBadge>
-            </div>
-          )}
-          {/* Solo mientras siga vigente: "Acceso otorgado" junto a "Cancelada"
-              leía como si el acceso siguiera en pie después de revocarlo. */}
-          {!esAdministrador && usuario.tipoAccesoSuscripcion && suscripcionVigente && (
-            <div className="flex items-center gap-[5px]">
-              <EtiquetaBadge>Acceso:</EtiquetaBadge>
-              <StatusBadge tone="accent">{ETIQUETA_TIPO_ACCESO[usuario.tipoAccesoSuscripcion]}</StatusBadge>
-            </div>
-          )}
-          <div className="text-[12px] text-uva-muted-2 sm:ml-auto">
-            Registrado {formatFecha(usuario.fechaRegistro)}
-          </div>
-        </div>
-      </div>
-
-      {/* Cuándo empieza y cuándo se le acaba la suscripción actual: antes no
-          se mostraba en ningún sitio del panel — ni siquiera se traía de la
-          base (el registro de arriba es cuándo se creó la CUENTA, no cuándo
-          empezó a tener acceso). "Vence" para código/cortesía (no hay cobro
-          automático detrás); "Renueva" para una suscripción de pago. */}
-      {!esAdministrador && usuario.suscripcionInicio && (
-        <p className="-mt-2 text-[12px] text-uva-muted-2">
-          Suscripción desde {formatFecha(usuario.suscripcionInicio)}
-          {usuario.suscripcionEstado === "CANCELADA" ? (
-            // Revocada a mano (revocarMembresia): no tiene sentido seguir
-            // diciendo "vence"/"renueva" en futuro de algo que un admin ya
-            // cerró. El motivo que escribió queda visible aquí mismo — es
-            // la trazabilidad que ve el admin sin tener que ir a la base.
-            <> · cancelada{usuario.suscripcionMotivoCancelacion ? ` — ${usuario.suscripcionMotivoCancelacion}` : ""}</>
-          ) : (
-            usuario.suscripcionFin && (
-              <>
-                {" "}
-                · {usuario.tipoAccesoSuscripcion ? "vence" : "renueva"}{" "}
-                {formatFecha(usuario.suscripcionFin)}
-              </>
-            )
-          )}
-        </p>
+  const bloqueAcceso = esAdministrador ? (
+    <Bloque titulo="Acceso" insignia={<StatusBadge tone="accent">Permanente</StatusBadge>}>
+      <Linea>Es administrador: ve todo el catálogo sin necesitar acceso.</Linea>
+    </Bloque>
+  ) : (
+    <Bloque titulo="Acceso" insignia={<StatusBadge tone={texto.tono}>{texto.etiqueta}</StatusBadge>}>
+      {como && <Linea>{como}</Linea>}
+      {texto.lineas.map((linea) => (
+        <Linea key={linea.texto} alerta={linea.alerta}>
+          {linea.texto}
+          {linea.texto.startsWith("Se le acaba") && acceso?.fin ? `, el ${formatFecha(acceso.fin)}` : ""}.
+        </Linea>
+      ))}
+      {acceso?.origen === "PAGO" && vigente && acceso.proveedor === "wompi" && (
+        <Linea>Wompi no cobra solo: para seguir, tiene que volver a comprar.</Linea>
       )}
-
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
-        {!esAdministrador && (
-          <>
-            <Button
-              type="button"
-              variant="primary"
-              className="w-full sm:w-auto"
-              onClick={() => setMembresiaOpen(true)}
-            >
-              Otorgar membresía
-            </Button>
-            <Button type="button" className="w-full sm:w-auto" onClick={() => setCortesiaOpen(true)}>
-              Ofrecer curso de cortesía
-            </Button>
-          </>
-        )}
-        {puedeRevocarMembresia && (
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full sm:w-auto"
-            onClick={() => setRevocandoMembresia(true)}
-          >
-            Revocar membresía
+      {acceso?.origen === "PAGO" && vigente && (
+        <Linea>Un acceso pagado no se revoca desde el panel: se cancela o se reembolsa en {nombrePasarela(acceso.proveedor)}.</Linea>
+      )}
+      <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {vigente && gratuito && (
+          <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={() => setDialogo("extender")}>
+            Dar más días
           </Button>
         )}
-        {rol !== "ADMINISTRADOR" && (
+        {!vigente && (
+          <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={() => setDialogo("dar")}>
+            Dar acceso
+          </Button>
+        )}
+        {botonCortesia}
+        {vigente && gratuito && (
+          <Button type="button" variant="destructive" className="w-full sm:w-auto" onClick={() => setDialogo("revocar")}>
+            Revocar acceso
+          </Button>
+        )}
+      </div>
+    </Bloque>
+  );
+
+  /* ---------- Rol y cuenta ---------- */
+  const bloqueCuenta = (
+    <Bloque titulo="Rol y cuenta">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="m-0 text-uva-detalle text-uva-text-muted">
+          Rol: <span className="font-semibold text-uva-text">{ROL_LABEL[rol]}</span>
+        </p>
+        {!esAdministrador && (
           <Button
             type="button"
             className="w-full sm:w-auto"
-            disabled={pendienteRol}
-            onClick={handleToggleProfesor}
+            onClick={() => setDialogo(rol === "PROFESOR" ? "quitarProfesor" : "profesor")}
           >
             {rol === "PROFESOR" ? "Quitar rol de profesor" : "Hacer profesor"}
           </Button>
         )}
       </div>
-
-      {/* Solo para profesores: la especialidad es lo que se muestra bajo su
-          nombre en la tarjeta de "quién dicta el curso" del detalle público.
-          Antes vivía en la tabla `instructores`, que ya no existe como
-          entidad aparte. */}
+      {/* La especialidad sale bajo su nombre en la tarjeta pública de "quién
+          dicta el curso" (curso_instructores_publico). */}
       {rol === "PROFESOR" && (
-        <AdminCard className="gap-2.5">
+        <div className="flex flex-col gap-2">
           <div>
             <Label htmlFor="usuario-especialidad">Especialidad</Label>
             <Input
@@ -289,9 +246,10 @@ export function UsuarioDetalleView({
               maxLength={200}
               onChange={(event) => setEspecialidad(event.target.value)}
               placeholder="Modelado BIM y coordinación de disciplinas"
+              aria-describedby="usuario-especialidad-ayuda"
             />
-            <p className="mt-1.5 text-xs text-uva-text-faint">
-              Se muestra bajo su nombre en la ficha pública de los cursos que dicta.
+            <p id="usuario-especialidad-ayuda" className="mt-1.5 mb-0 text-uva-detalle text-uva-text-muted">
+              Sale bajo su nombre en la página pública de los cursos que dicta.
             </p>
           </div>
           <div>
@@ -305,212 +263,379 @@ export function UsuarioDetalleView({
               {pendienteEspecialidad ? "Guardando…" : "Guardar especialidad"}
             </Button>
           </div>
-        </AdminCard>
-      )}
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Cursos inscritos</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
-            {usuario.metricas.cursosInscritos}
-          </div>
-        </AdminCard>
-        <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Completados</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
-            {usuario.metricas.cursosCompletados}
-          </div>
-        </AdminCard>
-        <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Progreso promedio</div>
-          <div className="font-mono text-[22px] font-bold tabular-nums">
-            {usuario.metricas.progresoPromedio}%
-          </div>
-        </AdminCard>
-        <AdminCard className="gap-1">
-          <div className="text-[11.5px] text-uva-muted">Última actividad</div>
-          <div className="mt-1 text-[13px]">
-            {usuario.metricas.ultimaActividad
-              ? formatFecha(usuario.metricas.ultimaActividad)
-              : "Sin actividad"}
-          </div>
-        </AdminCard>
-      </div>
-
-      <AdminCard flush className="gap-0">
-        <div className="px-[18px] pt-4 pb-1">
-          <h2 className="font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
-            Cursos del usuario
-          </h2>
         </div>
+      )}
+      <hr className="my-1 border-uva-divider" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="m-0 text-uva-detalle text-uva-text-muted">
+          Cuenta: <span className="font-semibold text-uva-text">{cuenta === "ACTIVO" ? "Activa" : "Suspendida"}</span>
+        </p>
+        {!esAdministrador &&
+          (cuenta === "ACTIVO" ? (
+            <Button type="button" variant="destructive" className="w-full sm:w-auto" onClick={() => setDialogo("suspender")}>
+              Suspender cuenta
+            </Button>
+          ) : (
+            <Button type="button" className="w-full sm:w-auto" onClick={() => cambiarCuenta("ACTIVO")}>
+              Activar cuenta
+            </Button>
+          ))}
+      </div>
+    </Bloque>
+  );
 
-        {usuario.cursos.length === 0 && (
-          <p className="px-[18px] py-4 text-center text-sm text-uva-muted-2">
-            Este usuario no está inscrito en ningún curso.
+  /* ---------- Cómo estudia ---------- */
+  const { estudio, metricas } = usuario;
+  const nunca = metricas.ultimaActividad === null;
+  const diasDesdeUltima = metricas.ultimaActividad ? diasCalendario(metricas.ultimaActividad, ahora) : null;
+  const ultimoCurso = usuario.cursos
+    .filter((c) => c.ultimaActividad)
+    .sort((a, b) => (b.ultimaActividad ?? "").localeCompare(a.ultimaActividad ?? ""))[0];
+  const cursosConClases = usuario.cursos.filter((c) => c.progreso > 0).length;
+
+  const resumen = (
+    <section aria-labelledby="usuario-estudio" className="rounded-uva-lg border border-uva-divider bg-uva-surface">
+      <div className="min-w-0 border-b border-uva-divider p-4 sm:p-5 lg:px-6">
+        <h2 id="usuario-estudio" className="mb-3 text-uva-cuerpo font-extrabold text-uva-text">
+          Días que estudió cada semana
+        </h2>
+        <div className="relative">
+          <GraficaSemanas
+            semanas={estudio.semanas}
+            series={SERIES_DIAS}
+            etiqueta="Días que estudió por semana, últimas 12 semanas"
+            resumenSemana={(semana) => plural(semana.total, "día", "días")}
+            formato={(valor) => plural(valor, "día", "días")}
+            sinDatos="No estudió"
+          />
+          {estudio.semanas.every((s) => s.total === 0) && (
+            <div className="absolute inset-x-6 top-2 bottom-8 grid place-content-center gap-1 text-center">
+              <p className="m-0 font-bold text-uva-text">
+                {nunca ? "Todavía no ha visto ninguna clase" : "No estudió en estas 12 semanas"}
+              </p>
+              <p className="m-0 max-w-[42ch] text-uva-detalle text-uva-text-muted">
+                Cada barra es cuántos días de esa semana vio al menos una clase.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 lg:grid-cols-4">
+        <Cifra
+          enFila
+          valor={String(estudio.dias30)}
+          etiqueta={estudio.dias30 === 1 ? "día que estudió en 30 días" : "días que estudió en 30 días"}
+          nota={estudio.racha > 1 ? `Lleva ${estudio.racha} días seguidos` : nunca ? "Nunca ha estudiado" : "Sin días seguidos ahora"}
+        />
+        <Cifra
+          enFila
+          pequena
+          valor={diasDesdeUltima === null ? "Nunca" : diasDesdeUltima <= 0 ? "Hoy" : diasDesdeUltima === 1 ? "Ayer" : `Hace ${diasDesdeUltima} días`}
+          etiqueta="última vez que estudió"
+          nota={ultimoCurso ? ultimoCurso.titulo : `Se registró el ${formatFecha(usuario.fechaRegistro)}`}
+          alerta={vigente && (diasDesdeUltima === null || diasDesdeUltima >= 14)}
+        />
+        <Cifra
+          enFila
+          valor={String(usuario.clasesTerminadas)}
+          etiqueta={usuario.clasesTerminadas === 1 ? "clase terminada" : "clases terminadas"}
+          nota={cursosConClases > 0 ? `En ${plural(cursosConClases, "curso", "cursos")}` : "Ninguna todavía"}
+        />
+        <Cifra
+          enFila
+          valor={String(metricas.cursosCompletados)}
+          etiqueta={metricas.cursosCompletados === 1 ? "curso terminado" : "cursos terminados"}
+          nota={metricas.cursosInscritos > 0 ? `De ${plural(metricas.cursosInscritos, "curso empezado", "cursos empezados")}` : "No ha empezado ninguno"}
+        />
+      </dl>
+    </section>
+  );
+
+  /* ---------- Accesos y pagos ---------- */
+  const conPagos = conCobro || usuario.totalPagado !== null;
+  const historial = !esAdministrador && (
+    <section aria-labelledby="usuario-historial" className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="usuario-historial" className="m-0 text-uva-titulo-4 font-extrabold text-uva-text">
+          {conPagos ? "Accesos y pagos" : "Accesos"}
+        </h2>
+        {usuario.totalPagado && (
+          <p className="m-0 text-uva-detalle text-uva-text-muted">
+            Ha pagado en total <span className="font-mono font-bold text-uva-text">{usuario.totalPagado}</span>
           </p>
         )}
-
-        {/* Mismo criterio que las demás tablas del panel: 6 columnas (una un
-            botón de acción) no caben sin scroll horizontal en un touch. */}
-        {usuario.cursos.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
-            {usuario.cursos.map((curso) => (
-              <div
-                key={curso.inscripcionId ?? curso.cursoId}
-                className="flex flex-col gap-2 border-t border-uva-divider px-[18px] py-3.5"
+      </div>
+      <AdminCard flush>
+        {usuario.historial.length === 0 ? (
+          <p className="m-0 px-5 py-6 text-center text-uva-detalle text-uva-text-muted">
+            Nunca ha tenido acceso{conCobro ? " ni ha pagado" : ""}.
+          </p>
+        ) : (
+          <ol className="m-0 list-none p-0">
+            {usuario.historial.map((evento, i) => (
+              <li
+                key={`${evento.fecha}-${i}`}
+                className="flex flex-col gap-1 border-b border-uva-divider px-5 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
               >
+                <span className="shrink-0 font-mono text-uva-detalle whitespace-nowrap text-uva-text-muted tabular-nums sm:w-36">
+                  {formatFecha(evento.fecha)}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-bold break-words text-uva-text">{evento.titulo}</span>
+                  <span className="text-uva-detalle break-words text-uva-text-muted">{evento.detalle}</span>
+                </span>
+                {evento.resultado && (
+                  <StatusBadge tone={evento.resultado === "Aprobado" ? "success" : "error"} className="self-start sm:self-center">
+                    {evento.resultado}
+                  </StatusBadge>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </AdminCard>
+    </section>
+  );
+
+  /* ---------- Cursos ---------- */
+  const botonQuitar = (curso: UsuarioDetalle["cursos"][number]) =>
+    curso.tipoAcceso === "CORTESIA" &&
+    curso.activo &&
+    curso.inscripcionId && (
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        onClick={() => setQuitando({ inscripcionId: curso.inscripcionId!, titulo: curso.titulo })}
+      >
+        Quitar cortesía
+      </Button>
+    );
+  const accesoCurso = (curso: UsuarioDetalle["cursos"][number]) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
+        {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Con su acceso"}
+      </StatusBadge>
+      {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
+        <span title={curso.motivoRevocacion ?? undefined}>
+          <StatusBadge tone="error">Quitada</StatusBadge>
+        </span>
+      )}
+    </div>
+  );
+  const ultimaVez = (fecha: string | null) => {
+    if (!fecha) return "Nunca";
+    const d = diasCalendario(fecha, ahora);
+    return d <= 0 ? "Hoy" : d === 1 ? "Ayer" : `Hace ${d} días`;
+  };
+
+  const cursos = (
+    <section aria-labelledby="usuario-cursos" className="flex flex-col gap-3">
+      <h2 id="usuario-cursos" className="m-0 text-uva-titulo-4 font-extrabold text-uva-text">
+        Cursos
+      </h2>
+      <AdminCard flush>
+        {usuario.cursos.length === 0 && (
+          <div className="grid justify-items-center gap-1 px-5 py-8 text-center">
+            <p className="m-0 font-bold text-uva-text">No ha empezado ningún curso</p>
+            <p className="m-0 max-w-[46ch] text-uva-detalle text-uva-text-muted">
+              Aparecen aquí cuando ve la primera clase de un curso, o cuando le das uno de cortesía.
+            </p>
+          </div>
+        )}
+
+        {usuario.cursos.length > 0 && (
+          <ul className="m-0 flex list-none flex-col p-0 pointer-fine:md:hidden">
+            {usuario.cursos.map((curso) => (
+              <li key={curso.inscripcionId ?? curso.cursoId} className="flex flex-col gap-2 border-b border-uva-divider px-5 py-4 last:border-b-0">
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
-                    className="text-sm font-semibold text-uva-text hover:text-uva-accent-text"
+                    className="font-semibold text-uva-text hover:text-uva-accent-text"
                   >
                     {curso.titulo}
                   </Link>
-                  <StatusBadge
-                    tone={ESTADO_CURSO_BADGE[curso.estado].tone}
-                    className="shrink-0"
-                  >
+                  <StatusBadge tone={ESTADO_CURSO_BADGE[curso.estado].tone} className="shrink-0">
                     {ESTADO_CURSO_BADGE[curso.estado].etiqueta}
                   </StatusBadge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
-                  <span className="shrink-0 font-mono text-xs text-uva-muted-2 tabular-nums">
-                    {curso.progreso}%
-                  </span>
+                  <Progress value={curso.progreso} aria-label={`Avance en ${curso.titulo}`} />
+                  <span className="shrink-0 font-mono text-uva-detalle text-uva-text-muted tabular-nums">{curso.progreso} %</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                    {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                  </StatusBadge>
-                  {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
-                    <span title={curso.motivoRevocacion ?? undefined}>
-                      <StatusBadge tone="error">Revocada</StatusBadge>
-                    </span>
-                  )}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {accesoCurso(curso)}
+                  <span className="text-uva-detalle text-uva-text-muted">Última vez: {ultimaVez(curso.ultimaActividad).toLowerCase()}</span>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-uva-muted-2">
-                    {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "Sin actividad"}
-                  </span>
-                  {curso.tipoAcceso === "CORTESIA" && curso.activo && curso.inscripcionId && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() =>
-                        setQuitando({ inscripcionId: curso.inscripcionId!, titulo: curso.titulo })
-                      }
-                    >
-                      Quitar cortesía
-                    </Button>
-                  )}
-                </div>
-              </div>
+                {botonQuitar(curso) && <div>{botonQuitar(curso)}</div>}
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
         {usuario.cursos.length > 0 && (
-        <Table className="hidden pointer-fine:md:table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Curso</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Modo de obtención</TableHead>
-              <TableHead>Última actividad</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usuario.cursos.map((curso) => (
-              <TableRow key={curso.inscripcionId ?? curso.cursoId}>
-                <TableCell className="font-semibold">
-                  <Link
-                    href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
-                    className="text-uva-text hover:text-uva-accent-text"
-                  >
-                    {curso.titulo}
-                  </Link>
-                </TableCell>
-                <TableCell className="min-w-[140px]">
-                  <div className="flex items-center gap-2">
-                    <Progress value={curso.progreso} aria-label={`Progreso de ${curso.titulo}`} />
-                    <span className="font-mono text-xs text-uva-muted-2 tabular-nums">
-                      {curso.progreso}%
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge tone={ESTADO_CURSO_BADGE[curso.estado].tone}>
-                    {ESTADO_CURSO_BADGE[curso.estado].etiqueta}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <StatusBadge tone={curso.tipoAcceso === "CORTESIA" ? "warning" : "neutral"}>
-                      {curso.tipoAcceso === "CORTESIA" ? "Cortesía" : "Membresía"}
-                    </StatusBadge>
-                    {curso.tipoAcceso === "CORTESIA" && !curso.activo && (
-                      <span title={curso.motivoRevocacion ?? undefined}>
-                        <StatusBadge tone="error">Revocada</StatusBadge>
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">
-                  {curso.ultimaActividad ? formatFecha(curso.ultimaActividad) : "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {curso.tipoAcceso === "CORTESIA" && curso.activo && curso.inscripcionId && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() =>
-                        setQuitando({ inscripcionId: curso.inscripcionId!, titulo: curso.titulo })
-                      }
-                    >
-                      Quitar cortesía
-                    </Button>
-                  )}
-                </TableCell>
+          <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Cursos de la persona">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Curso</TableHead>
+                <TableHead>Avance</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acceso</TableHead>
+                <TableHead>Última vez</TableHead>
+                <TableHead>
+                  <span className="sr-only">Acciones</span>
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {usuario.cursos.map((curso) => (
+                <TableRow key={curso.inscripcionId ?? curso.cursoId}>
+                  <TableCell className="max-w-64 font-semibold whitespace-normal">
+                    <Link
+                      href={`/admin/cursos/${curso.cursoSlug ?? curso.cursoId}`}
+                      className="text-uva-text hover:text-uva-accent-text"
+                    >
+                      {curso.titulo}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="min-w-[140px]">
+                    <div className="flex items-center gap-2">
+                      <Progress value={curso.progreso} aria-label={`Avance en ${curso.titulo}`} />
+                      <span className="font-mono text-uva-detalle text-uva-text-muted tabular-nums">{curso.progreso} %</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={ESTADO_CURSO_BADGE[curso.estado].tone}>{ESTADO_CURSO_BADGE[curso.estado].etiqueta}</StatusBadge>
+                  </TableCell>
+                  <TableCell>{accesoCurso(curso)}</TableCell>
+                  <TableCell className="text-uva-detalle text-uva-text-muted">{ultimaVez(curso.ultimaActividad)}</TableCell>
+                  <TableCell className="text-right">{botonQuitar(curso)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </AdminCard>
+    </section>
+  );
+
+  return (
+    <div className="flex max-w-[1040px] flex-col gap-6">
+      <Link
+        href="/admin/usuarios"
+        className="-mb-2 flex min-h-11 w-fit items-center gap-1.5 text-uva-detalle text-uva-text-muted hover:text-uva-text pointer-fine:min-h-0"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        Volver a usuarios
+      </Link>
+
+      <header className="flex items-center gap-4">
+        <Avatar className="size-14 shrink-0 bg-uva-divider after:hidden">
+          {usuario.fotoUrl && <AvatarImage src={usuario.fotoUrl} alt="" />}
+          <AvatarFallback className="bg-uva-divider font-heading text-uva-titulo-4 font-bold text-uva-muted">
+            {iniciales(usuario.nombre)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <h1 className="m-0 text-uva-titulo-3 text-balance break-words text-uva-text">{usuario.nombre}</h1>
+          {/* El correo puede partirse en cualquier letra; la fecha no. */}
+          <p className="m-0 text-uva-detalle text-uva-text-muted">
+            <span className="break-all">{usuario.correo}</span> · se registró el{" "}
+            <span className="whitespace-nowrap">{formatFecha(usuario.fechaRegistro)}</span>
+          </p>
+        </div>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {bloqueAcceso}
+        {bloqueCuenta}
+      </div>
+
+      {resumen}
+      {historial}
+      {cursos}
 
       <GrantMembershipDialog
-        open={membresiaOpen}
-        onOpenChange={setMembresiaOpen}
+        open={dialogo === "dar"}
+        onOpenChange={cerrar}
         usuarioId={usuario.id}
         planActual={usuario.planActual}
         planes={planes}
+        conCobro={conCobro}
       />
-      <GrantCourtesyDialog
-        open={cortesiaOpen}
-        onOpenChange={setCortesiaOpen}
-        usuarioId={usuario.id}
-        cursos={cursosDisponibles}
-      />
+      <GrantCourtesyDialog open={dialogo === "cortesia"} onOpenChange={cerrar} usuarioId={usuario.id} cursos={cursosDisponibles} />
+      {actual && actual.fin && (
+        <ExtenderAccesoDialog
+          open={dialogo === "extender"}
+          onOpenChange={cerrar}
+          usuarioId={usuario.id}
+          usuarioNombre={usuario.nombre}
+          suscripcionId={actual.id}
+          fin={actual.fin}
+        />
+      )}
       <RevokeAccessDialog
         open={quitando !== null}
         onOpenChange={(open) => !open && setQuitando(null)}
-        title="Revocar cortesía"
+        title="Quitar cortesía"
         usuarioNombre={usuario.nombre}
         recurso={quitando ? `el curso de cortesía "${quitando.titulo}"` : ""}
         onConfirm={handleQuitarCortesia}
       />
       <RevokeAccessDialog
-        open={revocandoMembresia}
-        onOpenChange={setRevocandoMembresia}
-        title="Revocar membresía"
+        open={dialogo === "revocar"}
+        onOpenChange={cerrar}
+        title="Revocar acceso"
         usuarioNombre={usuario.nombre}
-        recurso="su membresía manual"
-        onConfirm={handleRevocarMembresia}
+        recurso="su acceso"
+        onConfirm={handleRevocar}
+      />
+      <ConfirmDialog
+        open={dialogo === "profesor"}
+        onOpenChange={cerrar}
+        title={`¿Hacer profesor a ${usuario.nombre}?`}
+        description={
+          // La descripción del diálogo es un <p>: nada de listas adentro.
+          <span className="flex flex-col gap-2">
+            <span>Lo podrás elegir como quien dicta un curso. Su nombre y su especialidad se verán en la página pública de ese curso.</span>
+            <span>En la comunidad, sus respuestas llevarán la marca de profesor.</span>
+            <span>No le da acceso al panel de administración ni le deja editar cursos. Puedes quitarle el rol cuando quieras.</span>
+          </span>
+        }
+        confirmLabel="Hacer profesor"
+        onConfirm={() => cambiarRol(true)}
+      />
+      <ConfirmDialog
+        open={dialogo === "quitarProfesor"}
+        onOpenChange={cerrar}
+        title={`¿Quitarle el rol de profesor a ${usuario.nombre}?`}
+        description={
+          <span className="flex flex-col gap-2">
+            {usuario.cursosQueDicta.length > 0 ? (
+              <span>
+                Figura como profesor en {plural(usuario.cursosQueDicta.length, "curso", "cursos")}:{" "}
+                <span className="font-semibold text-uva-text">{usuario.cursosQueDicta.map((c) => c.titulo).join(", ")}</span>. Seguirá
+                saliendo en {usuario.cursosQueDicta.length === 1 ? "él" : "ellos"}, pero no podrás guardar cambios en{" "}
+                {usuario.cursosQueDicta.length === 1 ? "ese curso" : "esos cursos"} hasta elegir a otro profesor.
+              </span>
+            ) : (
+              <span>No figura como profesor en ningún curso.</span>
+            )}
+            <span>Sus respuestas en la comunidad dejarán de llevar la marca de profesor.</span>
+          </span>
+        }
+        confirmLabel="Quitar rol de profesor"
+        destructive
+        onConfirm={() => cambiarRol(false)}
+      />
+      <ConfirmDialog
+        open={dialogo === "suspender"}
+        onOpenChange={cerrar}
+        title={`¿Suspender a ${usuario.nombre}?`}
+        description="Se cerrará su sesión y no podrá entrar ni ver sus cursos hasta que la vuelvas a activar. Su avance y sus certificados se conservan."
+        confirmLabel="Suspender cuenta"
+        destructive
+        onConfirm={() => cambiarCuenta("SUSPENDIDO")}
       />
     </div>
   );

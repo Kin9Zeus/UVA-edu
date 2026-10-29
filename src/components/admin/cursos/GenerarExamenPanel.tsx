@@ -209,11 +209,11 @@ export function GenerarExamenPanel({
     <div className="max-w-[560px] rounded-uva-md border border-uva-divider bg-uva-surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="flex items-center gap-2 font-heading text-[15px] font-bold tracking-[-0.02em] text-uva-text">
+          <h3 className="flex items-center gap-2 font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
             <Sparkles className="size-4 text-uva-accent-ink" />
             Generar preguntas desde los videos
           </h3>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-uva-muted">
+          <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-muted">
             Se leen las transcripciones de todas las clases del curso y se
             proponen preguntas de opción única, cada una anclada a una frase
             literal de su video.
@@ -227,30 +227,30 @@ export function GenerarExamenPanel({
       </div>
 
       {errorEstado ? (
-        <p className="mt-3 text-[13px] text-uva-error">{errorEstado}</p>
+        <p className="mt-3 text-uva-detalle text-uva-error">{errorEstado}</p>
       ) : null}
 
       {estado && estado.totalVideos === 0 ? (
-        <p className="mt-3 text-[13px] leading-relaxed text-uva-text-faint">
+        <p className="mt-3 text-uva-detalle leading-relaxed text-uva-text-faint">
           Este curso todavía no tiene clases con video, así que no hay de qué
           preguntar. Sube los videos y vuelve.
         </p>
       ) : null}
 
       {faltan.length > 0 ? (
-        <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
-          <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-uva-badge-warn-fg">
+        <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
+          <p className="flex items-center gap-1.5 text-uva-detalle font-semibold text-uva-badge-warn-fg">
             <AlertTriangle className="size-3.5" />
             Faltan {faltan.length} {faltan.length === 1 ? "transcripción" : "transcripciones"}
           </p>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-uva-muted">
+          <p className="mt-1 text-uva-detalle leading-relaxed text-uva-muted">
             Mux las genera solo tras subir el video y tarda un rato. No se puede
             generar el examen a medias: saldría sin preguntas de estas clases y
             nadie lo notaría.
           </p>
           <ul className="mt-2 space-y-0.5">
             {faltan.map((video) => (
-              <li key={video.videoId} className="text-[12.5px] text-uva-text-faint">
+              <li key={video.videoId} className="text-uva-detalle text-uva-text-faint">
                 · {video.title}
               </li>
             ))}
@@ -264,7 +264,7 @@ export function GenerarExamenPanel({
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="w-[132px]">
-          <Label htmlFor="total-preguntas" className="text-[12.5px]">
+          <Label htmlFor="total-preguntas" className="text-uva-detalle">
             Preguntas del examen
           </Label>
           <Input
@@ -308,7 +308,7 @@ export function GenerarExamenPanel({
         </Button>
 
         {estado && estado.totalVideos > 0 ? (
-          <p className="text-[12.5px] leading-relaxed text-uva-text-faint">
+          <p className="text-uva-detalle leading-relaxed text-uva-text-faint">
             {total < estado.totalVideos
               ? `El curso tiene ${estado.totalVideos} lecciones: la IA elegirá los ${total} conceptos más evaluables.`
               : `Alcanza para cubrir las ${estado.totalVideos} lecciones.`}
@@ -316,7 +316,7 @@ export function GenerarExamenPanel({
         ) : null}
       </div>
 
-      <p className="mt-3 text-[12.5px] leading-relaxed text-uva-text-faint">
+      <p className="mt-3 text-uva-detalle leading-relaxed text-uva-text-faint">
         El examen se guarda en <strong className="font-semibold">borrador</strong>. Reví­salo y
         publícalo tú: nada de esto le llega a un estudiante hasta que lo hagas.
       </p>
@@ -330,6 +330,7 @@ export function GenerarExamenPanel({
           `Las que hayas escrito o editado a mano se conservan, y el examen sigue en borrador.`
         }
         confirmLabel="Regenerar"
+        destructive
         onConfirm={lanzar}
       />
     </div>
@@ -356,9 +357,9 @@ function ResultadoTrabajo({
 }) {
   if (trabajo.estado === "FALLIDO") {
     return (
-      <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+      <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
         <StatusBadge tone="error">Falló</StatusBadge>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-uva-muted">
+        <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-muted">
           {trabajo.error ?? "No quedó registrado el motivo."}
         </p>
       </div>
@@ -368,9 +369,9 @@ function ResultadoTrabajo({
   const descartadas = trabajo.preguntasRecibidas - trabajo.preguntasValidadas;
 
   return (
-    <div className="mt-3 rounded-[6px] border border-uva-divider bg-uva-bg p-3">
+    <div className="mt-3 rounded-uva-sm border border-uva-divider bg-uva-bg p-3">
       <StatusBadge tone="success">Última generación</StatusBadge>
-      <p className="mt-1.5 text-[12.5px] leading-relaxed text-uva-muted">
+      <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-muted">
         {trabajo.preguntasValidadas} preguntas guardadas
         {descartadas > 0 ? (
           <>
@@ -384,12 +385,12 @@ function ResultadoTrabajo({
         // Solo es un problema si el examen daba para cubrir el temario entero.
         // Si no, es la consecuencia de haber pedido un examen corto.
         trabajo.preguntasValidadas >= totalVideos ? (
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-uva-badge-warn-fg">
+          <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-badge-warn-fg">
             Sin ninguna pregunta: {trabajo.videosSinPreguntas.join(", ")} — revisa esas
             transcripciones.
           </p>
         ) : (
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-uva-text-faint">
+          <p className="mt-1.5 text-uva-detalle leading-relaxed text-uva-text-faint">
             {trabajo.videosSinPreguntas.length} lecciones quedaron fuera: pediste menos
             preguntas que lecciones tiene el curso.
           </p>

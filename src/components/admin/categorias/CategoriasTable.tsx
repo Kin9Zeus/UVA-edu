@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ import { SwitchEstado } from "@/components/admin/SwitchEstado";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useAdminToast } from "@/components/admin/Toast";
 import { CategoriaFormDialog } from "@/components/admin/categorias/CategoriaFormDialog";
+import { EstadoEnCatalogo, NotaCatalogo } from "@/components/admin/categorias/EstadoEnCatalogo";
 import {
   toggleActivaCategoria,
   eliminarCategoria,
@@ -40,11 +41,22 @@ import {
 } from "@/actions/admin/categorias";
 import type { Categoria } from "@/lib/admin/categorias";
 
-export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+export function CategoriasTable({
+  categorias,
+  encabezado,
+  resumen,
+}: {
+  categorias: Categoria[];
+  encabezado: ReactNode;
+  resumen: ReactNode;
+}) {
   const [verCursosDe, setVerCursosDe] = useState<Categoria | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<Categoria | null>(null);
   const [borrando, setBorrando] = useState<Categoria | null>(null);
+  const [apagando, setApagando] = useState<Categoria | null>(null);
   // Eliminar una categoría con cursos exige moverlos antes (la FK de
   // curso_categorias es RESTRICT), así que esos casos van por un diálogo
   // aparte que pide el destino en vez del ConfirmDialog de siempre.
@@ -57,9 +69,10 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
   const destinos = reasignando
     ? categorias.filter((item) => item.id !== reasignando.id)
     : [];
+  const cursosDe = (categoria: Categoria) => categoria.publicados + categoria.borradores;
 
   function pedirEliminar(categoria: Categoria) {
-    if (categoria.numeroCursos > 0) {
+    if (cursosDe(categoria) > 0) {
       setDestinoId("");
       setErrorReasignar(null);
       setReasignando(categoria);
@@ -82,9 +95,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
     }
 
     const destino = destinos.find((item) => item.id === destinoId)?.nombre ?? "otra categoría";
-    showToast(
-      `Categoría eliminada. ${reasignando.numeroCursos} curso(s) movidos a "${destino}".`,
-    );
+    showToast(`Eliminaste ${reasignando.nombre}. ${plural(cursosDe(reasignando), "curso pasó", "cursos pasaron")} a ${destino}.`);
     setReasignando(null);
   }
 
@@ -98,13 +109,23 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
     setFormOpen(true);
   }
 
-  async function handleToggle(categoria: Categoria, activo: boolean) {
+  async function cambiarEstado(categoria: Categoria, activo: boolean) {
     const resultado = await toggleActivaCategoria(categoria.id, activo);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast(activo ? "Categoría activada." : "Categoría desactivada.");
+    showToast(activo ? `Encendiste ${categoria.nombre}.` : `Apagaste ${categoria.nombre}.`);
+  }
+
+  // Apagar una categoría con cursos publicados cambia lo que ve la gente:
+  // primero se explica qué pasa. Encender, o apagar una que no se ve, no.
+  function handleToggle(categoria: Categoria, activo: boolean) {
+    if (!activo && categoria.publicados > 0) {
+      setApagando(categoria);
+      return;
+    }
+    void cambiarEstado(categoria, activo);
   }
 
   async function handleEliminar() {
@@ -114,164 +135,160 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast("Categoría eliminada.");
+    showToast(`Eliminaste ${borrando.nombre}.`);
   }
 
+  const interruptor = (categoria: Categoria) => (
+    <SwitchEstado
+      checked={categoria.activo}
+      onCheckedChange={(checked) => handleToggle(categoria, checked)}
+      etiquetas={["Encendida", "Apagada"]}
+      acciones={[`Encender ${categoria.nombre}`, `Apagar ${categoria.nombre}`]}
+    />
+  );
+
+  // Iconos en gris que se encienden en magenta al pasar el mouse; `title` da
+  // la etiqueta que el icono no muestra.
+  const acciones = (categoria: Categoria) => (
+    <div className="flex justify-end gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Editar ${categoria.nombre}`}
+        title="Editar categoría"
+        className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:size-11"
+        onClick={() => abrirEditar(categoria)}
+      >
+        <Pencil className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Eliminar ${categoria.nombre}`}
+        title="Eliminar categoría"
+        className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:size-11"
+        onClick={() => pedirEliminar(categoria)}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-[18px]">
-      <div className="flex justify-end">
-        <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={abrirCrear}>
-          + Nueva categoría
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 flex-1 basis-[28rem]">{encabezado}</div>
+        <Button type="button" variant="primary" className="max-sm:w-full" onClick={abrirCrear}>
+          <Plus aria-hidden />
+          Nueva categoría
         </Button>
       </div>
 
-      <AdminCard flush>
-        {categorias.length === 0 && (
-          <p className="px-5 py-6 text-center text-sm text-uva-muted-2">
-            No hay categorías todavía.
-          </p>
-        )}
+      {categorias.length > 0 && resumen}
 
-        {/* Mismo criterio que el resto del panel: 6 columnas (una un switch
-            funcional) no caben sin scroll horizontal en un touch. */}
-        {categorias.length > 0 && (
-          <div className="flex flex-col pointer-fine:md:hidden">
-            {categorias.map((categoria) => (
-              <div
-                key={categoria.id}
-                className="flex flex-col gap-2 border-b border-uva-divider px-5 py-3.5 last:border-b-0"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVerCursosDe(categoria)}
-                    className="text-left text-sm font-semibold text-uva-text hover:text-uva-accent-text"
-                  >
-                    {categoria.nombre}
-                  </button>
-                  <SwitchEstado
-                    checked={categoria.activo}
-                    onCheckedChange={(checked) => handleToggle(categoria, checked)}
-                    etiquetas={["Activa", "Inactiva"]}
-                    acciones={["Activar categoría", "Desactivar categoría"]}
-                  />
-                </div>
-                {categoria.descripcion && (
-                  <p className="text-xs text-uva-muted">{categoria.descripcion}</p>
-                )}
-                <p className="font-mono text-[12px] text-uva-muted-2 tabular-nums">
-                  {categoria.numeroCursos} curso{categoria.numeroCursos === 1 ? "" : "s"} · Creado por{" "}
-                  {categoria.creadoPor}
-                </p>
-                <div className="flex justify-end gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Editar categoría"
-                    title="Editar categoría"
-                    className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
-                    onClick={() => abrirEditar(categoria)}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Eliminar categoría"
-                    title="Eliminar categoría"
-                    className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
-                    onClick={() => pedirEliminar(categoria)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <section aria-labelledby="categorias-lista" className="flex flex-col gap-3">
+        <h2 id="categorias-lista" className="text-uva-titulo-4 text-uva-text">
+          {plural(categorias.length, "categoría", "categorías")}
+        </h2>
+        <AdminCard flush>
+          {categorias.length === 0 && (
+            <div className="grid justify-items-center gap-1 px-5 py-10 text-center">
+              <p className="m-0 font-bold text-uva-text">Todavía no hay categorías</p>
+              <p className="m-0 max-w-[46ch] text-uva-detalle text-uva-text-muted">
+                Cada curso necesita una. Crea la primera y aparece en el catálogo cuando tenga un curso publicado.
+              </p>
+            </div>
+          )}
 
-        {categorias.length > 0 && (
-        <Table className="hidden pointer-fine:md:table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Cursos</TableHead>
-              <TableHead>Creado por</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categorias.map((categoria) => (
-              <TableRow key={categoria.id}>
-                <TableCell>
-                  {/* El slug no se muestra acá: sería un renglón extra en
-                      cada fila para un dato que se consulta muy de vez en
-                      cuando. Vive en el diálogo de edición, que muestra el
-                      guardado de verdad (sufijo de desempate incluido). */}
-                  <button
-                    type="button"
-                    onClick={() => setVerCursosDe(categoria)}
-                    className="text-left font-semibold text-uva-text hover:text-uva-accent-text"
-                  >
-                    {categoria.nombre}
-                  </button>
-                </TableCell>
-                {/* El mockup no recorta la descripción: la celda crece y el
-                    texto se envuelve en varias líneas si hace falta. */}
-                <TableCell className="text-uva-muted whitespace-normal">
-                  {categoria.descripcion ?? "—"}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">{categoria.numeroCursos}</TableCell>
-                <TableCell className="text-[12px] text-uva-muted-2">{categoria.creadoPor}</TableCell>
-                <TableCell>
-                  <SwitchEstado
-                    checked={categoria.activo}
-                    onCheckedChange={(checked) => handleToggle(categoria, checked)}
-                    etiquetas={["Activa", "Inactiva"]}
-                    acciones={["Activar categoría", "Desactivar categoría"]}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  {/* Acciones de icono: el mockup las escribe con texto, pero
-                      aqui se conservan como iconos por decision de diseno. En
-                      reposo van en gris (--muted-2) y al hover se encienden en
-                      magenta, para que se lean como controles y no como
-                      adorno. `title` da la etiqueta que el icono no muestra. */}
-                  <div className="flex justify-end gap-1.5">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Editar categoría"
-                      title="Editar categoría"
-                      className="text-uva-muted-2 hover:text-uva-accent-ink"
-                      onClick={() => abrirEditar(categoria)}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Eliminar categoría"
-                      title="Eliminar categoría"
-                      className="text-uva-muted-2 hover:text-uva-accent-ink"
-                      onClick={() => pedirEliminar(categoria)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+          {/* En pantallas táctiles, tarjetas: qué es, si se ve y por qué,
+              sus cursos, y abajo los controles. */}
+          {categorias.length > 0 && (
+            <ul className="m-0 flex list-none flex-col p-0 pointer-fine:md:hidden">
+              {categorias.map((categoria) => (
+                <li key={categoria.id} className="flex flex-col gap-2 border-b border-uva-divider px-4 py-4 last:border-b-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="m-0 min-w-0 font-bold break-words text-uva-text">{categoria.nombre}</p>
+                    <EstadoEnCatalogo categoria={categoria} />
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        )}
-      </AdminCard>
+                  <p className="m-0 -mt-1 text-uva-detalle text-uva-text-muted">
+                    <NotaCatalogo categoria={categoria} />
+                  </p>
+                  {categoria.descripcion && (
+                    <p className="m-0 text-uva-detalle text-uva-text-muted">{categoria.descripcion}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setVerCursosDe(categoria)}
+                    className="-mx-2 inline-flex min-h-11 w-fit items-center rounded-uva-sm px-2 text-left text-uva-detalle text-uva-text hover:bg-uva-hover hover:text-uva-accent-text"
+                  >
+                    {plural(categoria.publicados, "curso publicado", "cursos publicados")}
+                    {categoria.borradores > 0 && `, ${categoria.borradores} en borrador`}
+                  </button>
+                  <div className="flex items-center justify-between gap-3 border-t border-uva-divider pt-2">
+                    {interruptor(categoria)}
+                    {acciones(categoria)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {categorias.length > 0 && (
+            <Table contenedorClassName="hidden pointer-fine:md:block" etiqueta="Tabla de categorías">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Cursos</TableHead>
+                  <TableHead>En el catálogo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Acciones</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categorias.map((categoria) => (
+                  <TableRow key={categoria.id}>
+                    {/* El slug vive en el diálogo de edición y en la columna
+                        En el catálogo, cuando la categoría tiene página. */}
+                    <TableCell className="max-w-96 whitespace-normal">
+                      <p className="m-0 font-bold text-uva-text">{categoria.nombre}</p>
+                      {categoria.descripcion && (
+                        <p className="m-0 line-clamp-2 text-uva-detalle text-uva-text-muted">{categoria.descripcion}</p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => setVerCursosDe(categoria)}
+                        aria-label={`Ver los cursos de ${categoria.nombre}`}
+                        className="-mx-2 -my-1.5 rounded-uva-sm px-2 py-1.5 text-left hover:bg-uva-hover hover:text-uva-accent-text"
+                      >
+                        <span className="block font-mono tabular-nums">{plural(categoria.publicados, "publicado", "publicados")}</span>
+                        {categoria.borradores > 0 && (
+                          <span className="block font-mono text-uva-detalle text-uva-text-muted tabular-nums">
+                            {categoria.borradores} en borrador
+                          </span>
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <EstadoEnCatalogo categoria={categoria} />
+                      <p className="m-0 mt-1 max-w-[30ch] text-uva-detalle text-uva-text-muted">
+                        <NotaCatalogo categoria={categoria} />
+                      </p>
+                    </TableCell>
+                    <TableCell>{interruptor(categoria)}</TableCell>
+                    <TableCell className="text-right">{acciones(categoria)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </AdminCard>
+      </section>
 
       <CategoriaFormDialog
         key={editando?.id ?? "nueva"}
@@ -281,10 +298,30 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
       />
 
       <ConfirmDialog
+        open={apagando !== null}
+        onOpenChange={(open) => !open && setApagando(null)}
+        title={`Apagar ${apagando?.nombre ?? ""}`}
+        confirmLabel="Apagar categoría"
+        description={
+          apagando &&
+          `Deja de salir en el filtro del catálogo y su página /catalogo/${apagando.slug} deja de existir. ` +
+            (apagando.publicados === 1
+              ? "Su curso publicado sigue en el catálogo, pero ya no se encuentra por esta categoría."
+              : `Sus ${apagando.publicados} cursos publicados siguen en el catálogo, pero ya no se encuentran por esta categoría.`) +
+            " La puedes volver a encender cuando quieras."
+        }
+        onConfirm={async () => {
+          if (apagando) await cambiarEstado(apagando, false);
+        }}
+      />
+
+      <ConfirmDialog
         open={borrando !== null}
         onOpenChange={(open) => !open && setBorrando(null)}
-        title="Eliminar categoría"
-        description={`¿Seguro que quieres eliminar "${borrando?.nombre}"? Esta acción no se puede deshacer.`}
+        title={`Eliminar ${borrando?.nombre ?? ""}`}
+        confirmLabel="Eliminar categoría"
+        destructive
+        description="No tiene cursos. No se puede deshacer."
         onConfirm={handleEliminar}
       />
 
@@ -301,20 +338,19 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             {errorReasignar && (
               <div
                 role="alert"
-                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
               >
                 {errorReasignar}
               </div>
             )}
 
-            <p className="text-[13.5px] text-uva-muted">
-              Esta categoría tiene {reasignando?.numeroCursos}{" "}
-              {reasignando?.numeroCursos === 1 ? "curso asociado" : "cursos asociados"}. Elige a
-              dónde moverlos: se reasignan y después se elimina la categoría.
+            <p className="text-uva-detalle text-uva-muted">
+              Tiene {reasignando && plural(cursosDe(reasignando), "curso", "cursos")}. Elige a dónde moverlos: se
+              mueven y después se elimina la categoría.
             </p>
 
             {destinos.length === 0 ? (
-              <p className="text-[13.5px] text-uva-error-text">
+              <p className="text-uva-detalle text-uva-error-text">
                 No hay otra categoría a la que mover los cursos. Crea una antes de eliminar esta.
               </p>
             ) : (
@@ -338,7 +374,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
                 </Select>
                 {/* Un curso que ya esté en el destino no se duplica: la
                     reasignación solo le quita la categoría que se elimina. */}
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   Los cursos que ya estén en la categoría de destino no se duplican.
                 </p>
               </div>
@@ -356,11 +392,11 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
             </Button>
             <Button
               type="button"
-              variant="primary"
+              variant="destructive-solid"
               onClick={handleReasignarYEliminar}
               disabled={pendingReasignar || destinoId === ""}
             >
-              {pendingReasignar ? "Procesando…" : "Reasignar y eliminar"}
+              {pendingReasignar ? "Moviendo…" : "Mover y eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -376,7 +412,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
           </DialogHeader>
           <div className="flex max-h-[300px] flex-col gap-1.5 overflow-auto">
             {verCursosDe?.cursos.length === 0 && (
-              <p className="text-[13.5px] text-uva-muted-2">
+              <p className="text-uva-detalle text-uva-muted-2">
                 Esta categoría todavía no tiene cursos asignados.
               </p>
             )}
@@ -384,7 +420,7 @@ export function CategoriasTable({ categorias }: { categorias: Categoria[] }) {
               <Link
                 key={curso.id}
                 href={`/admin/cursos/${curso.slug}`}
-                className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-[13px] font-semibold text-uva-text hover:text-uva-accent-text"
+                className="flex items-center justify-between gap-2 rounded-uva-md bg-uva-surface-2 px-3 py-2.5 text-uva-detalle font-semibold text-uva-text hover:text-uva-accent-text"
               >
                 <span className="min-w-0 truncate">{curso.titulo}</span>
                 <StatusBadge tone={curso.mostrado ? "success" : "neutral"} className="shrink-0">

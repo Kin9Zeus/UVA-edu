@@ -5,6 +5,13 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import {
   DESCRIPCION_TIPO,
@@ -197,7 +204,7 @@ export function PreguntaEditor({
   return (
     <div className="flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface-2 p-4">
       {error && (
-        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
           {error}
         </div>
       )}
@@ -205,22 +212,23 @@ export function PreguntaEditor({
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[200px] flex-1">
           <Label htmlFor={`tipo-${pregunta.id}`}>Tipo de pregunta</Label>
-          {/* <select> nativo y no el Select de Radix: son cuatro opciones fijas
-              dentro de un panel que ya tiene bastante interacción, y el nativo
-              es accesible por teclado sin ninguna configuración extra. */}
-          <select
-            id={`tipo-${pregunta.id}`}
+          <Select
+            items={ETIQUETA_TIPO}
             value={tipo}
-            onChange={(event) => cambiarTipo(event.target.value as TipoPreguntaImplementado)}
-            className="h-9 w-full rounded-uva-md border border-uva-line-strong bg-uva-surface px-3 text-[13.5px] text-uva-text outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+            onValueChange={(valor) => cambiarTipo(valor as TipoPreguntaImplementado)}
           >
-            {opcionesTipo.map((valor) => (
-              <option key={valor} value={valor}>
-                {ETIQUETA_TIPO[valor]}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-uva-text-faint">{DESCRIPCION_TIPO[tipo]}</p>
+            <SelectTrigger id={`tipo-${pregunta.id}`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {opcionesTipo.map((valor) => (
+                <SelectItem key={valor} value={valor}>
+                  {ETIQUETA_TIPO[valor]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-uva-detalle text-uva-text-faint">{DESCRIPCION_TIPO[tipo]}</p>
         </div>
 
         <div className="w-[110px]">
@@ -255,7 +263,7 @@ export function PreguntaEditor({
 
       {esEmparejar ? (
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-[13px] font-semibold text-uva-text">
+          <legend className="text-uva-detalle font-semibold text-uva-text">
             Pares a relacionar
             <span className="ml-2 font-normal text-uva-text-faint">
               El estudiante empareja cada izquierda con su derecha correcta.
@@ -326,7 +334,7 @@ export function PreguntaEditor({
         </fieldset>
       ) : esOpciones ? (
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-[13px] font-semibold text-uva-text">
+          <legend className="text-uva-detalle font-semibold text-uva-text">
             Opciones
             <span className="ml-2 font-normal text-uva-text-faint">
               {tipo === "OPCION_MULTIPLE"
@@ -402,7 +410,7 @@ export function PreguntaEditor({
         </fieldset>
       ) : (
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-[13px] font-semibold text-uva-text">
+          <legend className="text-uva-detalle font-semibold text-uva-text">
             Respuestas aceptadas
             <span className="ml-2 font-normal text-uva-text-faint">
               Se comparan ignorando mayúsculas, tildes y signos.
@@ -461,7 +469,7 @@ export function PreguntaEditor({
         {/* No se le muestra al estudiante mientras le queden intentos — con 3
             intentos, mostrarla permitiría reconstruir el examen. Queda para el
             reporte del admin y para la revisión posterior. */}
-        <p className="mt-0.5 mb-1.5 text-xs text-uva-text-faint">
+        <p className="mt-0.5 mb-1.5 text-uva-detalle text-uva-text-faint">
           Para tu registro. No se le muestra al estudiante al reprobar.
         </p>
         <div className="rounded-uva-md border border-uva-divider bg-uva-surface">

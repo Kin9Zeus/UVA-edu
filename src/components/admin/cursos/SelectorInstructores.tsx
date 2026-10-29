@@ -40,7 +40,7 @@ export function SelectorInstructores({
 
   if (instructores.length === 0) {
     return (
-      <p className="text-xs text-uva-text-faint">
+      <p className="text-uva-detalle text-uva-text-faint">
         Ningún usuario tiene rol Profesor todavía — asciende uno desde{" "}
         <Link href="/admin/usuarios" className="text-uva-accent-ink hover:underline">
           Usuarios
@@ -62,7 +62,7 @@ export function SelectorInstructores({
           <label
             key={instructor.id}
             htmlFor={inputId}
-            className="flex cursor-pointer items-center gap-2.5 rounded-uva-md px-2 py-1.5 text-[13.5px] text-uva-text hover:bg-uva-surface-2"
+            className="flex cursor-pointer items-center gap-2.5 rounded-uva-md px-2 py-1.5 text-uva-detalle text-uva-text hover:bg-uva-surface-2"
           >
             <Checkbox
               id={inputId}

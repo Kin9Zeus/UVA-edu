@@ -14,6 +14,7 @@ import {
 import { generarContenidoLeccionConIa } from "@/actions/admin/descripcionesIa";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { formatTamanoArchivo, formatHoras } from "@/lib/admin/format";
 import { VideoUploader } from "@/components/admin/cursos/VideoUploader";
 import type { LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
@@ -97,6 +98,8 @@ export function LeccionEditorPanel({
   });
   const inputArchivoRef = useRef<HTMLInputElement>(null);
   const showToast = useAdminToast();
+  const [confirmandoIa, setConfirmandoIa] = useState(false);
+  const [borrandoRecurso, setBorrandoRecurso] = useState<RecursoDetalle | null>(null);
 
   const sinGuardar =
     titulo !== guardadoComo.titulo ||
@@ -121,14 +124,14 @@ export function LeccionEditorPanel({
     }
   }
 
-  async function handleGenerarConIa() {
-    if (
-      !contenidoEstaVacio(contenido) &&
-      !window.confirm("La IA va a reemplazar el contenido actual del editor. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
-    ) {
-      return;
-    }
+  // Con contenido escrito, la propuesta lo reemplaza: se pregunta antes
+  // (diálogo propio, no window.confirm, que cada navegador pinta distinto).
+  function handleGenerarConIa() {
+    if (contenidoEstaVacio(contenido)) generarConIa();
+    else setConfirmandoIa(true);
+  }
 
+  async function generarConIa() {
     setGenerando(true);
     setError(null);
     const resultado = await generarContenidoLeccionConIa(leccion.id, cursoId);
@@ -246,7 +249,7 @@ export function LeccionEditorPanel({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center">
-        <h4 className="font-heading text-[14.5px] font-bold tracking-[-0.02em] text-uva-text">
+        <h4 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
           Editor de lección
         </h4>
         <Button
@@ -262,7 +265,7 @@ export function LeccionEditorPanel({
       </div>
 
       {error && (
-        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
           {error}
         </div>
       )}
@@ -284,7 +287,7 @@ export function LeccionEditorPanel({
                 opciones que no hacen nada. */}
             <div
               id="leccion-tipo"
-              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text"
+              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-uva-detalle text-uva-text"
             >
               Video
             </div>
@@ -315,7 +318,7 @@ export function LeccionEditorPanel({
             <Label htmlFor="leccion-duracion">Duración</Label>
             <div
               id="leccion-duracion"
-              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-sm text-uva-text-muted"
+              className="flex h-9 items-center rounded-uva-md border border-uva-divider bg-uva-surface px-3 text-uva-detalle text-uva-text-muted"
             >
               {duracion != null
                 ? formatHoras(duracion)
@@ -349,7 +352,7 @@ export function LeccionEditorPanel({
             </div>
 
             {recursos.length === 0 && !subiendoRecurso && (
-              <p className="mt-1.5 text-xs text-uva-muted-2">Sin materiales adicionales todavía.</p>
+              <p className="mt-1.5 text-uva-detalle text-uva-muted-2">Sin materiales adicionales todavía.</p>
             )}
 
             {recursos.length > 0 && (
@@ -359,8 +362,8 @@ export function LeccionEditorPanel({
                     key={recurso.id}
                     className="flex items-center gap-2 rounded-uva-md border border-uva-divider px-2.5 py-1.5"
                   >
-                    <span className="flex-1 truncate text-xs text-uva-text">{recurso.nombre}</span>
-                    <span className="shrink-0 font-mono text-[10.5px] text-uva-muted-2">
+                    <span className="flex-1 truncate text-uva-detalle text-uva-text">{recurso.nombre}</span>
+                    <span className="shrink-0 font-mono text-uva-etiqueta text-uva-muted-2">
                       {formatTamanoArchivo(recurso.tamanoBytes)}
                     </span>
                     <Button
@@ -370,7 +373,7 @@ export function LeccionEditorPanel({
                       aria-label={`Eliminar ${recurso.nombre}`}
                       title="Eliminar material"
                       className="shrink-0 text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3.5"
-                      onClick={() => handleEliminarRecurso(recurso)}
+                      onClick={() => setBorrandoRecurso(recurso)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -379,7 +382,7 @@ export function LeccionEditorPanel({
               </ul>
             )}
 
-            {subiendoRecurso && <p className="mt-1.5 text-xs text-uva-muted-2">Subiendo…</p>}
+            {subiendoRecurso && <p className="mt-1.5 text-uva-detalle text-uva-muted-2">Subiendo…</p>}
           </div>
         </div>
 
@@ -393,7 +396,7 @@ export function LeccionEditorPanel({
               type="button"
               variant="ghost"
               size="auto"
-              className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent-ink"
+              className="ml-auto gap-1.5 px-2 py-1 text-uva-detalle text-uva-muted-2 hover:text-uva-accent-ink"
               onClick={handleGenerarConIa}
               disabled={generando || video.estadoProcesamiento !== "LISTO"}
               title={
@@ -420,6 +423,29 @@ export function LeccionEditorPanel({
       <Button type="button" variant="primary" className="lg:self-end" onClick={handleGuardar} disabled={pending}>
         {pending ? "Guardando…" : "Guardar cambios"}
       </Button>
+
+      <ConfirmDialog
+        open={confirmandoIa}
+        onOpenChange={setConfirmandoIa}
+        title="Reemplazar el contenido con IA"
+        description="La propuesta de la IA reemplaza lo que hay ahora en el editor. Nada se guarda hasta que pulses «Guardar cambios»."
+        confirmLabel="Reemplazar contenido"
+        onConfirm={() => {
+          setConfirmandoIa(false);
+          generarConIa();
+        }}
+      />
+      <ConfirmDialog
+        open={borrandoRecurso !== null}
+        onOpenChange={(open) => !open && setBorrandoRecurso(null)}
+        title="Eliminar material"
+        description={`¿Eliminar "${borrandoRecurso?.nombre ?? ""}"? Los estudiantes dejarán de poder descargarlo. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar material"
+        destructive
+        onConfirm={async () => {
+          if (borrandoRecurso) await handleEliminarRecurso(borrandoRecurso);
+        }}
+      />
     </div>
   );
 }

@@ -81,9 +81,9 @@ export function IntentoRevisionDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {cargando && <p className="text-[13.5px] text-uva-text-faint">Cargando…</p>}
+        {cargando && <p className="text-uva-detalle text-uva-text-faint">Cargando…</p>}
         {error && (
-          <p role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <p role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </p>
         )}
@@ -91,15 +91,15 @@ export function IntentoRevisionDialog({
         {revision && (
           <div className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between rounded-uva-md bg-uva-surface-2 px-3.5 py-2.5">
-              <span className="text-[13px] text-uva-muted">
+              <span className="text-uva-detalle text-uva-muted">
                 {formatFechaHora(revision.finalizadoEn ?? revision.iniciadoEn)}
               </span>
               {/* Sin porcentaje: el examen ya no se aprueba por nota. Lo que
                   importa es cuántas resolvió y cuántas vidas le costó. */}
-              <span className="font-mono text-[15px] font-bold text-uva-text">
+              <span className="font-mono text-uva-cuerpo font-bold text-uva-text">
                 {revision.preguntas.filter((pregunta) => pregunta.acertada).length}/
                 {revision.preguntas.length}
-                <span className="ml-1.5 text-[11px] font-normal text-uva-text-faint">
+                <span className="ml-1.5 text-uva-etiqueta font-normal text-uva-text-faint">
                   correctas · {revision.vidasGastadas} de {VIDAS_INICIALES} vidas
                 </span>
               </span>
@@ -122,7 +122,7 @@ export function IntentoRevisionDialog({
                       <XCircle className="mt-0.5 size-4 shrink-0 text-uva-error" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] text-uva-text-faint">Pregunta {indice + 1}</p>
+                      <p className="text-uva-etiqueta text-uva-text-faint">Pregunta {indice + 1}</p>
                       <RichTextRenderer contenido={pregunta.enunciado} className="[&_p]:!m-0" />
                     </div>
                   </div>
@@ -132,7 +132,7 @@ export function IntentoRevisionDialog({
                       {pregunta.opciones.map((opcion) => (
                         <li
                           key={opcion.id}
-                          className={`flex items-center gap-2 text-[13px] ${
+                          className={`flex items-center gap-2 text-uva-detalle ${
                             opcion.correcta
                               ? "font-semibold text-uva-success-text"
                               : opcion.marcadaPorEstudiante
@@ -144,9 +144,9 @@ export function IntentoRevisionDialog({
                             {opcion.marcadaPorEstudiante ? "●" : "○"}
                           </span>
                           <span>{opcion.texto}</span>
-                          {opcion.correcta && <span className="text-[11px]">(correcta)</span>}
+                          {opcion.correcta && <span className="text-uva-etiqueta">(correcta)</span>}
                           {opcion.marcadaPorEstudiante && !opcion.correcta && (
-                            <span className="text-[11px]">(marcó esta)</span>
+                            <span className="text-uva-etiqueta">(marcó esta)</span>
                           )}
                         </li>
                       ))}
@@ -156,13 +156,13 @@ export function IntentoRevisionDialog({
                       {pregunta.pares.map((par) => (
                         <li
                           key={par.id}
-                          className={`text-[13px] ${par.correcta ? "font-semibold text-uva-success-text" : "text-uva-error-text"}`}
+                          className={`text-uva-detalle ${par.correcta ? "font-semibold text-uva-success-text" : "text-uva-error-text"}`}
                         >
                           <span>
                             {par.izquierda} → {par.derechaElegida ?? "(sin emparejar)"}
                           </span>
                           {!par.correcta && (
-                            <span className="ml-1.5 text-[11px] text-uva-text-faint">
+                            <span className="ml-1.5 text-uva-etiqueta text-uva-text-faint">
                               (correcta: {par.derecha})
                             </span>
                           )}
@@ -170,7 +170,7 @@ export function IntentoRevisionDialog({
                       ))}
                     </ul>
                   ) : (
-                    <div className="mt-2.5 pl-6 text-[13px]">
+                    <div className="mt-2.5 pl-6 text-uva-detalle">
                       <p className="text-uva-text-faint">
                         Respondió:{" "}
                         <span className={pregunta.acertada ? "text-uva-success-text" : "text-uva-error-text"}>

@@ -14,7 +14,7 @@ const twMerge = extendTailwindMerge({
     },
     classGroups: {
       "font-size": [
-        { "text-uva": ["display", "titulo-1", "titulo-2", "titulo-3", "titulo-4", "lead", "cuerpo", "detalle"] },
+        { "text-uva": ["display", "titulo-1", "titulo-2", "titulo-3", "titulo-4", "lead", "cuerpo", "detalle", "etiqueta"] },
       ],
     },
   },

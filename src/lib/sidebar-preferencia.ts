@@ -15,9 +15,8 @@ export const SIDEBAR_COOKIE = "uva-sidebar-colapsado";
 const UN_ANIO_EN_SEGUNDOS = 60 * 60 * 24 * 365;
 
 /**
- * "1" colapsado, "0" expandido. Sin cookie el panel del estudiante decide
- * por el ancho (ver PreferenciaSidebar); el de administración lo trata como
- * expandido.
+ * "1" colapsado, "0" expandido. Sin cookie, el panel del estudiante y el de
+ * administración deciden por el ancho (ver PreferenciaSidebar).
  */
 export function guardarSidebarColapsado(colapsado: boolean): void {
   if (typeof document === "undefined") return;

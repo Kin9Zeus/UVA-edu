@@ -5,6 +5,7 @@ import { getUsuarioDetalle, resolverUsuarioAdmin } from "@/lib/admin/usuarioDeta
 import { esUuid } from "@/lib/slug";
 import { UsuarioDetalleView } from "@/components/admin/usuarios/UsuarioDetalleView";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { PRECIOS_HABILITADOS } from "@/lib/features";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de usuario",
@@ -32,7 +33,7 @@ export default async function AdminUsuarioDetallePage({
 
   const supabase = await createClient();
   const [{ data: planes, error: errorPlanes }, { data: cursos, error: errorCursos }] = await Promise.all([
-    supabase.from("planes").select("id, nombre, precio_centavos, moneda").eq("activo", true).order("orden"),
+    supabase.from("planes").select("id, nombre, precio_centavos, moneda, duracion_dias").eq("activo", true).order("orden"),
     supabase.from("cursos").select("id, titulo").order("titulo"),
   ]);
   // Son las listas de los selectores "otorgar membresía / curso": vacías por un
@@ -48,6 +49,8 @@ export default async function AdminUsuarioDetallePage({
       usuario={usuario}
       planes={planes ?? []}
       cursosDisponibles={cursosDisponibles}
+      conCobro={PRECIOS_HABILITADOS}
+      ahora={new Date().toISOString()}
     />
   );
 }

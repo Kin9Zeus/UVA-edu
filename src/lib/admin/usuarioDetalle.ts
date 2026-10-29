@@ -9,6 +9,17 @@ import {
 } from "@/lib/examenes/estadoPorCurso";
 import { esUuid } from "@/lib/slug";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { semanasRecientes } from "@/lib/admin/semanas";
+import { origenDe, type AccesoListado } from "@/lib/admin/usuarios";
+import {
+  construirHistorial,
+  resumirDiasEstudio,
+  totalPagado,
+  type AccesoDeLaFicha,
+  type EstudioDeLaPersona,
+  type EventoHistorial,
+  type PagoDeLaFicha,
+} from "@/lib/admin/usuario-historial";
 
 export type CursoDelUsuario = {
   /**
@@ -63,6 +74,17 @@ export type UsuarioDetalle = {
   suscripcionFin: string | null;
   /** Motivo que el admin escribió al revocar (`revocarMembresia`). null si nunca se canceló a mano. */
   suscripcionMotivoCancelacion: string | null;
+  /** El acceso actual, con la misma forma que la lista para decirlo igual. */
+  acceso: AccesoListado | null;
+  /** La misma suscripción, con lo que hace falta para revocarla o darle más días. */
+  accesoActual: AccesoDeLaFicha | null;
+  historial: EventoHistorial[];
+  /** null si nunca pagó. */
+  totalPagado: string | null;
+  estudio: EstudioDeLaPersona;
+  clasesTerminadas: number;
+  /** Cursos donde figura como profesor: quitarle el rol no lo saca de ellos. */
+  cursosQueDicta: { titulo: string; slug: string }[];
   cursos: CursoDelUsuario[];
   metricas: {
     cursosInscritos: number;
@@ -114,17 +136,41 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
 
   if (!perfil) return null;
 
-  const { data: suscripciones, error: errorSuscripciones } = await supabase
-    .from("suscripciones")
-    .select(
-      "id, estado, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, motivo_cancelacion, plan:planes(nombre)",
-    )
-    .eq("id_usuario", usuarioId)
-    .order("fecha_inicio", { ascending: false })
-    .limit(1);
+  const ahora = new Date();
+  const [
+    { data: suscripciones, error: errorSuscripciones },
+    { data: intentos, error: errorIntentos },
+    { data: actividad, error: errorActividad },
+    { data: dicta, error: errorDicta },
+  ] = await Promise.all([
+    supabase
+      .from("suscripciones")
+      .select(
+        "id, estado, proveedor, fecha_inicio, fecha_renovacion, acceso_manual, id_codigo_invitacion, motivo_cancelacion, actualizado_en, monto_centavos, moneda, plan:planes(nombre), codigo:codigos_invitacion(codigo, id_lote)",
+      )
+      .eq("id_usuario", usuarioId)
+      .order("fecha_inicio", { ascending: false }),
+    supabase
+      .from("intentos_pago")
+      .select("estado, monto_centavos, moneda, actualizado_en, plan:planes(nombre), cupon:cupones(codigo)")
+      .eq("id_usuario", usuarioId),
+    supabase
+      .from("actividad_diaria")
+      .select("fecha")
+      .eq("id_usuario", usuarioId)
+      .gte("fecha", semanasRecientes(ahora).primerLunes),
+    supabase.from("curso_instructores").select("curso:cursos(titulo, slug)").eq("id_instructor", usuarioId),
+  ]);
   lanzarSiFalla(errorSuscripciones, "usuarioDetalle:suscripciones");
+  lanzarSiFalla(errorIntentos, "usuarioDetalle:intentos_pago");
+  lanzarSiFalla(errorActividad, "usuarioDetalle:actividad_diaria");
+  lanzarSiFalla(errorDicta, "usuarioDetalle:curso_instructores");
 
-  const suscripcion = suscripciones?.[0];
+  // La actual es la vigente si la hay (a lo sumo una, por el índice parcial
+  // `suscripcion_activa_unica_por_usuario`); si no, la más reciente. Mismo
+  // criterio que admin_listar_usuarios, para que lista y ficha digan lo mismo.
+  const suscripcion =
+    (suscripciones ?? []).find((s) => s.estado === "ACTIVA" || s.estado === "PAST_DUE") ?? suscripciones?.[0];
   const plan = suscripcion ? (Array.isArray(suscripcion.plan) ? suscripcion.plan[0] : suscripcion.plan) : null;
   const tipoAccesoSuscripcion = suscripcion
     ? tipoAccesoGratuito({
@@ -299,6 +345,37 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     curso.progreso = porcentajeMostrado(curso.progreso, examen);
   }
 
+  const uno = <T,>(valor: T | T[] | null | undefined): T | null => (Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null));
+  const accesos: AccesoDeLaFicha[] = (suscripciones ?? []).map((s) => {
+    const codigo = uno(s.codigo as { codigo: string; id_lote: string | null } | { codigo: string; id_lote: string | null }[] | null);
+    return {
+      id: s.id,
+      estado: estadoSuscripcionEfectivo({ estado: s.estado, fechaRenovacion: s.fecha_renovacion }, ahora),
+      proveedor: s.proveedor,
+      inicio: s.fecha_inicio,
+      fin: s.fecha_renovacion,
+      plan: uno(s.plan as { nombre: string } | { nombre: string }[] | null)?.nombre ?? null,
+      codigo: codigo?.codigo ?? null,
+      deLote: Boolean(codigo?.id_lote),
+      motivoCancelacion: s.motivo_cancelacion,
+      actualizadoEn: s.actualizado_en,
+    };
+  });
+  const pagos: PagoDeLaFicha[] = (intentos ?? []).map((p) => ({
+    estado: p.estado as PagoDeLaFicha["estado"],
+    montoCentavos: Number(p.monto_centavos),
+    moneda: p.moneda,
+    plan: uno(p.plan as { nombre: string } | { nombre: string }[] | null)?.nombre ?? "",
+    cupon: uno(p.cupon as { codigo: string } | { codigo: string }[] | null)?.codigo ?? null,
+    fecha: p.actualizado_en,
+  }));
+  const actualDeLaFicha = suscripcion ? accesos.find((a) => a.id === suscripcion.id) ?? null : null;
+
+  const clasesTerminadas = (progresoUsuario ?? []).filter((fila) => {
+    const leccion = Array.isArray(fila.leccion) ? fila.leccion[0] : fila.leccion;
+    return fila.completado && leccion?.estado_procesamiento === "LISTO";
+  }).length;
+
   const progresoPromedio =
     cursos.length > 0 ? Math.round(cursos.reduce((sum, curso) => sum + curso.progreso, 0) / cursos.length) : 0;
   const ultimaActividadGlobal = cursos.reduce<string | null>((max, curso) => {
@@ -341,6 +418,26 @@ export async function getUsuarioDetalle(usuarioId: string): Promise<UsuarioDetal
     suscripcionInicio: suscripcion?.fecha_inicio ?? null,
     suscripcionFin: suscripcion?.fecha_renovacion ?? null,
     suscripcionMotivoCancelacion: suscripcion?.motivo_cancelacion ?? null,
+    acceso: actualDeLaFicha
+      ? {
+          estado: actualDeLaFicha.estado,
+          origen: origenDe(actualDeLaFicha.proveedor),
+          inicio: actualDeLaFicha.inicio,
+          fin: actualDeLaFicha.fin,
+          plan: actualDeLaFicha.plan,
+          montoCentavos: suscripcion ? Number(suscripcion.monto_centavos) : null,
+          moneda: suscripcion?.moneda ?? null,
+          proveedor: actualDeLaFicha.proveedor,
+        }
+      : null,
+    accesoActual: actualDeLaFicha,
+    historial: construirHistorial(accesos, pagos, ahora),
+    totalPagado: totalPagado(pagos),
+    estudio: resumirDiasEstudio((actividad ?? []).map((fila) => fila.fecha as string), ahora),
+    clasesTerminadas,
+    cursosQueDicta: (dicta ?? [])
+      .map((fila) => uno(fila.curso as { titulo: string; slug: string } | { titulo: string; slug: string }[] | null))
+      .filter((curso): curso is { titulo: string; slug: string } => curso !== null),
     cursos,
     metricas: {
       cursosInscritos: cursos.length,

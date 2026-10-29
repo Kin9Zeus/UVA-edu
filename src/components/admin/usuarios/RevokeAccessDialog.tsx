@@ -75,7 +75,7 @@ export function RevokeAccessDialog({
         </DialogHeader>
 
         {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </div>
         )}

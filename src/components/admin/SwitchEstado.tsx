@@ -39,7 +39,7 @@ export function SwitchEstado({
           la columna con la vista. */}
       <span
         className={
-          checked ? "text-[13px] text-uva-text" : "text-[13px] text-uva-muted-2"
+          checked ? "text-uva-detalle text-uva-text" : "text-uva-detalle text-uva-muted-2"
         }
       >
         {checked ? etiquetas[0] : etiquetas[1]}

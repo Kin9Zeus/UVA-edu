@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { tabsListVariants, tabTriggerVariants } from "@/components/ui/tabs";
+import { AdminCard } from "@/components/admin/AdminCard";
 import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
 import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstructores";
 import { crearCurso, subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
@@ -146,32 +146,17 @@ export function CrearCursoForm({
   }
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-[18px]">
-      {/* Las tres pestañas del mockup en esta pantalla son inertes: solo
-          existe "Información" hasta que el curso esté creado. */}
-      <div className={tabsListVariants()}>
-        <span className={tabTriggerVariants({ state: "active" })}>Información</span>
-        <span
-          className={tabTriggerVariants({ state: "disabled" })}
-          title="Disponible después de crear el curso"
-        >
-          Configuración
-        </span>
-        <span
-          className={tabTriggerVariants({ state: "disabled" })}
-          title="Disponible después de crear el curso"
-        >
-          Contenido
-        </span>
-      </div>
+    <div className="flex flex-col gap-4">
+      {error && (
+        <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
+          {error}
+        </div>
+      )}
 
-      <div className="flex flex-col gap-4">
-        {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
-            {error}
-          </div>
-        )}
-
+      {/* La misma disposición que Información en la ficha del curso: los datos
+          a la izquierda; la portada y qué pasa después, a la derecha. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <AdminCard className="gap-4">
         <div>
           <Label htmlFor="curso-titulo">Nombre del curso</Label>
           <Input
@@ -189,49 +174,13 @@ export function CrearCursoForm({
             id="curso-descripcion"
             value={descripcion}
             onChange={(event) => setDescripcion(event.target.value)}
-            rows={4}
+            rows={5}
             placeholder="De qué trata el curso y qué aprenderá el estudiante"
+            aria-describedby="curso-descripcion-ayuda"
           />
-        </div>
-
-        <div>
-          <Label>Portada</Label>
-          {errorPortada && (
-            <div
-              role="alert"
-              className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
-            >
-              {errorPortada}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => inputPortadaRef.current?.click()}
-            className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint"
-          >
-            {previewPortada ? (
-              // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
-              <img src={previewPortada} alt="" className="size-full object-cover" />
-            ) : (
-              <div className="flex size-full items-center justify-center px-4">
-                Arrastra una imagen aquí o <span className="text-uva-accent-ink">selecciona un archivo</span>
-              </div>
-            )}
-          </button>
-          {previewPortada && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
-          )}
-          <p className="mt-1 text-xs text-uva-text-faint">
-            {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
-            recortada a 1280 × 720 px (16:9), igual que la vista previa.
+          <p id="curso-descripcion-ayuda" className="mt-1 text-uva-detalle text-uva-text-muted">
+            Sale en la ficha pública del curso. Cuando tenga clases, la puedes escribir con IA.
           </p>
-          <input
-            ref={inputPortadaRef}
-            type="file"
-            accept={ACCEPT_PORTADA}
-            className="hidden"
-            onChange={handleSeleccionarPortada}
-          />
         </div>
 
         {/* items-start: la lista de categorías es más alta que el Select de
@@ -276,27 +225,72 @@ export function CrearCursoForm({
             onChange={setIdsInstructores}
           />
         </div>
+        </AdminCard>
 
+        <div className="flex flex-col gap-4">
+          <AdminCard>
+            <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Portada</h2>
+            {errorPortada && (
+              <div
+                role="alert"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
+              >
+                {errorPortada}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => inputPortadaRef.current?.click()}
+              className="block aspect-video w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-uva-detalle text-uva-muted-2 hover:border-uva-text-faint"
+            >
+              {previewPortada ? (
+                // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
+                <img src={previewPortada} alt="" className="size-full object-cover" />
+              ) : (
+                <span className="flex size-full items-center justify-center px-4">
+                  <span>
+                    Arrastra una imagen aquí o <span className="text-uva-accent-ink">selecciona un archivo</span>
+                  </span>
+                </span>
+              )}
+            </button>
+            {previewPortada && (
+              <p className="text-uva-detalle text-uva-text-faint">Haz clic en la imagen para reemplazarla.</p>
+            )}
+            <p className="text-uva-detalle text-uva-text-faint">
+              {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
+              recortada a 1280 × 720 px (16:9), igual que la vista previa.
+            </p>
+            <input
+              ref={inputPortadaRef}
+              type="file"
+              accept={ACCEPT_PORTADA}
+              className="hidden"
+              onChange={handleSeleccionarPortada}
+            />
+          </AdminCard>
+
+          {/* Un curso recién creado no tiene clases y no se puede publicar
+              aquí: se dice qué sigue, en vez de las pestañas inertes de antes. */}
+          <AdminCard className="gap-2">
+            <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Después de crearlo</h2>
+            <ol className="m-0 flex list-decimal flex-col gap-1 pl-5 text-uva-detalle text-uva-text-muted">
+              <li>Queda en borrador: nadie lo ve en el catálogo.</li>
+              <li>En Contenido agregas los módulos, las clases y sus videos.</li>
+              <li>Se publica cuando tenga portada y todas las clases con video listo.</li>
+            </ol>
+          </AdminCard>
+        </div>
       </div>
 
-      {/* El mockup traía aquí un segundo botón "Publicar curso". Se quitó:
-          un curso recién creado no tiene portada, ni módulos, ni lecciones,
-          así que nunca pasaría las validaciones de publicación — el botón
-          solo podía dar error. Se publica desde el detalle, con el contenido
-          ya cargado. */}
-      {/* Apiladas a todo el ancho en mobile: lado a lado, "Crear curso" queda
-          chico a la izquierda y "Cancelar" empujado al extremo derecho con
-          un hueco vacío en medio — dos targets pequeños en esquinas
-          opuestas, nada pensado para el pulgar. Desde `sm` vuelven a su
-          fila original. */}
-      <div className="flex flex-col gap-2.5 border-t border-uva-divider pt-1.5 sm:flex-row">
+      {/* Apilados a todo el ancho en celular, para el pulgar; desde `sm`, en fila. */}
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button type="button" variant="primary" disabled={pending !== null} onClick={handleGuardar}>
-          {pending === "borrador" ? "Creando…" : "Crear curso"}
+          {pending === "borrador" ? "Creando…" : "Crear borrador"}
         </Button>
         <Button
           type="button"
-          variant="ghost"
-          className="text-uva-muted sm:ml-auto"
+          variant="outline"
           render={<Link href="/admin/cursos" />}
           nativeButton={false}
         >

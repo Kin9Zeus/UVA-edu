@@ -95,6 +95,14 @@ export async function actualizarCategoria(
 
   if (error) return { error: "No pudimos actualizar la categoría." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó una categoría",
+    entidadAfectada: "categorias",
+    idEntidadAfectada: id,
+    detalles: nombre,
+  });
+
   revalidatePath("/admin/categorias");
   revalidatePath("/catalogo");
   revalidatePath("/dashboard/catalogo");
@@ -109,8 +117,21 @@ export async function toggleActivaCategoria(id: string, activo: boolean): Promis
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { error } = await admin.supabase.from("categorias").update({ activo }).eq("id", id);
+  const { data: categoria, error } = await admin.supabase
+    .from("categorias")
+    .update({ activo })
+    .eq("id", id)
+    .select("nombre")
+    .maybeSingle();
   if (error) return { error: "No pudimos actualizar la categoría." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: activo ? "Activó una categoría" : "Desactivó una categoría",
+    entidadAfectada: "categorias",
+    idEntidadAfectada: id,
+    detalles: categoria?.nombre,
+  });
 
   revalidatePath("/admin/categorias");
   // El catalogo publico se sirve cacheado (src/lib/cache-catalogo.ts);

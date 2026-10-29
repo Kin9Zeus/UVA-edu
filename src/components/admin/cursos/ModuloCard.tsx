@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -12,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { AdminCard } from "@/components/admin/AdminCard";
@@ -30,6 +30,8 @@ import {
 } from "@/actions/admin/cursos";
 import { cn } from "@/lib/utils";
 import { LeccionEditorPanel } from "@/components/admin/cursos/LeccionEditorPanel";
+import { BotonesMover, CLASE_RECIEN_MOVIDO, useRecienMovido } from "@/components/admin/BotonesMover";
+import { moverA } from "@/lib/admin/reordenar";
 import type { ModuloDetalle, LeccionDetalle, RecursoDetalle } from "@/lib/admin/cursoDetalle";
 
 const ESTADO_LABEL = {
@@ -61,6 +63,9 @@ function avisoNotas(estudiantes: number, donde: string): string {
 export function ModuloCard({
   modulo,
   posicion,
+  totalModulos,
+  recienMovido,
+  onMover,
   totalLeccionesCurso,
   cursoId,
   leccionActivaId,
@@ -76,6 +81,11 @@ export function ModuloCard({
   modulo: ModuloDetalle;
   /** Posición 1..N en la lista; el mockup la pinta junto al nombre del módulo. */
   posicion: number;
+  totalModulos: number;
+  /** Se acaba de mover con subir/bajar o arrastrando: resalta la cabecera. */
+  recienMovido: boolean;
+  /** Mueve el módulo a la posición `destino` (0..N-1). Lo resuelve ContenidoTab. */
+  onMover: (destino: number) => void;
   /** Total de lecciones del curso completo (todos los módulos), no solo
    * este — determina si la primera lección cuenta como vista previa
    * pública (ver la etiqueta "Introducción" más abajo). */
@@ -107,6 +117,7 @@ export function ModuloCard({
   const [guardandoTitulo, setGuardandoTitulo] = useState(false);
   const showToast = useAdminToast();
   const router = useRouter();
+  const [leccionMovidaId, marcarLeccionMovida] = useRecienMovido();
 
   // Mismos sensores que ContenidoTab (mouse via PointerSensor, dedo con
   // long-press via TouchSensor) — cada módulo tiene su propia lista de
@@ -204,6 +215,8 @@ export function ModuloCard({
         recursos: [],
         estudiantesConProgreso: 0,
         estudiantesConNotas: 0,
+        terminaron: 0,
+        seQuedaron: 0,
       };
       onLeccionesChange(modulo.id, [...lecciones, nueva]);
       onSeleccionarLeccion(nueva);
@@ -225,74 +238,99 @@ export function ModuloCard({
     router.refresh();
   }
 
-  async function handleLeccionDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  // Arrastre y botones subir/bajar terminan aquí: los dos guardan igual.
+  async function moverLeccionA(leccionId: string, destino: number) {
+    const movimiento = moverA(lecciones, leccionId, destino);
+    if (!movimiento) return;
     if (!(await confirmarSalirSinGuardar())) return;
 
     const anteriores = lecciones;
-    const origenIndex = lecciones.findIndex((leccion) => leccion.id === active.id);
-    const targetIndex = lecciones.findIndex((leccion) => leccion.id === over.id);
-    if (origenIndex === -1 || targetIndex === -1) return;
+    onLeccionesChange(modulo.id, movimiento.lista);
+    marcarLeccionMovida(leccionId);
 
-    const reordenadas = arrayMove(lecciones, origenIndex, targetIndex);
-    onLeccionesChange(modulo.id, reordenadas);
+    const resultado = await moverLeccion(
+      cursoId,
+      modulo.id,
+      leccionId,
+      movimiento.idAnterior,
+      movimiento.idSiguiente,
+    );
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      // Reversión visible: el servidor no guardó el nuevo orden, así que
+      // la lista vuelve a como estaba antes del movimiento.
+      onLeccionesChange(modulo.id, anteriores);
+      return;
+    }
+    showToast(`Lección movida a la posición ${destino + 1} de ${movimiento.lista.length}.`);
+  }
 
-    const idAnterior = reordenadas[targetIndex - 1]?.id ?? null;
-    const idSiguiente = reordenadas[targetIndex + 1]?.id ?? null;
-
-    moverLeccion(cursoId, modulo.id, String(active.id), idAnterior, idSiguiente).then((resultado) => {
-      if (resultado.error) {
-        showToast(resultado.error, "error");
-        // Reversión visible: el servidor no guardó el nuevo orden, así que
-        // la lista vuelve a como estaba antes del arrastre.
-        onLeccionesChange(modulo.id, anteriores);
-      }
-    });
+  function handleLeccionDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    moverLeccionA(String(active.id), lecciones.findIndex((leccion) => leccion.id === over.id));
   }
 
   return (
     <AdminCard flush ref={setModuloNodeRef} style={moduloStyle}>
-      {/* Franja de cabecera del módulo: `background:var(--surface-2)` */}
-      <div className="flex items-center gap-2.5 bg-uva-surface-2 px-4 py-[13px]">
-        {/* El grip es el único punto de arrastre (no la tarjeta entera): así
-            el resto de la cabecera — renombrar, eliminar — sigue siendo
-            tocable/cliqueable sin competir con el gesto de reordenar.
-            `touch-action:none` evita que el navegador interprete el primer
-            roce como scroll de la página antes de que el long-press active
-            el drag. */}
+      {/* Franja de cabecera del módulo: `background:var(--surface-2)`. En
+          celular los botones bajan a su propia línea antes de apretar el
+          título (flex-wrap + min-w del título). */}
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-x-2.5 gap-y-1 bg-uva-surface-2 px-4 py-2 transition-colors duration-700 motion-reduce:transition-none",
+          recienMovido && CLASE_RECIEN_MOVIDO,
+        )}
+      >
+        {/* El asa es el único punto de arrastre (no la tarjeta entera): así
+            el resto de la cabecera sigue siendo tocable sin competir con el
+            gesto. `touch-action:none` evita que el navegador tome el primer
+            roce como scroll antes de que la pulsación larga active el
+            arrastre. En celular se oculta: subir/bajar hacen lo mismo con un
+            toque. */}
         <button
           type="button"
           {...moduloAttributes}
           {...moduloListeners}
-          aria-label={`Reordenar el módulo ${modulo.titulo}`}
-          className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing pointer-coarse:-m-3 pointer-coarse:p-3"
+          aria-label={`Arrastrar el módulo ${modulo.titulo}`}
+          className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing max-sm:hidden pointer-coarse:-m-3 pointer-coarse:p-3"
         >
-          <GripVertical className="size-[15px] shrink-0" strokeWidth={2} />
+          <GripVertical className="size-4 shrink-0" strokeWidth={2} />
         </button>
-        {editandoTitulo ? (
-          <Input
-            autoFocus
-            value={tituloEditado}
-            disabled={guardandoTitulo}
-            onChange={(event) => setTituloEditado(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") handleGuardarTitulo();
-              if (event.key === "Escape") {
-                setTituloEditado(modulo.titulo);
-                setEditandoTitulo(false);
-              }
-            }}
-            onBlur={handleGuardarTitulo}
-            className="h-7 max-w-[240px] text-[13.5px] font-bold"
-          />
-        ) : (
-          <span className="text-[13.5px] font-bold text-uva-text">{modulo.titulo}</span>
-        )}
-        {/* Índice decorativo (1..N): en mobile se quita para darle más
-            espacio al título, que ya lo dice todo lo que hace falta. */}
-        <span className="hidden font-mono text-[11.5px] text-uva-muted-2 sm:inline">{posicion}</span>
+        {/* Índice del curso: aquí el orden es el contenido de la pantalla,
+            así que el número es información (cambia al mover). */}
+        <span className="w-6 shrink-0 font-mono text-uva-detalle font-bold text-uva-accent-text tabular-nums">
+          {String(posicion).padStart(2, "0")}
+        </span>
+        <div className="min-w-40 flex-1">
+          {editandoTitulo ? (
+            <Input
+              autoFocus
+              aria-label="Nombre del módulo"
+              value={tituloEditado}
+              disabled={guardandoTitulo}
+              onChange={(event) => setTituloEditado(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleGuardarTitulo();
+                if (event.key === "Escape") {
+                  setTituloEditado(modulo.titulo);
+                  setEditandoTitulo(false);
+                }
+              }}
+              onBlur={handleGuardarTitulo}
+              className="max-w-[320px] font-bold"
+            />
+          ) : (
+            <span className="text-uva-detalle font-bold text-uva-text">{modulo.titulo}</span>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-1">
+          <BotonesMover
+            nombre={`el módulo ${modulo.titulo}`}
+            posicion={posicion - 1}
+            total={totalModulos}
+            onMover={onMover}
+          />
           {!editandoTitulo && (
             <Button
               type="button"
@@ -300,7 +338,7 @@ export function ModuloCard({
               size="icon-sm"
               aria-label={`Renombrar el módulo ${modulo.titulo}`}
               title="Renombrar módulo"
-              className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
+              className="text-uva-muted-2 hover:text-uva-accent-ink"
               onClick={() => {
                 setTituloEditado(modulo.titulo);
                 setEditandoTitulo(true);
@@ -315,7 +353,7 @@ export function ModuloCard({
             size="icon-sm"
             aria-label={`Eliminar el módulo ${modulo.titulo}`}
             title="Eliminar módulo"
-            className="text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
+            className="text-uva-muted-2 hover:text-uva-error-text"
             onClick={async () => {
               if (await confirmarSalirSinGuardar()) setBorrandoModulo(true);
             }}
@@ -334,6 +372,11 @@ export function ModuloCard({
                 <div key={leccion.id}>
                   <LeccionRow
                     leccion={leccion}
+                    indice={`${posicion}.${index + 1}`}
+                    posicion={index}
+                    total={lecciones.length}
+                    recienMovida={leccionMovidaId === leccion.id}
+                    onMover={(destino) => moverLeccionA(leccion.id, destino)}
                     activa={activa}
                     // Vista previa pública del curso (Revcurso: "que la
                     // primera lección sea visible"): esta es la que ve
@@ -381,7 +424,8 @@ export function ModuloCard({
               value={nombreLeccion}
               onChange={(event) => setNombreLeccion(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAgregarLeccion()}
-              className="h-8 text-sm sm:max-w-[280px]"
+              aria-label="Nombre de la lección"
+              className="sm:max-w-[280px]"
             />
             <div className="flex items-center gap-2">
               <Button type="button" size="sm" onClick={handleAgregarLeccion}>
@@ -396,9 +440,10 @@ export function ModuloCard({
           <button
             type="button"
             onClick={() => setAgregandoLeccion(true)}
-            className="w-full border-t border-uva-divider px-4 py-[9px] text-left text-xs text-uva-muted hover:bg-uva-hover"
+            className="flex min-h-11 w-full items-center gap-2 border-t border-uva-divider px-4 text-left text-uva-detalle text-uva-muted hover:bg-uva-hover hover:text-uva-text sm:pointer-fine:min-h-9"
           >
-            + Añadir lección
+            <Plus className="size-4" aria-hidden="true" />
+            Añadir lección
           </button>
         )}
       </div>
@@ -434,6 +479,8 @@ export function ModuloCard({
           </>
         }
         confirmText={modulo.titulo}
+        confirmLabel="Eliminar módulo"
+        destructive
         onConfirm={handleEliminarModulo}
       />
       <ConfirmDialog
@@ -466,6 +513,8 @@ export function ModuloCard({
           </>
         }
         confirmText={borrandoLeccion?.titulo}
+        confirmLabel="Eliminar lección"
+        destructive
         onConfirm={handleEliminarLeccion}
       />
     </AdminCard>
@@ -475,17 +524,28 @@ export function ModuloCard({
 /**
  * Fila de lección, ordenable por separado del módulo (dnd-kit necesita un
  * `useSortable` por elemento, y los hooks no se pueden llamar dentro de un
- * `.map`). Mismo criterio que el grip del módulo: solo el ícono de arrastre
- * dispara el drag, el resto de la fila sigue siendo tocable normalmente.
+ * `.map`). Mismo criterio que el asa del módulo: solo el asa dispara el
+ * arrastre, y subir/bajar hacen lo mismo con un toque o con teclado.
  */
 function LeccionRow({
   leccion,
+  indice,
+  posicion,
+  total,
+  recienMovida,
+  onMover,
   activa,
   esIntroduccion,
   onSeleccionar,
   onEliminar,
 }: {
   leccion: LeccionDetalle;
+  /** "2.3": módulo y lección. */
+  indice: string;
+  posicion: number;
+  total: number;
+  recienMovida: boolean;
+  onMover: (destino: number) => void;
   activa: boolean;
   /** true en la primera lección del primer módulo: vista previa pública del curso. */
   esIntroduccion: boolean;
@@ -507,56 +567,66 @@ function LeccionRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-[11px] border-t border-uva-divider px-4 py-[11px] hover:bg-uva-hover",
+        // En celular, dos líneas: número y título arriba (el título se lleva
+        // todo el ancho), insignias y botones abajo. En una sola, los tres
+        // botones de 44 px dejaban el título en una columna de 80 px.
+        "flex flex-wrap items-center gap-x-2.5 border-t border-uva-divider py-1.5 pr-2 pl-4 transition-colors duration-700 hover:bg-uva-hover motion-reduce:transition-none",
         activa && "bg-uva-hover",
+        recienMovida && CLASE_RECIEN_MOVIDO,
       )}
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
-        aria-label={`Reordenar la lección ${leccion.titulo}`}
-        className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing pointer-coarse:-m-3 pointer-coarse:p-3"
+        aria-label={`Arrastrar la lección ${leccion.titulo}`}
+        className="-m-1.5 cursor-grab touch-none p-1.5 text-uva-muted-2 active:cursor-grabbing max-sm:hidden pointer-coarse:-m-3 pointer-coarse:p-3"
       >
-        <GripVertical className="size-[14px] shrink-0" strokeWidth={2} />
+        <GripVertical className="size-4 shrink-0" strokeWidth={2} />
       </button>
-      {/* El esquema no distingue tipos de lección todavía: toda lección es un
-          video de Mux (id_video_mux / duracion / estado). Puramente
-          decorativo — se quita en mobile junto con la duración para darle
-          más aire al título, que es lo único que hace falta para elegir la
-          lección; ambos siguen visibles en el editor de la derecha. */}
-      <span className="hidden w-[14px] shrink-0 font-mono text-xs text-uva-muted sm:inline">
-        &#9654;
-      </span>
+      <span className="w-8 shrink-0 font-mono text-uva-etiqueta text-uva-muted tabular-nums">{indice}</span>
       <button
         type="button"
         onClick={onSeleccionar}
-        className="flex-1 truncate text-left text-[13px] text-uva-text"
+        aria-expanded={activa}
+        className="min-h-11 min-w-0 flex-1 text-left text-uva-detalle text-uva-text max-sm:basis-[calc(100%-2.625rem)] sm:pointer-fine:min-h-9"
       >
         {leccion.titulo}
       </button>
-      {esIntroduccion && (
-        <span className="shrink-0 rounded-uva-xs bg-uva-accent-soft px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[.1em] text-uva-accent-text uppercase">
-          Introducción
-        </span>
-      )}
-      <span className="hidden shrink-0 font-mono text-[11.5px] text-uva-muted-2 sm:inline">
-        {formatDuracion(leccion.duracion)}
+      <span className="flex shrink-0 items-center gap-2 max-sm:pl-[2.625rem]">
+        {/* Vista previa pública del curso: el que lo arma necesita saber
+            cuál es antes de subir el video. */}
+        {esIntroduccion && <StatusBadge tone="accent">Introducción</StatusBadge>}
+        {/* Sin video todavía no hay duración: la insignia de estado ya lo
+            dice, un "—" no agrega nada. */}
+        {leccion.duracion ? (
+          <span className="font-mono text-uva-etiqueta text-uva-muted-2 tabular-nums">
+            {formatDuracion(leccion.duracion)}
+          </span>
+        ) : null}
+        <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]}>
+          {ESTADO_LABEL[leccion.estadoProcesamiento]}
+        </StatusBadge>
       </span>
-      <StatusBadge tone={ESTADO_TONO[leccion.estadoProcesamiento]} className="shrink-0 text-[10px]">
-        {ESTADO_LABEL[leccion.estadoProcesamiento]}
-      </StatusBadge>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={`Eliminar la lección ${leccion.titulo}`}
-        title="Eliminar lección"
-        className="shrink-0 text-uva-muted-2 hover:text-uva-accent-ink pointer-coarse:p-3"
-        onClick={onEliminar}
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <BotonesMover
+          nombre={`la lección ${leccion.titulo}`}
+          posicion={posicion}
+          total={total}
+          onMover={onMover}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Eliminar la lección ${leccion.titulo}`}
+          title="Eliminar lección"
+          className="text-uva-muted-2 hover:text-uva-error-text"
+          onClick={onEliminar}
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
     </div>
   );
 }

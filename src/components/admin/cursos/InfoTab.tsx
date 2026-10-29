@@ -16,9 +16,14 @@ import {
 } from "@/components/ui/select";
 import { SelectorCategorias } from "@/components/admin/cursos/SelectorCategorias";
 import { SelectorInstructores } from "@/components/admin/cursos/SelectorInstructores";
+import { EnlacesVistaPrevia } from "@/components/admin/cursos/EnlacesVistaPrevia";
+import { AdminCard } from "@/components/admin/AdminCard";
+import { Switch } from "@/components/ui/switch";
+import type { EnlaceVistaPrevia } from "@/lib/admin/cursoDetalle";
 import { subirPortadaCurso, type NivelCurso } from "@/actions/admin/cursos";
 import { generarDescripcionCursoConIa } from "@/actions/admin/descripcionesIa";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   ACCEPT_PORTADA,
   ERROR_FORMATO_PORTADA,
@@ -35,9 +40,10 @@ const NIVEL_ITEMS = {
 };
 
 /**
- * Controlado desde CursoDetalleView: el guardado es compartido con
- * ConfiguracionTab a través de un solo botón en la cabecera (ver comentario
- * ahí), así que este tab no guarda su propio estado ni dispara la mutación.
+ * Controlado desde CursoDetalleView: guarda la barra "Tienes cambios sin
+ * guardar" de esa vista, así que este tab no dispara la mutación (salvo la
+ * portada, que se guarda sola al confirmarla). A la derecha va lo que antes
+ * era la pestaña Configuración, menos publicar, que pasó a la cabecera.
  */
 export function InfoTab({
   cursoId,
@@ -55,6 +61,12 @@ export function InfoTab({
   idsInstructores,
   onIdsInstructoresChange,
   instructores,
+  destacado,
+  onDestacadoChange,
+  orden,
+  onOrdenChange,
+  enPortada,
+  enlacesVistaPrevia,
   error,
 }: {
   cursoId: string;
@@ -73,6 +85,13 @@ export function InfoTab({
   onIdsInstructoresChange: (ids: string[]) => void;
   /** Cuentas con rol PROFESOR (getPerfilesProfesor). Puede venir vacía. */
   instructores: { id: string; nombre: string }[];
+  destacado: boolean;
+  onDestacadoChange: (value: boolean) => void;
+  orden: number;
+  onOrdenChange: (value: number) => void;
+  /** El curso que hoy sale en la portada, si hay uno. */
+  enPortada: { id: string; titulo: string } | null;
+  enlacesVistaPrevia: EnlaceVistaPrevia[];
   error: string | null;
 }) {
   const [subiendoPortada, setSubiendoPortada] = useState(false);
@@ -86,17 +105,16 @@ export function InfoTab({
   const showToast = useAdminToast();
   const [generandoDescripcion, setGenerandoDescripcion] = useState(false);
   const [errorDescripcion, setErrorDescripcion] = useState<string | null>(null);
+  const [confirmandoIa, setConfirmandoIa] = useState(false);
 
   /** Carga la propuesta en el campo sin guardarla: queda como un cambio más
    * del formulario, que se guarda (o se descarta) con el botón de la cabecera. */
-  async function handleGenerarDescripcion() {
-    if (
-      descripcion.trim() !== "" &&
-      !window.confirm("La IA va a reemplazar la descripción actual. Nada se guarda hasta que pulses \"Guardar cambios\". ¿Continuar?")
-    ) {
-      return;
-    }
+  function handleGenerarDescripcion() {
+    if (descripcion.trim() === "") generarDescripcion();
+    else setConfirmandoIa(true);
+  }
 
+  async function generarDescripcion() {
     setGenerandoDescripcion(true);
     setErrorDescripcion(null);
     const resultado = await generarDescripcionCursoConIa(cursoId);
@@ -175,13 +193,21 @@ export function InfoTab({
     }
   }
 
+  // "Destacado" pone UN curso en la portada y en el inicio del estudiante:
+  // el primero destacado y publicado por orden (lib/cursoDestacado.ts).
+  const notaPortada = !enPortada
+    ? "Hoy no sale ninguno."
+    : enPortada.id === cursoId
+      ? "Hoy sale este."
+      : `Hoy sale ${enPortada.titulo}.`;
+
   return (
-    // El mockup no envuelve esta pestaña en `.card`: es una columna suelta.
-    <div className="flex max-w-[640px] flex-col gap-4">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <AdminCard className="gap-4">
       {error && (
         <div
           role="alert"
-          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+          className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
         >
           {error}
         </div>
@@ -205,7 +231,7 @@ export function InfoTab({
             type="button"
             variant="ghost"
             size="auto"
-            className="ml-auto gap-1.5 px-2 py-1 text-xs text-uva-muted-2 hover:text-uva-accent-ink"
+            className="ml-auto gap-1.5 px-2 py-1 text-uva-detalle text-uva-muted-2 hover:text-uva-accent-ink"
             onClick={handleGenerarDescripcion}
             disabled={generandoDescripcion}
             title="Escribe la descripción a partir del temario y el contenido de las lecciones"
@@ -217,7 +243,7 @@ export function InfoTab({
         {errorDescripcion && (
           <div
             role="alert"
-            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
           >
             {errorDescripcion}
           </div>
@@ -227,88 +253,6 @@ export function InfoTab({
           value={descripcion}
           onChange={(event) => onDescripcionChange(event.target.value)}
           rows={5}
-        />
-      </div>
-
-      <div>
-        <Label>Portada</Label>
-        {errorPortada && (
-          <div
-            role="alert"
-            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
-          >
-            {errorPortada}
-          </div>
-        )}
-        {/* El recuadro muestra la imagen pendiente si hay una; si no, la
-            portada guardada. Es aspect-video + object-cover, el mismo
-            encuadre 16:9 centrado que el servidor aplica al guardar, así
-            que la vista previa no miente sobre el recorte. */}
-        <button
-          type="button"
-          onClick={() => inputPortadaRef.current?.click()}
-          disabled={subiendoPortada}
-          className="block aspect-video w-full max-w-[280px] overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-[13px] text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
-        >
-          {previewPendiente ? (
-            // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
-            <img src={previewPendiente} alt="" className="size-full object-cover" />
-          ) : fuenteVistaPrevia ? (
-            <Image
-              src={fuenteVistaPrevia}
-              alt=""
-              width={1280}
-              height={720}
-              sizes="280px"
-              className="size-full object-cover"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center px-4">
-              Arrastra una imagen aquí o{" "}
-              <span className="text-uva-accent-ink">selecciona un archivo</span>
-            </div>
-          )}
-        </button>
-
-        {portadaPendiente ? (
-          <div className="mt-2 flex items-center gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={handleConfirmarPortada}
-              disabled={subiendoPortada}
-            >
-              {subiendoPortada ? "Subiendo…" : "Usar esta portada"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={descartarPortadaPendiente}
-              disabled={subiendoPortada}
-            >
-              Descartar
-            </Button>
-          </div>
-        ) : (
-          esPortadaReal(imagenPortada) && (
-            <p className="mt-1.5 text-xs text-uva-text-faint">
-              Haz clic en la imagen para reemplazarla.
-            </p>
-          )
-        )}
-
-        <p className="mt-1 text-xs text-uva-text-faint">
-          {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
-          recortada a 1280 × 720 px (16:9), igual que la vista previa.
-        </p>
-        <input
-          ref={inputPortadaRef}
-          type="file"
-          accept={ACCEPT_PORTADA}
-          className="hidden"
-          onChange={handleSeleccionarPortada}
         />
       </div>
 
@@ -355,6 +299,139 @@ export function InfoTab({
           onChange={onIdsInstructoresChange}
         />
       </div>
+
+      </AdminCard>
+
+      <div className="flex flex-col gap-4">
+        <AdminCard>
+        <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Portada</h2>
+        {errorPortada && (
+          <div
+            role="alert"
+            className="mb-2 rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
+          >
+            {errorPortada}
+          </div>
+        )}
+        {/* El recuadro muestra la imagen pendiente si hay una; si no, la
+            portada guardada. Es aspect-video + object-cover, el mismo
+            encuadre 16:9 centrado que el servidor aplica al guardar, así
+            que la vista previa no miente sobre el recorte. */}
+        <button
+          type="button"
+          onClick={() => inputPortadaRef.current?.click()}
+          disabled={subiendoPortada}
+          className="block aspect-video w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-uva-detalle text-uva-muted-2 hover:border-uva-text-faint disabled:pointer-events-none disabled:opacity-60"
+        >
+          {previewPendiente ? (
+            // eslint-disable-next-line @next/next/no-img-element -- preview local (URL.createObjectURL), no un asset optimizable
+            <img src={previewPendiente} alt="" className="size-full object-cover" />
+          ) : fuenteVistaPrevia ? (
+            <Image
+              src={fuenteVistaPrevia}
+              alt=""
+              width={1280}
+              height={720}
+              sizes="320px"
+              className="size-full object-cover"
+            />
+          ) : (
+            <span className="flex size-full items-center justify-center px-4">
+              <span>
+                Arrastra una imagen aquí o <span className="text-uva-accent-ink">selecciona un archivo</span>
+              </span>
+            </span>
+          )}
+        </button>
+
+        {portadaPendiente ? (
+          <div className="mt-2 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmarPortada}
+              disabled={subiendoPortada}
+            >
+              {subiendoPortada ? "Subiendo…" : "Usar esta portada"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={descartarPortadaPendiente}
+              disabled={subiendoPortada}
+            >
+              Descartar
+            </Button>
+          </div>
+        ) : (
+          esPortadaReal(imagenPortada) && (
+            <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
+              Haz clic en la imagen para reemplazarla.
+            </p>
+          )
+        )}
+
+        <p className="mt-1 text-uva-detalle text-uva-text-faint">
+          {FORMATOS_PORTADA.join(", ")} hasta {TAMANO_MAXIMO_PORTADA / 1024 / 1024} MB. Se guarda
+          recortada a 1280 × 720 px (16:9), igual que la vista previa.
+        </p>
+        <input
+          ref={inputPortadaRef}
+          type="file"
+          accept={ACCEPT_PORTADA}
+          className="hidden"
+          onChange={handleSeleccionarPortada}
+        />
+        </AdminCard>
+
+        <AdminCard className="gap-4">
+          <h2 className="text-uva-cuerpo font-extrabold text-uva-text">En el catálogo</h2>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p id="info-portada-titulo" className="text-uva-detalle font-semibold text-uva-text">Mostrar en la portada</p>
+              <p id="info-portada-nota" className="text-uva-detalle text-uva-text-muted">
+                Sale un solo curso en la portada y en el inicio del estudiante: el destacado y publicado con el orden
+                menor. {notaPortada}
+              </p>
+            </div>
+            <Switch
+              checked={destacado}
+              onCheckedChange={onDestacadoChange}
+              aria-labelledby="info-portada-titulo"
+              aria-describedby="info-portada-nota"
+            />
+          </div>
+          <div>
+            <Label htmlFor="info-orden">Orden en el catálogo</Label>
+            <Input
+              id="info-orden"
+              type="number"
+              value={orden}
+              onChange={(event) => onOrdenChange(Number(event.target.value))}
+              aria-describedby="info-orden-ayuda"
+              className="max-w-[120px]"
+            />
+            <p id="info-orden-ayuda" className="mt-1 text-uva-detalle text-uva-text-muted">
+              El número menor sale primero.
+            </p>
+          </div>
+          <EnlacesVistaPrevia cursoId={cursoId} enlaces={enlacesVistaPrevia} />
+        </AdminCard>
+      </div>
+
+      <ConfirmDialog
+        open={confirmandoIa}
+        onOpenChange={setConfirmandoIa}
+        title="Reemplazar la descripción con IA"
+        description="La propuesta de la IA reemplaza la descripción actual. Nada se guarda hasta que pulses «Guardar cambios»."
+        confirmLabel="Reemplazar descripción"
+        onConfirm={() => {
+          setConfirmandoIa(false);
+          generarDescripcion();
+        }}
+      />
     </div>
   );
 }

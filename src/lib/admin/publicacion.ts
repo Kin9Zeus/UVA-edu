@@ -26,18 +26,26 @@ export type CursoParaPublicar = {
  * curso a medias es peor que no publicarlo".
  */
 export function motivosParaNoPublicar(curso: CursoParaPublicar): string[] {
-  const motivos: string[] = [];
+  return faltasParaPublicar(curso).map((falta) => falta.motivo);
+}
+
+/**
+ * Lo mismo que motivosParaNoPublicar, cada uno con su versión corta para una
+ * línea de lista ("Falta: portada y 2 videos"). Una sola regla para las dos.
+ */
+export function faltasParaPublicar(curso: CursoParaPublicar): { corto: string; motivo: string }[] {
+  const faltas: { corto: string; motivo: string }[] = [];
 
   if (curso.titulo.trim() === "") {
-    motivos.push("El curso necesita un título.");
+    faltas.push({ corto: "título", motivo: "El curso necesita un título." });
   }
 
   if (!esPortadaReal(curso.imagenPortada)) {
-    motivos.push("El curso necesita una portada.");
+    faltas.push({ corto: "portada", motivo: "El curso necesita una portada." });
   }
 
   if (curso.modulos.length === 0) {
-    motivos.push("El curso necesita al menos un módulo.");
+    faltas.push({ corto: "un módulo", motivo: "El curso necesita al menos un módulo." });
   }
 
   const lecciones = curso.modulos.flatMap((modulo) => modulo.lecciones);
@@ -45,7 +53,7 @@ export function motivosParaNoPublicar(curso: CursoParaPublicar): string[] {
   // Un módulo vacío no aporta nada al estudiante: cuenta como contenido a
   // medias igual que una lección sin video.
   if (curso.modulos.length > 0 && lecciones.length === 0) {
-    motivos.push("El curso necesita al menos una lección.");
+    faltas.push({ corto: "una clase", motivo: "El curso necesita al menos una lección." });
   }
 
   const sinVideoListo = lecciones.filter(
@@ -53,14 +61,14 @@ export function motivosParaNoPublicar(curso: CursoParaPublicar): string[] {
   ).length;
 
   if (sinVideoListo > 0) {
-    motivos.push(
+    faltas.push(
       sinVideoListo === 1
-        ? "Hay 1 lección cuyo video todavía no está listo."
-        : `Hay ${sinVideoListo} lecciones cuyo video todavía no está listo.`,
+        ? { corto: "1 video", motivo: "Hay 1 lección cuyo video todavía no está listo." }
+        : { corto: `${sinVideoListo} videos`, motivo: `Hay ${sinVideoListo} lecciones cuyo video todavía no está listo.` },
     );
   }
 
-  return motivos;
+  return faltas;
 }
 
 /** Azúcar para los sitios que solo necesitan el sí/no. */

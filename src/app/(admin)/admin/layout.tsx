@@ -5,7 +5,7 @@ import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
 import { Header } from "@/components/admin/Header";
 import { AdminToastProvider } from "@/components/admin/Toast";
 import { AdminSearchProvider } from "@/components/admin/SearchContext";
-import { leerSidebarColapsado } from "@/lib/sidebar-preferencia-servidor";
+import { leerPreferenciaSidebar } from "@/lib/sidebar-preferencia-servidor";
 
 export default async function AdminLayout({
   children,
@@ -56,13 +56,13 @@ export default async function AdminLayout({
     <AdminToastProvider>
       <AdminSearchProvider>
         <div className="flex min-h-screen">
-          <Sidebar colapsadoInicial={await leerSidebarColapsado()} />
+          <Sidebar preferenciaInicial={await leerPreferenciaSidebar()} />
           <div className="flex min-w-0 flex-1 flex-col">
             <Header nombre={nombre} fotoUrl={fotoUrl} />
-            {/* `main` del mockup: padding 28px / clamp / 60px y ancho maximo
-                de 1360px alineado a la izquierda, no centrado. */}
-            <main id="contenido" tabIndex={-1} className="flex-1 px-[clamp(20px,3vw,36px)] pt-7 pb-[calc(env(safe-area-inset-bottom)+88px)] md:pb-15">
-              <div className="max-w-[1360px]">{children}</div>
+            {/* Mismo ancho y márgenes que el panel del estudiante. Abajo, en
+                celular, el espacio de la barra de navegación flotante. */}
+            <main id="contenido" tabIndex={-1} className="flex-1 pb-[calc(env(safe-area-inset-bottom)+88px)] md:pb-0">
+              <div className="mx-auto w-full max-w-uva px-uva-margen py-7 lg:py-9">{children}</div>
             </main>
             <AdminBottomTabBar />
           </div>

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { estadoCodigo } from "@/lib/codigoInvitacion";
+import { estadoCodigo, type EstadoCodigo } from "@/lib/codigoInvitacion";
+import { diasEntre } from "@/lib/admin/comunidadReportes";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
@@ -19,6 +20,10 @@ export type LoteCodigosInvitacion = {
   cantidad: number;
   duracionDias: number;
   fechaVencimiento: string;
+  diasParaVencer: number;
+  /** Del lote entero: vencido por fecha, agotado si se canjearon todos,
+   *  inactivo si ninguno de los que quedan se puede canjear. */
+  estado: EstadoCodigo;
   creadoPor: string;
   creadoEn: string;
   /** Códigos del lote que TODAVÍA EXISTEN (no se han eliminado). A
@@ -83,11 +88,24 @@ export async function getLotesCodigosInvitacion(): Promise<LoteCodigosInvitacion
     const agregados =
       agregadosPorLote.get(lote.id as string) ?? { totalActual: 0, canjeados: 0, activos: 0 };
 
+    const fechaVencimiento = lote.fecha_vencimiento as string;
+    const diasParaVencer = diasEntre(new Date().toISOString(), new Date(fechaVencimiento));
+    const estado: EstadoCodigo =
+      new Date(fechaVencimiento) <= new Date()
+        ? "VENCIDO"
+        : agregados.canjeados >= agregados.totalActual
+          ? "AGOTADO"
+          : agregados.activos === 0
+            ? "INACTIVO"
+            : "ACTIVO";
+
     return {
       id: lote.id as string,
       cantidad: lote.cantidad as number,
       duracionDias: lote.duracion_dias as number,
-      fechaVencimiento: lote.fecha_vencimiento as string,
+      fechaVencimiento,
+      diasParaVencer,
+      estado,
       creadoPor: adminCreador?.nombre ?? "—",
       creadoEn: lote.creado_en as string,
       totalActual: agregados.totalActual,

@@ -461,6 +461,14 @@ export async function actualizarInfoCurso(
   );
   if (errorSincronizacion) return { error: errorSincronizacion };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó la información de un curso",
+    entidadAfectada: "cursos",
+    idEntidadAfectada: cursoId,
+    detalles: titulo,
+  });
+
   revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
   revalidatePath("/catalogo");
@@ -547,6 +555,13 @@ export async function actualizarConfiguracionCurso(
     .eq("id", cursoId);
 
   if (error) return { error: "No pudimos guardar la configuración." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Editó la configuración de un curso",
+    entidadAfectada: "cursos",
+    idEntidadAfectada: cursoId,
+  });
 
   revalidarCursoAdmin();
   revalidatePath("/admin/cursos");
@@ -640,6 +655,14 @@ export async function subirPortadaCurso(
     await admin.supabase.storage.from(BUCKET_PORTADAS).remove([rutaArchivo]);
     return { error: "No pudimos guardar la portada." };
   }
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Cambió la portada de un curso",
+    entidadAfectada: "cursos",
+    idEntidadAfectada: cursoId,
+    detalles: curso?.titulo ?? undefined,
+  });
 
   // Se borra después de confirmar el update: si algo falla antes, la
   // portada anterior se queda intacta en vez de perderse.
@@ -744,6 +767,14 @@ export async function crearModulo(cursoId: string, titulo: string): Promise<Admi
 
   if (error) return { error: "No pudimos crear el módulo." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Creó un módulo",
+    entidadAfectada: "modulos",
+    idEntidadAfectada: cursoId,
+    detalles: tituloLimpio,
+  });
+
   revalidarCursoAdmin();
   return { success: true };
 }
@@ -763,6 +794,14 @@ export async function actualizarModulo(
   const { error } = await admin.supabase.from("modulos").update({ titulo: parseo.data }).eq("id", moduloId);
   if (error) return { error: "No pudimos renombrar el módulo." };
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Renombró un módulo",
+    entidadAfectada: "modulos",
+    idEntidadAfectada: cursoId,
+    detalles: parseo.data,
+  });
+
   revalidarCursoAdmin();
   return { success: true };
 }
@@ -771,6 +810,15 @@ export async function eliminarModulo(moduloId: string): Promise<AdminActionResul
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
   if (!idSchema.safeParse(moduloId).success) return { error: "Módulo inválido." };
+
+  // Para la bitácora: el módulo deja de existir, así que se guarda su título
+  // y el curso al que pertenecía antes de borrarlo.
+  const { data: modulo, error: errorModulo } = await admin.supabase
+    .from("modulos")
+    .select("titulo, id_curso")
+    .eq("id", moduloId)
+    .maybeSingle();
+  if (errorModulo) return { error: "No pudimos leer el módulo." };
 
   // Sus lecciones se van con el módulo (ON DELETE CASCADE), y sus videos
   // tienen que irse de Mux con ellas — ver `borrarConSusVideos`.
@@ -785,6 +833,14 @@ export async function eliminarModulo(moduloId: string): Promise<AdminActionResul
   );
   if (borrado === "sin-cola") return { error: "No pudimos preparar el borrado de los videos. Intenta de nuevo." };
   if (borrado === "error") return { error: "No pudimos eliminar el módulo." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Eliminó un módulo",
+    entidadAfectada: "modulos",
+    idEntidadAfectada: modulo?.id_curso ?? undefined,
+    detalles: `${modulo?.titulo ?? "Módulo"}, ${lecciones?.length ?? 0} ${lecciones?.length === 1 ? "lección" : "lecciones"}`,
+  });
 
   revalidarCursoAdmin();
   return { success: true };
@@ -926,6 +982,14 @@ export async function crearLeccion(
     .single();
 
   if (error) return { error: "No pudimos crear la lección." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Creó una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoId,
+    detalles: tituloLimpio,
+  });
 
   revalidarCursoAdmin();
   return { success: true, id: data.id };
@@ -1188,6 +1252,14 @@ export async function confirmarSubidaRecurso(
     return { error: "No pudimos guardar el material adicional." };
   }
 
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Agregó un material a una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoId,
+    detalles: data.nombre,
+  });
+
   revalidarCursoAdmin();
   return {
     success: true,
@@ -1200,6 +1272,14 @@ export async function confirmarSubidaRecurso(
   };
 }
 
+/** El curso de un material (por su lección y su módulo), para que la entrada de bitácora enlace a él. */
+function cursoDeRecurso(recurso: { leccion: unknown } | null): string | undefined {
+  const primero = <T,>(valor: T | T[] | null | undefined) => (Array.isArray(valor) ? valor[0] : valor) ?? undefined;
+  const leccion = primero(recurso?.leccion as { modulo: unknown } | { modulo: unknown }[] | null);
+  const modulo = primero(leccion?.modulo as { id_curso: string } | { id_curso: string }[] | null);
+  return modulo?.id_curso;
+}
+
 export async function eliminarRecursoLeccion(recursoId: string): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
@@ -1207,7 +1287,7 @@ export async function eliminarRecursoLeccion(recursoId: string): Promise<AdminAc
 
   const { data: recurso, error: errorRecurso } = await admin.supabase
     .from("recursos_descargables")
-    .select("url_archivo")
+    .select("url_archivo, nombre, leccion:lecciones(modulo:modulos(id_curso))")
     .eq("id", recursoId)
     .maybeSingle();
   // Sin la ruta del archivo, la fila se borraría y el archivo quedaría huérfano en Storage.
@@ -1215,6 +1295,14 @@ export async function eliminarRecursoLeccion(recursoId: string): Promise<AdminAc
 
   const { error } = await admin.supabase.from("recursos_descargables").delete().eq("id", recursoId);
   if (error) return { error: "No pudimos eliminar el material." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Eliminó un material de una lección",
+    entidadAfectada: "lecciones",
+    idEntidadAfectada: cursoDeRecurso(recurso),
+    detalles: recurso?.nombre ?? undefined,
+  });
 
   if (recurso?.url_archivo) {
     await admin.supabase.storage.from(BUCKET_MATERIALES).remove([recurso.url_archivo]);

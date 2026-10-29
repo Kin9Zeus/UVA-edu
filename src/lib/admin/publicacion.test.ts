@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { motivosParaNoPublicar, sePuedePublicar } from "@/lib/admin/publicacion";
+import { faltasParaPublicar, motivosParaNoPublicar, sePuedePublicar } from "@/lib/admin/publicacion";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 
 /** Curso que cumple todo; cada prueba rompe solo lo que quiere comprobar. */
@@ -91,5 +91,14 @@ describe("motivosParaNoPublicar", () => {
     });
     expect(motivos).toHaveLength(3);
     expect(sePuedePublicar({ titulo: "", imagenPortada: null, modulos: [] })).toBe(false);
+  });
+
+  it("la versión corta dice lo mismo en pocas palabras, para la lista de cursos", () => {
+    const faltas = faltasParaPublicar({
+      ...cursoCompleto(),
+      imagenPortada: null,
+      modulos: [{ lecciones: [{ estadoProcesamiento: "PROCESANDO" }, { estadoProcesamiento: "ERROR" }] }],
+    });
+    expect(faltas.map((falta) => falta.corto)).toEqual(["portada", "2 videos"]);
   });
 });

@@ -8,11 +8,43 @@ import { cn } from "@/lib/utils"
    (design-spec/project/Uva - Panel Admin.dc.html): el borde vive en la celda,
    no en la fila, y la ultima fila no lo lleva. El mockup no pinta hover de
    fila, asi que aqui tampoco. */
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/* Si la tabla no cabe, se desplaza dentro de su caja y no la página. Esa
+   caja tiene que poder recibir el foco para desplazarse con las flechas del
+   teclado (WCAG 2.1.1); solo lo recibe cuando de verdad desborda, para no
+   sumar una parada de tabulación vacía. `etiqueta` la nombra como región
+   ("Tabla de usuarios") y `contenedorClassName` va a la caja (p. ej. para
+   ocultarla en celular junto con la tabla). */
+function Table({
+  className,
+  etiqueta,
+  contenedorClassName,
+  ...props
+}: React.ComponentProps<"table"> & { etiqueta?: string; contenedorClassName?: string }) {
+  const contenedorRef = React.useRef<HTMLDivElement>(null)
+  const [desborda, setDesborda] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = contenedorRef.current
+    if (!el) return
+    const medir = () => setDesborda(el.scrollWidth > el.clientWidth + 1)
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(el)
+    if (el.firstElementChild) observador.observe(el.firstElementChild)
+    return () => observador.disconnect()
+  }, [])
+
   return (
     <div
+      ref={contenedorRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      role={desborda && etiqueta ? "region" : undefined}
+      aria-label={desborda ? etiqueta : undefined}
+      tabIndex={desborda ? 0 : undefined}
+      className={cn(
+        "relative w-full overflow-x-auto outline-hidden focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-solid focus-visible:outline-uva-accent",
+        contenedorClassName
+      )}
     >
       <table
         data-slot="table"

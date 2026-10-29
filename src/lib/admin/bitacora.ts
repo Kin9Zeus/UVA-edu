@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { accionEnFrase, esSensible, tipoDeAccion, type TipoBitacora } from "@/lib/admin/bitacora-tipos";
 
 /**
  * Registra una acción administrativa en bitacora_administrativa
@@ -48,164 +49,261 @@ export async function registrarBitacora(
   }
 }
 
-/** Filas por página en la pantalla de bitácora. */
-export const BITACORA_POR_PAGINA = 30;
+/**
+ * Cuántas acciones se traen como máximo por consulta. Los filtros por tipo,
+ * "solo sensibles" y la búsqueda se aplican en memoria sobre ellas.
+ */
+// ponytail: filtrado en memoria sobre las 2000 más recientes del rango; si la
+// bitácora crece hasta rozarlo, pasar tipo/sensibles/búsqueda a una función
+// SQL (como admin_listar_usuarios) y paginar allá.
+export const BITACORA_VENTANA = 2000;
+
+/** Cuántas acciones más muestra cada "Cargar más". */
+export const BITACORA_POR_TANDA = 30;
+
+/** Días que cubre la gráfica de arriba. */
+export const BITACORA_DIAS_RESUMEN = 30;
+
+const ZONA = "America/Bogota";
 
 /**
  * Tipos de `entidad_afectada` que guardan un id de USUARIO en
  * `id_entidad_afectada` (perfiles.id directo, o el usuario dueño de la
  * suscripción/inscripción — ver otorgarMembresia, quitarCortesia,
- * revocarMembresia en src/actions/admin/usuarios.ts). Son los únicos donde
- * vale la pena resolver un nombre y un enlace a /admin/usuarios/[id]: el
- * resto de entidades (cursos, categorías...) no lo necesita para esta
- * pantalla.
+ * revocarMembresia en src/actions/admin/usuarios.ts) y `intentos_examen`.
+ * Lecciones, módulos y exámenes guardan el id del CURSO.
  */
-const ENTIDADES_DE_USUARIO = new Set(["perfiles", "suscripciones", "inscripciones"]);
+const ENTIDADES_DE_USUARIO: ReadonlySet<string> = new Set(["perfiles", "suscripciones", "inscripciones", "intentos_examen"]);
+const ENTIDADES_DE_CURSO: ReadonlySet<string> = new Set(["cursos", "modulos", "lecciones", "examenes"]);
+const ENTIDADES_DE_POST: ReadonlySet<string> = new Set(["comunidad_posts"]);
 
-/**
- * Qué ficha abre el enlace de cada entidad, para resolver su SLUG y que ningún
- * enlace de la bitácora lleve un UUID. `intentos_examen` enlaza al usuario
- * aunque no muestre su nombre; lecciones y exámenes guardan el id del CURSO
- * (ver BitacoraTable).
- */
-const ENTIDADES_CON_FICHA_DE_USUARIO: ReadonlySet<string> = new Set([...ENTIDADES_DE_USUARIO, "intentos_examen"]);
-const ENTIDADES_CON_FICHA_DE_CURSO: ReadonlySet<string> = new Set(["cursos", "lecciones", "examenes"]);
-const ENTIDADES_CON_FICHA_DE_POST: ReadonlySet<string> = new Set(["comunidad_posts"]);
+export type FiltrosBitacora = {
+  tipo: TipoBitacora | null;
+  /** id del administrador */
+  admin: string | null;
+  sensibles: boolean;
+  busqueda: string | null;
+  /** "YYYY-MM-DD", día de Colombia */
+  desde?: string;
+  hasta?: string;
+  /** Cuántas entradas mostrar (crece con "Cargar más"). */
+  mostrar: number;
+};
 
 export type EntradaBitacora = {
   id: string;
   creadoEn: string;
+  /** "YYYY-MM-DD" en hora de Colombia: agrupa la línea de tiempo y la gráfica. */
+  dia: string;
   adminNombre: string;
-  adminCorreo: string;
   accion: string;
   entidadAfectada: string;
+  tipo: TipoBitacora;
+  sensible: boolean;
   detalles: string | null;
-  /** El id crudo tal como quedó guardado — sirve para armar el enlace
-   * "Sobre" de CUALQUIER entidad (curso, examen, lección, comunidad...),
-   * no solo las de usuario. */
+  /** El id crudo tal como quedó guardado (usuario, curso, publicación...). */
   idEntidadAfectada: string | null;
-  /** Slug de la ficha a la que enlaza la fila (curso, usuario o publicación).
-   * `null` si la entidad no tiene ficha o ya no existe: el enlace cae al id, y
-   * la ficha redirige al slug o da 404. */
+  /** Slug de la ficha a la que enlaza (curso, usuario o publicación), si existe. */
   slugEntidad: string | null;
-  /** Solo cuando `entidadAfectada` es de usuario y se pudo resolver el nombre — ver ENTIDADES_DE_USUARIO. */
-  usuarioAfectadoNombre: string | null;
+  /** Sobre quién o qué: nombre de la persona, título del curso o de la publicación. */
+  sujeto: string | null;
+};
+
+export type DiaBitacora = {
+  dia: string;
+  total: number;
+  sensibles: number;
+  porTipo: Partial<Record<TipoBitacora, number>>;
 };
 
 export type ResultadoBitacora = {
   entradas: EntradaBitacora[];
+  /** Total que cumple los filtros (dentro de la ventana). */
   total: number;
-  pagina: number;
-  totalPaginas: number;
+  /** El rango tiene más de BITACORA_VENTANA acciones: las más viejas no entraron. */
+  truncada: boolean;
+  resumen: {
+    dias: DiaBitacora[];
+    semana: number;
+    sensiblesSemana: number;
+    ultima: string | null;
+  };
+  admins: { id: string; nombre: string }[];
 };
 
-/**
- * Trae una página de la bitácora, más reciente primero. RLS
- * (`bitacora_solo_admin`, 003_rls_membresia_y_gestion.sql) ya la restringe a
- * administradores — esta función no repite esa comprobación, la hereda del
- * cliente de sesión igual que el resto de `lib/admin/*`.
- *
- * `filtroDesde`/`filtroHasta` son fechas "YYYY-MM-DD" (el `<input
- * type="date">` de BitacoraTable) sobre `creado_en`. Mismo criterio que
- * `admin_listar_usuarios` (037_admin_listar_usuarios.sql) para el rango de
- * registro: `hasta` es un día completo, no un instante — comparar con
- * `< hasta + 1 día` en vez de `<= hasta` evita excluir lo que pasó ese
- * mismo día después de las 00:00.
- */
-export async function getBitacora(
-  pagina: number = 1,
-  filtroDesde?: string,
-  filtroHasta?: string,
-): Promise<ResultadoBitacora> {
-  const supabase = await createClient();
-  const paginaSegura = Math.max(1, pagina);
-  const desde = (paginaSegura - 1) * BITACORA_POR_PAGINA;
-  const hasta = desde + BITACORA_POR_PAGINA - 1;
+const formatoDia = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" });
 
+/** "YYYY-MM-DD" del instante en hora de Colombia. */
+export function diaEnColombia(instante: string | Date): string {
+  return formatoDia.format(new Date(instante));
+}
+
+/** Suma días a un "YYYY-MM-DD" (aritmética de calendario, sin zona). */
+export function sumarDias(dia: string, dias: number): string {
+  const fecha = new Date(`${dia}T12:00:00Z`);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
+/** Inicio del día en Colombia como instante (UTC−5 todo el año, sin horario de verano). */
+export function inicioDelDia(dia: string): string {
+  return `${dia}T00:00:00-05:00`;
+}
+
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("es");
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type FilaBitacora = {
+  id: string;
+  creado_en: string;
+  accion: string;
+  entidad_afectada: string;
+  id_entidad_afectada: string | null;
+  detalles: string | null;
+  admin: { nombre: string } | { nombre: string }[] | null;
+};
+
+async function consultar(
+  supabase: SupabaseClient,
+  rango: { desde?: string; hasta?: string },
+  admin: string | null,
+): Promise<FilaBitacora[]> {
   let consulta = supabase
     .from("bitacora_administrativa")
-    .select(
-      "id, creado_en, accion, entidad_afectada, id_entidad_afectada, detalles, admin:perfiles(nombre, correo)",
-      { count: "exact" },
-    )
-    .order("creado_en", { ascending: false });
+    .select("id, creado_en, accion, entidad_afectada, id_entidad_afectada, detalles, admin:perfiles(nombre)")
+    .order("creado_en", { ascending: false })
+    .limit(BITACORA_VENTANA);
+  if (rango.desde) consulta = consulta.gte("creado_en", inicioDelDia(rango.desde));
+  // `hasta` es un día completo: todo lo que pasó antes de que empiece el siguiente.
+  if (rango.hasta) consulta = consulta.lt("creado_en", inicioDelDia(sumarDias(rango.hasta, 1)));
+  if (admin) consulta = consulta.eq("id_admin", admin);
 
-  if (filtroDesde) consulta = consulta.gte("creado_en", filtroDesde);
-  if (filtroHasta) {
-    const diaSiguiente = new Date(`${filtroHasta}T00:00:00Z`);
-    diaSiguiente.setUTCDate(diaSiguiente.getUTCDate() + 1);
-    consulta = consulta.lt("creado_en", diaSiguiente.toISOString());
+  const { data, error } = await consulta;
+  // Un fallo aquí NO es "no hay acciones": la pantalla mostraría un historial
+  // vacío y el administrador creería que nadie hizo nada (CLAUDE.md 3.2).
+  lanzarSiFalla(error, "bitacora:listar");
+  return (data ?? []) as FilaBitacora[];
+}
+
+/** IN() por tandas: una página puede traer cientos de ids y la URL de PostgREST tiene límite. */
+async function enTandas<T>(ids: string[], traer: (tanda: string[]) => PromiseLike<{ data: T[] | null; error: { message?: string; code?: string } | null }>, contexto: string): Promise<T[]> {
+  const resultado: T[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await traer(ids.slice(i, i + 100));
+    lanzarSiFalla(error, contexto);
+    resultado.push(...(data ?? []));
   }
+  return resultado;
+}
 
-  const { data, count, error } = await consulta.range(desde, hasta);
-
-  if (error || !data) {
-    return { entradas: [], total: 0, pagina: paginaSegura, totalPaginas: 1 };
-  }
-
-  // Consultas aparte, no un join: `id_entidad_afectada` no es una FK real
-  // (según la fila apunta a perfiles, suscripciones, cursos...), así que
-  // PostgREST no puede resolverlo en el embed de arriba. Se resuelve a mano
-  // con un IN() por tipo de ficha para toda la página: el nombre del usuario
-  // afectado y el slug con el que se enlaza cada ficha.
+/**
+ * Nombre y slug de lo afectado. Consultas aparte, no un join:
+ * `id_entidad_afectada` no es una FK real (según la fila apunta a perfiles,
+ * cursos, publicaciones...), así que PostgREST no puede resolverlo solo.
+ */
+async function enriquecer(supabase: SupabaseClient, filas: FilaBitacora[]): Promise<EntradaBitacora[]> {
   const idsDe = (entidades: ReadonlySet<string>) => [
-    ...new Set(
-      data
-        .filter((fila) => entidades.has(fila.entidad_afectada) && fila.id_entidad_afectada)
-        .map((fila) => fila.id_entidad_afectada as string),
-    ),
+    ...new Set(filas.filter((f) => entidades.has(f.entidad_afectada) && f.id_entidad_afectada).map((f) => f.id_entidad_afectada as string)),
   ];
-  const idsUsuario = idsDe(ENTIDADES_CON_FICHA_DE_USUARIO);
-  const idsCurso = idsDe(ENTIDADES_CON_FICHA_DE_CURSO);
-  const idsPost = idsDe(ENTIDADES_CON_FICHA_DE_POST);
-
-  const [{ data: perfiles, error: errorPerfiles }, { data: cursos, error: errorCursos }, { data: posts, error: errorPosts }] = await Promise.all([
-    idsUsuario.length
-      ? supabase.from("perfiles").select("id, nombre, slug").in("id", idsUsuario)
-      : Promise.resolve({ data: [] as { id: string; nombre: string; slug: string }[], error: null }),
-    idsCurso.length
-      ? supabase.from("cursos").select("id, slug").in("id", idsCurso)
-      : Promise.resolve({ data: [] as { id: string; slug: string }[], error: null }),
-    idsPost.length
-      ? supabase.from("comunidad_posts").select("id, slug").in("id", idsPost)
-      : Promise.resolve({ data: [] as { id: string; slug: string }[], error: null }),
+  const [perfiles, cursos, posts] = await Promise.all([
+    enTandas(idsDe(ENTIDADES_DE_USUARIO), (t) => supabase.from("perfiles").select("id, nombre, slug").in("id", t), "bitacora:perfiles"),
+    enTandas(idsDe(ENTIDADES_DE_CURSO), (t) => supabase.from("cursos").select("id, titulo, slug").in("id", t), "bitacora:cursos"),
+    enTandas(idsDe(ENTIDADES_DE_POST), (t) => supabase.from("comunidad_posts").select("id, titulo, slug").in("id", t), "bitacora:comunidad_posts"),
   ]);
-  lanzarSiFalla(errorPerfiles, "bitacora:perfiles+cursos+comunidad_posts");
-  lanzarSiFalla(errorCursos, "bitacora:perfiles+cursos+comunidad_posts");
-  lanzarSiFalla(errorPosts, "bitacora:perfiles+cursos+comunidad_posts");
+  const ficha = new Map<string, { nombre: string; slug: string }>();
+  for (const p of perfiles as { id: string; nombre: string; slug: string }[]) ficha.set(p.id, { nombre: p.nombre, slug: p.slug });
+  for (const c of [...cursos, ...posts] as { id: string; titulo: string; slug: string }[]) ficha.set(c.id, { nombre: c.titulo, slug: c.slug });
 
-  const nombresPorId = new Map<string, string>();
-  const slugPorId = new Map<string, string>();
-  for (const perfil of perfiles ?? []) {
-    nombresPorId.set(perfil.id, perfil.nombre);
-    slugPorId.set(perfil.id, perfil.slug);
-  }
-  for (const fila of [...(cursos ?? []), ...(posts ?? [])]) slugPorId.set(fila.id, fila.slug);
-
-  const entradas: EntradaBitacora[] = data.map((fila) => {
+  return filas.map((fila) => {
     const admin = Array.isArray(fila.admin) ? fila.admin[0] : fila.admin;
+    const encontrada = fila.id_entidad_afectada ? ficha.get(fila.id_entidad_afectada) : undefined;
     const esDeUsuario = ENTIDADES_DE_USUARIO.has(fila.entidad_afectada) && fila.id_entidad_afectada;
     return {
       id: fila.id,
       creadoEn: fila.creado_en,
+      dia: diaEnColombia(fila.creado_en),
       adminNombre: admin?.nombre ?? "Administrador eliminado",
-      adminCorreo: admin?.correo ?? "",
       accion: fila.accion,
       entidadAfectada: fila.entidad_afectada,
+      tipo: tipoDeAccion(fila.accion, fila.entidad_afectada),
+      sensible: esSensible(fila.accion),
       detalles: fila.detalles,
-      idEntidadAfectada: (fila.id_entidad_afectada as string | null) ?? null,
-      slugEntidad: fila.id_entidad_afectada ? (slugPorId.get(fila.id_entidad_afectada as string) ?? null) : null,
-      usuarioAfectadoNombre: esDeUsuario
-        ? (nombresPorId.get(fila.id_entidad_afectada as string) ?? "Usuario eliminado")
-        : null,
+      idEntidadAfectada: fila.id_entidad_afectada,
+      slugEntidad: encontrada?.slug ?? null,
+      sujeto: encontrada?.nombre ?? (esDeUsuario ? "Usuario eliminado" : null),
     };
   });
+}
 
-  const total = count ?? entradas.length;
+/** Tipo, "solo sensibles" y búsqueda (sin tildes ni mayúsculas). El administrador y las fechas ya filtran en la consulta. */
+export function cumpleFiltros(entrada: EntradaBitacora, filtros: Pick<FiltrosBitacora, "tipo" | "sensibles" | "busqueda">): boolean {
+  if (filtros.tipo && entrada.tipo !== filtros.tipo) return false;
+  if (filtros.sensibles && !entrada.sensible) return false;
+  if (filtros.busqueda) {
+    const texto = normalizar([entrada.adminNombre, accionEnFrase(entrada.accion), entrada.detalles ?? "", entrada.sujeto ?? ""].join(" "));
+    if (!texto.includes(normalizar(filtros.busqueda))) return false;
+  }
+  return true;
+}
+
+/** Una fila por día de los últimos `BITACORA_DIAS_RESUMEN`, con lo de hoy al final. */
+export function resumirPorDia(entradas: EntradaBitacora[], hoy: string): DiaBitacora[] {
+  const dias: DiaBitacora[] = Array.from({ length: BITACORA_DIAS_RESUMEN }, (_, i) => ({
+    dia: sumarDias(hoy, i - (BITACORA_DIAS_RESUMEN - 1)),
+    total: 0,
+    sensibles: 0,
+    porTipo: {},
+  }));
+  const porClave = new Map(dias.map((d) => [d.dia, d]));
+  for (const entrada of entradas) {
+    const dia = porClave.get(entrada.dia);
+    if (!dia) continue;
+    dia.total++;
+    if (entrada.sensible) dia.sensibles++;
+    dia.porTipo[entrada.tipo] = (dia.porTipo[entrada.tipo] ?? 0) + 1;
+  }
+  return dias;
+}
+
+/**
+ * La bitácora filtrada, más reciente primero, y el resumen de los últimos 30
+ * días con los mismos filtros (menos las fechas: la gráfica siempre muestra
+ * el mes, para ver dónde cae el rango elegido). RLS (`bitacora_solo_admin`)
+ * ya la restringe a administradores; esta función hereda esa comprobación
+ * del cliente de sesión, igual que el resto de `lib/admin/*`.
+ */
+export async function getBitacora(filtros: FiltrosBitacora): Promise<ResultadoBitacora> {
+  const supabase = await createClient();
+  const admin = filtros.admin && UUID.test(filtros.admin) ? filtros.admin : null;
+  const hoy = diaEnColombia(new Date());
+  const inicioResumen = sumarDias(hoy, -(BITACORA_DIAS_RESUMEN - 1));
+
+  const [filas, filasResumen, { data: admins, error: errorAdmins }] = await Promise.all([
+    consultar(supabase, { desde: filtros.desde, hasta: filtros.hasta }, admin),
+    consultar(supabase, { desde: inicioResumen }, admin),
+    supabase.from("perfiles").select("id, nombre").eq("rol", "ADMINISTRADOR").order("nombre"),
+  ]);
+  lanzarSiFalla(errorAdmins, "bitacora:administradores");
+
+  const [entradas, entradasResumen] = await Promise.all([enriquecer(supabase, filas), enriquecer(supabase, filasResumen)]);
+  const filtradas = entradas.filter((e) => cumpleFiltros(e, filtros));
+  const delMes = entradasResumen.filter((e) => cumpleFiltros(e, filtros));
+  const dias = resumirPorDia(delMes, hoy);
+  const ultimaSemana = dias.slice(-7);
+
   return {
-    entradas,
-    total,
-    pagina: paginaSegura,
-    totalPaginas: Math.max(1, Math.ceil(total / BITACORA_POR_PAGINA)),
+    entradas: filtradas.slice(0, Math.max(BITACORA_POR_TANDA, filtros.mostrar)),
+    total: filtradas.length,
+    truncada: filas.length === BITACORA_VENTANA,
+    resumen: {
+      dias,
+      semana: ultimaSemana.reduce((suma, d) => suma + d.total, 0),
+      sensiblesSemana: ultimaSemana.reduce((suma, d) => suma + d.sensibles, 0),
+      ultima: delMes[0]?.creadoEn ?? null,
+    },
+    admins: admins ?? [],
   };
 }

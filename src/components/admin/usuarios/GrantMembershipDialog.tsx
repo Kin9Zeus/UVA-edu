@@ -15,7 +15,9 @@ import { otorgarMembresia } from "@/actions/admin/usuarios";
 import { useAdminToast } from "@/components/admin/Toast";
 import { formatMoneda } from "@/lib/admin/format";
 
-type Plan = { id: string; nombre: string; precio_centavos: number; moneda: string };
+type Plan = { id: string; nombre: string; precio_centavos: number; moneda: string; duracion_dias: number };
+
+const dias = (plan: Plan) => `${plan.duracion_dias} ${plan.duracion_dias === 1 ? "día" : "días"}`;
 
 export function GrantMembershipDialog({
   open,
@@ -23,12 +25,15 @@ export function GrantMembershipDialog({
   usuarioId,
   planActual,
   planes,
+  conCobro,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   usuarioId: string;
   planActual: string | null;
   planes: Plan[];
+  /** Con el cobro apagado el precio no dice nada: se muestran solo los días. */
+  conCobro: boolean;
 }) {
   const [paso, setPaso] = useState<"elegir" | "confirmar">("elegir");
   const [planElegido, setPlanElegido] = useState<Plan | null>(null);
@@ -54,20 +59,20 @@ export function GrantMembershipDialog({
       setError(resultado.error);
       return;
     }
-    showToast(`Membresía "${planElegido.nombre}" otorgada.`);
+    showToast(`Le diste ${dias(planElegido)} de acceso.`);
     cerrar();
   }
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : cerrar())}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Otorgar membresía</DialogTitle>
-          {paso === "elegir" && <DialogDescription>Elige el plan que quieres asignar manualmente.</DialogDescription>}
+          <DialogTitle>Dar acceso</DialogTitle>
+          {paso === "elegir" && <DialogDescription>Elige cuántos días. Empieza hoy y no se le cobra nada.</DialogDescription>}
         </DialogHeader>
 
         {error && (
-          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text">
+          <div role="alert" className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text">
             {error}
           </div>
         )}
@@ -75,7 +80,7 @@ export function GrantMembershipDialog({
         {paso === "elegir" && (
           <div className="flex flex-col gap-2">
             {planes.length === 0 && (
-              <p className="text-[13.5px] text-uva-muted-2">No hay planes activos configurados.</p>
+              <p className="text-uva-detalle text-uva-muted-2">No hay planes activos configurados.</p>
             )}
             {planes.map((plan) => (
               <button
@@ -86,12 +91,13 @@ export function GrantMembershipDialog({
                   setPaso("confirmar");
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-[13.5px] font-semibold text-uva-text hover:bg-uva-hover",
+                  "flex w-full items-center justify-between rounded-uva-md border border-uva-divider bg-uva-surface px-4 py-2.5 text-left text-uva-detalle font-semibold text-uva-text hover:bg-uva-hover",
                 )}
               >
                 <span>{plan.nombre}</span>
-                <span className="font-mono text-[12px] font-normal text-uva-muted-2 tabular-nums">
-                  {formatMoneda(plan.precio_centavos, plan.moneda)}
+                <span className="text-uva-detalle font-normal text-uva-text-muted tabular-nums">
+                  {dias(plan)}
+                  {conCobro && ` · cuesta ${formatMoneda(plan.precio_centavos, plan.moneda)}`}
                 </span>
               </button>
             ))}
@@ -99,18 +105,15 @@ export function GrantMembershipDialog({
         )}
 
         {paso === "confirmar" && planElegido && (
-          <div className="flex flex-col gap-3 text-sm">
-            <p className="text-uva-text-muted">
-              Plan actual: <span className="text-uva-text">{planActual ?? "Ninguno"}</span>
+          <div className="flex flex-col gap-3 text-uva-detalle">
+            <p className="m-0 text-uva-text-muted">
+              Acceso de ahora: <span className="text-uva-text">{planActual ?? "Ninguno"}</span>
             </p>
-            <p className="text-uva-text-muted">
-              Nuevo plan: <span className="text-uva-accent-text">{planElegido.nombre}</span> (
-              {formatMoneda(planElegido.precio_centavos, planElegido.moneda)})
+            <p className="m-0 text-uva-text-muted">
+              Le das: <span className="font-semibold text-uva-text">{planElegido.nombre}</span>, {dias(planElegido)}
             </p>
-            <p className="text-uva-text-faint">
-              La suscripción quedará en estado Activa de inmediato, sin pasar por Stripe/Wompi. El
-              estudiante la verá en su perfil como &ldquo;Acceso otorgado por U.V.A.&rdquo;, sin
-              historial de pagos.
+            <p className="m-0 text-uva-text-muted">
+              Empieza hoy y no se le cobra nada. Lo verá en su perfil como &ldquo;Acceso otorgado por U.V.A.&rdquo;.
             </p>
           </div>
         )}
@@ -126,7 +129,7 @@ export function GrantMembershipDialog({
           </Button>
           {paso === "confirmar" && (
             <Button type="button" variant="primary" onClick={confirmar} disabled={pending}>
-              {pending ? "Otorgando…" : "Confirmar"}
+              {pending ? "Guardando…" : planElegido ? `Dar ${dias(planElegido)}` : "Dar acceso"}
             </Button>
           )}
         </DialogFooter>

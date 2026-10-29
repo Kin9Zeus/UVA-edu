@@ -29,6 +29,50 @@ import {
   type TipoDescuentoCupon,
 } from "@/lib/admin/cupones-tipos";
 import type { CuponAdmin } from "@/lib/admin/cupones";
+import { calcularDesglose } from "@/lib/pagos/descuento";
+import { formatMoneda } from "@/lib/admin/format";
+
+/** Lo justo de un plan activo para mostrar cómo queda su precio con el cupón. */
+export type PlanVistaPrevia = { id: string; nombre: string; precioCentavos: number; moneda: string };
+
+/**
+ * Cómo queda cada plan con el descuento que se está escribiendo. Usa
+ * `calcularDesglose`, la misma función del checkout, para que lo que se ve
+ * aquí sea lo que se cobra.
+ */
+function VistaPrevia({ planes, tipo, valor }: { planes: PlanVistaPrevia[]; tipo: TipoDescuentoCupon; valor: string }) {
+  const numero = Number(valor);
+  if (planes.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-uva-md border border-uva-divider bg-uva-bg px-3.5 py-3">
+      <p className="m-0 text-uva-detalle font-bold text-uva-text-muted">Así queda cada plan</p>
+      {!(numero > 0) ? (
+        <p className="m-0 text-uva-detalle text-uva-text-muted">Escribe el descuento para ver el precio final.</p>
+      ) : (
+        planes.map((plan) => {
+          const { totalCentavos } = calcularDesglose(plan.precioCentavos, {
+            tipo_descuento: tipo,
+            valor: tipo === "PORCENTAJE" ? numero : Math.round(numero * 100),
+          });
+          return (
+            <p key={plan.id} className="m-0 flex flex-wrap justify-between gap-x-3 text-uva-detalle text-uva-text">
+              <span>{plan.nombre}</span>
+              {totalCentavos <= 0 ? (
+                // El checkout rechaza un total en cero: Wompi no cobra $0.
+                <span className="font-bold text-uva-error-text">Cubre todo el precio: no se podría pagar</span>
+              ) : (
+                <span className="font-mono">
+                  <s className="mr-1.5 text-uva-text-muted">{formatMoneda(plan.precioCentavos, plan.moneda)}</s>
+                  <b>{formatMoneda(totalCentavos, plan.moneda)}</b>
+                </span>
+              )}
+            </p>
+          );
+        })
+      )}
+    </div>
+  );
+}
 
 /** `yyyy-MM-dd` para el <input type="date">, en hora local. */
 function comoValorDeInput(fecha: Date): string {
@@ -56,11 +100,15 @@ export function CuponFormDialog({
   open,
   onOpenChange,
   cupon,
+  planes,
+  cobroActivo,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** null = crear uno nuevo. */
   cupon?: CuponAdmin | null;
+  planes: PlanVistaPrevia[];
+  cobroActivo: boolean;
 }) {
   const editando = cupon != null;
 
@@ -110,7 +158,12 @@ export function CuponFormDialog({
       return;
     }
 
-    showToast(editando ? "Cupón actualizado." : "Cupón creado.");
+    const nombre = editando ? cupon.codigo : normalizarCodigoCupon(codigo);
+    showToast(
+      editando
+        ? `Guardaste los cambios de ${nombre}.`
+        : `Creaste ${nombre}.${cobroActivo ? "" : " Empezará a funcionar cuando se encienda el cobro."}`,
+    );
     cerrar();
   }
 
@@ -122,7 +175,7 @@ export function CuponFormDialog({
         else onOpenChange(next);
       }}
     >
-      <DialogContent className="w-[460px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[460px] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{editando ? `Editar ${cupon.codigo}` : "Nuevo cupón"}</DialogTitle>
@@ -132,7 +185,7 @@ export function CuponFormDialog({
             {error && (
               <div
                 role="alert"
-                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-sm text-uva-error-text"
+                className="rounded-uva-md bg-uva-error-soft px-3.5 py-2.5 text-uva-detalle text-uva-error-text"
               >
                 {error}
               </div>
@@ -145,9 +198,12 @@ export function CuponFormDialog({
                 // cambiarlo no lo renombra, mata el que está publicado y crea
                 // otro que nadie tiene. Para corregir un código mal escrito
                 // que nunca se usó, se elimina y se vuelve a crear.
-                <p className="mt-1 font-codigo text-[13.5px] tracking-[0.06em] text-uva-muted">
-                  {cupon.codigo} <span className="font-sans tracking-normal text-uva-text-faint">· no se puede cambiar</span>
-                </p>
+                <>
+                  <p className="mt-1 font-codigo text-uva-detalle tracking-[0.06em] text-uva-text">{cupon.codigo}</p>
+                  <p className="mt-1 text-uva-detalle text-uva-text-faint">
+                    El código ya se repartió, por eso no se puede cambiar.
+                  </p>
+                </>
               ) : (
                 <>
                   <Input
@@ -163,7 +219,7 @@ export function CuponFormDialog({
                     className="font-codigo tracking-[0.06em] uppercase"
                     required
                   />
-                  <p className="mt-1.5 text-xs text-uva-text-faint">
+                  <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                     Es lo que teclea el estudiante en el checkout. Se guarda siempre en
                     mayúsculas y sin espacios, porque así se compara al canjearlo.
                   </p>
@@ -178,12 +234,13 @@ export function CuponFormDialog({
                   // El tipo decide cómo se lee `valor` (porcentaje o
                   // centavos). Cambiarlo sin tocar el número convertiría un
                   // 20% en veinte centavos — ver `actualizarCupon`.
-                  <p className="mt-1 text-[13.5px] text-uva-muted">
-                    {ETIQUETA_TIPO[cupon.tipoDescuento]}{" "}
-                    <span className="text-uva-text-faint">· no se puede cambiar</span>
-                  </p>
+                  <>
+                    <p className="mt-1 text-uva-detalle text-uva-text">{ETIQUETA_TIPO[cupon.tipoDescuento]}</p>
+                    <p className="mt-1 text-uva-detalle text-uva-text-faint">No se puede cambiar.</p>
+                  </>
                 ) : (
                   <Select
+                    items={ETIQUETA_TIPO}
                     value={tipo}
                     onValueChange={(value) => setTipo(value as TipoDescuentoCupon)}
                   >
@@ -214,7 +271,7 @@ export function CuponFormDialog({
                   placeholder={esPorcentaje ? "20" : "30000"}
                   required
                 />
-                <p className="mt-1.5 text-xs text-uva-text-faint">
+                <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                   {esPorcentaje
                     ? "Entero entre 1 y 100. Se descuenta sobre el precio del plan."
                     : // La columna no guarda moneda, así que el monto se
@@ -226,6 +283,8 @@ export function CuponFormDialog({
               </div>
             </div>
 
+            <VistaPrevia planes={planes} tipo={tipo} valor={valor} />
+
             <div>
               <Label htmlFor="cupon-vencimiento">Vence el</Label>
               <Input
@@ -236,7 +295,7 @@ export function CuponFormDialog({
                 onChange={(event) => setVencimiento(event.target.value)}
                 required
               />
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Vale hasta el final de ese día. Después deja de aplicarse, pero los cobros que
                 ya descontó no cambian.
               </p>
@@ -260,14 +319,14 @@ export function CuponFormDialog({
                   SÍ es nullable: un cupón de descuento no regala acceso, así
                   que una campaña abierta ("20% todo noviembre") es un caso
                   legítimo y no el agujero que sería un código sin tope. */}
-              <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-[13px] text-uva-muted">
+              <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-uva-detalle text-uva-muted">
                 <Checkbox
                   checked={sinLimite}
                   onCheckedChange={(marcado) => setSinLimite(marcado === true)}
                 />
                 Sin límite de usos
               </label>
-              <p className="mt-1.5 text-xs text-uva-text-faint">
+              <p className="mt-1.5 text-uva-detalle text-uva-text-faint">
                 Solo cuenta los pagos aprobados: validar el código o abandonar el checkout no
                 gasta un uso.
               </p>
@@ -279,7 +338,7 @@ export function CuponFormDialog({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={pending}>
-              {pending ? "Guardando…" : editando ? "Guardar" : "Crear cupón"}
+              {pending ? "Guardando…" : editando ? "Guardar cambios" : "Crear cupón"}
             </Button>
           </DialogFooter>
         </form>

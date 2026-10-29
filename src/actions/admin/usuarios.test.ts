@@ -16,7 +16,7 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { olvidarGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { congelarPreguntas } from "@/lib/examenes/congelar";
-import { anonimizarUsuario, quitarCortesia, suspenderActivarUsuario } from "@/actions/admin/usuarios";
+import { anonimizarUsuario, extenderAcceso, quitarCortesia, suspenderActivarUsuario } from "@/actions/admin/usuarios";
 import { otorgarIntentoExtra } from "@/actions/admin/examenes";
 
 /**
@@ -212,5 +212,42 @@ describe("otorgarIntentoExtra", () => {
     expect(await otorgarIntentoExtra("x", CURSO, USUARIO)).toEqual({ error: "Examen inválido." });
     expect(await otorgarIntentoExtra(EXAMEN, CURSO, "x")).toEqual({ error: "Estudiante inválido." });
     expect(servidorFalso.llamadas).toHaveLength(0);
+  });
+});
+
+describe("extenderAcceso (Dar más días)", () => {
+  const vigente = { id: "sus-1", id_usuario: USUARIO, acceso_manual: true, estado: "ACTIVA", fecha_renovacion: "2099-01-10T05:00:00.000Z" };
+
+  it("suma los días al final del acceso y reinicia el aviso de vencimiento", async () => {
+    servidorFalso.responder("from:suscripciones", { data: vigente });
+
+    expect(await extenderAcceso("sus-1", USUARIO, 30)).toEqual({ success: true });
+    expect(servidorFalso.encadenado("from:suscripciones", "update")[0][0]).toEqual({
+      fecha_renovacion: "2099-02-09T05:00:00.000Z",
+      aviso_vencimiento_en: null,
+    });
+    expect(bitacora).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ accion: "Le dio más días de acceso", idEntidadAfectada: USUARIO }));
+  });
+
+  it("no toca la base con un número de días fuera de rango", async () => {
+    for (const dias of [0, -3, 1.5, 366]) {
+      expect((await extenderAcceso("sus-1", USUARIO, dias)).error).toMatch(/entre 1 y 365/);
+    }
+    expect(servidorFalso.llamadas).toHaveLength(0);
+  });
+
+  it("no extiende un acceso pagado, uno ya vencido ni el de otra persona", async () => {
+    for (const fila of [
+      { ...vigente, acceso_manual: false },
+      { ...vigente, fecha_renovacion: "2020-01-01T05:00:00.000Z" },
+      { ...vigente, estado: "CANCELADA" },
+      { ...vigente, id_usuario: ADMIN },
+    ]) {
+      servidorFalso.reiniciar();
+      servidorFalso.responder("from:suscripciones", { data: fila });
+      expect((await extenderAcceso("sus-1", USUARIO, 30)).error).toBeDefined();
+      expect(servidorFalso.encadenado("from:suscripciones", "update")).toHaveLength(0);
+    }
+    expect(bitacora).not.toHaveBeenCalled();
   });
 });

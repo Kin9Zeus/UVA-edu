@@ -18,8 +18,8 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  // El mockup rotula siempre "Confirmar": el título y el cuerpo ya dicen
-  // qué se va a hacer, así que la etiqueta no repite la acción.
+  // Mejor la acción exacta ("Eliminar módulo", "Suspender usuario"):
+  // "Confirmar" obliga a releer el título para saber qué hace el botón.
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
   // Cuando viene con valor, exige escribir exactamente ese texto (el nombre
@@ -27,6 +27,9 @@ export function ConfirmDialog({
   // Reservado para acciones destructivas de verdad: un simple Sí/No es
   // demasiado fácil de aceptar sin leer.
   confirmText,
+  // Borra o quita algo que no se puede recuperar: el botón va en rojo y no
+  // en el magenta de las acciones principales.
+  destructive = false,
   onConfirm,
 }: {
   open: boolean;
@@ -36,6 +39,7 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   confirmText?: string;
+  destructive?: boolean;
   onConfirm: () => Promise<void> | void;
 }) {
   const [pending, setPending] = useState(false);
@@ -98,11 +102,9 @@ export function ConfirmDialog({
           >
             {cancelLabel}
           </Button>
-          {/* El mockup pinta SIEMPRE el boton de confirmacion en magenta
-              solido, incluso cuando la accion es destructiva. */}
           <Button
             type="button"
-            variant="primary"
+            variant={destructive ? "destructive-solid" : "primary"}
             onClick={handleConfirm}
             disabled={pending || bloqueadoPorTexto}
           >

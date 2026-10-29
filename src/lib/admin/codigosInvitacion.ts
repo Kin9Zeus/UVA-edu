@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { estadoCodigo, type EstadoCodigo } from "@/lib/codigoInvitacion";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { diasEntre } from "@/lib/admin/comunidadReportes";
 
 export type CodigoInvitacion = {
   id: string;
@@ -11,6 +12,8 @@ export type CodigoInvitacion = {
    */
   duracionDias: number;
   fechaVencimiento: string;
+  /** Días de calendario hasta `fechaVencimiento`; 0 si ya pasó o es hoy. */
+  diasParaVencer: number;
   /** Siempre >= 1: no existen los códigos sin tope. */
   limiteUsos: number;
   vecesUsado: number;
@@ -24,6 +27,7 @@ export type CodigoInvitacion = {
 
 export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
   const supabase = await createClient();
+  const ahora = new Date().toISOString();
 
   const { data, error: errorData } = await supabase
     .from("codigos_invitacion")
@@ -43,6 +47,7 @@ export async function getCodigosInvitacion(): Promise<CodigoInvitacion[]> {
       codigo: fila.codigo as string,
       duracionDias: fila.duracion_dias as number,
       fechaVencimiento: fila.fecha_vencimiento as string,
+      diasParaVencer: diasEntre(ahora, new Date(fila.fecha_vencimiento as string)),
       limiteUsos: fila.limite_usos as number,
       vecesUsado: fila.veces_usado as number,
       activo: fila.activo as boolean,

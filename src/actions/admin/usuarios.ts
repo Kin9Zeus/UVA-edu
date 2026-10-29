@@ -13,6 +13,7 @@ import { olvidarGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 import { logError } from "@/lib/log";
+import { MAXIMO_DIAS_EXTRA } from "@/lib/admin/acceso-texto";
 
 export async function suspenderActivarUsuario(
   usuarioId: string,
@@ -440,6 +441,71 @@ export async function revocarMembresia(
     entidadAfectada: "suscripciones",
     idEntidadAfectada: usuarioId,
     detalles: motivoLimpio,
+  });
+
+  revalidarUsuarioAdmin();
+  revalidatePath("/admin/usuarios");
+  return { success: true };
+}
+
+/**
+ * Le suma días a un acceso gratuito que sigue vigente (por código o dado a
+ * mano), contados desde el día en que se le iba a acabar. Sin esto, la única
+ * forma era revocar y volver a otorgar, que deja dos filas y un motivo de
+ * revocación falso.
+ *
+ * Solo accesos sin cobro: uno pagado lo renueva la pasarela. Uno que ya se
+ * acabó no se extiende: se le da acceso de nuevo (otorgarMembresia), para que
+ * el historial muestre el hueco entre los dos.
+ *
+ * Limpia `aviso_vencimiento_en` para que el aviso de "se te acaba en 7 días"
+ * vuelva a salir cuando corresponda a la nueva fecha.
+ */
+export async function extenderAcceso(
+  suscripcionId: string,
+  usuarioId: string,
+  dias: number,
+): Promise<AdminActionResult> {
+  const admin = await requireAdmin();
+  if ("error" in admin) return { error: admin.error };
+
+  if (!Number.isInteger(dias) || dias < 1 || dias > MAXIMO_DIAS_EXTRA) {
+    return { error: `Escribe un número de días entre 1 y ${MAXIMO_DIAS_EXTRA}.` };
+  }
+
+  const { data: suscripcion, error: errorSuscripcion } = await admin.supabase
+    .from("suscripciones")
+    .select("id, id_usuario, acceso_manual, estado, fecha_renovacion")
+    .eq("id", suscripcionId)
+    .maybeSingle();
+
+  if (errorSuscripcion) return { error: "No pudimos darle más días. Intenta de nuevo." };
+  if (!suscripcion || suscripcion.id_usuario !== usuarioId) return { error: "No encontramos ese acceso." };
+  if (!suscripcion.acceso_manual) return { error: "Un acceso pagado se renueva en la pasarela, no desde aquí." };
+  if (
+    (suscripcion.estado !== "ACTIVA" && suscripcion.estado !== "PAST_DUE") ||
+    !suscripcion.fecha_renovacion ||
+    new Date(suscripcion.fecha_renovacion) <= new Date()
+  ) {
+    return { error: "Ese acceso ya se acabó. Usa «Dar acceso» para darle uno nuevo." };
+  }
+
+  const nuevoFin = new Date(suscripcion.fecha_renovacion);
+  nuevoFin.setUTCDate(nuevoFin.getUTCDate() + dias);
+
+  const { error } = await admin.supabase
+    .from("suscripciones")
+    .update({ fecha_renovacion: nuevoFin.toISOString(), aviso_vencimiento_en: null })
+    .eq("id", suscripcionId);
+
+  if (error) return { error: "No pudimos darle más días." };
+
+  await registrarBitacora(admin.supabase, {
+    idAdmin: admin.adminId,
+    accion: "Le dio más días de acceso",
+    entidadAfectada: "suscripciones",
+    idEntidadAfectada: usuarioId,
+    detalles: `${dias} días más; ahora se le acaba el ${nuevoFin.toISOString().slice(0, 10)}`,
   });
 
   revalidarUsuarioAdmin();

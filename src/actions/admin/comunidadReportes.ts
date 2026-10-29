@@ -6,40 +6,43 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import type { AdminActionResult } from "@/actions/admin/categorias";
 
 /**
- * Descarta un reporte sin tocar el contenido reportado — para cuando el
- * admin revisa y decide que no amerita eliminar (ver /admin/comunidad).
- * Eliminar el contenido en cambio reusa eliminarPostComunidad/
- * eliminarRespuestaComunidad (src/actions/comunidad/eliminar.ts): esa
- * Server Action ya hace todo lo que hace falta (evidencia, motivo, aviso al
- * autor); marcar el reporte como revisado además de eso es responsabilidad
- * de la UI de esa pantalla, no de esta acción.
+ * Cierra todos los reportes pendientes de un contenido sin tocarlo — para
+ * cuando el admin revisa y decide dejarlo publicado (ver /admin/comunidad).
+ * Es por contenido y no por reporte, igual que eliminar: eliminar
+ * (eliminarPostComunidad/eliminarRespuestaComunidad, src/actions/comunidad/
+ * eliminar.ts) ya cierra todos los reportes del contenido, y tres personas
+ * reportando lo mismo no deberían costar tres decisiones.
  *
- * Antes esta decisión no dejaba ningún rastro: solo la RUTA que elimina
- * contenido pasa por eliminarPostComunidad/eliminarRespuestaComunidad, que
- * sí registran bitácora — "descartar" (la moderación no siempre termina en
- * un borrado) se quedaba sin auditoría, así que un admin no tenía forma de
- * ver después quién revisó qué reporte ni qué decidió.
+ * Cada reporte cerrado le avisa a quien lo hizo que se revisó y no se
+ * eliminó (trigger de 103_comunidad_reporte_resuelto_con_veredicto.sql).
+ * Queda en la bitácora: si no, "dejarlo" no dejaría rastro de quién decidió.
  */
-export async function descartarReporteComunidad(
-  reporteId: string,
-  /** Motivo original del reporte — solo para dejarlo legible en la bitácora,
-   * sin tener que abrir la fila de comunidad_reportes aparte. */
-  motivoReporte: string,
-): Promise<AdminActionResult> {
+export async function descartarReportesComunidad(contenido: {
+  tipo: "publicación" | "respuesta";
+  id: string;
+}): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
-  const { error } = await admin.supabase.from("comunidad_reportes").update({ revisado: true }).eq("id", reporteId);
-  if (error) return { error: "No pudimos descartar el reporte." };
+  const { data, error } = await admin.supabase
+    .from("comunidad_reportes")
+    .update({ revisado: true })
+    .eq(contenido.tipo === "publicación" ? "id_post" : "id_respuesta", contenido.id)
+    .eq("revisado", false)
+    .select("motivo");
+  if (error) return { error: "No pudimos cerrar los reportes." };
+
+  revalidatePath("/admin/comunidad");
+  const cerrados = data ?? [];
+  if (cerrados.length === 0) return { error: "Estos reportes ya los había resuelto otro administrador." };
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
-    accion: "Descartó un reporte de Comunidad (sin eliminar el contenido)",
+    accion: `Descartó ${cerrados.length === 1 ? "un reporte" : `${cerrados.length} reportes`} de una ${contenido.tipo} de Comunidad (la dejó publicada)`,
     entidadAfectada: "comunidad_reportes",
-    idEntidadAfectada: reporteId,
-    detalles: `Motivo reportado: ${motivoReporte}`,
+    idEntidadAfectada: contenido.id,
+    detalles: `Motivos reportados: ${cerrados.map((r) => `«${r.motivo}»`).join("; ")}`,
   });
 
-  revalidatePath("/admin/comunidad");
   return { success: true };
 }

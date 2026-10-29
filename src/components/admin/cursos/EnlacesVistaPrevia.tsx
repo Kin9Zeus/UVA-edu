@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAdminToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import {
   crearEnlaceVistaPrevia,
   revocarEnlaceVistaPrevia,
@@ -106,19 +107,23 @@ export function EnlacesVistaPrevia({
     }
   }
 
+  // Quien tenga el enlace deja de poder abrirlo y no hay forma de
+  // reactivarlo: se confirma antes.
+  const [anulando, setAnulando] = useState<string | null>(null);
+
   async function handleRevocar(tokenId: string) {
     const resultado = await revocarEnlaceVistaPrevia(tokenId, cursoId);
     if (resultado.error) {
       showToast(resultado.error, "error");
       return;
     }
-    showToast("Enlace revocado.");
+    showToast("Enlace anulado.");
   }
 
   return (
     <div className="border-t border-uva-divider pt-4">
-      <p className="text-sm text-uva-text">Vista previa</p>
-      <p className="mt-0.5 text-xs text-uva-text-faint">
+      <p className="text-uva-detalle text-uva-text">Vista previa</p>
+      <p className="mt-0.5 text-uva-detalle text-uva-text-faint">
         Abre el curso como lo vería un estudiante, aunque esté en borrador.
       </p>
 
@@ -134,13 +139,13 @@ export function EnlacesVistaPrevia({
           <ExternalLink className="size-4" />
           {pending === "abrir" ? "Abriendo…" : "Abrir vista previa"}
         </Button>
-        <span className="font-mono text-[11.5px] text-uva-text-faint">
+        <span className="font-mono text-uva-etiqueta text-uva-text-faint">
           caduca en {MINUTOS_VIGENCIA_VISTA_PREVIA} min
         </span>
       </div>
 
       <div className="mt-4">
-        <p className="text-xs text-uva-muted">
+        <p className="text-uva-detalle text-uva-muted">
           ¿Necesitas que lo revise alguien sin cuenta? Genera un enlace para compartir:
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -177,11 +182,11 @@ export function EnlacesVistaPrevia({
 
       {enlaceNuevo && (
         <div className="mt-3 rounded-uva-md border border-uva-accent/40 bg-uva-accent-soft px-3.5 py-3">
-          <p className="text-xs font-semibold text-uva-accent-text">
+          <p className="text-uva-detalle font-semibold text-uva-accent-text">
             Copia el enlace ahora: no se vuelve a mostrar.
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 overflow-x-auto rounded-uva-md bg-uva-surface-2 px-2.5 py-1.5 font-codigo text-[11.5px] whitespace-nowrap text-uva-text">
+            <code className="flex-1 overflow-x-auto rounded-uva-md bg-uva-surface-2 px-2.5 py-1.5 font-codigo text-uva-etiqueta whitespace-nowrap text-uva-text">
               {enlaceNuevo}
             </code>
             <Button
@@ -208,7 +213,7 @@ export function EnlacesVistaPrevia({
               {/* Relativo, no una fecha: con vigencias de 30 minutos
                   "caduca en 24 minutos" se lee de un vistazo y una fecha
                   con hora no. */}
-              <span className="text-[12.5px] text-uva-muted">
+              <span className="text-uva-detalle text-uva-muted">
                 Caduca {tiempoRelativo(enlace.expiraEn)}
                 {" · "}
                 {enlace.vecesUsado === 0
@@ -228,7 +233,7 @@ export function EnlacesVistaPrevia({
                 aria-label="Anular enlace"
                 title="Anular enlace: dejará de abrir, pero queda el registro"
                 className="text-uva-muted-2 hover:text-uva-accent-ink"
-                onClick={() => handleRevocar(enlace.id)}
+                onClick={() => setAnulando(enlace.id)}
               >
                 <Ban className="size-4" />
               </Button>
@@ -236,6 +241,18 @@ export function EnlacesVistaPrevia({
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={anulando !== null}
+        onOpenChange={(open) => !open && setAnulando(null)}
+        title="Anular enlace de vista previa"
+        description="Quien tenga este enlace ya no podrá abrir el curso. No se puede volver a activar: si lo necesitas otra vez, crea uno nuevo."
+        confirmLabel="Anular enlace"
+        destructive
+        onConfirm={async () => {
+          if (anulando) await handleRevocar(anulando);
+        }}
+      />
     </div>
   );
 }
