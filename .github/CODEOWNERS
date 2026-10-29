@@ -1,0 +1,20 @@
+# Quién debe aprobar cambios en las partes que, si se alteran, abren la puerta
+# a producción. Solo tiene efecto si el ruleset de master exige
+# "Require review from Code Owners".
+
+# El propio CI y esta regla: si se pudieran editar sin revisión, se apagaría
+# todo lo demás.
+/.github/                       @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Base de datos y permisos (RLS)
+/supabase/sql/                  @Kin9Zeus @andresescobar12 @JuanLarrota
+/prisma/                        @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Webhooks, cliente con service_role y configuración de build
+/src/app/api/                   @Kin9Zeus @andresescobar12 @JuanLarrota
+/src/lib/supabase/admin.ts      @Kin9Zeus @andresescobar12 @JuanLarrota
+/next.config.ts                 @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Dependencias: es por donde entra el código de terceros
+/package.json                   @Kin9Zeus @andresescobar12 @JuanLarrota
+/package-lock.json              @Kin9Zeus @andresescobar12 @JuanLarrota
