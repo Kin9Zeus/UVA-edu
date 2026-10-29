@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { siteUrl } from "@/lib/site-url";
-import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { LEGAL_HABILITADO, PRECIOS_HABILITADOS } from "@/lib/features";
 import { getCategoriasActivas } from "@/lib/categoria";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { rutaLegal } from "@/lib/legal/slugs";
+import { getSlugsConTextoVigente } from "@/lib/legal/textos";
 
 /**
  * P2-5 (AUDIT-2026-09-04.md): no existía ningún sitemap -- Google tenía que
@@ -59,6 +61,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/soporte`, changeFrequency: "monthly", priority: 0.3 },
   ];
 
+  // Solo los textos legales con una versión vigente: el mapa no puede listar
+  // una página que responde 404. Con la bandera apagada no se anuncian.
+  const rutasLegales: MetadataRoute.Sitemap = (
+    LEGAL_HABILITADO ? await getSlugsConTextoVigente() : []
+  ).map((slug) => ({
+    url: `${base}${rutaLegal(slug)}`,
+    changeFrequency: "yearly",
+    priority: 0.3,
+  }));
+
   const rutasCategorias: MetadataRoute.Sitemap = categorias.map((categoria) => ({
     url: `${base}/catalogo/${categoria.slug}`,
     changeFrequency: "weekly",
@@ -72,5 +84,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...rutasEstaticas, ...rutasCategorias, ...rutasCursos];
+  return [...rutasEstaticas, ...rutasLegales, ...rutasCategorias, ...rutasCursos];
 }

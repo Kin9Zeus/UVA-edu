@@ -459,6 +459,13 @@ async function main() {
   const idLeccionIntroductoria: string = leccionesAcceso[0].id;
   const idLeccionDePago: string = leccionesAcceso[1].id;
 
+  // Versiones de prueba de `textos_legales` (130). Una fila PUBLICADA no se
+  // puede borrar (trigger), así que la limpieza del finally pasa por
+  // public.purgar_texto_legal_de_prueba(), que solo acepta el prefijo
+  // `rls-test-`. Se declara aquí, no dentro del try, por el mismo motivo que
+  // las demás: el finally tiene que conocerlas aunque una aserción falle.
+  const versionesLegalesPrueba: string[] = [];
+
   try {
     console.log("\n=== Sesión: ANÓNIMO (sin login) ===\n");
 
@@ -4178,8 +4185,198 @@ async function main() {
     if (errReactivarComunidad) {
       throw new Error(`No pude reactivar al usuario de prueba: ${errReactivarComunidad.message}`);
     }
+
+    // ------------------------------------------------------------
+    // textos_legales (130): visibilidad por rol, escritura solo del
+    // administrador e inmutabilidad de lo publicado.
+    // ------------------------------------------------------------
+    console.log("\n=== textos_legales ===\n");
+    const CONTENIDO_LEGAL = [{ tipo: "parrafo", contenido: "Texto de prueba RLS." }];
+    const vBorrador = `rls-test-${sufijo}-borrador`;
+    const vPublicado = `rls-test-${sufijo}-publicado`;
+    const vFuturo = `rls-test-${sufijo}-futuro`;
+    const vAdmin = `rls-test-${sufijo}-admin`;
+    versionesLegalesPrueba.push(vBorrador, vPublicado, vFuturo, vAdmin);
+
+    const filaLegal = (version: string, extra: Record<string, unknown> = {}) => ({
+      slug: "comunidad",
+      version,
+      titulo: "Texto legal de prueba RLS",
+      contenido: CONTENIDO_LEGAL,
+      ...extra,
+    });
+
+    // Fixtures con la service role (no pasa por RLS, sí por el trigger).
+    const { error: errFixBorrador } = await admin.from("textos_legales").insert(filaLegal(vBorrador));
+    if (errFixBorrador) throw new Error(`No pude crear el borrador legal de prueba: ${errFixBorrador.message}`);
+    // vigente_desde en el año 2000 para que, aunque la limpieza fallara, esta
+    // fila nunca sea "la más reciente" de un texto real.
+    const { error: errFixPublicado } = await admin
+      .from("textos_legales")
+      .insert(filaLegal(vPublicado, { estado: "PUBLICADO", vigente_desde: "2000-01-01T00:00:00Z" }));
+    if (errFixPublicado) throw new Error(`No pude crear la versión publicada de prueba: ${errFixPublicado.message}`);
+    const { error: errFixFuturo } = await admin
+      .from("textos_legales")
+      .insert(filaLegal(vFuturo, { estado: "PUBLICADO", vigente_desde: "2999-01-01T00:00:00Z" }));
+    if (errFixFuturo) throw new Error(`No pude crear la versión futura de prueba: ${errFixFuturo.message}`);
+
+    // El trigger estampa `publicado_en` al publicar: la fila no puede quedar sin fecha.
+    const { data: filaPublicada } = await admin
+      .from("textos_legales")
+      .select("publicado_en")
+      .eq("version", vPublicado)
+      .single();
+    registrar(
+      "publicar sella `publicado_en` con la hora del servidor",
+      !!filaPublicada?.publicado_en,
+      filaPublicada?.publicado_en ?? "quedó sin fecha",
+    );
+
+    // --- Visibilidad ---
+    await esperarBloqueado(
+      "anon no ve un borrador legal",
+      clienteAnonimo.from("textos_legales").select("id").eq("version", vBorrador),
+    );
+    await esperarBloqueado(
+      "estudiante no ve un borrador legal",
+      clienteSinAcceso.from("textos_legales").select("id").eq("version", vBorrador),
+    );
+    {
+      const { data, error } = await clienteAnonimo.from("textos_legales").select("id").eq("version", vPublicado);
+      registrar("anon SÍ ve una versión publicada y vigente", !error && data?.length === 1, error?.message);
+    }
+    {
+      const { data, error } = await clienteSinAcceso.from("textos_legales").select("id").eq("version", vPublicado);
+      registrar("estudiante SÍ ve una versión publicada y vigente", !error && data?.length === 1, error?.message);
+    }
+    await esperarBloqueado(
+      "anon no ve una versión publicada con vigencia FUTURA",
+      clienteAnonimo.from("textos_legales").select("id").eq("version", vFuturo),
+    );
+    await esperarBloqueado(
+      "estudiante no ve una versión publicada con vigencia FUTURA",
+      clienteSinAcceso.from("textos_legales").select("id").eq("version", vFuturo),
+    );
+    {
+      const { data, error } = await clienteAdmin
+        .from("textos_legales")
+        .select("version")
+        .in("version", [vBorrador, vFuturo]);
+      registrar(
+        "el administrador SÍ ve borradores y versiones con vigencia futura",
+        !error && data?.length === 2,
+        error?.message ?? `${data?.length} de 2`,
+      );
+    }
+
+    // --- Escritura: solo el administrador ---
+    await esperarBloqueado(
+      "anon no puede insertar un texto legal",
+      clienteAnonimo.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-anon`)).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede insertar un texto legal",
+      clienteSinAcceso.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-estudiante`)).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede editar un borrador legal",
+      clienteSinAcceso.from("textos_legales").update({ titulo: "hackeado" }).eq("version", vBorrador).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede borrar un borrador legal",
+      clienteSinAcceso.from("textos_legales").delete().eq("version", vBorrador).select(),
+    );
+    await esperarPermitido(
+      "el administrador SÍ puede crear un borrador legal",
+      clienteAdmin.from("textos_legales").insert(filaLegal(vAdmin)).select(),
+    );
+    await esperarPermitido(
+      "el administrador SÍ puede editar un borrador legal",
+      clienteAdmin.from("textos_legales").update({ titulo: "Editado por admin" }).eq("version", vAdmin).select(),
+    );
+    {
+      const { data, error } = await clienteAdmin
+        .from("textos_legales")
+        .delete()
+        .eq("version", vAdmin)
+        .select("id");
+      registrar("el administrador SÍ puede borrar un borrador legal", !error && data?.length === 1, error?.message);
+    }
+
+    // --- Integridad ---
+    await esperarBloqueado(
+      "no se acepta un slug que no sea uno de los cinco textos",
+      admin.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-slug`, { slug: "otro" })).select(),
+    );
+    await esperarBloqueado(
+      "no se acepta un contenido que no sea una lista de bloques",
+      admin
+        .from("textos_legales")
+        .insert(filaLegal(`rls-test-${sufijo}-objeto`, { contenido: { tipo: "parrafo" } }))
+        .select(),
+    );
+    await esperarBloqueado(
+      "no se puede publicar un borrador sin fecha de vigencia",
+      admin.from("textos_legales").update({ estado: "PUBLICADO" }).eq("version", vBorrador).select(),
+    );
+
+    // --- Inmutabilidad de lo publicado (ni siquiera con la service role) ---
+    await esperarBloqueado(
+      "una versión publicada no se puede editar (service role)",
+      admin.from("textos_legales").update({ titulo: "reescrito" }).eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede borrar (service role)",
+      admin.from("textos_legales").delete().eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede editar (administrador con sesión)",
+      clienteAdmin.from("textos_legales").update({ titulo: "reescrito" }).eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede borrar (administrador con sesión)",
+      clienteAdmin.from("textos_legales").delete().eq("version", vPublicado).select(),
+    );
+    {
+      // Lo único permitido: pasar de BORRADOR a PUBLICADO una vez.
+      const { data, error } = await admin
+        .from("textos_legales")
+        .update({ estado: "PUBLICADO", vigente_desde: "2000-01-02T00:00:00Z" })
+        .eq("version", vBorrador)
+        .select("estado");
+      registrar(
+        "un borrador SÍ puede pasar a publicado, con fecha de vigencia",
+        !error && data?.[0]?.estado === "PUBLICADO",
+        error?.message,
+      );
+    }
+    await esperarBloqueado(
+      "y una vez publicado ya no vuelve a ser borrador",
+      admin.from("textos_legales").update({ estado: "BORRADOR" }).eq("version", vBorrador).select(),
+    );
+
+    // --- La puerta de purga es solo para pruebas y solo para service_role ---
+    await esperarBloqueado(
+      "la purga se niega a borrar una versión que no sea de prueba",
+      admin.rpc("purgar_texto_legal_de_prueba", { p_version: "1.0" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar a la purga",
+      clienteAnonimo.rpc("purgar_texto_legal_de_prueba", { p_version: vPublicado }),
+    );
+    await esperarBloqueado(
+      "un administrador con sesión no puede llamar a la purga",
+      clienteAdmin.rpc("purgar_texto_legal_de_prueba", { p_version: vPublicado }),
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
+
+    // `textos_legales` (130): lo publicado no se borra con un DELETE; solo por
+    // la purga de pruebas. Sin FK a nada, así que va primero y no depende del resto.
+    for (const version of versionesLegalesPrueba) {
+      const { error } = await admin.rpc("purgar_texto_legal_de_prueba", { p_version: version });
+      if (error) console.log(`⚠️  No pude purgar el texto legal de prueba ${version}: ${error.message}`);
+    }
 
     // El orden lo dictan las FK, y antes no lo respetaba: los cursos se
     // borraban ANTES que las inscripciones de los usuarios de prueba, así que

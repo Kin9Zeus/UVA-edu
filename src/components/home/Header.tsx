@@ -31,7 +31,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
 
   return (
     <header
-      className={`sticky top-0 z-50 flex items-center gap-1 border-b py-2.5 pr-[max(0.5rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:gap-6 sm:pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] sm:pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] lg:gap-10 lg:py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
+      className={`print:hidden sticky top-0 z-50 flex items-center gap-1 border-b py-2.5 pr-[max(0.5rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:gap-6 sm:pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] sm:pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] lg:gap-10 lg:py-3.5 backdrop-blur-[14px] transition-[background,border-color] duration-200 [transition-timing-function:ease] ${
         scrolled
           ? "border-uva-divider bg-uva-bg/86"
           : "border-transparent bg-uva-bg/40"

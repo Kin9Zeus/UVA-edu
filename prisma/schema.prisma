@@ -1833,3 +1833,40 @@ model CursoCalificacionReacciones {
   @@index([id_usuario])
   @@map("curso_calificacion_reacciones")
 }
+
+/// Texto legal público (términos, datos personales, privacidad, cookies,
+/// normas de la comunidad) con su historial de versiones. Cada fila es UNA
+/// versión de UN texto; el que ve el visitante es, por `slug`, la versión
+/// PUBLICADA con `vigente_desde` más reciente que ya haya llegado.
+///
+/// `contenido` es una lista de bloques validada con zod al leerla
+/// (src/lib/legal/bloques.ts), no HTML ni Markdown: lo dibuja un componente
+/// propio. Una fila PUBLICADA es inmutable (ni UPDATE ni DELETE, trigger en
+/// supabase/sql/130): corregir un texto vigente es publicar una versión nueva,
+/// y cada versión publicada se conserva para siempre. `estado` y `slug` son
+/// texto acotado por CHECK en SQL, no enums de Prisma, por el mismo motivo que
+/// `notificaciones.tipo`.
+///
+/// RLS (130): el público lee solo lo publicado y ya vigente; el administrador
+/// lee y escribe todo. No hay FK a `perfiles`: quién publicó cada versión
+/// queda en `bitacora_administrativa`, que es append-only.
+model TextosLegales {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// 'terminos' | 'datos-personales' | 'privacidad' | 'cookies' | 'comunidad'
+  slug          String
+  /// Texto libre ("1.0", "1.1", "2.0"); único por slug.
+  version       String
+  titulo        String
+  contenido     Json
+  /// 'BORRADOR' | 'PUBLICADO'. Un BORRADOR se edita o se borra; un PUBLICADO no.
+  estado        String    @default("BORRADOR")
+  /// Desde cuándo rige. Obligatoria al publicar; puede ser futura (el texto
+  /// no se muestra hasta entonces).
+  vigente_desde DateTime? @db.Timestamptz
+  publicado_en  DateTime? @db.Timestamptz
+  creado_en     DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([slug, version])
+  @@index([slug, estado, vigente_desde])
+  @@map("textos_legales")
+}

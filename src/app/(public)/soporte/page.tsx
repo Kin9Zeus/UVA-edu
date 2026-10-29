@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { SoporteCentro } from "@/components/soporte/SoporteCentro";
 import { getPerfilActual } from "@/lib/perfil";
 import { esTemaSoporte } from "@/lib/soporte";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { destinoLegalDeTema } from "@/lib/legal/redireccion-soporte";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Soporte",
@@ -25,6 +27,10 @@ export default async function SoportePublicoPage({
   searchParams: Promise<{ tema?: string }>;
 }) {
   const [{ tema }, perfilActual] = await Promise.all([searchParams, getPerfilActual()]);
+
+  // Términos y Privacidad pasan a su texto legal cuando ya está publicado.
+  const destinoLegal = await destinoLegalDeTema(tema);
+  if (destinoLegal) redirect(destinoLegal);
 
   return (
     <>

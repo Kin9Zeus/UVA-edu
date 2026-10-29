@@ -25,6 +25,8 @@
     "db:rls:check": "tsx scripts/apply-rls.ts --check",
     "db:check-fk-indexes": "tsx scripts/check-fk-indexes.ts",
     "db:check-rls-initplan": "tsx scripts/check-rls-initplan.ts",
+    "legal:sembrar": "tsx scripts/legal/sembrar.ts",
+    "legal:publicar": "tsx scripts/legal/publicar.ts",
     "test": "vitest run",
     "test:rls": "tsx scripts/rls-test.ts",
     "test:webhooks": "tsx scripts/webhook-test.ts",
