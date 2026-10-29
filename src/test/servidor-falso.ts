@@ -66,6 +66,14 @@ const estado = {
     email?: string;
     email_confirmed_at?: string | null;
     identities?: { provider: string }[];
+    /**
+     * Claim `aal` del token. Si no se indica, el usuario falso es aal2: los
+     * tests de acciones de administrador no tienen por qué repetir el segundo
+     * factor en cada caso, y los que SÍ lo prueban piden `aal: "aal1"`. Ojo:
+     * un token real sin claim es aal1 (ver `nivelAalDeClaims`); este valor por
+     * defecto es solo de comodidad del servidor falso.
+     */
+    aal?: "aal1" | "aal2";
   } | null,
   respuestas: new Map<string, RespuestaFalsa>(),
   /** Respuestas que se consumen en orden antes de caer en `respuestas`. */
@@ -233,7 +241,7 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
           if (metodo === "getClaims") {
             return {
               data: estado.usuario
-                ? { claims: { sub: estado.usuario.id, email: estado.usuario.email } }
+                ? { claims: { sub: estado.usuario.id, email: estado.usuario.email, aal: estado.usuario.aal ?? "aal2" } }
                 : null,
               error: null,
             };
