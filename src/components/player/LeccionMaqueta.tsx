@@ -341,14 +341,18 @@ export function LeccionMaqueta({
           onPointerEnter={pedirTemario}
           onPointerDown={pedirTemario}
           onFocus={pedirTemario}
-          aria-label={`Temario del curso, clase ${data.numero} de ${data.totalClases}`}
           className={cn(BOTON_SECUNDARIO, "cursor-pointer bg-transparent xl:hidden")}
         >
           <List className="size-4.5 shrink-0" strokeWidth={2} aria-hidden />
+          {/* Nombre desde el texto (no aria-label) para que empiece por lo que
+              se ve, "Temario" (WCAG 2.5.3); "1/5" se lee como "clase 1 de 5". */}
           Temario
+          <span className="sr-only">
+            {" "}del curso, clase {data.numero} de {data.totalClases}
+          </span>
           {/* `max-[18rem]`: solo con la letra del sistema agrandada (a 16 px,
               18rem = 288 px, menos que cualquier celular): cede la cifra. */}
-          <span className="font-mono text-uva-text-muted max-[18rem]:hidden">
+          <span aria-hidden className="font-mono text-uva-text-muted max-[18rem]:hidden">
             {data.numero}/{data.totalClases}
           </span>
         </button>
@@ -745,7 +749,7 @@ function ClaseGratis({
  * pestañas ocultas por CSS (`soloCelular`). Dos aspectos: subrayado (bajo el
  * video) y píldora (columna lateral).
  */
-function Pestanas<T extends string>({
+export function Pestanas<T extends string>({
   idBase,
   etiqueta,
   pestanas,
@@ -855,7 +859,7 @@ function Pestanas<T extends string>({
 }
 
 /** Panel de una pestaña de `Pestanas` con el mismo `idBase`. */
-function Panel({
+export function Panel({
   idBase,
   id,
   elegida,

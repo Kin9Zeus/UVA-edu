@@ -341,7 +341,7 @@ function FormularioResena({
         maxLength={1000}
         disabled={pendiente}
         rows={3}
-        className="w-full resize-y rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 py-3 text-base text-uva-text placeholder:text-uva-text-muted focus:border-uva-accent focus:outline-none"
+        className="w-full resize-y rounded-uva-md border-[1.5px] border-uva-line-strong bg-uva-surface px-3.5 py-3 text-base text-uva-text placeholder:text-uva-text-muted outline-hidden focus:border-uva-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-uva-accent"
       />
       {error && (
         <p role="alert" className="m-0 text-uva-detalle text-uva-error-text">

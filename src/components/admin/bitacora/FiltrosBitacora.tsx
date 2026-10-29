@@ -15,8 +15,9 @@ import { cn } from "@/lib/utils";
 const TODOS = "todos";
 const ITEMS_TIPO = { [TODOS]: "Todos los tipos", ...Object.fromEntries(TIPOS_BITACORA.map((t) => [t.clave, t.nombre])) };
 
+// focus-within: Tab para en día, mes, año y el ícono del calendario (ver ui/input).
 const CLASE_FECHA =
-  "min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle";
+  "min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle outline-hidden focus-within:border-uva-accent focus-within:outline-2 focus-within:outline-solid focus-within:outline-uva-accent";
 
 /**
  * Filtros de la bitácora. Viven en la URL (no en estado), porque filtra el

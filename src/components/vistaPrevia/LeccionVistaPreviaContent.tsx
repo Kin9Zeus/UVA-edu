@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ChevronLeft, Eye, FileText } from "lucide-react";
 import { extensionArchivo, formatDuracion } from "@/lib/admin/format";
 import type { LeccionVistaPrevia } from "@/lib/admin/resolverVistaPrevia";
-import { TabsHeader, ResumenTab, type TabPlayer } from "@/components/player/PlayerTabs";
+import { ResumenTab } from "@/components/player/PlayerTabs";
+import { Panel, Pestanas } from "@/components/player/LeccionMaqueta";
 import { TemarioDrawer } from "@/components/player/TemarioDrawer";
 
 /**
@@ -30,7 +31,7 @@ export function LeccionVistaPreviaContent({
   data: LeccionVistaPrevia;
   token: string;
 }) {
-  const [tab, setTab] = useState<TabPlayer>("recursos");
+  const [tab, setTab] = useState<"recursos" | "resumen">("recursos");
   const [temarioOpen, setTemarioOpen] = useState(false);
 
   // Las URLs llevan el slug de la clase, nunca su id. El Temario (TemarioDrawer,
@@ -84,8 +85,18 @@ export function LeccionVistaPreviaContent({
           </div>
 
           <div className="mt-5 flex flex-col gap-4 rounded-uva-md border border-uva-divider bg-uva-surface p-5">
-            <TabsHeader tab={tab} onTab={setTab} totalRecursos={data.recursos.length} />
-            {tab === "recursos" && (
+            <Pestanas
+              idBase="vista-previa"
+              etiqueta="Contenido de la clase"
+              variante="pildora"
+              pestanas={[
+                { id: "recursos", etiqueta: "Recursos", total: data.recursos.length },
+                { id: "resumen", etiqueta: "Resumen", total: null },
+              ]}
+              elegida={tab}
+              onElegir={setTab}
+            />
+            <Panel idBase="vista-previa" id="recursos" elegida={tab}>
               <div className="flex flex-col gap-3">
                 {data.recursos.length === 0 ? (
                   <div className="rounded-uva-md bg-uva-chip px-[13px] py-[11px] text-[13px] text-uva-muted">
@@ -115,8 +126,10 @@ export function LeccionVistaPreviaContent({
                   La descarga no está disponible en la vista previa.
                 </p>
               </div>
-            )}
-            {tab === "resumen" && <ResumenTab contenido={data.contenido} />}
+            </Panel>
+            <Panel idBase="vista-previa" id="resumen" elegida={tab}>
+              <ResumenTab contenido={data.contenido} />
+            </Panel>
           </div>
         </div>
 

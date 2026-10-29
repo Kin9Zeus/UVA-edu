@@ -178,7 +178,7 @@ function Grafica({ dias }: { dias: DiaBitacora[] }) {
                 aria-pressed={diaElegido === dia.dia}
                 aria-label={etiquetaDia(dia, i === ultimo)}
                 className={cn(
-                  "cursor-pointer fill-transparent outline-none hover:fill-uva-hover focus-visible:fill-uva-accent-soft",
+                  "cursor-pointer fill-transparent outline-none hover:fill-uva-hover focus-visible:fill-uva-accent-soft focus-visible:stroke-uva-accent focus-visible:stroke-2",
                   diaElegido === dia.dia && "fill-uva-hover",
                 )}
                 onClick={() => elegir(dia.dia)}

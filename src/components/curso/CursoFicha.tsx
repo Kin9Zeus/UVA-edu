@@ -391,24 +391,25 @@ export function CursoFicha({
                 <a
                   href="#reseñas"
                   className="inline-flex min-h-11 items-center gap-2 text-uva-text hover:no-underline"
-                  aria-label={
-                    calificaciones.promedio !== null
-                      ? `Calificación ${formatPromedio(calificaciones.promedio)} de 5, ${plural(calificaciones.total, "reseña", "reseñas")}. Ir a las reseñas`
-                      : `${plural(calificaciones.total, "reseña", "reseñas")}. Ir a las reseñas`
-                  }
                 >
-                  <span aria-hidden="true" className="contents">
-                    {calificaciones.promedio !== null && (
-                      <>
-                        <span className="text-uva-cuerpo font-extrabold">
-                          {formatPromedio(calificaciones.promedio)}
-                        </span>
+                  {/* El nombre sale del texto visible más el oculto, no de un
+                      aria-label: así contiene lo que se ve (WCAG 2.5.3) y quien
+                      usa control por voz puede decir "2 reseñas". */}
+                  {calificaciones.promedio !== null && (
+                    <>
+                      <span className="text-uva-cuerpo font-extrabold">
+                        <span className="sr-only">Calificación </span>
+                        {formatPromedio(calificaciones.promedio)}
+                        <span className="sr-only"> de 5,</span>
+                      </span>
+                      <span aria-hidden="true" className="contents">
                         <EstrellasCalificacion puntuacion={calificaciones.promedio} size={15} />
-                      </>
-                    )}
-                    <span className="text-uva-text-muted underline underline-offset-3">
-                      {plural(calificaciones.total, "reseña", "reseñas")}
-                    </span>
+                      </span>
+                    </>
+                  )}
+                  <span className="text-uva-text-muted underline underline-offset-3">
+                    {plural(calificaciones.total, "reseña", "reseñas")}
+                    <span className="sr-only">. Ir a las reseñas</span>
                   </span>
                 </a>
               )}

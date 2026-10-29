@@ -600,6 +600,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Foco por defecto sólido: el anillo del navegador tomaba outline-ring/50
+     (magenta al 50 %) y sobre los botones magenta no se veía (examen). Los
+     componentes con su propio focus-visible:… o outline-hidden lo pisan. */
+  :focus-visible {
+    outline: 2px solid var(--uva-accent);
+    outline-offset: 2px;
+  }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
