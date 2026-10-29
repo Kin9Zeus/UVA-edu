@@ -223,6 +223,9 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
         const metodo = String(propiedad);
         if (metodo === "then") return undefined;
         if (metodo === "admin") return auth(cliente, "auth.admin");
+        // `auth.mfa.listFactors()`, `.enroll()`, `.challenge()`... se registran como
+        // `auth.mfa:listFactors`, igual que `auth.admin:` para el espacio de administración.
+        if (metodo === "mfa") return auth(cliente, "auth.mfa");
 
         return async (...args: unknown[]) => {
           const operacion = `${prefijo}:${metodo}`;

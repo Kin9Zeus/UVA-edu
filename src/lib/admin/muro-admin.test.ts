@@ -86,3 +86,27 @@ describe("el panel de administración tiene una puerta de rol (P2-1)", () => {
     expect(layout).toMatch(/acceso-denegado/);
   });
 });
+
+describe("el panel de administración exige el segundo factor (fase 8.1)", () => {
+  const layout = leer(LAYOUT_ADMIN);
+
+  /**
+   * Estructural por la misma razón que la prueba de arriba: el recorrido real
+   * es de Playwright y está fuera de CI. Lo que se fija es que el layout
+   * compruebe el nivel de sesión y mande a la pantalla del código, y que lo
+   * haga DESPUÉS del rol (un estudiante debe ver "acceso denegado", no que
+   * active el 2FA).
+   */
+  it("el layout comprueba aal2 y redirige a la pantalla del segundo factor", () => {
+    expect(layout).toMatch(/getNivelAalActual\(\)\)\s*!==\s*"aal2"/);
+    expect(layout).toMatch(/rutaSegundoFactor\(/);
+  });
+
+  it("la comprobación del segundo factor va después de la del rol", () => {
+    const rol = layout.indexOf("acceso-denegado");
+    const aal = layout.indexOf("getNivelAalActual()");
+
+    expect(rol).toBeGreaterThan(-1);
+    expect(aal).toBeGreaterThan(rol);
+  });
+});

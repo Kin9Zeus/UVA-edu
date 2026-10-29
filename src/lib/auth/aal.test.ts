@@ -3,7 +3,8 @@ import { servidorFalso } from "@/test/servidor-falso";
 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 
-const { getNivelAalActual, nivelAalDeClaims, sesionEsAal2 } = await import("@/lib/auth/aal");
+const { getNivelAalActual, nivelAalDeClaims, pantallaDeSegundoFactor, rutaSegundoFactor, sesionEsAal2 } =
+  await import("@/lib/auth/aal");
 
 /**
  * Nivel de seguridad de la sesión — FASE 8.1 del plan de blindaje. Lo usan el
@@ -72,5 +73,53 @@ describe("getNivelAalActual / sesionEsAal2", () => {
 
     expect(servidorFalso.llamadasA("auth:getClaims").length).toBeGreaterThan(0);
     expect(servidorFalso.llamadasA("auth:getUser")).toHaveLength(0);
+  });
+});
+
+describe("pantallaDeSegundoFactor", () => {
+  beforeEach(() => {
+    servidorFalso.reiniciar();
+    servidorFalso.conUsuario({ id: "u1", email: "admin@uva.co", aal: "aal1" });
+  });
+
+  const factor = (estado: "verified" | "unverified") => ({ id: "f1", factor_type: "totp", status: estado });
+
+  it("con un factor confirmado: verificar (solo le falta escribir el código)", async () => {
+    servidorFalso.responder("auth.mfa:listFactors", {
+      data: { all: [factor("verified")], totp: [factor("verified")], phone: [] },
+      error: null,
+    });
+
+    expect(await pantallaDeSegundoFactor()).toBe("verificar");
+  });
+
+  it("sin factores: activar", async () => {
+    servidorFalso.responder("auth.mfa:listFactors", { data: { all: [], totp: [], phone: [] }, error: null });
+
+    expect(await pantallaDeSegundoFactor()).toBe("activar");
+  });
+
+  it("un factor a medio registrar (sin confirmar) NO cuenta: sigue en activar", async () => {
+    servidorFalso.responder("auth.mfa:listFactors", {
+      data: { all: [factor("unverified")], totp: [], phone: [] },
+      error: null,
+    });
+
+    expect(await pantallaDeSegundoFactor()).toBe("activar");
+  });
+
+  it("si Supabase falla lanza: no adivina, porque adivinar mal le haría registrar un segundo factor a quien ya tiene uno", async () => {
+    servidorFalso.responder("auth.mfa:listFactors", { data: null, error: { message: "boom", code: "500" } });
+
+    await expect(pantallaDeSegundoFactor()).rejects.toThrow(/mfa:factores falló/);
+  });
+});
+
+describe("rutaSegundoFactor", () => {
+  it("lleva el destino codificado para volver tras el código", () => {
+    expect(rutaSegundoFactor("verificar", "/admin")).toBe("/seguridad/verificar?redirect=%2Fadmin");
+    expect(rutaSegundoFactor("activar", "/admin/usuarios?q=a b")).toBe(
+      "/seguridad/activar?redirect=%2Fadmin%2Fusuarios%3Fq%3Da%20b",
+    );
   });
 });

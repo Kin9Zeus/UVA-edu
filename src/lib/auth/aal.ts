@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 /**
  * Nivel de seguridad de la sesión (Authenticator Assurance Level) — FASE 8.1
@@ -54,4 +55,36 @@ export const getNivelAalActual = cache(async (): Promise<NivelAal | null> => {
 /** `true` solo si hay sesión y es aal2. Sin sesión o en aal1, `false`. */
 export async function sesionEsAal2(): Promise<boolean> {
   return (await getNivelAalActual()) === "aal2";
+}
+
+/**
+ * A qué pantalla se manda a un administrador que llega con sesión aal1:
+ *
+ *   "verificar"  ya tiene un factor confirmado: solo le falta escribir el código.
+ *   "activar"    no tiene ninguno: tiene que registrar su app de autenticación.
+ *
+ * Esto SÍ cuesta una ida a Supabase (`listFactors` pregunta por el usuario),
+ * así que solo se llama cuando la sesión ya se sabe aal1: nunca en el camino
+ * normal de un administrador aal2.
+ *
+ * `data.totp` trae únicamente los factores CONFIRMADOS; uno a medio registrar
+ * (el QR se escaneó pero nunca se escribió el código) está en `data.all` y no
+ * cuenta: esa persona sigue necesitando activar.
+ *
+ * Si la consulta falla se lanza: no se sabe a cuál pantalla mandarla, y
+ * adivinar mal mandaría a quien YA tiene factor a registrar otro.
+ */
+export type PantallaSegundoFactor = "activar" | "verificar";
+
+export async function pantallaDeSegundoFactor(): Promise<PantallaSegundoFactor> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  lanzarSiFalla(error, "mfa:factores");
+
+  return (data?.totp ?? []).length > 0 ? "verificar" : "activar";
+}
+
+/** Ruta de la pantalla del segundo factor, con el destino al que volver. */
+export function rutaSegundoFactor(pantalla: PantallaSegundoFactor, destino: string): string {
+  return `/seguridad/${pantalla}?redirect=${encodeURIComponent(destino)}`;
 }
