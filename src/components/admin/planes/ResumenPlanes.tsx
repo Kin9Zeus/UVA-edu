@@ -6,7 +6,7 @@ import { DIAS_AVISO_VENCE } from "@/lib/admin/planes-tipos";
 import type { VentasPlanes } from "@/lib/admin/planes-ventas";
 
 /** El eje en pesos, corto: "$6 M", "$500 mil". */
-function ejeEnPesos(centavos: number) {
+export function ejeEnPesos(centavos: number) {
   const pesos = centavos / 100;
   const corto = (valor: number) => valor.toLocaleString("es-CO", { maximumFractionDigits: 1 });
   if (pesos >= 1_000_000) return `$${corto(pesos / 1_000_000)} M`;

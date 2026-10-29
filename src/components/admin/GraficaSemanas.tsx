@@ -12,7 +12,7 @@ export function corto(dia: string) {
 }
 
 /** 1, 2, 4, 6, 8 o 10 por una potencia de diez: así la guía de la mitad cae en un número redondo. */
-function topeDe(maximo: number) {
+export function topeDe(maximo: number) {
   if (maximo <= 4) return 4;
   const magnitud = 10 ** Math.floor(Math.log10(maximo));
   return [1, 2, 4, 6, 8, 10].map((m) => m * magnitud).find((tope) => tope >= maximo)!;

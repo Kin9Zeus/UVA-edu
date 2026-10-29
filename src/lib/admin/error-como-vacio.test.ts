@@ -49,6 +49,11 @@ const loaders: Array<[string, () => Promise<unknown>, string]> = [
   ["getCursosListado (resumen)", () => getCursosListado(), "rpc:admin_resumen_cursos"],
   ["getCursosListado (atascos)", () => getCursosListado(), "rpc:admin_clases_con_atascos"],
   ["getDashboardData", () => getDashboardData(), "from:cursos"],
+  ["getDashboardData (estudio)", () => getDashboardData(), "rpc:admin_estudio_por_semana"],
+  ["getDashboardData (resumen de cursos)", () => getDashboardData(), "rpc:admin_resumen_cursos"],
+  ["getDashboardData (certificados)", () => getDashboardData(), "from:certificados"],
+  ["getDashboardData (reportes)", () => getDashboardData(), "from:comunidad_reportes"],
+  ["getDashboardData (exámenes)", () => getDashboardData(), "from:intentos_examen"],
   ["getUsuarios", () => getUsuarios(), "rpc:admin_listar_usuarios"],
   ["getReportesComunidadPendientes", () => getReportesComunidadPendientes(), "from:comunidad_reportes"],
 ];

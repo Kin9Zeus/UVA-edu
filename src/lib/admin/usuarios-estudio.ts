@@ -75,7 +75,7 @@ export function deInvitacionAPago(accesos: AccesoHistorico[], ahora: Date = new 
   return { invitacionTerminada: primeraInvitacion.size, pagaronDespues: pagaron.size };
 }
 
-async function getDeInvitacionAPago(ahora: Date) {
+export async function getDeInvitacionAPago(ahora: Date) {
   const supabase = await createClient();
   // ponytail: trae toda la historia de accesos por código y pagados; con
   // decenas de miles de filas, contarlo en una función de Postgres.
