@@ -5,7 +5,7 @@ vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) 
 vi.mock("@/lib/supabase/admin", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseAdmin()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
-import { getComunidadDestacados, getComunidadFeed } from "@/lib/comunidad";
+import { getComunidadDestacados, getComunidadFeed, resolverAccesoComunidad } from "@/lib/comunidad";
 import { logError } from "@/lib/log";
 
 /**
@@ -246,5 +246,24 @@ describe("getComunidadDestacados", () => {
 
     expect(await getComunidadDestacados()).toEqual([]);
     expect(logError).toHaveBeenCalledWith("comunidad:destacados", "no se pudieron leer los destacados", { message: "x" }, {});
+  });
+});
+
+describe("resolverAccesoComunidad: esAdmin exige aal2 (fase 8.1)", () => {
+  beforeEach(() => {
+    servidorFalso.responder("rpc:comunidad_tiene_acceso", { data: true, error: null });
+    servidorFalso.responder("from:perfiles", { data: { rol: "ADMINISTRADOR" }, error: null });
+  });
+
+  it("un administrador con sesión aal2 es admin en la comunidad", async () => {
+    servidorFalso.conUsuario({ id: "admin-9", email: "admin@uva.co", aal: "aal2" });
+
+    expect(await resolverAccesoComunidad()).toMatchObject({ acceso: true, esAdmin: true });
+  });
+
+  it("con aal1 entra (el acceso lo decide la base) pero NO como administrador", async () => {
+    servidorFalso.conUsuario({ id: "admin-9", email: "admin@uva.co", aal: "aal1" });
+
+    expect(await resolverAccesoComunidad()).toMatchObject({ acceso: true, esAdmin: false });
   });
 });

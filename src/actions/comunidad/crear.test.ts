@@ -334,3 +334,15 @@ describe("responderPostComunidad", () => {
     });
   });
 });
+
+describe("Anuncios con un administrador aal1 (fase 8.1)", () => {
+  it("no publica: sin el código de su app es un estudiante más", async () => {
+    servidorFalso.conUsuario({ id: "admin-9", email: "admin@uva.co", aal: "aal1" });
+    servidorFalso.responder("from:perfiles", { data: { rol: "ADMINISTRADOR" } });
+
+    expect(await crearPostComunidad("ANUNCIOS", "Aviso importante", "Texto", "/dashboard/comunidad")).toEqual({
+      error: "Solo un administrador puede publicar en Anuncios.",
+    });
+    expect(inserts("comunidad_posts")).toEqual([]);
+  });
+});

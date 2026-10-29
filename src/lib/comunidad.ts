@@ -20,6 +20,7 @@ import type {
 } from "@/lib/comunidad-tipos";
 import { COMUNIDAD_POSTS_POR_PAGINA } from "@/lib/comunidad-tipos";
 import { getPerfilActual, getUsuarioActual } from "@/lib/perfil";
+import { esAdminConSegundoFactor } from "@/lib/auth/aal";
 
 // Cubre la duración de una vista del feed/detalle, no solo un clic —a
 // diferencia de la URL de descarga de un documento (obtenerUrlAdjuntoComunidad,
@@ -71,7 +72,7 @@ export async function resolverAccesoComunidad(): Promise<AccesoComunidad> {
   lanzarSiFalla(errorAcceso, "comunidad:comunidad_tiene_acceso");
 
   if (tieneAcceso) {
-    return { acceso: true, usuarioId: user.id, esAdmin: perfil?.rol === "ADMINISTRADOR" };
+    return { acceso: true, usuarioId: user.id, esAdmin: await esAdminConSegundoFactor(perfil?.rol) };
   }
 
   const { data: suscripcion, error: errorSuscripcion } = await supabase

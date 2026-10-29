@@ -88,3 +88,20 @@ export async function pantallaDeSegundoFactor(): Promise<PantallaSegundoFactor> 
 export function rutaSegundoFactor(pantalla: PantallaSegundoFactor, destino: string): string {
   return `/seguridad/${pantalla}?redirect=${encodeURIComponent(destino)}`;
 }
+
+/**
+ * ¿Esta persona puede usar HOY poderes de administrador? Solo si su rol es
+ * ADMINISTRADOR **y** su sesión es aal2.
+ *
+ * Es para las rutas que conceden poder de administrador SIN pasar por
+ * `requireAdmin()` (moderar, ver todo el catálogo, publicar anuncios). Un
+ * administrador con sesión aal1 —contraseña robada, o recién entrado y aún sin
+ * escribir su código— se trata ahí como una persona normal: no recibe el poder,
+ * pero tampoco se le rompe nada de lo que sí puede hacer como estudiante.
+ *
+ * Mira el nivel de la SESIÓN en curso. Úsalo solo para decidir sobre quien hace
+ * la petición, nunca sobre otro usuario.
+ */
+export async function esAdminConSegundoFactor(rol: string | null | undefined): Promise<boolean> {
+  return rol === "ADMINISTRADOR" && (await getNivelAalActual()) === "aal2";
+}

@@ -8,6 +8,7 @@ import { puntuacionSchema, comentarioCalificacionSchema } from "@/lib/curso-cali
 import { DESDE_MAXIMO_RESENAS, getTandaCalificacionesCurso, type TandaCalificaciones } from "@/lib/curso-calificaciones";
 import { esUuid } from "@/lib/slug";
 import { getUsuarioActual } from "@/lib/perfil";
+import { esAdminConSegundoFactor } from "@/lib/auth/aal";
 
 export type CalificacionCursoResultado = { error: string } | { success: true };
 
@@ -142,7 +143,7 @@ export async function moderarCalificacion(
   const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
   // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
   if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
-  if (perfil?.rol !== "ADMINISTRADOR") return { error: "No tienes permiso para moderar reseñas." };
+  if (!(await esAdminConSegundoFactor(perfil?.rol))) return { error: "No tienes permiso para moderar reseñas." };
 
   // Mismo motivo que en eliminarCalificacionPropia, y aquí pesa más: sin
   // contar filas, un id inexistente quedaba en la bitácora como una
