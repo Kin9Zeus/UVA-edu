@@ -166,7 +166,9 @@ export function CambiarPasswordForm({ tienePassword }: { tienePassword: boolean 
           </Button>
           {state?.success && (
             <span role="status" className="text-uva-cuerpo font-bold text-uva-text">
-              Contraseña actualizada
+              {state.otrasSesionesCerradas
+                ? "Contraseña actualizada. Cerramos tus otras sesiones."
+                : "Contraseña actualizada. No pudimos cerrar tus otras sesiones: usa «Cerrar sesión en todos los dispositivos»."}
             </span>
           )}
         </div>
