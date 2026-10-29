@@ -128,7 +128,7 @@ function ExamenVacio({ cursoId }: { cursoId: string }) {
   }
 
   return (
-    <div className="max-w-[560px] rounded-uva-md border border-uva-divider bg-uva-surface p-5">
+    <div className="max-w-[640px] rounded-uva-lg border border-uva-divider bg-uva-surface p-5">
       <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
         Este curso no tiene examen final
       </h2>
@@ -378,6 +378,14 @@ function ExamenExistente({
   }
 
   const agotaron = examen.estudiantes.filter((estudiante) => estudiante.estado === "EN_ESPERA_LARGA").length;
+  // Lo guardado, no lo que se está escribiendo: es lo que vive el estudiante.
+  const resumenConfiguracion = [
+    examen.intentosMaximos === null
+      ? "Intentos sin límite"
+      : `${examen.intentosMaximos} ${examen.intentosMaximos === 1 ? "intento" : "intentos"}`,
+    examen.minutosLimite === null ? "sin tiempo límite" : `${examen.minutosLimite} minutos`,
+    examen.aleatorizarPreguntas || examen.aleatorizarOpciones ? "barajado" : "en orden fijo",
+  ].join(", ");
 
   return (
     <div className="flex flex-col gap-6">
@@ -392,34 +400,41 @@ function ExamenExistente({
 
       {/* Lo que el admin necesita saber primero: cuántos lo presentan, cuántos
           lo aprueban y a quién le hace falta otro intento (abajo, en Estudiantes). */}
-      {examen.estudiantes.length > 0 && (
-        <dl className="grid max-w-[640px] grid-cols-2 rounded-uva-lg border border-uva-divider bg-uva-surface lg:grid-cols-3">
-          <Cifra enFila valor={String(examen.estudiantes.length)} etiqueta="lo presentaron" nota="Al menos un intento" />
-          <Cifra
-            enFila
-            valor={String(examen.aprobados)}
-            etiqueta="lo aprobaron"
-            nota={`${Math.round((examen.aprobados / examen.estudiantes.length) * 100)} % de los que lo presentaron`}
-          />
-          <Cifra
-            enFila
-            ancha
-            valor={String(agotaron)}
-            etiqueta="agotaron sus intentos"
-            nota={agotaron > 0 ? "Puedes darles otro intento en Estudiantes" : "Nadie está esperando"}
-            alerta={agotaron > 0}
-          />
-        </dl>
-      )}
+      <dl className="grid grid-cols-2 rounded-uva-lg border border-uva-divider bg-uva-surface lg:grid-cols-3">
+        <Cifra
+          enFila
+          valor={String(examen.estudiantes.length)}
+          etiqueta={examen.estudiantes.length === 1 ? "lo presentó" : "lo presentaron"}
+          nota={examen.estudiantes.length === 0 ? "Nadie lo ha presentado todavía" : "Al menos un intento"}
+        />
+        <Cifra
+          enFila
+          valor={String(examen.aprobados)}
+          etiqueta={examen.aprobados === 1 ? "lo aprobó" : "lo aprobaron"}
+          nota={
+            examen.estudiantes.length === 0
+              ? "Sin intentos todavía"
+              : `${Math.round((examen.aprobados / examen.estudiantes.length) * 100)} % de los que lo presentaron`
+          }
+        />
+        <Cifra
+          enFila
+          ancha
+          valor={String(agotaron)}
+          etiqueta="agotaron sus intentos"
+          nota={agotaron > 0 ? "Puedes darles otro intento en Estudiantes" : "Nadie está esperando"}
+          alerta={agotaron > 0}
+        />
+      </dl>
 
       {/* ---------------- Publicación ---------------- */}
-      <section className="max-w-[640px] rounded-uva-md border border-uva-divider bg-uva-surface p-4">
+      <section className="rounded-uva-lg border border-uva-divider bg-uva-surface p-4 sm:px-5">
         {/* Sin flex-wrap: con wrap, en un teléfono el texto ocupaba la fila
             entera y el interruptor caía debajo, pegado a la izquierda. */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <p className="text-uva-detalle font-semibold text-uva-text">Examen obligatorio</p>
+              <p className="font-bold text-uva-text">Examen obligatorio</p>
               <StatusBadge tone={examen.publicado ? "success" : "neutral"}>
                 {examen.publicado ? "Publicado" : "Borrador"}
               </StatusBadge>
@@ -463,10 +478,8 @@ function ExamenExistente({
       </section>
 
       {/* ---------------- Configuración ---------------- */}
-      <section className="flex max-w-[640px] flex-col gap-4">
-        <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
-          Configuración
-        </h2>
+      <SeccionExamen titulo="Configuración" resumen={resumenConfiguracion}>
+        <div className="flex max-w-[640px] flex-col gap-4">
 
         <div>
           <Label htmlFor="examen-titulo">Título del examen</Label>
@@ -579,19 +592,17 @@ function ExamenExistente({
         >
           {pending ? "Guardando…" : "Guardar configuración"}
         </Button>
-      </section>
+        </div>
+      </SeccionExamen>
 
       {/* ---------------- Preguntas ---------------- */}
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
-            Preguntas
-          </h2>
-          <p className="text-uva-detalle text-uva-text-faint">
-            {preguntas.length} {preguntas.length === 1 ? "pregunta" : "preguntas"} · {puntosTotales}{" "}
-            {puntosTotales === 1 ? "punto" : "puntos"} en total
-          </p>
-        </div>
+      <SeccionExamen
+        titulo="Preguntas"
+        abierta
+        resumen={`${preguntas.length} ${preguntas.length === 1 ? "pregunta" : "preguntas"}, ${puntosTotales} ${
+          puntosTotales === 1 ? "punto" : "puntos"
+        } en total`}
+      >
 
         {/* Antes de la lista y no al final: regenerar reemplaza justo lo que
             hay debajo, así que la acción tiene que verse junto a lo que
@@ -665,13 +676,19 @@ function ExamenExistente({
             ))}
           </div>
         )}
-      </section>
+      </SeccionExamen>
 
       {/* ---------------- Estudiantes ---------------- */}
-      <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-uva-cuerpo font-bold tracking-[-0.02em] text-uva-text">
-          Estudiantes
-        </h2>
+      <SeccionExamen
+        titulo="Estudiantes"
+        abierta
+        resumen={
+          examen.estudiantes.length === 0
+            ? "Nadie lo ha presentado"
+            : `${examen.estudiantes.length} ${examen.estudiantes.length === 1 ? "persona" : "personas"}`
+        }
+        aviso={agotaron > 0 ? `${agotaron} ${agotaron === 1 ? "necesita" : "necesitan"} otro intento` : undefined}
+      >
 
         {examen.estudiantes.length === 0 ? (
           <p className="text-uva-detalle text-uva-text-faint">Nadie ha presentado este examen todavía.</p>
@@ -695,12 +712,12 @@ function ExamenExistente({
             ))}
           </div>
         )}
-      </section>
+      </SeccionExamen>
 
       <IntentoRevisionDialog intentoId={intentoRevisionId} onClose={() => setIntentoRevisionId(null)} />
 
       {/* ---------------- Zona peligrosa ---------------- */}
-      <section className="max-w-[640px]">
+      <section>
         <Button
           type="button"
           variant="destructive"
@@ -1068,5 +1085,39 @@ function EstudianteFila({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Una parte del examen en su propia tarjeta, con el resumen en la cabecera
+ * para leerla sin abrirla. `<details>` nativo: teclado y lector de pantalla
+ * sin código. Configuración arranca cerrada (se toca poco); Preguntas y
+ * Estudiantes, abiertas.
+ */
+function SeccionExamen({
+  titulo,
+  resumen,
+  aviso,
+  abierta = false,
+  children,
+}: {
+  titulo: string;
+  resumen: string;
+  aviso?: string;
+  abierta?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details open={abierta} className="group rounded-uva-lg border border-uva-divider bg-uva-surface">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-4 py-3.5 sm:px-5 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-uva-text">{titulo}</span>
+          <span className="block text-uva-detalle text-uva-text-muted">{resumen}</span>
+        </span>
+        {aviso && <StatusBadge tone="warning">{aviso}</StatusBadge>}
+        <ChevronDown className="size-4 shrink-0 text-uva-muted-2 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
+      </summary>
+      <div className="flex flex-col gap-3 border-t border-uva-divider px-4 py-4 sm:px-5">{children}</div>
+    </details>
   );
 }

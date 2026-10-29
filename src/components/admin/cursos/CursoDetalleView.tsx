@@ -28,6 +28,11 @@ import type { ExamenDetalle } from "@/lib/admin/examenDetalle";
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
+// Como en la maqueta: letra de cuerpo y aire a los lados (ui/tabs trae 13,5 px
+// y casi sin relleno, y lo usan otras pantallas). En celular se achica para
+// que las 4 quepan sin desplazar.
+const PESTANA = "gap-2 px-3.5 text-uva-cuerpo data-active:font-bold max-sm:px-1.5 max-sm:text-uva-detalle";
+
 export type PestanaCurso = "informacion" | "contenido" | "examen" | "estudiantes";
 
 /**
@@ -325,16 +330,16 @@ export function CursoDetalleView({
       >
         <div className="relative">
           <TabsList ref={tabsRef} className="overflow-x-auto">
-            <TabsTrigger value="informacion">Información</TabsTrigger>
-            <TabsTrigger value="contenido">
+            <TabsTrigger value="informacion" className={PESTANA}>Información</TabsTrigger>
+            <TabsTrigger value="contenido" className={PESTANA}>
               Contenido
               {totalClases > 0 && <Contador>{totalClases}</Contador>}
             </TabsTrigger>
-            <TabsTrigger value="examen">
+            <TabsTrigger value="examen" className={PESTANA}>
               Examen
               {sinIntentos > 0 && <Contador alerta>{sinIntentos}</Contador>}
             </TabsTrigger>
-            <TabsTrigger value="estudiantes">
+            <TabsTrigger value="estudiantes" className={PESTANA}>
               Estudiantes
               {curso.estudiantes.length > 0 && <Contador>{curso.estudiantes.length}</Contador>}
             </TabsTrigger>
