@@ -281,7 +281,7 @@ export function PerfilForm({
                     >
                       <SelectTrigger
                         aria-label="Indicativo del país"
-                        className="w-[108px] shrink-0 border-[1.5px] border-uva-line-strong bg-uva-surface text-base font-semibold data-[size=default]:h-12"
+                        className="w-[6.75rem] shrink-0 border-[1.5px] border-uva-line-strong bg-uva-surface text-base font-semibold data-[size=default]:h-12"
                       >
                         <SelectValue>
                           {(codigo: string) => {

@@ -45,8 +45,11 @@ export function EstrellasInput({
           disabled={disabled}
           onClick={() => onCambiar(estrella)}
           aria-label={`Calificar con ${estrella} estrella${estrella === 1 ? "" : "s"}`}
+          // 44 px fijos y no size-11 (rem): el área táctil es la del dedo y no
+          // crece con la letra; con la letra del sistema agrandada, cinco de
+          // 66 px no caben en 375 px.
           className={cn(
-            "inline-flex size-11 cursor-pointer items-center justify-center border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-60",
+            "inline-flex size-[44px] cursor-pointer items-center justify-center border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
           <Star

@@ -151,7 +151,7 @@ export function CursoTarjetaPublica({
         <span className={cn("items-center justify-between gap-3", tarjeta ? "flex" : "hidden md:flex")}>
           <span className="inline-flex min-w-0 items-center gap-1.5 text-uva-detalle font-semibold text-uva-text-muted">
             <IconoCategoria clave={categoria.nombre} className="size-4" />
-            <span className="truncate">{categoria.nombre}</span>
+            <span>{categoria.nombre}</span>
           </span>
           <span className="flex shrink-0 gap-2.5 font-mono text-uva-detalle text-uva-text-muted">
             <span>{clases}</span>

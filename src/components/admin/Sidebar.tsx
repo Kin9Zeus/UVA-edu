@@ -94,7 +94,7 @@ function NavLink({ href, label, icon: Icon, active, modo }: Item & { active: boo
       )}
     >
       <Icon className="size-5 shrink-0" strokeWidth={1.8} aria-hidden />
-      <span className={cn("flex-1 truncate", SOLO_COMPLETO[modo])}>{label}</span>
+      <span className={cn("min-w-0 flex-1", SOLO_COMPLETO[modo])}>{label}</span>
     </Link>
   );
 

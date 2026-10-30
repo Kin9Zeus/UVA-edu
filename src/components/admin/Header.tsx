@@ -51,7 +51,11 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
         className="mr-auto inline-flex min-h-11 shrink-0 items-center gap-2 text-uva-text no-underline hover:no-underline md:hidden"
       >
         <LogoUva className="h-[25px] w-[77px]" />
-        <EtiquetaAdmin />
+        {/* Con la letra del sistema agrandada no cabe junto a los botones;
+            el aria-label del enlace ya dice "Admin". */}
+        <span className="max-[20rem]:hidden">
+          <EtiquetaAdmin />
+        </span>
       </Link>
 
       {placeholder && (
