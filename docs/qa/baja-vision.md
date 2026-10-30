@@ -36,7 +36,7 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 | # | Prueba | Estado |
 | --- | --- | --- |
 | 1 | Zoom al 200 % | Falló (BV-01, 02, 03, 15, 16) → corregido. Barrido en verde |
-| 2 | Letra del sistema al máximo | Falló (BV-01 a 09) → corregido en PC. **Falta celular real** |
+| 2 | Letra del sistema al máximo | Falló (BV-01 a 09, 17 a 21) → corregido salvo BV-17 (por confirmar). **Falta celular real** |
 | 3 | Espaciado de texto | Falló (BV-01, 08, 09) → corregido. Barrido en verde |
 | 4 | Al sol | **Pendiente** (prueba manual del usuario) |
 | 5 | Movimiento reducido | Falló (BV-10, 11) → corregido. **Falta celular real** |
@@ -45,7 +45,10 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 
 ## Abiertos
 
-Ninguno abierto por el momento.
+### BV-17 — Portada: "se desbordan las categorías en las tarjetas" (por confirmar)
+
+- **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px)
+- La lista "Explora por categoría" se ve bien en la captura; falta confirmar a qué tarjetas se refiere.
 
 ## Resueltos
 
@@ -143,6 +146,34 @@ Ninguno abierto por el momento.
 - **Severidad:** Media · **Prueba:** 1 · **Detectó:** prueba manual del usuario (PC, estudiante)
 - **Causa:** la barra inferior es fija (`sticky`) también cuando solo muestra la indicación: ~90 de 450 px.
 - **Arreglo:** solo queda fija con un botón (Comprobar, Siguiente) o un error. `f029dc3`
+
+### BV-18 — Portada, "Entra con una invitación": texto y botones se salen del recuadro
+
+- **Severidad:** Media · **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px)
+- **Causa:** grilla sin columnas en celular (como BV-01): creció hasta el botón más ancho.
+- **Arreglo:** `grid-cols-1` y botones que parten su texto.
+- **Capturas:** [antes](baja-vision/BV-18-acceso-invitacion-abajo-antes.png) · [después](baja-vision/BV-18-acceso-invitacion-abajo-despues.png)
+
+### BV-19 — Menú ☰: "Claro / Oscuro / Sistema" se salen de sus botones
+
+- **Severidad:** Media · **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px)
+- **Causa:** tres columnas fijas; ocultaba los íconos con una media query en px (`max-[359px]`), que no reacciona a la letra agrandada.
+- **Arreglo:** una columna solo con la letra agrandada (`max-[20rem]`).
+- **Capturas:** [antes](baja-vision/BV-19-menu-tema-antes.png) · [después](baja-vision/BV-19-menu-tema-despues.png)
+
+### BV-20 — Perfil en celular: el carné se sale y hay scroll horizontal
+
+- **Severidad:** Alta · **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px). El barrido no lo vio: excusaba todo lo que estuviera dentro de un contenedor con scroll propio, y el área principal del panel lo es.
+- **Causa:** grilla sin columnas en celular (como BV-01).
+- **Arreglo:** `grid-cols-1`. El barrido ahora solo excusa contenedores con scroll de menos de media pantalla (pestañas, tablas).
+- **Capturas:** [antes](baja-vision/BV-20-perfil-antes.png) · [después](baja-vision/BV-20-perfil-despues.png)
+
+### BV-21 — Barra inferior del panel a 768 px: los rótulos se montan
+
+- **Severidad:** Media · **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 200 %, 768 px)
+- **Causa:** ancho máximo en px (`max-w-[440px]`) con rótulos en rem.
+- **Arreglo:** ancho máximo en rem.
+- **Capturas:** [antes](baja-vision/BV-21-barra-inferior-768-antes.png) · [después](baja-vision/BV-21-barra-inferior-768-despues.png)
 
 ## Recortes aceptados (no son fallas)
 
