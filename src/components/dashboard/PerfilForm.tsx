@@ -24,6 +24,7 @@ import {
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
+import { SegundoFactorPerfil, type DatosSegundoFactor } from "@/components/dashboard/SegundoFactorPerfil";
 import { LARGO_MAXIMO_NOMBRE } from "@/lib/nombre";
 import { ExportarDatosButton } from "@/components/dashboard/ExportarDatosButton";
 import { EliminarCuentaCard } from "@/components/dashboard/EliminarCuentaCard";
@@ -76,6 +77,7 @@ export function PerfilForm({
   tienePassword,
   certificados,
   estadoAcceso,
+  segundoFactor = null,
 }: {
   nombre: string;
   correo: string;
@@ -86,6 +88,8 @@ export function PerfilForm({
   tienePassword: boolean;
   certificados: Certificado[];
   estadoAcceso: EstadoAcceso | null;
+  /** Solo para administradores (FASE 8.1): sus dispositivos del segundo factor. */
+  segundoFactor?: DatosSegundoFactor | null;
 }) {
   const [state, formAction, pending] = useActionState<
     ActualizarPerfilState,
@@ -371,6 +375,12 @@ export function PerfilForm({
           <div className="order-5 @min-[900px]:order-none">
             <CambiarPasswordForm tienePassword={tienePassword} />
           </div>
+
+          {segundoFactor && (
+            <div className="order-5 @min-[900px]:order-none">
+              <SegundoFactorPerfil {...segundoFactor} />
+            </div>
+          )}
 
           <section aria-labelledby="perfil-sesion-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-6 @min-[900px]:order-none")}>
             <h2 id="perfil-sesion-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">

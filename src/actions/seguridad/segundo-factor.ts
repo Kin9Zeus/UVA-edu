@@ -6,6 +6,14 @@ import { getUsuarioActual } from "@/lib/perfil";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { logError } from "@/lib/log";
 import { qrDeActivacion } from "@/lib/auth/qr";
+import {
+  CODIGO_INVALIDO,
+  CODIGO_SEIS_DIGITOS,
+  ERROR_GENERICO_CODIGO as ERROR_GENERICO,
+  esLimiteDeIntentos,
+  limpiarCodigo,
+  mensajeDeCodigo,
+} from "@/lib/auth/codigoSegundoFactor";
 
 /**
  * Segundo factor (app de autenticación, TOTP) — FASE 8.1 del plan de
@@ -33,37 +41,7 @@ export type VerificarCodigoState = { error: string } | null;
 
 const SESION_EXPIRADA = "Tu sesión expiró. Vuelve a iniciar sesión.";
 
-/** Solo dígitos: las apps los muestran como «123 456» y quien copia pega el espacio. */
-function limpiarCodigo(valor: FormDataEntryValue | null): string {
-  return typeof valor === "string" ? valor.replace(/\s+/g, "") : "";
-}
-
-const CODIGO_SEIS_DIGITOS = /^\d{6}$/;
-const CODIGO_INVALIDO = "Escribe los 6 dígitos que muestra tu app de autenticación.";
-
-type ErrorDeAuth = { code?: string; status?: number; message?: string } | null | undefined;
-
-/**
- * Qué decirle a la persona cuando Supabase rechaza el código. El texto del
- * error de Supabase viene en inglés y habla de «TOTP»: no sirve para mostrarlo.
- * Devuelve `null` si el fallo no es del código (red, servidor...), que quien
- * llama debe registrar y reportar como fallo genérico.
- */
-function mensajeDeCodigo(error: ErrorDeAuth): string | null {
-  if (!error) return null;
-  if (error.code === "mfa_verification_failed") {
-    return "El código no es correcto. Revisa que la hora de tu celular sea automática y vuelve a intentarlo.";
-  }
-  if (error.code === "mfa_challenge_expired") {
-    return "El código tardó demasiado. Escribe el que muestra tu app ahora.";
-  }
-  if (error.code === "over_request_rate_limit" || error.status === 429) {
-    return "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.";
-  }
-  return null;
-}
-
-const ERROR_GENERICO = "No pudimos verificar el código. Intenta de nuevo.";
+// Limpieza del código y mensajes: lib/auth/codigoSegundoFactor.ts (compartidos con Mi perfil).
 
 /**
  * Paso 1 de la activación: crea un factor SIN confirmar y devuelve lo que la
@@ -180,7 +158,7 @@ export async function verificarSegundoFactor(
     }
     // Pasar al siguiente dispositivo solo tiene sentido si el código fue
     // rechazado; con límite de intentos, seguir insistiendo lo empeora.
-    if (error.code === "over_request_rate_limit" || error.status === 429) return { error: mensaje };
+    if (esLimiteDeIntentos(error)) return { error: mensaje };
     ultimoMensaje = mensaje;
   }
 
