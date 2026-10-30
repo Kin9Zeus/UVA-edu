@@ -26,7 +26,7 @@ export async function Hero({
   // la izquierda; la maqueta ocupa la columna derecha en las dos filas.
   return (
     <section className="mx-auto grid w-full max-w-uva grid-cols-1 px-uva-margen pt-7 pb-14 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-x-10 lg:pt-10 lg:pb-[72px]">
-      <h1 className="relative z-[1] text-uva-display text-uva-text lg:col-start-1 lg:row-start-1 lg:mb-7 lg:max-w-[8.6em] lg:self-end">
+      <h1 className="relative z-[1] text-uva-display break-words text-uva-text max-[20rem]:hyphens-auto lg:col-start-1 lg:row-start-1 lg:mb-7 lg:max-w-[8.6em] lg:self-end">
         {TITULO_SIN_REMATE} <span className="text-uva-accent-ink">{REMATE_TITULO}</span>
       </h1>
 
@@ -35,7 +35,7 @@ export async function Hero({
           primera pantalla; nunca baja de 240 px, donde los rótulos dejarían
           de leerse. En celular girado (`apaisado`) mide 300 px: con 240 el
           nombre más largo ("Construcción") no cabe en su rótulo. */}
-      <div className="mx-auto mt-4 mb-3 w-full max-[359px]:mt-6 max-w-[min(100%,max(240px,calc(100svh-400px)))] sm:mt-4 sm:mb-6 sm:max-w-[min(560px,max(240px,calc(100svh-330px)))] apaisado:max-lg:max-w-[300px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:max-w-none lg:self-center">
+      <div className="mx-auto mt-4 mb-3 w-full max-[359px]:mt-6 max-[20rem]:mt-8 max-w-[min(100%,max(240px,calc(100svh-400px)))] sm:mt-4 sm:mb-6 sm:max-w-[min(560px,max(240px,calc(100svh-330px)))] apaisado:max-lg:max-w-[300px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:max-w-none lg:self-center">
         <MaquetaCategorias categorias={categorias} />
       </div>
 
