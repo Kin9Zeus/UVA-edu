@@ -122,7 +122,8 @@ function FilaDispositivo({ dispositivo, esElUnico }: { dispositivo: DispositivoS
               size="uva"
               onClick={quitar}
               disabled={pendiente}
-              className="min-h-11 w-auto px-4 text-base"
+              // El nombre puede tener hasta 40 letras: parte el texto en vez de salirse.
+              className="h-auto min-h-11 w-auto max-w-full px-4 text-base whitespace-normal"
             >
               {pendiente ? "Quitando…" : `Sí, quitar «${nombre}»`}
             </Button>
