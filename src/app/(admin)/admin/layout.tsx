@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getPerfilActual } from "@/lib/perfil";
+import { getNivelAalActual, pantallaDeSegundoFactor, rutaSegundoFactor } from "@/lib/auth/aal";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
 import { Header } from "@/components/admin/Header";
@@ -47,6 +48,17 @@ export default async function AdminLayout({
   // La regresión está cubierta por src/lib/admin/muro-admin.test.ts.
   if (perfil?.rol !== "ADMINISTRADOR") {
     redirect("/acceso-denegado");
+  }
+
+  // FASE 8.1 (2FA de administradores): el rol solo no basta, la sesión tiene
+  // que ser aal2 (contraseña + código de la app). Va DESPUÉS del rol, no antes:
+  // a un estudiante se le dice "acceso denegado", no que active el 2FA. Se
+  // redirige y no se muestra un 403 porque un aal1 aquí suele ser inocente (el
+  // administrador acaba de entrar, o dejó una pestaña abierta); lo único que
+  // le falta es escribir su código. El mismo nivel se exige en `requireAdmin()`
+  // para las acciones: esta puerta cubre LEER el panel, aquella ESCRIBIR.
+  if ((await getNivelAalActual()) !== "aal2") {
+    redirect(rutaSegundoFactor(await pantallaDeSegundoFactor(), "/admin"));
   }
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";

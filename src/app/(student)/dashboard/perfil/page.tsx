@@ -7,6 +7,7 @@ import { calcularEstadoAcceso, suscripcionDaAcceso } from "@/lib/estadoAcceso";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 import { PerfilForm } from "@/components/dashboard/PerfilForm";
+import { getNivelAalActual } from "@/lib/auth/aal";
 
 export const metadata: Metadata = {
   title: "U.V.A. — Mi perfil",
@@ -54,6 +55,28 @@ export default async function PerfilPage() {
   // contraseña: EliminarCuentaCard no debe pedir un campo que no puede
   // llenar.
   const tienePassword = usuarioAuth.user ? tienePasswordPropia(usuarioAuth.user) : false;
+
+  // FASE 8.1: dispositivos del segundo factor, solo para administradores. Salen
+  // del mismo `getUser()` de arriba (trae los factores), sin consulta extra.
+  // Solo los confirmados: uno a medio registrar no es un dispositivo.
+  const segundoFactor =
+    perfil?.rol === "ADMINISTRADOR"
+      ? {
+          dispositivos: (usuarioAuth.user?.factors ?? [])
+            .filter((factor) => factor.factor_type === "totp" && factor.status === "verified")
+            .map((factor) => ({
+              id: factor.id,
+              nombre: factor.friendly_name ?? null,
+              registrado: new Date(factor.created_at).toLocaleDateString("es-CO", {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                timeZone: "America/Bogota",
+              }),
+            })),
+          sesionAal2: (await getNivelAalActual()) === "aal2",
+        }
+      : null;
 
   // `nombre_curso` es el título congelado al momento de la emisión
   // (Deteccion.md), no el título vigente de `cursos`.
@@ -118,6 +141,7 @@ export default async function PerfilPage() {
         tienePassword={tienePassword}
         certificados={certificados}
         estadoAcceso={estadoAcceso}
+        segundoFactor={segundoFactor}
       />
     </div>
   );

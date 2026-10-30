@@ -338,3 +338,14 @@ describe("cargarMasCalificacionesCurso (\"Ver más reseñas\", P2-10)", () => {
   });
 });
 
+describe("moderarCalificacion con un administrador aal1 (fase 8.1)", () => {
+  it("no modera: ni escritura ni bitácora", async () => {
+    servidorFalso.conUsuario({ ...ADMIN, aal: "aal1" });
+    servidorFalso.responder("from:perfiles", { data: { rol: "ADMINISTRADOR" } });
+    servidorFalso.responder("from:curso_calificaciones", { data: [{ id: "cal-1" }] });
+
+    expect(await moderarCalificacion("cal-1")).toEqual({ error: "No tienes permiso para moderar reseñas." });
+    expect(escrituras()).toEqual([]);
+    expect(registrarBitacora).not.toHaveBeenCalled();
+  });
+});

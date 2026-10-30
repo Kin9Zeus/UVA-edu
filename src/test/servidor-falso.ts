@@ -66,6 +66,20 @@ const estado = {
     email?: string;
     email_confirmed_at?: string | null;
     identities?: { provider: string }[];
+    /**
+     * Claim `aal` del token. Si no se indica, el usuario falso es aal2: los
+     * tests de acciones de administrador no tienen por qué repetir el segundo
+     * factor en cada caso, y los que SÍ lo prueban piden `aal: "aal1"`. Ojo:
+     * un token real sin claim es aal1 (ver `nivelAalDeClaims`); este valor por
+     * defecto es solo de comodidad del servidor falso.
+     */
+    aal?: "aal1" | "aal2";
+    /**
+     * Hace cuántos segundos se escribió el código de la app (claim `amr`), en
+     * una sesión aal2. Por defecto 0: recién escrito. Sirve para probar el
+     * límite de horas del segundo factor (`HORAS_MAXIMAS_SEGUNDO_FACTOR`).
+     */
+    totpHaceSegundos?: number;
   } | null,
   respuestas: new Map<string, RespuestaFalsa>(),
   /** Respuestas que se consumen en orden antes de caer en `respuestas`. */
@@ -207,6 +221,22 @@ function consulta(cliente: TipoCliente, operacion: string, argumentos: unknown[]
 }
 
 /** `supabase.auth.*` y `supabase.auth.admin.*`. */
+/** Claims que devolvería `getClaims()` para el usuario falso. */
+function claimsFalsos(usuario: NonNullable<typeof estado.usuario>) {
+  const aal = usuario.aal ?? "aal2";
+  const ahora = Math.floor(Date.now() / 1000);
+  // Como lo emite Supabase: cómo se autenticó la sesión, con la hora de cada método.
+  const amr =
+    aal === "aal2"
+      ? [
+          { method: "totp", timestamp: ahora - (usuario.totpHaceSegundos ?? 0) },
+          { method: "password", timestamp: ahora - (usuario.totpHaceSegundos ?? 0) - 60 },
+        ]
+      : [{ method: "password", timestamp: ahora }];
+
+  return { sub: usuario.id, email: usuario.email, aal, amr };
+}
+
 function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
   return new Proxy(
     {},
@@ -215,6 +245,11 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
         const metodo = String(propiedad);
         if (metodo === "then") return undefined;
         if (metodo === "admin") return auth(cliente, "auth.admin");
+        // `auth.mfa.listFactors()`, `.enroll()`, `.challenge()`... se registran como
+        // `auth.mfa:listFactors`, igual que `auth.admin:` para el espacio de administración.
+        // Dentro de `auth.admin` queda `auth.admin.mfa:…` (la API de administración),
+        // distinto de `auth.mfa:…` (la de la propia sesión).
+        if (metodo === "mfa") return auth(cliente, `${prefijo}.mfa`);
 
         return async (...args: unknown[]) => {
           const operacion = `${prefijo}:${metodo}`;
@@ -233,7 +268,7 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
           if (metodo === "getClaims") {
             return {
               data: estado.usuario
-                ? { claims: { sub: estado.usuario.id, email: estado.usuario.email } }
+                ? { claims: claimsFalsos(estado.usuario) }
                 : null,
               error: null,
             };

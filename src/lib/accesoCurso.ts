@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { tieneAccesoVigente } from "@/lib/mux/acceso";
 import type { SuscripcionActual } from "@/lib/suscripcion";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { esAdminConSegundoFactor } from "@/lib/auth/aal";
 
 export type AccesoCurso = {
   /** Cortesía al curso, suscripción vigente, o ser instructor del curso — ver `tieneAccesoVigente` y el comentario de más abajo sobre `esInstructorDelCurso`. */
@@ -111,7 +112,10 @@ export async function obtenerAccesoAlCurso(
     : null;
   const tieneCortesia = inscripcion !== null;
   const esInstructorDelCurso = filaInstructor !== null;
-  const esAdministrador = perfil?.rol === "ADMINISTRADOR";
+  // Con aal2: un administrador con sesión aal1 (contraseña sin código) no ve el
+  // catálogo entero. El token de video se firma en el servidor con la llave de
+  // servicio, así que RLS no frena esto: tiene que frenarlo esta línea.
+  const esAdministrador = await esAdminConSegundoFactor(perfil?.rol);
 
   return {
     tieneAcceso: esAdministrador || tieneAccesoVigente(suscripcion, tieneCortesia) || esInstructorDelCurso,

@@ -11,6 +11,9 @@ import { VerificarCertificadoForm } from "@/components/home/VerificarCertificado
 import { TEMAS_SOPORTE } from "@/lib/soporte";
 import { urlWhatsapp } from "@/lib/contacto";
 import { LogoUva } from "@/components/home/LogoUva";
+import { LEGAL_HABILITADO } from "@/lib/features";
+import { NOMBRE_LEGAL, rutaLegal } from "@/lib/legal/slugs";
+import { getSlugsConTextoVigente } from "@/lib/legal/textos";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
@@ -78,10 +81,14 @@ export async function Footer({
   // públicas. Ante un fallo `getCategoriasActivas` ya lo registra y devuelve
   // `[]`, sin cachearlo: la columna se omite.
   const escuelas = await getCategoriasActivas();
+  // Solo se enlazan los textos que ya tienen una versión vigente: un enlace
+  // a un 404 incumple "cada llamado a la acción lleva a donde dice". Con la
+  // bandera apagada el pie queda como antes.
+  const textosLegales = LEGAL_HABILITADO ? await getSlugsConTextoVigente() : [];
 
   return (
     <footer
-      className={`mt-auto pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] ${conBotonWhatsApp ? "pb-24" : "pb-12"}`}
+      className={`print:hidden mt-auto pr-[max(var(--spacing-uva-margen),env(safe-area-inset-right))] pl-[max(var(--spacing-uva-margen),env(safe-area-inset-left))] ${conBotonWhatsApp ? "pb-24" : "pb-12"}`}
     >
       {/* Banda de lámina: línea gruesa y trama de rayado, de borde a borde. */}
       <div
@@ -156,6 +163,20 @@ export async function Footer({
             <VerificarCertificadoForm />
           </div>
         </div>
+
+        {textosLegales.length > 0 && (
+          <nav aria-label="Textos legales" className="mb-5">
+            <ul className="flex flex-wrap gap-x-6">
+              {textosLegales.map((slug) => (
+                <li key={slug}>
+                  <Link href={rutaLegal(slug)} className={linkClass}>
+                    {NOMBRE_LEGAL[slug]}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
           <p className="text-uva-detalle text-uva-text-muted">© 2026 U.V.A. Hecho en obra, para LATAM.</p>

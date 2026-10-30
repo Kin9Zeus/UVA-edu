@@ -34,6 +34,7 @@ try {
 }
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { generarCodigoTotp } from "../src/test/totp";
 // Import dinámico, no estático: un `import` de nivel superior se eleva por
 // encima del `process.loadEnvFile(".env.local")` de arriba (los ESM izan
 // TODOS los imports antes de cualquier otra sentencia, sin importar el
@@ -82,6 +83,28 @@ async function esperarPermitido(
   const { data, error } = await promesa;
   registrar(nombre, !error, error?.message);
   return data;
+}
+
+/**
+ * Sube la sesión de `cliente` a aal2 como lo haría una persona: registra una
+ * app de autenticación (TOTP) y escribe el primer código. FASE 8.1: desde
+ * 131_admin_exige_aal2.sql, un administrador solo es administrador para la
+ * base con sesión aal2. El factor desaparece con el usuario de prueba al final.
+ */
+async function subirAAal2(cliente: SupabaseClient): Promise<void> {
+  const { data: factor, error: errEnroll } = await cliente.auth.mfa.enroll({ factorType: "totp" });
+  if (errEnroll || !factor) throw new Error(`No pude registrar el factor del admin de prueba: ${errEnroll?.message}`);
+
+  const { error: errVerificar } = await cliente.auth.mfa.challengeAndVerify({
+    factorId: factor.id,
+    code: generarCodigoTotp(factor.totp.secret),
+  });
+  if (errVerificar) throw new Error(`No pude verificar el código del admin de prueba: ${errVerificar.message}`);
+
+  const { data: nivel } = await cliente.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (nivel?.currentLevel !== "aal2") {
+    throw new Error(`La sesión del admin de prueba no quedó en aal2 (quedó en ${nivel?.currentLevel ?? "sin nivel"})`);
+  }
 }
 
 async function main() {
@@ -435,6 +458,13 @@ async function main() {
   }
   const idLeccionIntroductoria: string = leccionesAcceso[0].id;
   const idLeccionDePago: string = leccionesAcceso[1].id;
+
+  // Versiones de prueba de `textos_legales` (130). Una fila PUBLICADA no se
+  // puede borrar (trigger), así que la limpieza del finally pasa por
+  // public.purgar_texto_legal_de_prueba(), que solo acepta el prefijo
+  // `rls-test-`. Se declara aquí, no dentro del try, por el mismo motivo que
+  // las demás: el finally tiene que conocerlas aunque una aserción falle.
+  const versionesLegalesPrueba: string[] = [];
 
   try {
     console.log("\n=== Sesión: ANÓNIMO (sin login) ===\n");
@@ -1872,6 +1902,49 @@ async function main() {
       password,
     });
     if (loginAdmin.error) throw new Error(`No pude iniciar sesión como admin: ${loginAdmin.error.message}`);
+
+    // ------------------------------------------------------------------
+    // FASE 8.1 (131_admin_exige_aal2.sql): con solo la contraseña (aal1) un
+    // administrador NO es administrador para la base. Es justo el caso de una
+    // contraseña robada usada directo contra la API, sin pasar por la app.
+    // Después se sube la sesión a aal2 y el resto del arnés corre como siempre.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: ADMINISTRADOR SIN SEGUNDO FACTOR (aal1, 131) ===\n");
+
+    const { error: errListarAal1 } = await clienteAdmin.rpc("admin_listar_usuarios", { p_limite: 5, p_offset: 0 });
+    registrar(
+      "administrador con sesión aal1 (solo contraseña) NO puede listar usuarios (131)",
+      !!errListarAal1,
+      errListarAal1 ? `${errListarAal1.code}: ${errListarAal1.message}` : "el RPC no falló",
+    );
+    await esperarBloqueado(
+      "administrador aal1 NO lee perfiles ajenos (131)",
+      clienteAdmin.from("perfiles").select("id").neq("id", userAdmin.user!.id).limit(5),
+    );
+    await esperarBloqueado(
+      "administrador aal1 NO lee la bitácora administrativa (131)",
+      clienteAdmin.from("bitacora_administrativa").select("*"),
+    );
+    const { data: comunidadAal1, error: errComunidadAal1 } = await clienteAdmin.rpc("comunidad_tiene_acceso");
+    registrar(
+      "administrador aal1 sin suscripción NO tiene el atajo de admin a Comunidad (131)",
+      !errComunidadAal1 && comunidadAal1 === false,
+      errComunidadAal1 ? errComunidadAal1.message : `comunidad_tiene_acceso=${comunidadAal1}`,
+    );
+    await esperarPermitido(
+      "administrador aal1 SÍ lee su propio perfil (lo necesita /seguridad/activar)",
+      clienteAdmin.from("perfiles").select("id").eq("id", userAdmin.user!.id).single(),
+    );
+
+    await subirAAal2(clienteAdmin);
+    registrar("el administrador sube a aal2 con el código de su app (enroll + challengeAndVerify)", true);
+
+    const { data: comunidadAal2, error: errComunidadAal2 } = await clienteAdmin.rpc("comunidad_tiene_acceso");
+    registrar(
+      "con aal2 vuelve el atajo de administrador a Comunidad (131)",
+      !errComunidadAal2 && comunidadAal2 === true,
+      errComunidadAal2 ? errComunidadAal2.message : `comunidad_tiene_acceso=${comunidadAal2}`,
+    );
 
     // Notas, parte 3: ni un administrador lee los apuntes de otra persona
     // (docs/notas-leccion.md §3.1, mínimo privilegio).
@@ -4112,8 +4185,198 @@ async function main() {
     if (errReactivarComunidad) {
       throw new Error(`No pude reactivar al usuario de prueba: ${errReactivarComunidad.message}`);
     }
+
+    // ------------------------------------------------------------
+    // textos_legales (130): visibilidad por rol, escritura solo del
+    // administrador e inmutabilidad de lo publicado.
+    // ------------------------------------------------------------
+    console.log("\n=== textos_legales ===\n");
+    const CONTENIDO_LEGAL = [{ tipo: "parrafo", contenido: "Texto de prueba RLS." }];
+    const vBorrador = `rls-test-${sufijo}-borrador`;
+    const vPublicado = `rls-test-${sufijo}-publicado`;
+    const vFuturo = `rls-test-${sufijo}-futuro`;
+    const vAdmin = `rls-test-${sufijo}-admin`;
+    versionesLegalesPrueba.push(vBorrador, vPublicado, vFuturo, vAdmin);
+
+    const filaLegal = (version: string, extra: Record<string, unknown> = {}) => ({
+      slug: "comunidad",
+      version,
+      titulo: "Texto legal de prueba RLS",
+      contenido: CONTENIDO_LEGAL,
+      ...extra,
+    });
+
+    // Fixtures con la service role (no pasa por RLS, sí por el trigger).
+    const { error: errFixBorrador } = await admin.from("textos_legales").insert(filaLegal(vBorrador));
+    if (errFixBorrador) throw new Error(`No pude crear el borrador legal de prueba: ${errFixBorrador.message}`);
+    // vigente_desde en el año 2000 para que, aunque la limpieza fallara, esta
+    // fila nunca sea "la más reciente" de un texto real.
+    const { error: errFixPublicado } = await admin
+      .from("textos_legales")
+      .insert(filaLegal(vPublicado, { estado: "PUBLICADO", vigente_desde: "2000-01-01T00:00:00Z" }));
+    if (errFixPublicado) throw new Error(`No pude crear la versión publicada de prueba: ${errFixPublicado.message}`);
+    const { error: errFixFuturo } = await admin
+      .from("textos_legales")
+      .insert(filaLegal(vFuturo, { estado: "PUBLICADO", vigente_desde: "2999-01-01T00:00:00Z" }));
+    if (errFixFuturo) throw new Error(`No pude crear la versión futura de prueba: ${errFixFuturo.message}`);
+
+    // El trigger estampa `publicado_en` al publicar: la fila no puede quedar sin fecha.
+    const { data: filaPublicada } = await admin
+      .from("textos_legales")
+      .select("publicado_en")
+      .eq("version", vPublicado)
+      .single();
+    registrar(
+      "publicar sella `publicado_en` con la hora del servidor",
+      !!filaPublicada?.publicado_en,
+      filaPublicada?.publicado_en ?? "quedó sin fecha",
+    );
+
+    // --- Visibilidad ---
+    await esperarBloqueado(
+      "anon no ve un borrador legal",
+      clienteAnonimo.from("textos_legales").select("id").eq("version", vBorrador),
+    );
+    await esperarBloqueado(
+      "estudiante no ve un borrador legal",
+      clienteSinAcceso.from("textos_legales").select("id").eq("version", vBorrador),
+    );
+    {
+      const { data, error } = await clienteAnonimo.from("textos_legales").select("id").eq("version", vPublicado);
+      registrar("anon SÍ ve una versión publicada y vigente", !error && data?.length === 1, error?.message);
+    }
+    {
+      const { data, error } = await clienteSinAcceso.from("textos_legales").select("id").eq("version", vPublicado);
+      registrar("estudiante SÍ ve una versión publicada y vigente", !error && data?.length === 1, error?.message);
+    }
+    await esperarBloqueado(
+      "anon no ve una versión publicada con vigencia FUTURA",
+      clienteAnonimo.from("textos_legales").select("id").eq("version", vFuturo),
+    );
+    await esperarBloqueado(
+      "estudiante no ve una versión publicada con vigencia FUTURA",
+      clienteSinAcceso.from("textos_legales").select("id").eq("version", vFuturo),
+    );
+    {
+      const { data, error } = await clienteAdmin
+        .from("textos_legales")
+        .select("version")
+        .in("version", [vBorrador, vFuturo]);
+      registrar(
+        "el administrador SÍ ve borradores y versiones con vigencia futura",
+        !error && data?.length === 2,
+        error?.message ?? `${data?.length} de 2`,
+      );
+    }
+
+    // --- Escritura: solo el administrador ---
+    await esperarBloqueado(
+      "anon no puede insertar un texto legal",
+      clienteAnonimo.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-anon`)).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede insertar un texto legal",
+      clienteSinAcceso.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-estudiante`)).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede editar un borrador legal",
+      clienteSinAcceso.from("textos_legales").update({ titulo: "hackeado" }).eq("version", vBorrador).select(),
+    );
+    await esperarBloqueado(
+      "estudiante no puede borrar un borrador legal",
+      clienteSinAcceso.from("textos_legales").delete().eq("version", vBorrador).select(),
+    );
+    await esperarPermitido(
+      "el administrador SÍ puede crear un borrador legal",
+      clienteAdmin.from("textos_legales").insert(filaLegal(vAdmin)).select(),
+    );
+    await esperarPermitido(
+      "el administrador SÍ puede editar un borrador legal",
+      clienteAdmin.from("textos_legales").update({ titulo: "Editado por admin" }).eq("version", vAdmin).select(),
+    );
+    {
+      const { data, error } = await clienteAdmin
+        .from("textos_legales")
+        .delete()
+        .eq("version", vAdmin)
+        .select("id");
+      registrar("el administrador SÍ puede borrar un borrador legal", !error && data?.length === 1, error?.message);
+    }
+
+    // --- Integridad ---
+    await esperarBloqueado(
+      "no se acepta un slug que no sea uno de los cinco textos",
+      admin.from("textos_legales").insert(filaLegal(`rls-test-${sufijo}-slug`, { slug: "otro" })).select(),
+    );
+    await esperarBloqueado(
+      "no se acepta un contenido que no sea una lista de bloques",
+      admin
+        .from("textos_legales")
+        .insert(filaLegal(`rls-test-${sufijo}-objeto`, { contenido: { tipo: "parrafo" } }))
+        .select(),
+    );
+    await esperarBloqueado(
+      "no se puede publicar un borrador sin fecha de vigencia",
+      admin.from("textos_legales").update({ estado: "PUBLICADO" }).eq("version", vBorrador).select(),
+    );
+
+    // --- Inmutabilidad de lo publicado (ni siquiera con la service role) ---
+    await esperarBloqueado(
+      "una versión publicada no se puede editar (service role)",
+      admin.from("textos_legales").update({ titulo: "reescrito" }).eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede borrar (service role)",
+      admin.from("textos_legales").delete().eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede editar (administrador con sesión)",
+      clienteAdmin.from("textos_legales").update({ titulo: "reescrito" }).eq("version", vPublicado).select(),
+    );
+    await esperarBloqueado(
+      "una versión publicada no se puede borrar (administrador con sesión)",
+      clienteAdmin.from("textos_legales").delete().eq("version", vPublicado).select(),
+    );
+    {
+      // Lo único permitido: pasar de BORRADOR a PUBLICADO una vez.
+      const { data, error } = await admin
+        .from("textos_legales")
+        .update({ estado: "PUBLICADO", vigente_desde: "2000-01-02T00:00:00Z" })
+        .eq("version", vBorrador)
+        .select("estado");
+      registrar(
+        "un borrador SÍ puede pasar a publicado, con fecha de vigencia",
+        !error && data?.[0]?.estado === "PUBLICADO",
+        error?.message,
+      );
+    }
+    await esperarBloqueado(
+      "y una vez publicado ya no vuelve a ser borrador",
+      admin.from("textos_legales").update({ estado: "BORRADOR" }).eq("version", vBorrador).select(),
+    );
+
+    // --- La puerta de purga es solo para pruebas y solo para service_role ---
+    await esperarBloqueado(
+      "la purga se niega a borrar una versión que no sea de prueba",
+      admin.rpc("purgar_texto_legal_de_prueba", { p_version: "1.0" }),
+    );
+    await esperarBloqueado(
+      "anon no puede llamar a la purga",
+      clienteAnonimo.rpc("purgar_texto_legal_de_prueba", { p_version: vPublicado }),
+    );
+    await esperarBloqueado(
+      "un administrador con sesión no puede llamar a la purga",
+      clienteAdmin.rpc("purgar_texto_legal_de_prueba", { p_version: vPublicado }),
+    );
   } finally {
     console.log("\nLimpiando datos de prueba...");
+
+    // `textos_legales` (130): lo publicado no se borra con un DELETE; solo por
+    // la purga de pruebas. Sin FK a nada, así que va primero y no depende del resto.
+    for (const version of versionesLegalesPrueba) {
+      const { error } = await admin.rpc("purgar_texto_legal_de_prueba", { p_version: version });
+      if (error) console.log(`⚠️  No pude purgar el texto legal de prueba ${version}: ${error.message}`);
+    }
 
     // El orden lo dictan las FK, y antes no lo respetaba: los cursos se
     // borraban ANTES que las inscripciones de los usuarios de prueba, así que

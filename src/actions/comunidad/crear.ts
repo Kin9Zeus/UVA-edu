@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
 import { getUsuarioActual } from "@/lib/perfil";
+import { esAdminConSegundoFactor } from "@/lib/auth/aal";
 import { logError } from "@/lib/log";
 import {
   tituloSchema,
@@ -125,7 +126,7 @@ export async function crearPostComunidad(
     const { data: perfil, error: errorRol } = await supabase.from("perfiles").select("rol").eq("id", user.id).single();
     // Falla cerrado, pero un fallo de la base no es "no tienes permiso" (PGRST116, sin perfil, sí lo es).
     if (errorRol && errorRol.code !== "PGRST116") return { error: "No pudimos comprobar tus permisos. Intenta de nuevo." };
-    if (perfil?.rol !== "ADMINISTRADOR") {
+    if (!(await esAdminConSegundoFactor(perfil?.rol))) {
       return { error: "Solo un administrador puede publicar en Anuncios." };
     }
   }

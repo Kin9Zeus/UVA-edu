@@ -246,3 +246,31 @@ describe("eliminarRespuestaComunidad", () => {
     );
   });
 });
+
+describe("un administrador con sesión aal1 NO modera (fase 8.1)", () => {
+  // Sin el código de su app es, para esta acción, una persona más: no borra lo
+  // ajeno, no deja bitácora y no avisa a nadie.
+  beforeEach(() => {
+    servidorFalso.conUsuario({ ...ADMIN, aal: "aal1" });
+    servidorFalso.responder("from:perfiles", { data: { rol: "ADMINISTRADOR" } });
+    servidorFalso.responder("from:comunidad_posts", { data: POST });
+    servidorFalso.responder("from:comunidad_respuestas", { data: RESPUESTA });
+  });
+
+  it("sobre una publicación ajena: rechazo, ninguna escritura, ni bitácora ni correo", async () => {
+    expect(await eliminarPostComunidad("post-1", "/r", "Spam")).toEqual({
+      error: "No tienes permiso para eliminar esta publicación.",
+    });
+    expect(escrituras()).toEqual([]);
+    expect(registrarBitacora).not.toHaveBeenCalled();
+    expect(enviarCorreoComunidadModerada).not.toHaveBeenCalled();
+  });
+
+  it("sobre una respuesta ajena: igual", async () => {
+    expect(await eliminarRespuestaComunidad("resp-1", "/r", "Spam")).toEqual({
+      error: "No tienes permiso para eliminar esta respuesta.",
+    });
+    expect(escrituras()).toEqual([]);
+    expect(registrarBitacora).not.toHaveBeenCalled();
+  });
+});

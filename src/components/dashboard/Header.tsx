@@ -49,7 +49,7 @@ export function Header({
   notificacionesNoLeidas?: number;
 }) {
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
+    <header className="print:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
       {mostrarLogo && (
         <Link
           href="/dashboard"

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { SoporteCentro } from "@/components/soporte/SoporteCentro";
 import { esTemaSoporte } from "@/lib/soporte";
+import { destinoLegalDeTema } from "@/lib/legal/redireccion-soporte";
 
 export const metadata: Metadata = { title: "U.V.A. — Soporte" };
 
@@ -16,6 +18,10 @@ export default async function SoportePage({
   searchParams: Promise<{ tema?: string }>;
 }) {
   const { tema } = await searchParams;
+
+  // Términos y Privacidad pasan a su texto legal cuando ya está publicado.
+  const destinoLegal = await destinoLegalDeTema(tema);
+  if (destinoLegal) redirect(destinoLegal);
 
   return <SoporteCentro temaAbierto={esTemaSoporte(tema) ? tema : undefined} conSesion verificacionEnPagina />;
 }

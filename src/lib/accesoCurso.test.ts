@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { crearCliente, servidorFalso } from "@/test/servidor-falso";
+
+vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
+
 import { obtenerAccesoAlCurso } from "@/lib/accesoCurso";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -71,4 +74,33 @@ describe("obtenerAccesoAlCurso", () => {
       );
     },
   );
+});
+
+describe("obtenerAccesoAlCurso: el acceso de administrador exige aal2 (fase 8.1)", () => {
+  // El token de video se firma en el servidor con la llave de servicio: RLS no
+  // lo frena, así que lo único que separa a una contraseña robada del catálogo
+  // entero es esta comprobación.
+  const ADMIN_PERFIL = { data: { rol: "ADMINISTRADOR" }, error: null };
+
+  it("un administrador con sesión aal2 tiene acceso a todo el catálogo, sin suscripción propia", async () => {
+    servidorFalso.conUsuario({ id: "u1", email: "admin@uva.co", aal: "aal2" });
+    servidorFalso.responder("from:perfiles", ADMIN_PERFIL);
+
+    expect((await obtenerAccesoAlCurso(cliente(), "u1", "k1")).tieneAcceso).toBe(true);
+  });
+
+  it("un administrador con sesión aal1 NO: sin suscripción ni cortesía es una persona sin acceso", async () => {
+    servidorFalso.conUsuario({ id: "u1", email: "admin@uva.co", aal: "aal1" });
+    servidorFalso.responder("from:perfiles", ADMIN_PERFIL);
+
+    expect((await obtenerAccesoAlCurso(cliente(), "u1", "k1")).tieneAcceso).toBe(false);
+  });
+
+  it("un administrador aal1 que además paga sí entra: pierde el poder de admin, no su suscripción", async () => {
+    servidorFalso.conUsuario({ id: "u1", email: "admin@uva.co", aal: "aal1" });
+    servidorFalso.responder("from:perfiles", ADMIN_PERFIL);
+    servidorFalso.responder("from:suscripciones", { data: { estado: "ACTIVA", fecha_renovacion: EN_UN_MES }, error: null });
+
+    expect((await obtenerAccesoAlCurso(cliente(), "u1", "k1")).tieneAcceso).toBe(true);
+  });
 });

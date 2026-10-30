@@ -58,7 +58,7 @@ const CARPETAS_ADMIN = ["admin"] as const;
  * pertenecer a su módulo. Si un archivo nuevo llama `requireAdmin`, la
  * prueba de abajo exige que esté aquí o en `admin/`.
  */
-const ARCHIVOS_ADMIN_SUELTOS = ["comunidad/fijar.ts"] as const;
+const ARCHIVOS_ADMIN_SUELTOS = ["comunidad/fijar.ts", "seguridad/dispositivos.ts"] as const;
 
 const RAIZ_ACCIONES = join(process.cwd(), "src/actions");
 const MENSAJE_DENEGADO = "No tienes permisos de administrador.";

@@ -32,6 +32,7 @@ import {
   actualizarEspecialidadProfesor,
   suspenderActivarUsuario,
 } from "@/actions/admin/usuarios";
+import { quitarSegundoFactorDeAdmin } from "@/actions/admin/segundoFactor";
 import { formatFecha } from "@/lib/admin/format";
 import { diasCalendario, nombrePasarela, textoAcceso } from "@/lib/admin/acceso-texto";
 import type { UsuarioDetalle } from "@/lib/admin/usuarioDetalle";
@@ -81,6 +82,7 @@ export function UsuarioDetalleView({
   cursosDisponibles,
   conCobro,
   ahora,
+  segundoFactor = null,
 }: {
   usuario: UsuarioDetalle;
   planes: { id: string; nombre: string; precio_centavos: number; moneda: string; duracion_dias: number }[];
@@ -88,9 +90,14 @@ export function UsuarioDetalleView({
   conCobro: boolean;
   /** Del servidor: los "hace N días" no cambian entre el render del servidor y el del navegador. */
   ahora: string;
+  /**
+   * Solo si la cuenta es de un administrador (FASE 8.1). `dispositivos` es
+   * `null` si no se pudo comprobar; `esUnoMismo`, si es la ficha de quien mira.
+   */
+  segundoFactor?: { dispositivos: number | null; esUnoMismo: boolean } | null;
 }) {
   const [dialogo, setDialogo] = useState<
-    "dar" | "cortesia" | "revocar" | "extender" | "profesor" | "quitarProfesor" | "suspender" | null
+    "dar" | "cortesia" | "revocar" | "extender" | "profesor" | "quitarProfesor" | "suspender" | "quitar2fa" | null
   >(null);
   const [quitando, setQuitando] = useState<{ inscripcionId: string; titulo: string } | null>(null);
   const [rol, setRol] = useState(usuario.rol);
@@ -101,6 +108,7 @@ export function UsuarioDetalleView({
   const [especialidadGuardada, setEspecialidadGuardada] = useState(usuario.especialidad ?? "");
   const [pendienteEspecialidad, setPendienteEspecialidad] = useState(false);
   const showToast = useAdminToast();
+  const [dispositivos2fa, setDispositivos2fa] = useState(segundoFactor?.dispositivos ?? null);
   const cerrar = (abierto: boolean) => !abierto && setDialogo(null);
 
   const esAdministrador = rol === "ADMINISTRADOR";
@@ -128,6 +136,16 @@ export function UsuarioDetalleView({
     }
     setCuenta(nueva);
     showToast(nueva === "SUSPENDIDO" ? "Cuenta suspendida." : "Cuenta activada.");
+  }
+
+  async function quitarSegundoFactor() {
+    const resultado = await quitarSegundoFactorDeAdmin(usuario.id);
+    if (resultado.error) {
+      showToast(resultado.error, "error");
+      return;
+    }
+    setDispositivos2fa(0);
+    showToast(`Quitamos la verificación de ${usuario.nombre}. La próxima vez que entre tendrá que activarla de nuevo.`);
   }
 
   async function handleGuardarEspecialidad() {
@@ -281,6 +299,33 @@ export function UsuarioDetalleView({
             </Button>
           ))}
       </div>
+      {segundoFactor && (
+        <>
+          <hr className="my-1 border-uva-divider" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="m-0 text-uva-detalle text-uva-text-muted">
+              Verificación en dos pasos:{" "}
+              <span className="font-semibold text-uva-text">
+                {dispositivos2fa === null
+                  ? "No pudimos comprobarla"
+                  : dispositivos2fa === 0
+                    ? "Sin activar"
+                    : `Activa (${dispositivos2fa} dispositivo${dispositivos2fa === 1 ? "" : "s"})`}
+              </span>
+            </p>
+            {segundoFactor.esUnoMismo ? (
+              <p className="m-0 text-uva-detalle text-uva-text-muted">La tuya se cambia en Mi perfil.</p>
+            ) : (
+              dispositivos2fa !== null &&
+              dispositivos2fa > 0 && (
+                <Button type="button" variant="destructive" className="w-full sm:w-auto" onClick={() => setDialogo("quitar2fa")}>
+                  Quitar su verificación
+                </Button>
+              )
+            )}
+          </div>
+        </>
+      )}
     </Bloque>
   );
 
@@ -636,6 +681,16 @@ export function UsuarioDetalleView({
         confirmLabel="Suspender cuenta"
         destructive
         onConfirm={() => cambiarCuenta("SUSPENDIDO")}
+      />
+      <ConfirmDialog
+        open={dialogo === "quitar2fa"}
+        onOpenChange={cerrar}
+        title={`¿Quitar la verificación en dos pasos de ${usuario.nombre}?`}
+        description="Hazlo solo si perdió su celular y ya confirmaste que es esa persona por otro canal, como una videollamada. Nunca por un mensaje de chat: así es como alguien se hace pasar por otro. La próxima vez que entre tendrá que activarla de nuevo, y quedará en la bitácora. Para confirmar, escribe su correo."
+        confirmText={usuario.correo}
+        confirmLabel="Quitar su verificación"
+        destructive
+        onConfirm={quitarSegundoFactor}
       />
     </div>
   );

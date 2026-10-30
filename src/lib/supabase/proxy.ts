@@ -10,6 +10,9 @@ import { DESTINO_POR_DEFECTO } from "@/lib/redirect-seguro";
 // no están en esta lista.
 const STUDENT_PATH_PREFIXES = ["/dashboard"];
 const ADMIN_PATH_PREFIXES = ["/admin"];
+// Las pantallas del segundo factor (fase 8.1) exigen sesión, pero NO un nivel: es
+// justo donde se sube de aal1 a aal2, así que no pueden pedirlo.
+const SECURITY_PATH_PREFIXES = ["/seguridad"];
 
 function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname.startsWith(prefix));
@@ -110,6 +113,7 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
   const requiresAuth = matchesPrefix(pathname, [
     ...STUDENT_PATH_PREFIXES,
     ...ADMIN_PATH_PREFIXES,
+    ...SECURITY_PATH_PREFIXES,
   ]);
 
   if (requiresAuth && !claims) {

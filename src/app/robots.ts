@@ -18,6 +18,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/dashboard",
         "/admin",
+        "/seguridad",
         "/api",
         "/vista-previa",
         "/verificar-certificado",

@@ -24,6 +24,7 @@ import {
 } from "@/actions/perfil/actualizar";
 import { EstadoAccesoCard } from "@/components/dashboard/EstadoAccesoCard";
 import { CambiarPasswordForm } from "@/components/dashboard/CambiarPasswordForm";
+import { SegundoFactorPerfil, type DatosSegundoFactor } from "@/components/dashboard/SegundoFactorPerfil";
 import { LARGO_MAXIMO_NOMBRE } from "@/lib/nombre";
 import { ExportarDatosButton } from "@/components/dashboard/ExportarDatosButton";
 import { EliminarCuentaCard } from "@/components/dashboard/EliminarCuentaCard";
@@ -76,6 +77,7 @@ export function PerfilForm({
   tienePassword,
   certificados,
   estadoAcceso,
+  segundoFactor = null,
 }: {
   nombre: string;
   correo: string;
@@ -86,6 +88,8 @@ export function PerfilForm({
   tienePassword: boolean;
   certificados: Certificado[];
   estadoAcceso: EstadoAcceso | null;
+  /** Solo para administradores (FASE 8.1): sus dispositivos del segundo factor. */
+  segundoFactor?: DatosSegundoFactor | null;
 }) {
   const [state, formAction, pending] = useActionState<
     ActualizarPerfilState,
@@ -372,6 +376,12 @@ export function PerfilForm({
             <CambiarPasswordForm tienePassword={tienePassword} />
           </div>
 
+          {segundoFactor && (
+            <div className="order-5 @min-[900px]:order-none">
+              <SegundoFactorPerfil {...segundoFactor} />
+            </div>
+          )}
+
           <section aria-labelledby="perfil-sesion-titulo" className={cn(CLASE_BLOQUE_PERFIL, "order-6 @min-[900px]:order-none")}>
             <h2 id="perfil-sesion-titulo" className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text">
               <LogOut className="size-5 text-uva-text-muted" strokeWidth={1.8} aria-hidden />
@@ -391,7 +401,13 @@ export function PerfilForm({
               Si crees que alguien más entró a tu cuenta, ciérrala en todos tus dispositivos a la vez.
             </p>
             <form action={logoutEnTodos}>
-              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
+              {/* Mide ~366 px en una línea: en celulares angostos parte el texto en vez de salirse. */}
+              <Button
+                type="submit"
+                variant="uva-secondary"
+                size="uva"
+                className="h-auto min-h-12 w-auto max-w-full gap-2 px-[22px] text-base whitespace-normal"
+              >
                 <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 Cerrar sesión en todos los dispositivos
               </Button>
