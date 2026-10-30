@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useRouter } from "next/navigation";
 import { Check, Clock, Flame, RotateCcw, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
 import { PreguntaEmparejar } from "@/components/examen/PreguntaEmparejar";
 import { Uvas } from "@/components/examen/Uvas";
@@ -529,7 +530,15 @@ export function ExamenRendir({
 
       {/* ---------- Acción ---------- */}
       {/* En celular queda pegada abajo, al alcance del pulgar. */}
-      <div className="sticky bottom-0 -mx-4 mt-auto border-t border-uva-divider bg-uva-bg/95 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mt-0 lg:border-t-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+      {/* Fija abajo solo con algo que pulsar o un error: con la sola indicación
+          ("Toca tu respuesta") robaba alto en pantallas bajas (zoom 200 %). */}
+      <div
+        className={cn(
+          "-mx-4 mt-auto px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 lg:mx-0 lg:mt-0 lg:p-0",
+          (feedback || !esAtomica(preguntaActual) || error) &&
+            "sticky bottom-0 border-t border-uva-divider bg-uva-bg/95 backdrop-blur lg:static lg:border-t-0 lg:bg-transparent lg:backdrop-blur-none",
+        )}
+      >
         {error && (
           <p role="alert" className="m-0 mb-2 rounded-uva-md bg-uva-error-soft px-3 py-2 text-uva-detalle text-uva-error-text">
             {error}

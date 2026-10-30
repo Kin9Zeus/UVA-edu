@@ -327,7 +327,9 @@ export function LeccionMaqueta({
             : { href: "/", etiqueta: "U.V.A., ir al inicio" }
         }
         volver={{ href: `/cursos/${data.cursoSlug}`, texto: data.cursoTitulo }}
-        className="apaisado:max-lg:hidden"
+        // Solo en celular girado (táctil): un PC con zoom al 200 % también es
+        // bajo y ancho, y ahí sin encabezado no había temario ni salida.
+        className="apaisado:max-lg:pointer-coarse:hidden"
       >
         <button
           ref={botonTemarioRef}
