@@ -76,7 +76,7 @@ export function LoginForm({
         type="submit"
         variant="uva-primary"
         size="uva"
-        disabled={pending}
+        cargando={pending}
         className={ACCESO_BOTON}
       >
         {pending ? "Entrando…" : "Entrar"}

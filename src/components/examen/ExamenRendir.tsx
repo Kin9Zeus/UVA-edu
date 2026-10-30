@@ -23,6 +23,16 @@ const INDICACION: Record<PreguntaParaEstudiante["tipo"], string> = {
   EMPAREJAR: "Relaciona las parejas",
 };
 
+/** "Elige una entre 4 opciones." — lo que el lector anuncia tras el enunciado. */
+function guiaPregunta(pregunta: PreguntaParaEstudiante) {
+  const cantidad = pregunta.opciones?.length ?? pregunta.izquierdas?.length ?? 0;
+  if (pregunta.tipo === "EMPAREJAR") return `Relaciona ${cantidad} parejas: elige uno de la izquierda y luego su pareja.`;
+  if (pregunta.tipo === "RELLENAR_ESPACIO") return "Escribe la respuesta.";
+  if (pregunta.tipo === "VERDADERO_FALSO") return "Elige verdadero o falso.";
+  if (pregunta.tipo === "OPCION_MULTIPLE") return `Marca todas las correctas entre ${cantidad} opciones.`;
+  return `Elige una entre ${cantidad} opciones.`;
+}
+
 function suscribirNada() {
   return () => {};
 }
@@ -478,6 +488,10 @@ export function ExamenRendir({
             escala="lectura"
             className="[&_p]:!max-w-none [&_p]:!text-uva-titulo-3 [&_p]:!text-uva-text"
           />
+          {/* Al cambiar de pregunta el foco llega aquí y el lector lee hasta
+              este punto: sin esta línea no se sabía que debajo vienen las
+              opciones ni cuántas son. */}
+          <p className="sr-only">{guiaPregunta(preguntaActual)}</p>
         </div>
 
         <PreguntaCuerpo

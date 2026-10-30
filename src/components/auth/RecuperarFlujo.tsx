@@ -140,7 +140,7 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
             type="submit"
             variant="uva-primary"
             size="uva"
-            disabled={pending}
+            cargando={pending}
             className={ACCESO_BOTON}
           >
             {pending ? "Enviando…" : "Enviar enlace"}

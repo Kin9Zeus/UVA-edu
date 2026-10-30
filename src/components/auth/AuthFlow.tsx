@@ -377,7 +377,7 @@ export function AuthFlow({
                 type="submit"
                 variant="uva-primary"
                 size="uva"
-                disabled={checking}
+                cargando={checking}
                 className={ACCESO_BOTON}
               >
                 {checking ? "Verificando…" : "Continuar"}

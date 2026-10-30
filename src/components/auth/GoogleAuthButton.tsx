@@ -52,7 +52,7 @@ export function GoogleAuthButton({
       size="uva"
       className={cn(ESTILO_GOOGLE, className)}
       onClick={handleClick}
-      disabled={pending}
+      cargando={pending}
     >
       <GoogleIcon />
       {pending ? "Redirigiendo…" : label}

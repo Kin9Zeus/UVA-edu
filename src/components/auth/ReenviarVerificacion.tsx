@@ -97,7 +97,8 @@ export function ReenviarVerificacion({
         type="submit"
         variant={variante === "primario" ? "uva-primary" : "uva-secondary"}
         size="uva"
-        disabled={pending || cooldown > 0}
+        disabled={cooldown > 0}
+        cargando={pending}
         // "Puedes reenviarlo de nuevo en 0:59" no cabe en una línea a 320 px:
         // el botón crece en alto en vez de salirse.
         className={`h-auto min-h-12 whitespace-normal py-2.5 bajo:min-h-11 ${

@@ -267,7 +267,8 @@ export function CanjearCodigoForm({
               variant="uva-primary"
               size="uva"
               className={apilado ? "h-12 text-uva-cuerpo" : "min-h-13 w-auto px-[22px] text-base"}
-              disabled={pending || bloqueado || codigo.trim() === ""}
+              disabled={bloqueado || codigo.trim() === ""}
+              cargando={pending}
             >
               {pending ? "Canjeando…" : bloqueado ? "Bloqueado" : "Canjear código"}
             </Button>

@@ -87,22 +87,33 @@ function Button({
   size = "default",
   cargando = false,
   disabled,
+  onClick,
   children,
   ...props
 }: ButtonPrimitive.Props &
   VariantProps<typeof buttonVariants> & {
     /** Acción en curso: muestra un spinner, bloquea el clic y avisa con
      *  aria-busy. Sigue enfocable (no pierde el foco al empezar a cargar) y
-     *  se ve a opacidad completa, a diferencia de `disabled`. */
+     *  se ve a opacidad completa, a diferencia de `disabled`. No se marca
+     *  deshabilitado ni aria-disabled: con el foco encima, los lectores de
+     *  pantalla anunciaban "no disponible" y parecía que algo había fallado. */
     cargando?: boolean
   }) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      disabled={disabled || cargando}
-      focusableWhenDisabled={cargando}
+      disabled={disabled}
       aria-busy={cargando || undefined}
+      onClick={(evento) => {
+        // También frena el envío del formulario (Enter en un campo dispara
+        // el clic del botón de enviar): una sola acción a la vez.
+        if (cargando) {
+          evento.preventDefault()
+          return
+        }
+        onClick?.(evento)
+      }}
       {...props}
     >
       {cargando && (
