@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, TicketPercent, X } from "lucide-react";
+import { BeneficioPlan } from "@/components/BeneficioPlan";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,28 +48,12 @@ function QueIncluye({
   return (
     <div className={cn("border-t border-uva-divider", className)}>
       <h2 className="m-0 mb-4 text-base text-uva-text">Qué incluye</h2>
-      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px]">
-        {sharedBenefits.map((beneficio, indice) => {
-          const incluido = indice < incluidos;
-          return (
-            <li
-              key={beneficio}
-              className={cn(
-                "flex items-center gap-2",
-                incluido ? "text-uva-text" : "text-uva-text-disabled opacity-45",
-              )}
-            >
-              <Check
-                className={cn(
-                  "size-3.5 shrink-0",
-                  incluido ? "text-uva-accent-2-text" : "text-uva-text-disabled",
-                )}
-                aria-hidden
-              />
-              {beneficio}
-            </li>
-          );
-        })}
+      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-uva-detalle">
+        {sharedBenefits.map((beneficio, indice) => (
+          <BeneficioPlan key={beneficio} incluido={indice < incluidos}>
+            {beneficio}
+          </BeneficioPlan>
+        ))}
       </ul>
     </div>
   );

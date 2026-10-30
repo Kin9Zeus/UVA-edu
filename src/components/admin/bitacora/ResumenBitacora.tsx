@@ -248,7 +248,7 @@ function Tooltip({ dia, esHoy, x, ancho, elegido }: { dia: DiaBitacora; esHoy: b
       {dia.sensibles > 0 && (
         <p className="mt-1 flex items-center justify-between gap-2 font-bold text-uva-error-text">
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-uva-error" />
+            <span aria-hidden className="size-2 rounded-full bg-uva-error" />
             Sensibles
           </span>
           <span className="font-mono">{dia.sensibles}</span>
