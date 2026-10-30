@@ -241,6 +241,7 @@ export function CrearCursoForm({
             <button
               type="button"
               onClick={() => inputPortadaRef.current?.click()}
+              aria-label={previewPortada ? "Reemplazar la portada" : undefined}
               className="block aspect-video w-full overflow-hidden rounded-uva-md border-[1.5px] border-dashed border-uva-divider text-center text-uva-detalle text-uva-muted-2 hover:border-uva-text-faint"
             >
               {previewPortada ? (

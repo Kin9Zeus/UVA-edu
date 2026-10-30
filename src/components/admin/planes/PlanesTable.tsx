@@ -163,24 +163,21 @@ export function PlanesTable({
               </TableHeader>
               <TableBody>
                 {ordenar(planes).map((plan) => {
-                  // Atenuado lo que describe al plan, no sus controles: el
-                  // interruptor tiene que seguir leyéndose bien para reactivarlo.
-                  const atenuado = cn(!plan.activo && "opacity-70");
                   return (
                     <TableRow key={plan.id}>
-                      <TableCell className={cn("min-w-56 whitespace-normal", atenuado)}>
+                      <TableCell className="min-w-56 whitespace-normal">
                         <Nombre plan={plan} />
                       </TableCell>
-                      <TableCell className={atenuado}>
+                      <TableCell>
                         <Precio plan={plan} referencia={referencia} />
                       </TableCell>
                       {cobroActivo && (
-                        <TableCell className={atenuado}>
+                        <TableCell>
                           <Vigentes ventas={ventasDe(plan)} />
                         </TableCell>
                       )}
                       {cobroActivo && (
-                        <TableCell className={atenuado}>
+                        <TableCell>
                           <Ventas30 ventas={ventasDe(plan)} />
                         </TableCell>
                       )}

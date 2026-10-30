@@ -153,7 +153,7 @@ export function CurvaAvance({ puntos }: { puntos: PuntoCurva[] }) {
                 aria-label={`Clase ${punto.numero}, ${punto.titulo}: ${punto.terminaron} la terminaron${
                   punto.seQuedaron > 0 ? `, ${punto.seQuedaron} se ${punto.seQuedaron === 1 ? "quedó" : "quedaron"} ahí` : ""
                 }`}
-                className="fill-transparent outline-none hover:fill-uva-hover/60 focus-visible:fill-uva-accent-soft"
+                className="fill-transparent outline-none hover:fill-uva-hover/60 focus-visible:fill-uva-accent-soft focus-visible:stroke-uva-accent focus-visible:stroke-2"
                 onMouseEnter={() => setActivo(i)}
                 onMouseLeave={() => setActivo(null)}
                 onFocus={() => setActivo(i)}

@@ -152,7 +152,8 @@ export function SoporteCentro({
               value={tema.id}
               className="border-b border-uva-divider"
             >
-              <Accordion.Header className="m-0">
+              {/* h2: son las secciones de la página, justo bajo el h1 (Base UI pone h3). */}
+              <Accordion.Header render={<h2 />} className="m-0">
                 <Accordion.Trigger className="group flex min-h-[60px] w-full items-center gap-3 px-4 text-left text-uva-cuerpo font-bold text-uva-text hover:text-uva-accent-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-uva-accent sm:px-[22px]">
                   <span className="flex-1">{tema.titulo}</span>
                   <ChevronDown

@@ -338,7 +338,7 @@ export function UsuariosTable({
             type="date"
             value={searchParams.get("desde") ?? ""}
             onChange={(evento) => actualizarUrl({ desde: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle outline-hidden focus-within:border-uva-accent focus-within:outline-2 focus-within:outline-solid focus-within:outline-uva-accent"
             aria-label="Se registró desde"
           />
           <span className="shrink-0 text-uva-detalle text-uva-muted-2">y</span>
@@ -346,7 +346,7 @@ export function UsuariosTable({
             type="date"
             value={searchParams.get("hasta") ?? ""}
             onChange={(evento) => actualizarUrl({ hasta: evento.target.value || null })}
-            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle"
+            className="min-h-11 min-w-[9.5rem] flex-1 rounded-uva-md border border-uva-line-strong bg-uva-surface px-2.5 py-1.5 text-base text-uva-text md:flex-none md:pointer-fine:min-h-9 md:pointer-fine:text-uva-detalle outline-hidden focus-within:border-uva-accent focus-within:outline-2 focus-within:outline-solid focus-within:outline-uva-accent"
             aria-label="Se registró hasta"
           />
         </div>

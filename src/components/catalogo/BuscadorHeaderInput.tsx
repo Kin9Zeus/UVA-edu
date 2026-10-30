@@ -119,6 +119,7 @@ export function BuscadorHeaderInput({
       {BuscadorInput ? (
         <BuscadorInput
           placeholder={placeholder}
+          etiqueta="Buscar cursos"
           valorInicial={texto}
           opciones={opciones}
           mensajeVacio={
@@ -146,6 +147,7 @@ export function BuscadorHeaderInput({
               if (e.key === "Enter") buscar(texto.trim());
             }}
             placeholder={placeholder}
+            aria-label="Buscar cursos"
             autoFocus={autoFocus}
             maxLength={LARGO_MAXIMO_BUSQUEDA}
             autoComplete="off"

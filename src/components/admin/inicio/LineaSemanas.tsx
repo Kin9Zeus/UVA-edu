@@ -164,7 +164,7 @@ export function LineaSemanas({
               tabIndex={0}
               role="img"
               aria-label={`${i === ultima ? "Esta semana, hasta hoy" : nombreSemana(inicios[i], false)}: ${describir(i)}`}
-              className="fill-transparent outline-none hover:fill-uva-hover/60 focus-visible:fill-uva-accent-soft"
+              className="fill-transparent outline-none hover:fill-uva-hover/60 focus-visible:fill-uva-accent-soft focus-visible:stroke-uva-accent focus-visible:stroke-2"
               onMouseEnter={() => setActiva(i)}
               onMouseLeave={() => setActiva(null)}
               onFocus={() => setActiva(i)}

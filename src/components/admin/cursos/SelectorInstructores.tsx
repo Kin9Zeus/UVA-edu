@@ -42,7 +42,7 @@ export function SelectorInstructores({
     return (
       <p className="text-uva-detalle text-uva-text-faint">
         Ningún usuario tiene rol Profesor todavía — asciende uno desde{" "}
-        <Link href="/admin/usuarios" className="text-uva-accent-ink hover:underline">
+        <Link href="/admin/usuarios" className="text-uva-accent-ink underline underline-offset-2">
           Usuarios
         </Link>
         .

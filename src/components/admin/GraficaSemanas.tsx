@@ -124,7 +124,7 @@ export function GraficaSemanas<S extends SemanaGrafica>({
                   tabIndex={0}
                   role="img"
                   aria-label={`${nombreSemana(semana, i === ultima)}: ${semana.total === 0 ? sinDatos.toLowerCase() : resumenSemana(semana)}`}
-                  className="fill-transparent outline-none hover:fill-uva-hover focus-visible:fill-uva-accent-soft"
+                  className="fill-transparent outline-none hover:fill-uva-hover focus-visible:fill-uva-accent-soft focus-visible:stroke-uva-accent focus-visible:stroke-2"
                   onMouseEnter={() => setActiva(i)}
                   onMouseLeave={() => setActiva(null)}
                   onFocus={() => setActiva(i)}
