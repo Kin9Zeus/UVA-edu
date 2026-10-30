@@ -116,7 +116,7 @@ export function PerfilForm({
     <div className="@container flex flex-col gap-[22px] lg:gap-7">
       <h1 className="text-uva-titulo-3 text-uva-text">Mi perfil</h1>
 
-      <div className="grid gap-7 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-x-14">
+      <div className="grid grid-cols-1 gap-7 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-x-14">
         <div className="contents @min-[900px]:grid @min-[900px]:content-start @min-[900px]:gap-6">
           {/* El carné cuelga de una cinta desde 900 px; en celular va solo. */}
           <div className="relative order-1 grid justify-items-center @min-[900px]:order-none @min-[900px]:mb-3 @min-[900px]:pt-[150px]">

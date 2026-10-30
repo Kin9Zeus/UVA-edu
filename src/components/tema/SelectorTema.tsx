@@ -55,7 +55,8 @@ export function SelectorTemaTres({ className }: { className?: string }) {
   const { preferencia, elegirTema } = useTema();
 
   return (
-    <div role="radiogroup" aria-label="Tema" className={cn("grid grid-cols-3 gap-2", className)}>
+    // Con la letra del sistema agrandada "Sistema" no cabe en un tercio: una columna.
+    <div role="radiogroup" aria-label="Tema" className={cn("grid grid-cols-3 gap-2 max-[20rem]:grid-cols-1", className)}>
       {OPCIONES_TEMA.map(({ valor, etiqueta, Icono }) => {
         const activa = preferencia === valor;
         return (
