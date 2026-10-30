@@ -81,6 +81,12 @@ const buttonVariants = cva(
   }
 )
 
+/** Mientras carga: también frena el envío del formulario (Enter en un campo
+ *  dispara el clic del botón de enviar), una sola acción a la vez. */
+function bloquearClic(evento: { preventDefault(): void }) {
+  evento.preventDefault()
+}
+
 function Button({
   className,
   variant = "default",
@@ -105,15 +111,9 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       disabled={disabled}
       aria-busy={cargando || undefined}
-      onClick={(evento) => {
-        // También frena el envío del formulario (Enter en un campo dispara
-        // el clic del botón de enviar): una sola acción a la vez.
-        if (cargando) {
-          evento.preventDefault()
-          return
-        }
-        onClick?.(evento)
-      }}
+      // Sin función nueva cuando no carga: Button también se usa en
+      // componentes de servidor, que no pueden pasarle funciones al cliente.
+      onClick={cargando ? bloquearClic : onClick}
       {...props}
     >
       {cargando && (
