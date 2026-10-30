@@ -28,7 +28,7 @@ import { TEMA_STORAGE_KEY } from "../src/lib/tema";
  * revisan aparte. Igual que capa1, conviene correrlo contra un build:
  *
  *   npm run build && npm run start      (en otra terminal)
- *   npx playwright test e2e/a11y-barrido.spec.ts
+ *   A11Y=1 npx playwright test e2e/a11y-barrido.spec.ts
  *
  * Informe en test-results/a11y/hallazgos.json.
  */
@@ -264,6 +264,9 @@ function guardar() {
 }
 
 test.describe.configure({ mode: "serial" });
+// Solo bajo pedido (A11Y=1): tardan ~20 min y no son parte de `npm run test:e2e`
+// de cada tarea; se usan en barridos de accesibilidad.
+test.skip(!process.env.A11Y, "Barrido de accesibilidad: correr con A11Y=1");
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(10 * 60_000);
