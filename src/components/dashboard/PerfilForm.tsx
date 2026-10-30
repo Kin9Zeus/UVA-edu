@@ -33,7 +33,7 @@ import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
-import { logout } from "@/actions/auth/logout";
+import { logout, logoutEnTodos } from "@/actions/auth/logout";
 
 type Certificado = {
   id: string;
@@ -385,6 +385,15 @@ export function PerfilForm({
               <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
                 <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 Cerrar sesión
+              </Button>
+            </form>
+            <p className="max-w-[68ch] text-uva-cuerpo text-uva-text-muted">
+              Si crees que alguien más entró a tu cuenta, ciérrala en todos tus dispositivos a la vez.
+            </p>
+            <form action={logoutEnTodos}>
+              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
+                <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
+                Cerrar sesión en todos los dispositivos
               </Button>
             </form>
           </section>

@@ -111,16 +111,43 @@ describe("cambiarPassword", () => {
   });
 
   it("éxito: limpia intentos, cambia la contraseña y avisa por correo", async () => {
-    expect(await cambiar()).toEqual({ success: true });
+    expect(await cambiar()).toEqual({ success: true, otrasSesionesCerradas: true });
     expect(servidorFalso.llamadasA("auth:updateUser")[0].argumentos[0]).toEqual({ password: VALIDO.password_nueva });
     expect(servidorFalso.llamadasA("rpc:limpiar_intentos_login")).toHaveLength(1);
     expect(enviarCorreoPasswordActualizada).toHaveBeenCalledWith(ESTUDIANTE.email);
   });
 
+  it("cambiarla cierra las DEMÁS sesiones y deja viva la actual (scope others)", async () => {
+    await cambiar();
+
+    const cierres = servidorFalso.llamadasA("auth:signOut");
+    expect(cierres).toHaveLength(1);
+    expect(cierres[0].argumentos[0]).toEqual({ scope: "others" });
+  });
+
+  it("si cerrar las otras sesiones falla, el cambio sigue siendo éxito pero NO afirma que las cerró", async () => {
+    servidorFalso.responder("auth:signOut", { data: null, error: { message: "boom" } });
+
+    expect(await cambiar()).toEqual({ success: true, otrasSesionesCerradas: false });
+    expect(logError).toHaveBeenCalledWith(
+      "cambiarPassword",
+      "signOut(others) falló",
+      expect.anything(),
+      { area: "auth" },
+    );
+  });
+
+  it("contraseña actual incorrecta: no cierra ninguna sesión", async () => {
+    servidorFalso.responder("auth:signInWithPassword", { data: null, error: { message: "Invalid login credentials" } });
+
+    await cambiar();
+    expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
+  });
+
   it("si el aviso por correo falla, el cambio ya hecho se reporta como éxito", async () => {
     vi.mocked(enviarCorreoPasswordActualizada).mockResolvedValue({ success: false, error: "Resend caído" });
 
-    expect(await cambiar()).toEqual({ success: true });
+    expect(await cambiar()).toEqual({ success: true, otrasSesionesCerradas: true });
     expect(logError).toHaveBeenCalledWith(
       "cambiarPassword",
       "enviarCorreoPasswordActualizada falló",

@@ -10,7 +10,7 @@ import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 
 export type CambiarPasswordState =
   | { error: string; success?: never }
-  | { error?: never; success: true }
+  | { error?: never; success: true; otrasSesionesCerradas: boolean }
   | null;
 
 /**
@@ -118,9 +118,21 @@ export async function cambiarPassword(
     );
   }
 
-  // A diferencia de actualizarPassword() (que cierra la sesión de
-  // recuperación a propósito, para forzar un login limpio): acá el usuario
-  // ya demostró conocer la contraseña actual arriba, así que cortarle la
-  // sesión sería una fricción sin ningún motivo de seguridad de por medio.
-  return { success: true };
+  // Quien cambia la contraseña porque sospecha un robo espera que el intruso
+  // quede fuera. Sin esto, una sesión robada seguía viva con la contraseña
+  // nueva: un token de renovación vale hasta que se cierra la sesión, no
+  // hasta que cambia la contraseña. Se cierran las DEMÁS y se deja la actual:
+  // el usuario ya demostró conocer la contraseña vieja, así que echarlo a él
+  // sería fricción sin motivo (a diferencia de actualizarPassword(), que sí
+  // cierra la de recuperación para forzar un login limpio).
+  //
+  // Si el cierre falla, la contraseña YA cambió: no se deshace ni se
+  // reporta como fallo. Pero tampoco se afirma que se cerraron las otras
+  // sesiones (otrasSesionesCerradas), y queda registrado para Sentry.
+  const { error: errorOtrasSesiones } = await supabase.auth.signOut({ scope: "others" });
+  if (errorOtrasSesiones) {
+    logError("cambiarPassword", "signOut(others) falló", errorOtrasSesiones, { area: "auth" });
+  }
+
+  return { success: true, otrasSesionesCerradas: !errorOtrasSesiones };
 }
