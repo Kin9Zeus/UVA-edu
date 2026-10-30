@@ -312,6 +312,9 @@ test.afterAll(async () => {
   test.setTimeout(5 * 60_000);
   guardar();
   if (ids.estudiante) await admin.from("intentos_examen").delete().eq("id_usuario", ids.estudiante);
+  // El avance del estudiante apunta a las clases y bloqueaba borrar el curso;
+  // los usuarios van al final porque el admin de prueba firma el curso.
+  if (ids.estudiante) await limpiarDatosDeUsuario(admin, ids.estudiante);
   if (cursoId) {
     await admin.from("examenes").delete().eq("id_curso", cursoId);
     await admin.from("lecciones").delete().eq("id_modulo", moduloId);
