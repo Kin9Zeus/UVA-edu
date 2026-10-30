@@ -20,8 +20,9 @@ import { TEMA_STORAGE_KEY } from "../src/lib/tema";
  *   - scroll-horizontal  la página es más ancha que la ventana
  *   - se-sale            un elemento termina fuera de la ventana (aunque un
  *                        overflow-x: hidden esconda el scroll)
- *   - cortado            un texto no cabe en su caja y queda oculto
- *                        (overflow hidden, truncate, line-clamp)
+ *   - cortado            un texto no cabe en su caja y queda oculto sin aviso
+ *   - recortado          igual, pero con "…" (truncate, line-clamp): recorte
+ *                        a propósito; se anota para revisarlo y no reprueba
  *   - fijo-tapa          lo fijo/pegajoso ocupa más del 40 % del alto
  *
  * Deja una captura de la ventana por pantalla y condición en
@@ -53,7 +54,7 @@ const CSS_ESPACIADO = `
   p { margin-bottom: 2em !important; }
 `;
 
-type TipoHallazgo = "scroll-horizontal" | "se-sale" | "cortado" | "fijo-tapa" | "letra-no-aplica" | "timeout";
+type TipoHallazgo = "scroll-horizontal" | "se-sale" | "cortado" | "recortado" | "fijo-tapa" | "letra-no-aplica" | "timeout";
 interface Hallazgo {
   rol: Rol;
   ruta: string;
@@ -96,6 +97,7 @@ function medir() {
 
   const seSale: string[] = [];
   const cortado: string[] = [];
+  const recortado: string[] = [];
   let altoFijo = 0;
   const fijos: string[] = [];
 
@@ -110,7 +112,8 @@ function medir() {
       const ocultaX = s.overflowX !== "visible" && el.scrollWidth > el.clientWidth + 1;
       const ocultaY = s.overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1;
       if ((ocultaX && s.overflowX !== "auto" && s.overflowX !== "scroll") || (ocultaY && s.overflowY !== "auto" && s.overflowY !== "scroll")) {
-        cortado.push(describir(el));
+        const conAviso = s.textOverflow === "ellipsis" || s.webkitLineClamp !== "none";
+        (conAviso ? recortado : cortado).push(describir(el));
       }
     }
 
@@ -128,6 +131,7 @@ function medir() {
     letraRaiz: parseFloat(getComputedStyle(document.documentElement).fontSize),
     seSale: seSale.slice(0, 8),
     cortado: cortado.slice(0, 12),
+    recortado: recortado.slice(0, 12),
     fijoPct: Math.round((altoFijo / vh) * 100),
     fijos,
   };
@@ -147,6 +151,7 @@ async function visitar(page: Page, rol: Rol, ruta: string, c: Condicion) {
     if (m.scrollWidth > m.vw) anotar({ tipo: "scroll-horizontal", detalle: `${m.scrollWidth} px en una ventana de ${m.vw}` });
     if (m.seSale.length) anotar({ tipo: "se-sale", detalle: `${m.seSale.length} elemento(s)`, nodos: m.seSale });
     if (m.cortado.length) anotar({ tipo: "cortado", detalle: `${m.cortado.length} texto(s)`, nodos: m.cortado });
+    if (m.recortado.length) anotar({ tipo: "recortado", detalle: `${m.recortado.length} texto(s)`, nodos: m.recortado });
     if (m.fijoPct > 40) anotar({ tipo: "fijo-tapa", detalle: `${m.fijoPct} % del alto`, nodos: m.fijos });
 
     const archivo = `${rol}${ruta === "/" ? "-portada" : ruta.replace(/\//g, "-")}.png`;
@@ -205,5 +210,5 @@ test("baja visión sin desbordes ni textos cortados", async () => {
   console.log(`\nBaja visión — ${hallazgos.length} hallazgos`);
   for (const [clave, n] of [...conteo].sort()) console.log(`  ${clave}: ${n}`);
   console.log("Detalle: test-results/baja-vision/hallazgos.json\n");
-  expect(hallazgos.map((h) => `  [${h.rol}] [${h.condicion}] ${h.ruta} — ${h.tipo}: ${h.detalle}`)).toEqual([]);
+  expect(hallazgos.filter((h) => h.tipo !== "recortado").map((h) => `  [${h.rol}] [${h.condicion}] ${h.ruta} — ${h.tipo}: ${h.detalle}`)).toEqual([]);
 });
