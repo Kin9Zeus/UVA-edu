@@ -85,10 +85,14 @@ function medir() {
     return s.display !== "none" && s.visibility !== "hidden" && r.width > 1 && r.height > 1;
   };
   // Lo que ya se desplaza a propósito (filas de pestañas, tablas con scroll).
+  // Un contenedor de media pantalla o más no cuenta: es el área principal del
+  // panel (overflow-y: auto deja también overflow-x en auto) y ahí el scroll
+  // de lado es el mismo fallo que en la página.
+  const esScrollerDePagina = (n: Element) => n.clientHeight >= vh * 0.5;
   const enScrollPropio = (el: Element) => {
     for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
       const ox = getComputedStyle(n).overflowX;
-      if (ox === "auto" || ox === "scroll") return true;
+      if ((ox === "auto" || ox === "scroll") && !esScrollerDePagina(n)) return true;
     }
     return false;
   };
