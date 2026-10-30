@@ -401,7 +401,13 @@ export function PerfilForm({
               Si crees que alguien más entró a tu cuenta, ciérrala en todos tus dispositivos a la vez.
             </p>
             <form action={logoutEnTodos}>
-              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
+              {/* Mide ~366 px en una línea: en celulares angostos parte el texto en vez de salirse. */}
+              <Button
+                type="submit"
+                variant="uva-secondary"
+                size="uva"
+                className="h-auto min-h-12 w-auto max-w-full gap-2 px-[22px] text-base whitespace-normal"
+              >
                 <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 Cerrar sesión en todos los dispositivos
               </Button>
