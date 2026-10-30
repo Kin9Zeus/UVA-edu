@@ -34,6 +34,7 @@ try {
 }
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { generarCodigoTotp } from "../src/test/totp";
 // Import dinámico, no estático: un `import` de nivel superior se eleva por
 // encima del `process.loadEnvFile(".env.local")` de arriba (los ESM izan
 // TODOS los imports antes de cualquier otra sentencia, sin importar el
@@ -82,6 +83,28 @@ async function esperarPermitido(
   const { data, error } = await promesa;
   registrar(nombre, !error, error?.message);
   return data;
+}
+
+/**
+ * Sube la sesión de `cliente` a aal2 como lo haría una persona: registra una
+ * app de autenticación (TOTP) y escribe el primer código. FASE 8.1: desde
+ * 131_admin_exige_aal2.sql, un administrador solo es administrador para la
+ * base con sesión aal2. El factor desaparece con el usuario de prueba al final.
+ */
+async function subirAAal2(cliente: SupabaseClient): Promise<void> {
+  const { data: factor, error: errEnroll } = await cliente.auth.mfa.enroll({ factorType: "totp" });
+  if (errEnroll || !factor) throw new Error(`No pude registrar el factor del admin de prueba: ${errEnroll?.message}`);
+
+  const { error: errVerificar } = await cliente.auth.mfa.challengeAndVerify({
+    factorId: factor.id,
+    code: generarCodigoTotp(factor.totp.secret),
+  });
+  if (errVerificar) throw new Error(`No pude verificar el código del admin de prueba: ${errVerificar.message}`);
+
+  const { data: nivel } = await cliente.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (nivel?.currentLevel !== "aal2") {
+    throw new Error(`La sesión del admin de prueba no quedó en aal2 (quedó en ${nivel?.currentLevel ?? "sin nivel"})`);
+  }
 }
 
 async function main() {
@@ -1872,6 +1895,49 @@ async function main() {
       password,
     });
     if (loginAdmin.error) throw new Error(`No pude iniciar sesión como admin: ${loginAdmin.error.message}`);
+
+    // ------------------------------------------------------------------
+    // FASE 8.1 (131_admin_exige_aal2.sql): con solo la contraseña (aal1) un
+    // administrador NO es administrador para la base. Es justo el caso de una
+    // contraseña robada usada directo contra la API, sin pasar por la app.
+    // Después se sube la sesión a aal2 y el resto del arnés corre como siempre.
+    // ------------------------------------------------------------------
+    console.log("\n=== Sesión: ADMINISTRADOR SIN SEGUNDO FACTOR (aal1, 131) ===\n");
+
+    const { error: errListarAal1 } = await clienteAdmin.rpc("admin_listar_usuarios", { p_limite: 5, p_offset: 0 });
+    registrar(
+      "administrador con sesión aal1 (solo contraseña) NO puede listar usuarios (131)",
+      !!errListarAal1,
+      errListarAal1 ? `${errListarAal1.code}: ${errListarAal1.message}` : "el RPC no falló",
+    );
+    await esperarBloqueado(
+      "administrador aal1 NO lee perfiles ajenos (131)",
+      clienteAdmin.from("perfiles").select("id").neq("id", userAdmin.user!.id).limit(5),
+    );
+    await esperarBloqueado(
+      "administrador aal1 NO lee la bitácora administrativa (131)",
+      clienteAdmin.from("bitacora_administrativa").select("*"),
+    );
+    const { data: comunidadAal1, error: errComunidadAal1 } = await clienteAdmin.rpc("comunidad_tiene_acceso");
+    registrar(
+      "administrador aal1 sin suscripción NO tiene el atajo de admin a Comunidad (131)",
+      !errComunidadAal1 && comunidadAal1 === false,
+      errComunidadAal1 ? errComunidadAal1.message : `comunidad_tiene_acceso=${comunidadAal1}`,
+    );
+    await esperarPermitido(
+      "administrador aal1 SÍ lee su propio perfil (lo necesita /seguridad/activar)",
+      clienteAdmin.from("perfiles").select("id").eq("id", userAdmin.user!.id).single(),
+    );
+
+    await subirAAal2(clienteAdmin);
+    registrar("el administrador sube a aal2 con el código de su app (enroll + challengeAndVerify)", true);
+
+    const { data: comunidadAal2, error: errComunidadAal2 } = await clienteAdmin.rpc("comunidad_tiene_acceso");
+    registrar(
+      "con aal2 vuelve el atajo de administrador a Comunidad (131)",
+      !errComunidadAal2 && comunidadAal2 === true,
+      errComunidadAal2 ? errComunidadAal2.message : `comunidad_tiene_acceso=${comunidadAal2}`,
+    );
 
     // Notas, parte 3: ni un administrador lee los apuntes de otra persona
     // (docs/notas-leccion.md §3.1, mínimo privilegio).
