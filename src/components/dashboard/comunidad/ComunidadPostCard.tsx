@@ -171,12 +171,12 @@ export function ComunidadPostCard({
       href={`/dashboard/comunidad/${post.slug}`}
       // En táctil el área sube a 44 px con relleno y margen negativo: el
       // título no se mueve, solo crece la zona que responde al dedo.
-      className="text-uva-titulo-4 font-extrabold wrap-break-word text-uva-text hover:underline pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
+      className="text-uva-titulo-4 font-bold wrap-break-word text-uva-text hover:underline pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
     >
       {post.titulo}
     </Link>
   ) : (
-    <h1 className="text-uva-titulo-3 wrap-break-word text-uva-text">
+    <h1 className="text-uva-titulo-4 wrap-break-word text-uva-text">
       {post.titulo}
     </h1>
   );

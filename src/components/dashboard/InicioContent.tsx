@@ -202,20 +202,20 @@ function TambienEnProgreso({ clases }: { clases: ClaseEnProgreso[] }) {
           <li key={clase.leccionId}>
             <Link
               href={`/cursos/${clase.cursoSlug}/${clase.leccionSlug}`}
-              className={`group grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-1 py-3.5 no-underline hover:no-underline md:grid-cols-[128px_minmax(0,1fr)_200px_20px] md:gap-x-[22px] lg:px-2 ${i > 0 ? "border-t border-uva-divider" : ""}`}
+              className={`group grid grid-cols-[112px_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-1 py-3.5 no-underline hover:no-underline md:grid-cols-[160px_minmax(0,1fr)_200px_20px] md:gap-x-[22px] lg:px-2 ${i > 0 ? "border-t border-uva-divider" : ""}`}
             >
               <span className="relative block aspect-video overflow-hidden rounded-uva-md border border-uva-divider">
                 {clase.reanudarEn ? (
                   <MiniaturaMux
                     src={clase.reanudarEn.url}
                     className="absolute inset-0 size-full object-cover"
-                    respaldo={<Portada imagen={clase.imagenPortada} sizes="128px" iconoClase="size-8" />}
+                    respaldo={<Portada imagen={clase.imagenPortada} sizes="160px" iconoClase="size-8" />}
                   />
                 ) : (
                   <Portada
                     imagen={clase.imagenPortada}
                     claveCategoria={clase.categorias[0]?.nombre}
-                    sizes="128px"
+                    sizes="160px"
                     iconoClase="size-8"
                   />
                 )}
