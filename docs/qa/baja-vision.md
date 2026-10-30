@@ -36,7 +36,7 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 | # | Prueba | Estado |
 | --- | --- | --- |
 | 1 | Zoom al 200 % | Falló (BV-01, 02, 03, 15, 16) → corregido. Barrido en verde |
-| 2 | Letra del sistema al máximo | Falló (BV-01 a 09, 17 a 21) → corregido salvo BV-17 (por confirmar). **Falta celular real** |
+| 2 | Letra del sistema al máximo | Falló (BV-01 a 09, 17 a 23) → corregido salvo BV-17 (por confirmar). **Falta celular real** |
 | 3 | Espaciado de texto | Falló (BV-01, 08, 09) → corregido. Barrido en verde |
 | 4 | Al sol | **Pendiente** (prueba manual del usuario) |
 | 5 | Movimiento reducido | Falló (BV-10, 11) → corregido. **Falta celular real** |
@@ -48,7 +48,7 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 ### BV-17 — Portada: "se desbordan las categorías en las tarjetas" (por confirmar)
 
 - **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px)
-- La lista "Explora por categoría" se ve bien en la captura; falta confirmar a qué tarjetas se refiere.
+- La lista "Explora por categoría" de la portada y las tarjetas de curso se ven bien en las capturas; puede ser BV-22 (la misma lista en el inicio del panel). Falta confirmar.
 
 ## Resueltos
 
@@ -174,6 +174,20 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 - **Causa:** ancho máximo en px (`max-w-[440px]`) con rótulos en rem.
 - **Arreglo:** ancho máximo en rem.
 - **Capturas:** [antes](baja-vision/BV-21-barra-inferior-768-antes.png) · [después](baja-vision/BV-21-barra-inferior-768-despues.png)
+
+### BV-22 — Inicio del panel: la lista de categorías se sale 48 px
+
+- **Severidad:** Media · **Prueba:** 2 · **Detectó:** barrido, tras corregir el hueco de BV-20 (letra al 150 %, 375 px)
+- **Causa:** grilla sin columnas en celular (como BV-01). Al arreglarla apareció una superposición: el nombre ("Arquitectónica") se montaba sobre "2 cursos".
+- **Arreglo:** `grid-cols-1`, y con la letra agrandada el contador baja de renglón.
+- **Capturas:** [antes](baja-vision/BV-22-categorias-inicio-panel-antes.png) · [después](baja-vision/BV-22-categorias-inicio-panel-despues.png)
+
+### BV-23 — Perfil: "Sesión", "Tus datos" y "Eliminar cuenta" se salen 172 px
+
+- **Severidad:** Alta · **Prueba:** 2 y 3 · **Detectó:** barrido, tras corregir el hueco de BV-20 (letra al 150 % y espaciado, 375 px)
+- **Causa:** el botón "Cerrar sesión en todos los dispositivos" no parte su texto y los bloques del perfil son grillas sin columnas.
+- **Arreglo:** `grid-cols-1` en `CLASE_BLOQUE_PERFIL` (cubre todos los bloques) y botones que parten su texto.
+- **Capturas:** [antes](baja-vision/BV-23-perfil-sesion-antes.png) · [después](baja-vision/BV-23-perfil-sesion-despues.png)
 
 ## Recortes aceptados (no son fallas)
 
