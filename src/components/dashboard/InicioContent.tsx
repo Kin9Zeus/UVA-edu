@@ -314,7 +314,7 @@ function ExploraCategorias({ categorias }: { categorias: CategoriaConConteo[] })
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </div>
-      <ul className="grid border-t-[1.5px] border-uva-text sm:grid-cols-2">
+      <ul className="grid grid-cols-1 border-t-[1.5px] border-uva-text sm:grid-cols-2">
         {categorias.map((categoria) => (
           <li key={categoria.id} className="border-b border-uva-divider sm:odd:border-r">
             <Link
@@ -322,11 +322,15 @@ function ExploraCategorias({ categorias }: { categorias: CategoriaConConteo[] })
               className="group flex min-h-16 items-center gap-3.5 px-3 py-2.5 no-underline hover:no-underline"
             >
               <IconoCategoria clave={categoria.slug} className="size-[30px]" />
-              <span className="min-w-0 flex-1 text-uva-cuerpo font-extrabold text-uva-text group-hover:text-uva-accent-ink">
-                {categoria.nombre}
-              </span>
-              <span className="font-mono text-uva-detalle text-uva-text-muted">
-                {categoria.cursos} {categoria.cursos === 1 ? "curso" : "cursos"}
+              {/* Con la letra agrandada el contador baja de renglón: al lado,
+                  "Arquitectónica" no cabía y se montaba sobre "2 cursos". */}
+              <span className="flex min-w-0 flex-1 items-baseline gap-x-3 max-[20rem]:flex-wrap">
+                <span className="min-w-0 flex-1 text-uva-cuerpo font-extrabold text-uva-text group-hover:text-uva-accent-ink max-[20rem]:basis-auto">
+                  {categoria.nombre}
+                </span>
+                <span className="shrink-0 font-mono text-uva-detalle text-uva-text-muted">
+                  {categoria.cursos} {categoria.cursos === 1 ? "curso" : "cursos"}
+                </span>
               </span>
               <ChevronRight className="size-4 text-uva-accent-ink" aria-hidden="true" />
             </Link>
