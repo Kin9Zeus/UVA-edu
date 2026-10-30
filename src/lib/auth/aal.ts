@@ -15,16 +15,70 @@ import { lanzarSiFalla } from "@/lib/supabase/errores";
 export type NivelAal = "aal1" | "aal2";
 
 /**
- * Nivel que declaran unos claims ya verificados.
+ * Cuánto dura el código escrito — FASE 8.3, tarea 4 del plan de blindaje.
  *
- * Falla CERRADO: solo el valor exacto "aal2" cuenta como aal2. Un claim
- * ausente, de otro tipo o con un valor que no conocemos es aal1, porque quien
- * llama usa esto para DECIDIR si deja pasar a un administrador. Equivocarse
- * hacia aal1 manda a alguien a escribir su código; equivocarse hacia aal2 le
- * abre el panel sin segundo factor.
+ * El cierre por inactividad de Supabase es de plan de pago, y una sesión de
+ * Supabase no caduca sola: una cookie de sesión robada valdría para siempre.
+ * El plan prevé la alternativa: que la app limite cuánto vale el segundo
+ * factor. Pasadas estas horas desde que se escribió el código, la sesión cuenta
+ * como aal1 y el administrador vuelve a /seguridad/verificar.
+ *
+ * Doce horas: una jornada de trabajo completa sin pedir el código a media
+ * tarde, y nunca de un día para otro.
+ *
+ * El mismo límite está en la base (`private.segundo_factor_vigente()`,
+ * supabase/sql/131_admin_exige_aal2.sql, en segundos). Si cambia aquí, cambia
+ * allá: lo comprueba aal.test.ts.
  */
-export function nivelAalDeClaims(claims: { aal?: unknown } | null | undefined): NivelAal {
-  return claims?.aal === "aal2" ? "aal2" : "aal1";
+export const HORAS_MAXIMAS_SEGUNDO_FACTOR = 12;
+
+/**
+ * Nivel que declaran unos claims ya verificados, teniendo en cuenta cuándo se
+ * escribió el código.
+ *
+ * Falla CERRADO: solo cuenta como aal2 el claim `aal` exacto "aal2" CON un
+ * código reciente. Un claim ausente, de otro tipo o con un valor que no
+ * conocemos es aal1, porque quien llama usa esto para DECIDIR si deja pasar a
+ * un administrador. Equivocarse hacia aal1 manda a alguien a escribir su
+ * código; equivocarse hacia aal2 le abre el panel sin segundo factor.
+ */
+export function nivelAalDeClaims(
+  claims: { aal?: unknown; amr?: unknown } | null | undefined,
+  ahoraMs: number = Date.now(),
+): NivelAal {
+  if (claims?.aal !== "aal2") return "aal1";
+  return codigoReciente(claims.amr, ahoraMs) ? "aal2" : "aal1";
+}
+
+/**
+ * ¿El código de la app se escribió hace menos de HORAS_MAXIMAS_SEGUNDO_FACTOR?
+ *
+ * El claim `amr` del token lista cómo se autenticó la sesión. Supabase lo emite
+ * con la hora de cada método (`[{ method: "totp", timestamp: 1666086056 }]`), o
+ * en el formato del RFC 8176, solo con nombres. Con nombres no hay hora que
+ * medir: tratarlo como caducado dejaría a los administradores en un bucle
+ * (escriben el código y el token sigue sin hora), así que ahí solo vale el
+ * nivel aal2, sin límite. Un `amr` vacío o con una forma desconocida en una
+ * sesión aal2 es raro, y se trata como no reciente.
+ */
+function codigoReciente(amr: unknown, ahoraMs: number): boolean {
+  if (!Array.isArray(amr) || amr.length === 0) return false;
+  if (amr.every((metodo) => typeof metodo === "string")) return true;
+
+  const horasDeCodigo = amr
+    .filter(
+      (metodo): metodo is { method: string; timestamp: number } =>
+        typeof metodo === "object" &&
+        metodo !== null &&
+        (metodo as { method?: unknown }).method === "totp" &&
+        typeof (metodo as { timestamp?: unknown }).timestamp === "number",
+    )
+    .map((metodo) => metodo.timestamp);
+
+  if (horasDeCodigo.length === 0) return false;
+
+  const segundosDesdeElCodigo = ahoraMs / 1000 - Math.max(...horasDeCodigo);
+  return segundosDesdeElCodigo <= HORAS_MAXIMAS_SEGUNDO_FACTOR * 3600;
 }
 
 /**
@@ -41,6 +95,8 @@ export function nivelAalDeClaims(claims: { aal?: unknown } | null | undefined): 
  * OJO: el nivel de un token ya emitido no cambia hasta que se renueva. Al
  * verificar el código, Supabase entrega un token nuevo con aal2; al quitar un
  * factor, el token viejo sigue diciendo aal2 hasta que venza o se refresque.
+ * Y aunque diga aal2, pasadas HORAS_MAXIMAS_SEGUNDO_FACTOR desde el código esto
+ * devuelve aal1 (ver nivelAalDeClaims).
  */
 export const getNivelAalActual = cache(async (): Promise<NivelAal | null> => {
   const supabase = await createClient();

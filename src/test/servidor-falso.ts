@@ -74,6 +74,12 @@ const estado = {
      * defecto es solo de comodidad del servidor falso.
      */
     aal?: "aal1" | "aal2";
+    /**
+     * Hace cuántos segundos se escribió el código de la app (claim `amr`), en
+     * una sesión aal2. Por defecto 0: recién escrito. Sirve para probar el
+     * límite de horas del segundo factor (`HORAS_MAXIMAS_SEGUNDO_FACTOR`).
+     */
+    totpHaceSegundos?: number;
   } | null,
   respuestas: new Map<string, RespuestaFalsa>(),
   /** Respuestas que se consumen en orden antes de caer en `respuestas`. */
@@ -215,6 +221,22 @@ function consulta(cliente: TipoCliente, operacion: string, argumentos: unknown[]
 }
 
 /** `supabase.auth.*` y `supabase.auth.admin.*`. */
+/** Claims que devolvería `getClaims()` para el usuario falso. */
+function claimsFalsos(usuario: NonNullable<typeof estado.usuario>) {
+  const aal = usuario.aal ?? "aal2";
+  const ahora = Math.floor(Date.now() / 1000);
+  // Como lo emite Supabase: cómo se autenticó la sesión, con la hora de cada método.
+  const amr =
+    aal === "aal2"
+      ? [
+          { method: "totp", timestamp: ahora - (usuario.totpHaceSegundos ?? 0) },
+          { method: "password", timestamp: ahora - (usuario.totpHaceSegundos ?? 0) - 60 },
+        ]
+      : [{ method: "password", timestamp: ahora }];
+
+  return { sub: usuario.id, email: usuario.email, aal, amr };
+}
+
 function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
   return new Proxy(
     {},
@@ -246,7 +268,7 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
           if (metodo === "getClaims") {
             return {
               data: estado.usuario
-                ? { claims: { sub: estado.usuario.id, email: estado.usuario.email, aal: estado.usuario.aal ?? "aal2" } }
+                ? { claims: claimsFalsos(estado.usuario) }
                 : null,
               error: null,
             };
