@@ -41,7 +41,11 @@ export function ComunidadAdjuntoArchivo({ adjunto }: { adjunto: Extract<Comunida
       <div className="min-w-0 flex-1">
         <div className="truncate text-uva-detalle text-uva-text">{adjunto.nombre}</div>
         <div className="text-uva-detalle text-uva-text-muted">
-          {error ? "No pudimos generar el enlace. Intenta de nuevo." : formatTamanoArchivo(adjunto.tamanoBytes)}
+          {error
+            ? "No pudimos generar el enlace. Intenta de nuevo."
+            : pending
+              ? "Preparando la descarga…"
+              : formatTamanoArchivo(adjunto.tamanoBytes)}
         </div>
       </div>
       {pending ? (

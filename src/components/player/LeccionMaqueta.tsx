@@ -959,7 +959,7 @@ function Recursos({ recursos, rutaEntrar }: { recursos: RecursoLeccion[]; rutaEn
                   type="button"
                   onClick={() => descargar(recurso)}
                   disabled={descargando === recurso.id}
-                  aria-label={`Descargar ${recurso.nombre}`}
+                  aria-label={descargando === recurso.id ? `Descargando ${recurso.nombre}` : `Descargar ${recurso.nombre}`}
                   className={boton}
                 >
                   {descargando === recurso.id ? (
