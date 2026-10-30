@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Award, CreditCard, LogOut, NotebookPen, ShieldCheck, User, Users } from "lucide-react";
+import { Award, CreditCard, HelpCircle, LogOut, NotebookPen, ShieldCheck, User, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +72,16 @@ export function MenuCuentaPanel({
         <DropdownMenuLinkItem render={<Link href="/dashboard/notas" />} className={ITEM}>
           <NotebookPen className="size-4" />
           Mis notas
+        </DropdownMenuLinkItem>
+        {/* Igual que Comunidad: en escritorio Soporte está al fondo del Sidebar;
+            en celular el Sidebar no está y la barra de abajo no lo trae, así
+            que este es el único camino hasta Soporte. */}
+        <DropdownMenuLinkItem
+          render={<Link href="/dashboard/soporte" />}
+          className={cn(ITEM, !comunidadSiempre && "md:hidden")}
+        >
+          <HelpCircle className="size-4" />
+          Soporte
         </DropdownMenuLinkItem>
         {esAdmin && (
           <>
