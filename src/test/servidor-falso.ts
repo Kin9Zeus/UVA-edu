@@ -225,7 +225,9 @@ function auth(cliente: TipoCliente, prefijo = "auth"): unknown {
         if (metodo === "admin") return auth(cliente, "auth.admin");
         // `auth.mfa.listFactors()`, `.enroll()`, `.challenge()`... se registran como
         // `auth.mfa:listFactors`, igual que `auth.admin:` para el espacio de administración.
-        if (metodo === "mfa") return auth(cliente, "auth.mfa");
+        // Dentro de `auth.admin` queda `auth.admin.mfa:…` (la API de administración),
+        // distinto de `auth.mfa:…` (la de la propia sesión).
+        if (metodo === "mfa") return auth(cliente, `${prefijo}.mfa`);
 
         return async (...args: unknown[]) => {
           const operacion = `${prefijo}:${metodo}`;

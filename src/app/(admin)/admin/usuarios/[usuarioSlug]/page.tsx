@@ -6,6 +6,8 @@ import { esUuid } from "@/lib/slug";
 import { UsuarioDetalleView } from "@/components/admin/usuarios/UsuarioDetalleView";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { getUsuarioActual } from "@/lib/perfil";
+import { contarDispositivosSegundoFactor } from "@/lib/admin/segundoFactor";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de usuario",
@@ -41,6 +43,15 @@ export default async function AdminUsuarioDetallePage({
   lanzarSiFalla(errorPlanes, "admin/usuario:planes");
   lanzarSiFalla(errorCursos, "admin/usuario:cursos");
 
+  // FASE 8.1: estado del segundo factor, solo en fichas de administradores.
+  const segundoFactor =
+    usuario.rol === "ADMINISTRADOR"
+      ? {
+          dispositivos: await contarDispositivosSegundoFactor(usuario.id),
+          esUnoMismo: (await getUsuarioActual())?.id === usuario.id,
+        }
+      : null;
+
   const cursosYaAsignados = new Set(usuario.cursos.map((curso) => curso.cursoId));
   const cursosDisponibles = (cursos ?? []).filter((curso) => !cursosYaAsignados.has(curso.id));
 
@@ -51,6 +62,7 @@ export default async function AdminUsuarioDetallePage({
       cursosDisponibles={cursosDisponibles}
       conCobro={PRECIOS_HABILITADOS}
       ahora={new Date().toISOString()}
+      segundoFactor={segundoFactor}
     />
   );
 }
