@@ -78,7 +78,7 @@ function Marco({ children }: { children: React.ReactNode }) {
 
 function Frase({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-uva-titulo-2 font-extrabold text-balance text-uva-text [&_em]:text-uva-accent-ink [&_em]:not-italic">
+    <p className="text-uva-titulo-3 font-extrabold text-balance text-uva-text [&_em]:text-uva-accent-ink [&_em]:not-italic">
       {children}
     </p>
   );

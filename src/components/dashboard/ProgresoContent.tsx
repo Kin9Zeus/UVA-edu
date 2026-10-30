@@ -6,6 +6,7 @@ import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { Button } from "@/components/ui/button";
 import { EstadoVacio } from "@/components/ui/estado-vacio";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
+import { FiltroCursos } from "@/components/dashboard/FiltroCursos";
 import { esPortadaReal } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import type { CursoConProgreso, ProgresoData } from "@/lib/progreso";
@@ -128,20 +129,14 @@ function Cifra({ valor, etiqueta }: { valor: string; etiqueta: string }) {
   );
 }
 
-function Cifras({ cursos, enLateral }: { cursos: CursoConProgreso[]; enLateral: boolean }) {
+function Cifras({ cursos }: { cursos: CursoConProgreso[] }) {
   const terminados = cursos.filter((curso) => curso.completado).length;
   const clasesVistas = cursos.reduce((total, curso) => total + curso.leccionesCompletadas, 0);
   const segundosVistos = cursos.reduce((total, curso) => total + curso.segundosVistos, 0);
 
   return (
     <dl
-      className={cn(
-        "grid grid-cols-2 border-t border-uva-divider [&>div]:border-uva-divider [&>div:nth-child(even)]:border-l",
-        // En la columna de 360 px la cifra grande partía "6 h 7 min".
-        enLateral
-          ? "[&>div:nth-child(n+3)]:border-t [&_dd]:text-uva-titulo-4 [&_dd]:whitespace-nowrap"
-          : "lg:grid-cols-4 lg:[&>div:not(:first-child)]:border-l max-lg:[&>div:nth-child(n+3)]:border-t",
-      )}
+      className="grid grid-cols-2 border-t border-uva-divider [&>div]:border-uva-divider [&>div:nth-child(even)]:border-l lg:grid-cols-4 lg:[&>div:not(:first-child)]:border-l max-lg:[&>div:nth-child(n+3)]:border-t"
     >
       <Cifra
         valor={String(cursos.length)}
@@ -157,16 +152,8 @@ function Cifras({ cursos, enLateral }: { cursos: CursoConProgreso[]; enLateral: 
   );
 }
 
-function Actividad({
-  actividad,
-  enLateral,
-}: {
-  actividad: NonNullable<ProgresoData["actividad"]>;
-  enLateral: boolean;
-}) {
+function Actividad({ actividad }: { actividad: NonNullable<ProgresoData["actividad"]> }) {
   const { racha, semanas } = actividad;
-  // Se dibuja dos veces (costado o abajo, según el ancho): id distinto en cada una.
-  const idTitulo = enLateral ? "progreso-actividad-lateral" : "progreso-actividad";
   const actual = semanas[semanas.length - 1];
   const promedio = semanas.reduce((total, semana) => total + semana.dias, 0) / semanas.length;
   const promedioTexto = Number.isInteger(promedio)
@@ -177,14 +164,11 @@ function Actividad({
 
   return (
     <section
-      aria-labelledby={idTitulo}
-      className={cn(
-        "flex flex-col gap-5",
-        !enLateral && "lg:flex-row lg:items-center lg:gap-12",
-      )}
+      aria-labelledby="progreso-actividad"
+      className="flex flex-col gap-5 border-t border-uva-divider pt-5 lg:flex-row lg:items-center lg:gap-12"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <h2 id={idTitulo} className="text-uva-titulo-4 text-uva-text">
+        <h2 id="progreso-actividad" className="text-uva-titulo-4 text-uva-text">
           Tu actividad
         </h2>
         <p className="text-uva-detalle text-uva-text-muted">
@@ -210,7 +194,7 @@ function Actividad({
           semana.
         </p>
       </div>
-      <div className={cn("w-full", !enLateral && "lg:w-[400px] lg:shrink-0")}>
+      <div className="w-full lg:w-[400px] lg:shrink-0">
         <div
           role="img"
           aria-label={`Días con clases por semana en el último mes: ${semanas
@@ -257,70 +241,6 @@ function AvisoFueraDeCatalogo() {
   );
 }
 
-/**
- * "Continuar donde quedaste": la acción principal de la pantalla. El frame
- * es el de la última clase vista del curso y el enlace va a la siguiente sin
- * terminar, igual que la tarjeta de Inicio.
- */
-function ContinuarDondeQuedaste({ curso }: { curso: CursoConProgreso }) {
-  const siguiente = curso.siguienteLeccion!;
-  const href = hrefSeguir(curso);
-
-  return (
-    <section
-      aria-labelledby="progreso-continuar"
-      className="grid gap-[18px] rounded-uva-lg border border-uva-divider bg-uva-surface p-5 md:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] md:items-center md:gap-8 md:p-6"
-    >
-      <Link href={href} tabIndex={-1} aria-hidden="true" className="block">
-        <Miniatura curso={curso} sizes="(max-width: 767px) 100vw, 45vw" />
-      </Link>
-      <div className="grid min-w-0 gap-3.5">
-        <div>
-          <h2 id="progreso-continuar" className="text-uva-detalle font-bold text-uva-accent-ink">
-            Continuar donde quedaste
-          </h2>
-          <p className="mt-1.5 text-uva-detalle font-semibold text-uva-text-muted">{curso.titulo}</p>
-          <h3 className="mt-1 text-uva-titulo-3 text-balance text-uva-text">
-            Clase {siguiente.numero}: {siguiente.titulo}
-          </h3>
-          <p className="mt-1.5 text-uva-detalle text-uva-text-muted">
-            {siguiente.moduloTitulo}
-            {siguiente.duracion ? `. Dura ${duracionTexto(siguiente.duracion).replaceAll(" ", " ")}.` : ""}
-          </p>
-          {!curso.publicado && (
-            <div className="mt-1.5">
-              <AvisoFueraDeCatalogo />
-            </div>
-          )}
-        </div>
-        <div className="grid gap-1.5">
-          <Progress
-            value={curso.porcentaje}
-            aria-label={`${curso.leccionesCompletadas} de ${curso.leccionesTotal} clases vistas`}
-            className="[&_[data-slot=progress-track]]:h-2.5"
-          />
-          <p className="flex justify-between gap-3 font-mono text-uva-detalle text-uva-text-muted">
-            <span>
-              {curso.leccionesCompletadas} de {curso.leccionesTotal} clases vistas
-            </span>
-            <span>{curso.porcentaje} %</span>
-          </p>
-        </div>
-        <Button
-          render={<Link href={href} />}
-          nativeButton={false}
-          variant="uva-primary"
-          size="uva"
-          className="min-h-12 w-full gap-2 px-5 text-uva-cuerpo md:w-auto md:justify-self-start"
-        >
-          <Play className="size-4 fill-current" aria-hidden="true" />
-          Continuar la clase {siguiente.numero}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
 function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
   const examenPendiente = !curso.completado && curso.porcentaje === 100 && curso.examenRequerido;
   const destino = curso.completado
@@ -342,23 +262,37 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
   return (
     // Por debajo de 400 px la miniatura se va: con ella el título quedaba en
     // 4 líneas de dos palabras.
-    <li className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3.5 border-t border-uva-divider py-3.5 max-[399px]:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[160px_minmax(0,1fr)_auto] md:gap-5">
+    <li className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3.5 border-t border-uva-divider py-3.5 max-[399px]:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[200px_minmax(0,1fr)_auto] md:gap-5">
       <Link href={destino} tabIndex={-1} aria-hidden="true" className="block max-[399px]:hidden">
-        <Miniatura curso={curso} sizes="(max-width: 767px) 96px, 160px" className="rounded-uva-sm" />
+        <Miniatura curso={curso} sizes="(max-width: 767px) 96px, 200px" className="rounded-uva-sm" />
       </Link>
 
       <div className="grid min-w-0 gap-1.5">
-        <h3 className="text-uva-cuerpo leading-snug font-extrabold text-uva-text">{curso.titulo}</h3>
-        {curso.completado ? (
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-uva-detalle text-uva-text-muted">
+        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-uva-detalle text-uva-text-muted">
+          {curso.completado ? (
             <span className="inline-flex min-h-[26px] items-center gap-1.5 rounded-full bg-uva-accent-2 px-2.5 font-bold text-uva-on-bright">
               <Check className="size-3" strokeWidth={3} aria-hidden="true" />
               Completado
             </span>
-            {curso.certificadoEmitido && (
-              <span className="font-mono">Terminado el {fechaLarga(curso.certificadoEmitido)}</span>
-            )}
-          </p>
+          ) : (
+            <span className="inline-flex min-h-[26px] items-center rounded-full bg-uva-accent-soft px-2.5 font-bold text-uva-accent-ink">
+              En progreso
+            </span>
+          )}
+          {curso.categoria && (
+            <span className="inline-flex items-center gap-1.5">
+              <IconoCategoria clave={curso.categoria} className="size-4" />
+              {curso.categoria}
+            </span>
+          )}
+        </p>
+        <h3 className="text-uva-cuerpo leading-snug font-extrabold text-uva-text">{curso.titulo}</h3>
+        {curso.completado ? (
+          curso.certificadoEmitido && (
+            <p className="font-mono text-uva-detalle text-uva-text-muted">
+              Terminado el {fechaLarga(curso.certificadoEmitido)}
+            </p>
+          )
         ) : (
           <>
             <div className="flex items-center gap-3">
@@ -411,34 +345,6 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
   );
 }
 
-function ListaCursos({
-  id,
-  titulo,
-  cursos,
-  hoy,
-}: {
-  id: string;
-  titulo: string;
-  cursos: CursoConProgreso[];
-  hoy: string;
-}) {
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-1">
-      <h2 id={id} className="flex items-baseline gap-2 text-uva-titulo-4 text-uva-text">
-        {titulo}
-        <span className="font-mono text-uva-detalle font-semibold text-uva-text-muted">
-          {cursos.length}
-        </span>
-      </h2>
-      <ul className="border-b border-uva-divider">
-        {cursos.map((curso) => (
-          <FilaCurso key={curso.cursoId} curso={curso} hoy={hoy} />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function TerminasteTodo({ conCertificado }: { conCertificado: boolean }) {
   return (
     <section className="flex flex-col items-start gap-3.5 rounded-uva-lg border border-uva-divider bg-uva-surface p-6 md:p-7">
@@ -477,9 +383,9 @@ function TerminasteTodo({ conCertificado }: { conCertificado: boolean }) {
 }
 
 /**
- * Mis cursos: arriba la clase exacta para retomar en un toque; debajo lo
- * que sigue en curso y lo terminado; al final (al costado desde 1280 px) el
- * ritmo de estudio y las cifras.
+ * Mis cursos, como el lienzo "Direcciones visuales" (Dash-Progreso): cifras,
+ * ritmo de estudio a todo el ancho y una sola lista con filtro. La primera
+ * fila es el curso más reciente, con su botón para continuar.
  */
 export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string }) {
   const { cursos, actividad } = data;
@@ -489,26 +395,10 @@ export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string
   // el examen sin aprobar el curso sigue en curso (ver lib/progreso.ts).
   const enCurso = cursos.filter((curso) => !curso.completado);
   const terminados = cursos.filter((curso) => curso.completado);
-  const aRetomar = enCurso.find((curso) => curso.siguienteLeccion);
-  const otrosEnCurso = enCurso.filter((curso) => curso !== aRetomar);
-
   const resumen =
     cursos.length === 0
       ? "Aquí verás los cursos que empieces y retomarás cada uno donde lo dejaste."
       : `${enCurso.length === 0 ? "Ninguno" : enCurso.length} en curso y ${terminados.length} ${terminados.length === 1 ? "terminado" : "terminados"}`;
-
-  const ritmo = (enLateral: boolean) => (
-    <>
-      {actividad ? (
-        <Actividad actividad={actividad} enLateral={enLateral} />
-      ) : (
-        <p className="text-uva-detalle text-uva-text-muted">
-          No pudimos cargar tu actividad de estudio. Recarga la página para intentarlo de nuevo.
-        </p>
-      )}
-      <Cifras cursos={cursos} enLateral={enLateral} />
-    </>
-  );
 
   return (
     // Sin el margen global de p y títulos (globals.css): los espacios los da el gap.
@@ -526,37 +416,29 @@ export function ProgresoContent({ data, hoy }: { data: ProgresoData; hoy: string
         />
       ) : (
         <>
-          {aRetomar && <ContinuarDondeQuedaste curso={aRetomar} />}
+          <Cifras cursos={cursos} />
+          {actividad ? (
+            <Actividad actividad={actividad} />
+          ) : (
+            <p className="border-t border-uva-divider pt-5 text-uva-detalle text-uva-text-muted">
+              No pudimos cargar tu actividad de estudio. Recarga la página para intentarlo de nuevo.
+            </p>
+          )}
           {enCurso.length === 0 && (
             <TerminasteTodo conCertificado={terminados.some((curso) => curso.certificadoEmitido)} />
           )}
-
-          <div className="grid gap-9 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start xl:gap-12">
-            <div className="flex min-w-0 flex-col gap-8">
-              {otrosEnCurso.length > 0 && (
-                <ListaCursos
-                  id="progreso-en-curso"
-                  titulo={aRetomar ? "También en curso" : "En curso"}
-                  cursos={otrosEnCurso}
-                  hoy={hoy}
-                />
-              )}
-              {terminados.length > 0 && (
-                <ListaCursos id="progreso-terminados" titulo="Terminados" cursos={terminados} hoy={hoy} />
-              )}
-            </div>
-
-            <aside
-              aria-label="Tu ritmo de estudio"
-              className="flex flex-col gap-6 max-xl:hidden xl:rounded-uva-lg xl:border xl:border-uva-divider xl:bg-uva-surface xl:p-[22px]"
-            >
-              {ritmo(true)}
-            </aside>
-          </div>
-
-          <div className="flex flex-col gap-6 border-t border-uva-divider pt-5 xl:hidden">
-            {ritmo(false)}
-          </div>
+          <section aria-labelledby="progreso-cursos" className="flex flex-col gap-3.5">
+            <h2 id="progreso-cursos" className="text-uva-titulo-4 text-uva-text">
+              Tus cursos
+            </h2>
+            <FiltroCursos
+              filas={cursos.map((curso) => ({
+                id: curso.cursoId,
+                completado: curso.completado,
+                fila: <FilaCurso curso={curso} hoy={hoy} />,
+              }))}
+            />
+          </section>
         </>
       )}
     </div>
