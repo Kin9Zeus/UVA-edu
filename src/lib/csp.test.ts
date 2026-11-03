@@ -166,7 +166,7 @@ describe("endpointInformesCsp", () => {
     // Sin esto, Report-Only solo escribe en la consola del navegador de cada
     // visitante — o sea, en ningún sitio que alguien vaya a mirar.
     expect(endpointInformesCsp(DSN)).toBe(
-      "https://o4511972325588992.ingest.us.sentry.io/api/4511972327096320/security/?sentry_key=abc123def456",
+      "https://o4511972325588992.ingest.us.sentry.io/api/4511972327096320/security/?sentry_key=abc123def456", // gitleaks:allow (llave inventada)
     );
   });
 
