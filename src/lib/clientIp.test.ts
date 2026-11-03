@@ -4,6 +4,7 @@ import {
   SALTOS_CONFIABLES_POR_DEFECTO,
   construirDiagnostico,
   extraerIpConfiable,
+  resolverIp,
   saltosConfiables,
 } from "@/lib/clientIp";
 
@@ -117,5 +118,53 @@ describe("construirDiagnostico — origen del número de saltos", () => {
 
   it("informa configurado cuando se le pasa así", () => {
     expect(construirDiagnostico("203.0.113.9", 2, true).saltosConfigurados).toBe(true);
+  });
+});
+
+// Fase 2 del plan de blindaje: con Cloudflare delante, la cadena queda
+// [cliente, ip-de-cloudflare] y con un salto se leería la IP de Cloudflare
+// (todos con la misma clave de límite). La IP real viene en CF-Connecting-IP,
+// pero solo vale si la petición trae el secreto de origen.
+describe("resolverIp — con Cloudflare delante", () => {
+  const CLOUDFLARE = "172.70.1.1";
+
+  it("con el secreto de origen, usa CF-Connecting-IP y no la IP de Cloudflare", () => {
+    expect(
+      resolverIp({ cfConnectingIp: "190.25.1.7", forwardedFor: `190.25.1.7, ${CLOUDFLARE}`, desdeCloudflare: true }),
+    ).toEqual({ ip: "190.25.1.7", fuente: "cf-connecting-ip" });
+  });
+
+  it("un X-Forwarded-For falso del cliente no cambia la IP: manda CF-Connecting-IP", () => {
+    expect(
+      resolverIp({
+        cfConnectingIp: "190.25.1.7",
+        forwardedFor: `6.6.6.6, 190.25.1.7, ${CLOUDFLARE}`,
+        desdeCloudflare: true,
+      }).ip,
+    ).toBe("190.25.1.7");
+  });
+
+  it("sin el secreto (alguien llama directo a Railway), un CF-Connecting-IP inventado se ignora", () => {
+    expect(
+      resolverIp({ cfConnectingIp: "1.2.3.4", forwardedFor: "1.2.3.4, 203.0.113.9", desdeCloudflare: false }),
+    ).toEqual({ ip: "203.0.113.9", fuente: "x-forwarded-for" });
+  });
+
+  it("con el secreto pero sin CF-Connecting-IP, vuelve a X-Forwarded-For", () => {
+    expect(resolverIp({ cfConnectingIp: null, forwardedFor: `190.25.1.7, ${CLOUDFLARE}`, desdeCloudflare: true })).toEqual({
+      ip: CLOUDFLARE,
+      fuente: "x-forwarded-for",
+    });
+    expect(resolverIp({ cfConnectingIp: "  ", forwardedFor: null, desdeCloudflare: true }).ip).toBe(IP_DESCONOCIDA);
+  });
+
+  it("el diagnóstico dice de qué cabecera sale la IP", () => {
+    const diagnostico = construirDiagnostico(`190.25.1.7, ${CLOUDFLARE}`, 1, true, {
+      cfConnectingIp: "190.25.1.7",
+      desdeCloudflare: true,
+    });
+    expect(diagnostico.ipUsada).toBe("190.25.1.7");
+    expect(diagnostico.fuente).toBe("cf-connecting-ip");
+    expect(construirDiagnostico("1.2.3.4, 10.0.0.1").fuente).toBe("x-forwarded-for");
   });
 });

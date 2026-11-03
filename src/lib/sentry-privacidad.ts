@@ -29,7 +29,7 @@ const VALOR_REDACTADO = "[filtrado]";
 const PARAMETRO_SENSIBLE = /^(code|token|token_hash|access_token|refresh_token|email|correo|password|key|secret)$/i;
 
 /** Encabezados que identifican a la persona o su sesión. */
-const ENCABEZADO_SENSIBLE = /^(cookie|set-cookie|authorization|x-forwarded-for|x-real-ip|cf-connecting-ip)$/i;
+const ENCABEZADO_SENSIBLE = /^(cookie|set-cookie|authorization|x-forwarded-for|x-real-ip|cf-connecting-ip|x-origen-uva)$/i;
 
 const PROFUNDIDAD_MAXIMA = 5;
 

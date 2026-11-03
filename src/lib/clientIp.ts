@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { CABECERA_ORIGEN, peticionDesdeCloudflare, secretoDeOrigen } from "@/lib/origen";
 
 /**
  * IP del cliente para las claves de rate limiting, leída de forma que el
@@ -57,6 +58,16 @@ import { headers } from "next/headers";
  * de entrada. Sin `X-Forwarded-For` la respuesta es "unknown", que agrupa a
  * todo el mundo bajo una clave compartida — más restrictivo, nunca más
  * permisivo. En desarrollo local no hay proxy y ese es el caso normal.
+ *
+ * Con Cloudflare delante (fase 2 del plan de blindaje)
+ * ----------------------------------------------------
+ * La cadena pasa a ser [cliente, ip-de-cloudflare]: con un salto, la app
+ * leería la IP de Cloudflare y todos compartirían la misma clave de límite.
+ * Cloudflare escribe la IP real en `CF-Connecting-IP` y siempre la
+ * sobrescribe, pero esa cabecera solo es confiable si la petición pasó de
+ * verdad por Cloudflare: quien llame directo a Railway puede mandarla con el
+ * valor que quiera. Por eso se usa solo cuando la petición trae el secreto de
+ * origen (src/lib/origen.ts). Sin él, todo sigue igual que antes.
  */
 
 export const SALTOS_CONFIABLES_POR_DEFECTO = 1;
@@ -96,6 +107,27 @@ export function extraerIpConfiable(
   return cadena[indice] ?? IP_DESCONOCIDA;
 }
 
+/** De dónde sale la IP. */
+export type FuenteIp = "cf-connecting-ip" | "x-forwarded-for";
+
+/**
+ * Lógica pura de `clientIp()`. `desdeCloudflare` dice si la petición trajo el
+ * secreto de origen; solo entonces se confía en `CF-Connecting-IP`.
+ */
+export function resolverIp(entrada: {
+  cfConnectingIp: string | null | undefined;
+  forwardedFor: string | null | undefined;
+  desdeCloudflare: boolean;
+  saltos?: number;
+}): { ip: string; fuente: FuenteIp } {
+  const cf = entrada.cfConnectingIp?.trim();
+  if (entrada.desdeCloudflare && cf) return { ip: cf, fuente: "cf-connecting-ip" };
+  return {
+    ip: extraerIpConfiable(entrada.forwardedFor, entrada.saltos ?? SALTOS_CONFIABLES_POR_DEFECTO),
+    fuente: "x-forwarded-for",
+  };
+}
+
 /**
  * IP del cliente para la petición en curso. Único punto de lectura: si
  * mañana cambia la infraestructura, se corrige acá y no en cada llamador
@@ -115,6 +147,14 @@ export type DiagnosticoIp = {
   indiceUsado: number | null;
   /** Lo que `clientIp()` devolvería ahora mismo. */
   ipUsada: string;
+  /** De qué cabecera sale `ipUsada`. */
+  fuente: FuenteIp;
+  /** `CF-Connecting-IP` tal cual llegó (null si no vino). */
+  cfConnectingIp: string | null;
+  /** true si ORIGEN_SECRETO está puesta en este servidor. */
+  cierreOrigen: boolean;
+  /** true si esta petición trajo el secreto: pasó por Cloudflare. */
+  desdeCloudflare: boolean;
 };
 
 /**
@@ -127,7 +167,12 @@ export function construirDiagnostico(
   forwardedFor: string | null | undefined,
   saltos: number = SALTOS_CONFIABLES_POR_DEFECTO,
   saltosConfigurados = false,
+  cloudflare: { cfConnectingIp: string | null | undefined; desdeCloudflare: boolean; cierreOrigen?: boolean } = {
+    cfConnectingIp: null,
+    desdeCloudflare: false,
+  },
 ): DiagnosticoIp {
+  const resuelta = resolverIp({ ...cloudflare, forwardedFor, saltos });
   const cadena = (forwardedFor ?? "")
     .split(",")
     .map((entrada) => entrada.trim())
@@ -139,7 +184,11 @@ export function construirDiagnostico(
     saltos,
     saltosConfigurados,
     indiceUsado: cadena.length === 0 ? null : Math.max(0, cadena.length - saltos),
-    ipUsada: extraerIpConfiable(forwardedFor, saltos),
+    ipUsada: resuelta.ip,
+    fuente: resuelta.fuente,
+    cfConnectingIp: cloudflare.cfConnectingIp ?? null,
+    cierreOrigen: cloudflare.cierreOrigen ?? false,
+    desdeCloudflare: cloudflare.desdeCloudflare,
   };
 }
 
@@ -151,10 +200,19 @@ export async function diagnosticoIp(): Promise<DiagnosticoIp> {
   // Un valor presente pero inválido ("dos", "0") cae al defecto: se informa
   // como NO configurado, que es lo que de verdad está pasando.
   const configurado = crudo !== undefined && saltos === Number(crudo);
-  return construirDiagnostico(headersList.get("x-forwarded-for"), saltos, configurado);
+  return construirDiagnostico(headersList.get("x-forwarded-for"), saltos, configurado, {
+    cfConnectingIp: headersList.get("cf-connecting-ip"),
+    desdeCloudflare: peticionDesdeCloudflare(headersList.get(CABECERA_ORIGEN)),
+    cierreOrigen: secretoDeOrigen() !== null,
+  });
 }
 
 export async function clientIp(): Promise<string> {
   const headersList = await headers();
-  return extraerIpConfiable(headersList.get("x-forwarded-for"), saltosConfiables());
+  return resolverIp({
+    cfConnectingIp: headersList.get("cf-connecting-ip"),
+    forwardedFor: headersList.get("x-forwarded-for"),
+    desdeCloudflare: peticionDesdeCloudflare(headersList.get(CABECERA_ORIGEN)),
+    saltos: saltosConfiables(),
+  }).ip;
 }

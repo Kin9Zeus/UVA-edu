@@ -37,7 +37,13 @@ describe("limpiarEventoSentry", () => {
         query_string: "code=secreto&next=%2F",
         cookies: { "sb-access-token": "jwt" },
         data: { email: "ana@uva.co", password: "Clave123!" },
-        headers: { cookie: "sb=1", authorization: "Bearer x", "user-agent": "Chrome", referer: "https://uva.co/x?token=t" },
+        headers: {
+          cookie: "sb=1",
+          authorization: "Bearer x",
+          "X-Origen-Uva": "secreto-de-cloudflare",
+          "user-agent": "Chrome",
+          referer: "https://uva.co/x?token=t",
+        },
       },
       extra: { causaOriginal: { details: "Key (correo)=(ana@uva.co) already exists." }, intentos: 3 },
       breadcrumbs: [{ category: "console", message: "enviando a ana@uva.co" }],
@@ -57,6 +63,8 @@ describe("limpiarEventoSentry", () => {
     expect(headers).toEqual({
       cookie: "[filtrado]",
       authorization: "[filtrado]",
+      // El secreto que Cloudflare agrega para cerrar el origen (fase 2).
+      "X-Origen-Uva": "[filtrado]",
       "user-agent": "Chrome",
       referer: "https://uva.co/x?token=[filtrado]",
     });
