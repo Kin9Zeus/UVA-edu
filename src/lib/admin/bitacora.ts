@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { accionEnFrase, esSensible, tipoDeAccion, type TipoBitacora } from "@/lib/admin/bitacora-tipos";
+import { avisarAccionSensible } from "@/lib/admin/alertas-bitacora";
 
 /**
  * Registra una acción administrativa en bitacora_administrativa
@@ -21,6 +22,9 @@ import { accionEnFrase, esSensible, tipoDeAccion, type TipoBitacora } from "@/li
  * auth.uid()`, así que el caso más probable de fallo es que el llamador pase
  * un cliente que no sea el de la sesión del administrador. Eso es un bug de
  * programación, y ahora deja rastro.
+ *
+ * Las acciones más delicadas además avisan al equipo (alertas-bitacora.ts,
+ * fase 7), incluso si el insert falló: es justo cuando más importa enterarse.
  */
 export async function registrarBitacora(
   supabase: SupabaseClient,
@@ -30,8 +34,12 @@ export async function registrarBitacora(
     entidadAfectada: string;
     idEntidadAfectada?: string;
     detalles?: string;
+    /** Tamaño de un lote de códigos: desde cierto número, la acción avisa. */
+    cantidad?: number;
   },
 ) {
+  avisarAccionSensible(params);
+
   const { error } = await supabase.from("bitacora_administrativa").insert({
     id_admin: params.idAdmin,
     accion: params.accion,
