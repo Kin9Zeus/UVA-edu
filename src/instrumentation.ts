@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { opcionesPrivacidadSentry } from "@/lib/sentry-privacidad";
 
 /**
  * P1-3 (AUDIT-2026-08-24.md): monitoreo de errores del lado del servidor.
@@ -17,6 +18,8 @@ export async function register() {
       // `next dev` no reporta: los errores a mitad de una edición (hot
       // reload) llenaban el panel de ruido. Sin DSN tampoco envía nada.
       enabled: process.env.NODE_ENV === "production",
+      // Sin correos, códigos de enlaces ni datos de la sesión (fase 7).
+      ...opcionesPrivacidadSentry,
     });
   }
 }

@@ -50,6 +50,7 @@ try {
 
 import { createClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
+import { opcionesPrivacidadSentry } from "../src/lib/sentry-privacidad";
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,7 +67,8 @@ if (!URL_SUPABASE || !SERVICE_KEY) {
 // hay que iniciarlo a mano aquí, igual que en el propio instrumentation.ts.
 // Sin DSN el SDK no envía nada; el script igual falla con código 1 y el log
 // de la consola queda como respaldo.
-Sentry.init({ dsn: process.env.SENTRY_DSN });
+// Sin correos ni datos personales en los eventos (fase 7).
+Sentry.init({ dsn: process.env.SENTRY_DSN, ...opcionesPrivacidadSentry });
 
 const supabase = createClient(URL_SUPABASE, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
