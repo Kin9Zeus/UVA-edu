@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { RotateCcw, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import { VideoPlayer } from "@/components/features/VideoPlayer";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   contarProgresoLeccion,
   iniciarSubidaVideoLeccion,
@@ -13,6 +14,12 @@ import {
   quitarVideoLeccion,
 } from "@/actions/admin/mux";
 import type { EstadoProcesamiento } from "@/actions/admin/mux";
+
+// hls.js, media-chrome y mux-embed (~250 KB) solo se descargan cuando hay un
+// video listo que mostrar, no al abrir el editor de la lección.
+const VideoPlayer = dynamic(() => import("@/components/features/VideoPlayer").then((modulo) => modulo.VideoPlayer), {
+  loading: () => <Skeleton className="aspect-video w-full" />,
+});
 
 const INTERVALO_POLLING_MS = 4000;
 

@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { ArrowLeft, CircleAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { EsqueletoRegion, Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { InfoTab } from "@/components/admin/cursos/InfoTab";
-import { ContenidoTab } from "@/components/admin/cursos/ContenidoTab";
-import { ExamenTab } from "@/components/admin/cursos/ExamenTab";
 import { EstudiantesTab } from "@/components/admin/cursos/EstudiantesTab";
 import { textoDespublicar } from "@/components/admin/cursos/CursosTable";
 import { useAdminToast } from "@/components/admin/Toast";
@@ -25,6 +25,30 @@ import { motivosParaNoPublicar } from "@/lib/admin/publicacion";
 import { useAvisoNavegacionSinGuardar } from "@/lib/admin/useAvisoNavegacionSinGuardar";
 import type { CursoDetalle } from "@/lib/admin/cursoDetalle";
 import type { ExamenDetalle } from "@/lib/admin/examenDetalle";
+
+/*
+ * Contenido y Examen arrastran Tiptap, dnd-kit y el reproductor de Mux (~600 KB
+ * de JavaScript: el editor pesaba 1033 KB contra ~420 de las demás pantallas
+ * del admin). Base UI solo monta el panel de la pestaña activa, así que se
+ * descargan al abrir cada pestaña y no con la página.
+ */
+function CargandoPestana() {
+  return (
+    <EsqueletoRegion className="flex flex-col gap-3 py-2">
+      <Skeleton className="h-12" />
+      <Skeleton className="h-20" />
+      <Skeleton className="h-20" />
+    </EsqueletoRegion>
+  );
+}
+const ContenidoTab = dynamic(
+  () => import("@/components/admin/cursos/ContenidoTab").then((modulo) => modulo.ContenidoTab),
+  { loading: CargandoPestana },
+);
+const ExamenTab = dynamic(
+  () => import("@/components/admin/cursos/ExamenTab").then((modulo) => modulo.ExamenTab),
+  { loading: CargandoPestana },
+);
 
 const NIVEL_LABEL = { BASICO: "Básico", INTERMEDIO: "Intermedio", AVANZADO: "Avanzado" } as const;
 
