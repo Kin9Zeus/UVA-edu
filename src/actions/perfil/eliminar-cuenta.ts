@@ -2,9 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-// Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role; ver login.ts.
+// Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role; ver login.ts. Y borrar los adjuntos propios aunque RLS ya no los muestre (acceso a Comunidad vencido).
 import { createAdminClient } from "@/lib/supabase/admin";
 import { borrarFotoPerfil } from "@/lib/perfil/avatar";
+import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { revalidarResenasPublicas } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
@@ -97,7 +98,28 @@ export async function eliminarMiCuenta(
     logError("eliminarMiCuenta", "No se pudo leer la foto de perfil", errorFoto, { area: "cuenta" });
     return { error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." };
   }
+
+  // Los adjuntos de Comunidad, igual que en el flujo de admin
+  // (anonimizarUsuario): la RPC no puede borrar archivos de Storage. Van con
+  // la llave maestra porque RLS solo deja ver los adjuntos a quien tiene
+  // acceso a la Comunidad, y alguien con el acceso vencido no vería los
+  // suyos: quedarían en el bucket con su nombre original. El filtro es el id
+  // de la sesión, nunca uno que mande el formulario.
+  const { data: adjuntos, error: errorAdjuntos } = await admin
+    .from("comunidad_adjuntos")
+    .select("id, ruta_storage")
+    .eq("id_usuario", user.id);
+  // Mismo criterio que la foto: sin la lista, la supresión los dejaría
+  // huérfanos para siempre. Todavía no se borró nada.
+  if (errorAdjuntos) {
+    logError("eliminarMiCuenta", "No se pudieron leer los adjuntos de Comunidad", errorAdjuntos, { area: "cuenta" });
+    return { error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." };
+  }
+
   await borrarFotoPerfil(supabase, perfil?.foto_url ?? null);
+  for (const adjunto of adjuntos ?? []) {
+    await borrarAdjuntoComunidad(admin, adjunto.id, adjunto.ruta_storage);
+  }
 
   const { error: errorSupresion } = await supabase.rpc("solicitar_supresion_propia");
 

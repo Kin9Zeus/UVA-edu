@@ -46,6 +46,8 @@ const eliminar = (campos: Record<string, string> = {}) =>
 function nadaIrreversible() {
   expect(servidorFalso.llamadasA("rpc:solicitar_supresion_propia")).toHaveLength(0);
   expect(servidorFalso.llamadasA("storage:avatares")).toHaveLength(0);
+  expect(servidorFalso.llamadasA("storage:comunidad-adjuntos")).toHaveLength(0);
+  expect(servidorFalso.encadenado("from:comunidad_adjuntos", "delete")).toHaveLength(0);
   expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
 }
 
@@ -169,6 +171,54 @@ describe("eliminarMiCuenta — la supresión", () => {
 
   it("si no puede leer la foto, NO sigue: dejaría la foto huérfana en Storage. Pide reintentar y no toca nada", async () => {
     servidorFalso.responder("from:perfiles", { data: null, error: { code: "57014", message: "statement timeout" } });
+
+    expect(await eliminar()).toEqual({ error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." });
+    nadaIrreversible();
+    expect(logError).toHaveBeenCalledWith(
+      "eliminarMiCuenta",
+      expect.any(String),
+      expect.objectContaining({ code: "57014" }),
+      { area: "cuenta" },
+    );
+  });
+
+  it("borra los adjuntos de Comunidad (archivo y fila) ANTES de la supresión, solo los de la sesión", async () => {
+    servidorFalso.responderSegun("from:comunidad_adjuntos", (llamada) =>
+      llamada.cadena.some((c) => c.metodo === "select")
+        ? {
+            data: [
+              { id: "adj-1", ruta_storage: "estudiante-1/post-1/plano.pdf" },
+              { id: "adj-2", ruta_storage: "estudiante-1/post-2/foto.webp" },
+            ],
+          }
+        : { data: null },
+    );
+
+    expect(await destinoDe(eliminar())).toBe("/cuenta-eliminada");
+
+    // La lista va con la llave maestra (RLS no muestra los adjuntos a quien perdió el acceso a
+    // Comunidad), filtrada por el id de la sesión.
+    const lectura = servidorFalso.llamadasA("from:comunidad_adjuntos")[0];
+    expect(lectura.cliente).toBe("admin");
+    expect(servidorFalso.encadenado("from:comunidad_adjuntos", "eq")[0]).toEqual(["id_usuario", "estudiante-1"]);
+
+    expect(servidorFalso.encadenado("storage:comunidad-adjuntos", "remove")).toEqual([
+      [["estudiante-1/post-1/plano.pdf"]],
+      [["estudiante-1/post-2/foto.webp"]],
+    ]);
+    expect(servidorFalso.encadenado("from:comunidad_adjuntos", "eq").slice(1)).toEqual([
+      ["id", "adj-1"],
+      ["id", "adj-2"],
+    ]);
+
+    const orden = servidorFalso.operaciones();
+    expect(orden.lastIndexOf("storage:comunidad-adjuntos")).toBeLessThan(
+      orden.indexOf("rpc:solicitar_supresion_propia"),
+    );
+  });
+
+  it("si no puede leer los adjuntos, NO sigue: quedarían huérfanos en Storage. No toca nada", async () => {
+    servidorFalso.responder("from:comunidad_adjuntos", { data: null, error: { code: "57014", message: "statement timeout" } });
 
     expect(await eliminar()).toEqual({ error: "No pudimos eliminar tu cuenta. Intenta de nuevo o contacta soporte." });
     nadaIrreversible();
