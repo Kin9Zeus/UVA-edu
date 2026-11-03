@@ -47,6 +47,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: COLOR_BARRA_NAVEGADOR.oscuro,
   colorScheme: "light dark",
+  // Sin "cover" el iPhone con notch deja franjas y env(safe-area-inset-*) vale 0:
+  // las barras fijas (pestañas, WhatsApp, toasts) quedarían bajo el indicador de inicio.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

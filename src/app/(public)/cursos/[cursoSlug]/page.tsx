@@ -114,7 +114,7 @@ export default async function CursoDetallePage({
     await getDashboardChromeData({ user, perfil: perfilActual.perfil });
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh">
       <JsonLd data={jsonLd} />
       <Sidebar
         certificadosCount={certificadosCount}

@@ -201,3 +201,25 @@ no reemplaza el paso final que pide la tarea: **tres personas distintas,
 en dispositivos distintos, completando el recorrido crítico sin ayuda del
 equipo técnico**. Cualquier fricción que encuentren en ese pase se registra
 acá con la plantilla de arriba, igual que un hallazgo de la suite.
+
+### BUG-002 — Sin `viewport-fit=cover`: las zonas seguras del iPhone valían 0
+
+- **Severidad:** Alta (iPhone)
+- **Encontrado por:** `e2e/compat-navegadores.spec.ts` (16 de 18 pruebas en WebKit/iPhone SE fallaron al comprobar el `<meta viewport>`).
+- **Dónde:** `src/app/layout.tsx`, `export const viewport`. El código ya usa `env(safe-area-inset-*)` en barras de pestañas, menús, toasts y botones fijos, pero sin `viewport-fit=cover` Safari devuelve 0 en todas.
+- **Corrección:** `viewportFit: "cover"` en `viewport`. Tras el cambio, las 81 pruebas de la matriz pasan.
+- **Pendiente:** confirmar en un iPhone físico que la barra de pestañas queda sobre el indicador de inicio.
+
+### BUG-003 — `100vh` (`h-screen`) deja contenido bajo la barra de Safari y Chrome móvil
+
+- **Severidad:** Media (iPhone y Android)
+- **Encontrado por:** revisión de código en la tarea de compatibilidad. No es medible en un motor de escritorio; en móvil real la barra de direcciones colapsable hace que `100vh` sea más alto que lo visible.
+- **Dónde:** `dashboard/layout.tsx` (`h-screen overflow-hidden`: la barra inferior del panel queda tapada), `admin/layout.tsx`, `cursos/[cursoSlug]/page.tsx`, `ErrorBlock.tsx`, ambos `Sidebar` y `LeccionVistaPreviaContent.tsx`.
+- **Corrección:** `h-screen`/`min-h-screen` pasan a `h-dvh`/`min-h-dvh`, y `100vh` a `100dvh`.
+- **Pendiente:** confirmar en iPhone y Android físicos con la barra de direcciones visible.
+
+### BUG-004 — El botón flotante de WhatsApp roza el CTA "Tengo un código" en iPhone SE
+
+- **Severidad:** Baja
+- **Encontrado por:** `compat-navegadores.spec.ts` (iPhone SE, 375×568 útiles): en el primer pantallazo el botón de 56 px cubre unos 50 px del borde derecho del CTA. El texto y el centro quedan libres y el CTA se puede tocar.
+- **Estado:** aceptado por decisión del usuario (2026-11-03): el roce queda como está. La prueba mide "tapa" como cubrir el centro del elemento y pasa.

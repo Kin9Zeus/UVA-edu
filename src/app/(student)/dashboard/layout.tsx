@@ -28,14 +28,14 @@ export default async function DashboardLayout({
     await getDashboardChromeData({ user, perfil });
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         certificadosCount={certificadosCount}
         diasGracia={diasGracia}
         acceso={acceso}
         preferenciaInicial={await leerPreferenciaSidebar()}
       />
-      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           nombre={nombre}
           fotoUrl={fotoUrl}

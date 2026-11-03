@@ -162,7 +162,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-uva-divider bg-uva-surface transition-[width] duration-150 md:flex",
+        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-uva-divider bg-uva-surface transition-[width] duration-150 md:flex",
         { compacto: "w-[76px]", completo: "w-64", auto: "w-[76px] xl:w-64" }[modo],
       )}
     >

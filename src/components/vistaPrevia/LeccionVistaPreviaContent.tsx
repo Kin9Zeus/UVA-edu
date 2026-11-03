@@ -133,7 +133,7 @@ export function LeccionVistaPreviaContent({
           </div>
         </div>
 
-        <div className="top-[88px] flex max-h-[calc(100vh-112px)] flex-col gap-3.5 overflow-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky">
+        <div className="top-[88px] flex max-h-[calc(100dvh-112px)] flex-col gap-3.5 overflow-auto rounded-uva-md border border-uva-divider bg-uva-surface p-5 lg:sticky">
           <h4 className="m-0 font-heading text-[17px] font-bold tracking-[-0.03em] text-uva-text">
             Clases
           </h4>

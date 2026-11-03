@@ -67,7 +67,7 @@ export default async function AdminLayout({
   return (
     <AdminToastProvider>
       <AdminSearchProvider>
-        <div className="flex min-h-screen">
+        <div className="flex min-h-dvh">
           <Sidebar preferenciaInicial={await leerPreferenciaSidebar()} />
           <div className="flex min-w-0 flex-1 flex-col">
             <Header nombre={nombre} fotoUrl={fotoUrl} />

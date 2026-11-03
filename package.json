@@ -44,6 +44,7 @@
     "pagos:rollback": "tsx scripts/rollback-pagos.ts",
     "pagos:avisar-vencimientos": "tsx scripts/pagos-avisar-vencimientos.ts",
     "test:e2e": "playwright test",
+    "test:compat": "playwright test -c playwright.compat.config.ts",
     "audit:lighthouse": "tsx scripts/audit/lighthouse-audit.ts",
     "audit:lighthouse:compare": "tsx scripts/audit/lighthouse-audit.ts --compare",
     "audit:screenshots": "tsx scripts/audit/viewport-screenshots.ts",

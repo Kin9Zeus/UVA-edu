@@ -6,7 +6,7 @@ type AccionPrimaria =
   | { label: string; onClick: () => void; href?: never };
 
 type ErrorBlockProps = {
-  /** Standalone en rutas públicas (min-h-screen); dentro del layout con sidebar, min-h-full. */
+  /** Standalone en rutas públicas (min-h-dvh); dentro del layout con sidebar, min-h-full. */
   standalone?: boolean;
   codigo: string;
   /** 500 usa el código en gris apagado en vez del texto principal. */
@@ -53,7 +53,7 @@ export function ErrorBlock({
       tabIndex={-1}
       className={cn(
         "flex items-center justify-center bg-[linear-gradient(168deg,var(--uva-bg-gradient-start)_0%,var(--uva-bg)_52%,var(--uva-bg)_100%)] px-[clamp(20px,5vw,48px)] py-[clamp(40px,8vh,88px)]",
-        standalone ? "min-h-screen" : "min-h-full",
+        standalone ? "min-h-dvh" : "min-h-full",
       )}
     >
       <div className="flex w-full max-w-[480px] flex-col items-start gap-[18px]">

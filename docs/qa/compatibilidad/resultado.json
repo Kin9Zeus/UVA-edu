@@ -1,0 +1,2976 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\UVA_EDU\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "-c",
+      "playwright.compat.config.ts"
+    ],
+    "configFile": "C:\\UVA_EDU\\playwright.compat.config.ts",
+    "rootDir": "C:/UVA_EDU/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "C:\\UVA_EDU\\e2e\\global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "safari-escritorio",
+        "name": "safari-escritorio",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "edge",
+        "name": "edge",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "iphone-se",
+        "name": "iphone-se",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "iphone-grande",
+        "name": "iphone-grande",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "ipad-vertical",
+        "name": "ipad-vertical",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "ipad-horizontal",
+        "name": "ipad-horizontal",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "android-medio",
+        "name": "android-medio",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/UVA_EDU/docs/qa/compatibilidad/artefactos",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "android-bajo",
+        "name": "android-bajo",
+        "testDir": "C:/UVA_EDU/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/compat-.*.spec.ts/"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "docs/qa/compatibilidad/resultado.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 180000,
+      "stdout": "pipe",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "compat-navegadores.spec.ts",
+      "file": "compat-navegadores.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5245,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:12.206Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-cf829c52c1c34a4fd975",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3247,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:17.689Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-bc7ad0f45e08e84dbe55",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4265,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:20.973Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-2a8e1b12700d69bbdf40",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5418,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:25.320Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c692789c74a9c49f939d",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4388,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:30.821Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-1a7fe4ff8e87942e8031",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3383,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:35.259Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a66ba331a7fac6c86db1",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5198,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:38.690Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-560b5d7c03a1c8d419f2",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4242,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:43.936Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-302afdac24ed70ecb78f",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "safari-escritorio",
+              "projectName": "safari-escritorio",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4974,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:48.224Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-07737bd064a58005e919",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8776,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:30:54.072Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-74013ffff33a83715ffa",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5338,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:04.771Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-d6805259f86a4d261cc1",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5013,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:10.162Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-912b5265131c57d46bab",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4019,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:15.251Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-cd746cc8990f1cf92c92",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4750,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:19.323Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a6184c9289dd6b2871d1",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3867,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:24.129Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-d7d4e6f5cbc22dca4849",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4056,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:28.040Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-0ac3787ec02331e1dcf1",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3683,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:32.159Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-09eeef28dbc0cc0b8dd2",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firefox",
+              "projectName": "firefox",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4077,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:35.890Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-473bdbbb29c68ad837d5",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4521,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:41.894Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-20beed301d44bb2e436e",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2389,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:47.382Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-e5c8a2f2f3bbf89454be",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2848,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:49.797Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-3ee380a6ce8f6c34837f",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2510,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:52.670Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-8d33181fbbf73689e907",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2519,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:55.206Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c49e02d41250b50b43bd",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2320,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:31:57.748Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-6a81825bb71886c78b4e",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2517,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:00.095Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-76eb7c28ea85ba219b48",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2228,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:02.637Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-ac6308842e6fc94fd8ec",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "edge",
+              "projectName": "edge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2821,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:04.889Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-cd2e2bdb76f643d5ea85",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2853,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:09.038Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-8495f2a3a76f0c08fe68",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2197,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:12.102Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-b7e76f32baac17ccdc9e",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2656,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:14.327Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-6d4f63962bc26358e65a",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2145,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:17.009Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-9156da8b7a317d984302",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2592,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:19.201Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-748cbcaf4bcdc916c4a4",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2159,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:21.828Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-89cbaaf6a5ccdd47277c",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2900,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:24.044Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c8cc36d517b79734750a",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2241,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:26.977Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a837593af06e28b19f86",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-se",
+              "projectName": "iphone-se",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2912,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:29.246Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-27b796dd1cf16360e57d",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3303,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:33.135Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-4ca000414f7fc2e74654",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2542,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:36.605Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-97802cd790bd4a42b049",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3178,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:39.185Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-0ce9f11b22d07929ad0c",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2631,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:42.418Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-379fbc7d90a7d590e8bd",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3212,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:45.077Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-ddef3d802923c886cf0c",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2515,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:48.319Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c102974a9e5c0cd0a839",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3167,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:50.862Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c3cd2ac3e6de8aebe499",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2668,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:54.067Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-55712e9693ab83fa2270",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "iphone-grande",
+              "projectName": "iphone-grande",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3748,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:32:56.770Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-2577b65648551e7ec6f0",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3671,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:01.392Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-c701e20e79345da98963",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2787,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:05.201Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a60f3b78c0c2a1c4c503",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3728,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:08.017Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-5156085d161d74021fc3",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2988,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:11.772Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-d7099f184cb8fa796f6b",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3141,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:14.790Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-42144d3d8de86cf765b4",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2547,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:17.965Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-d34116dbc8d5a0585c62",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4926,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:20.549Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-ee9b2423f8e629b3a216",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2999,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:25.507Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-39301d5497d7a3274f63",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-vertical",
+              "projectName": "ipad-vertical",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3972,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:28.537Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-6e2d9fb112c44b083fb2",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3646,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:33.393Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-9945fc66e303a44c1fbf",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2854,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:37.209Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-ef2f2c26a88591455081",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3943,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:40.097Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-b1cd55a91cb8cf053e08",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2853,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:44.075Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-5b5a86d2bfd3c1d80dd9",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3409,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:46.960Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-0fb2cab6d0dd5e7fabc4",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3132,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:50.413Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-30d743836c15acb0e6ea",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4394,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:53.593Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-ba98a1c6b81abfa57947",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3046,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:33:58.029Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-12095dc19dd918b24f86",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "ipad-horizontal",
+              "projectName": "ipad-horizontal",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4117,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:01.115Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-33c816fec53c8b07e832",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2943,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:06.117Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-f8fc57ceda496db460ce",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2176,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:09.492Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-93567ce7eab516ada24b",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2470,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:11.708Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-fe477b2bc63dd7f679ab",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2310,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:14.216Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-9e8aaeeec6112266902c",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4060,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:16.547Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-105e31fe07b679bd8371",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3858,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:20.648Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a701ac0c1e91b74c1eb2",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3805,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:24.558Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-b0c56fb9dd1c2774d378",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2512,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:28.411Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-f118603ebb012e560775",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-medio",
+              "projectName": "android-medio",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2990,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:30.952Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-59d56ffee697e085a456",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        },
+        {
+          "title": "/ en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3427,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:35.378Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-2ba5ac87eb00d874cb0a",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3050,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:39.009Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-b8df0f98d3b63eb91ac3",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3261,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:42.104Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-fe14511339fe04ea8914",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema oscuro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3364,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:45.415Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-973dd89e60337da21681",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/ en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4516,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:48.825Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-4ee86964535c4212c089",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/login en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2473,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:53.376Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-593c0e10531906d74057",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/catalogo en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3528,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:55.886Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a531bb3e5ae7e6362735",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "/soporte en tema claro",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2969,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:34:59.460Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-a15b2101881a785ca2ce",
+          "file": "compat-navegadores.spec.ts",
+          "line": 16,
+          "column": 9
+        },
+        {
+          "title": "el botón de WhatsApp no tapa ningún enlace ni botón de la portada",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "android-bajo",
+              "projectName": "android-bajo",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2850,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-03T14:35:02.459Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "825ac0e3e1312b68cdc4-e8da2637d914491c4224",
+          "file": "compat-navegadores.spec.ts",
+          "line": 47,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-03T14:30:06.654Z",
+    "duration": 298973.652,
+    "expected": 81,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
