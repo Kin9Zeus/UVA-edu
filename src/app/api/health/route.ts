@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
 
 /**
@@ -21,6 +21,12 @@ import { logError } from "@/lib/log";
  * responde). Mux/Resend son solo un chequeo de que las variables existen
  * -no una llamada de red a su API- para no gastar cuota de esos servicios
  * en cada ping de un monitor que puede correr cada 1-5 min.
+ *
+ * Fase 7 del plan de blindaje: la consulta va con la llave PÚBLICA, no con la
+ * maestra. Esta ruta es anónima y cualquiera la llama; leer una categoría (que
+ * ya es pública por RLS) basta para saber que la base responde. La llave
+ * maestra solo se comprueba que exista, igual que las de Mux y Resend, para
+ * notar si un despliegue la perdió.
  */
 
 export const dynamic = "force-dynamic";
@@ -63,8 +69,7 @@ async function verificarSupabase(): Promise<{ ok: boolean; error?: string }> {
 
 async function consultarSupabase(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const admin = createAdminClient();
-    const { error } = await admin.from("categorias").select("id").limit(1);
+    const { error } = await createPublicClient().from("categorias").select("id").limit(1);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (error) {
@@ -73,7 +78,8 @@ async function consultarSupabase(): Promise<{ ok: boolean; error?: string }> {
 }
 
 export async function GET() {
-  const supabase = await verificarSupabase();
+  const consulta = await verificarSupabase();
+  const supabase = { ...consulta, ok: consulta.ok && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) };
   const mux = Boolean(process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET);
   const resend = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 

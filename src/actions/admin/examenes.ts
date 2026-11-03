@@ -5,6 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
+// Llave maestra: reordenar preguntas es una RPC solo para service_role; las columnas con respuestas de intentos_examen están cerradas a las sesiones, y otorgar un intento extra lo crea a nombre del estudiante.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";

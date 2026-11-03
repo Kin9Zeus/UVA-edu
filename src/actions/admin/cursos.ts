@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
+// Llave maestra: reordenar (reespaciar_orden_modulos/lecciones) es una RPC solo para service_role, y borrar videos escribe en la cola mux_assets_pendientes_eliminacion, que las sesiones solo pueden leer.
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   borrarAssetsEncolados,

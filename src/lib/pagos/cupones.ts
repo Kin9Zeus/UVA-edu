@@ -1,3 +1,4 @@
+// Llave maestra: el límite de intentos y la lectura de cupones son solo para el servidor: si no, se podrían adivinar códigos de cupón.
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   MENSAJE_CUPON_INVALIDO,

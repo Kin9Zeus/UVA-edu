@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: los intentos de pago solo los escribe el servidor (el cobro está apagado; se revisa cuando entre la pasarela).
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buscarMembresiaVigente } from "@/lib/admin/membresiaManual";
 import { calcularDesglose, type CuponAplicable } from "@/lib/pagos/descuento";

@@ -1,3 +1,4 @@
+// Llave maestra: verificar_certificado y su límite de intentos son RPC solo para service_role: la verificación es pública y el límite no debe quedar al alcance de nadie.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientIp } from "@/lib/clientIp";
 import { logError } from "@/lib/log";

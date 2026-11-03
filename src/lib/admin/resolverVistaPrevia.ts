@@ -1,3 +1,4 @@
+// Llave maestra: quien abre un enlace de vista previa no tiene sesión: la autorización es el token del enlace, comparado por su hash.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluarToken, hashToken, type EstadoTokenVistaPrevia } from "@/lib/vistaPrevia";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";

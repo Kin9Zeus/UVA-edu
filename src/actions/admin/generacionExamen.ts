@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+// Llave maestra: el límite de generaciones (verificar_limite_generar_examen, registrar_generacion_examen) es solo para service_role, y la generación sigue en after(), ya sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import {

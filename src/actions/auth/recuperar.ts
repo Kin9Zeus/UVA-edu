@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: el límite de solicitudes (registrar_solicitud_recuperacion) es una RPC solo para service_role; quien pide el enlace aún no tiene sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";

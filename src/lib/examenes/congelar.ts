@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+// Llave maestra: las respuestas aceptadas de preguntas_examen están cerradas a los estudiantes; solo el servidor las lee para congelar el intento.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { barajar } from "@/lib/examenes/calificar";

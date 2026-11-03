@@ -1,5 +1,6 @@
 "use server";
 
+// Llave maestra: el límite de intentos y check_email_provider son RPC solo para service_role: si las pudiera llamar cualquiera, podría borrar su contador o averiguar qué correos existen.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientIp } from "@/lib/clientIp";
 import { logError } from "@/lib/log";

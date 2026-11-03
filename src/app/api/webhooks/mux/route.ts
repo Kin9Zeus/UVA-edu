@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import Mux from "@mux/mux-node";
+// Llave maestra: webhook de Mux: llega sin sesión de nadie, ya con la firma verificada.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { marcarProcesado, registrarEvento } from "@/lib/webhooks/eventos";
 import { borrarAssetsEncolados, eliminarAssetMux, encolarAssetsParaBorrar } from "@/lib/mux/limpieza";
