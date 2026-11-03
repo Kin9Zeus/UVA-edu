@@ -35,20 +35,29 @@ contenido o una función) · **Media** (se usa con dificultad) · **Baja**
 
 | # | Prueba | Estado |
 | --- | --- | --- |
-| 1 | Zoom al 200 % | Falló (BV-01, 02, 03, 15, 16) → corregido. Barrido en verde |
-| 2 | Letra del sistema al máximo | Falló (BV-01 a 09, 17 a 23) → corregido salvo BV-17 (por confirmar). **Falta celular real** |
+| 1 | Zoom al 200 % | Falló (BV-01, 02, 03, 15, 16) → corregido. Barrido y prueba manual en PC en verde |
+| 2 | Letra del sistema al máximo | Falló (BV-01 a 09, 18 a 23) → corregido. 150 % en celular y 200 % desde 768 px en verde. **Sin resultado registrado en celular real** |
 | 3 | Espaciado de texto | Falló (BV-01, 08, 09) → corregido. Barrido en verde |
-| 4 | Al sol | **Pendiente** (prueba manual del usuario) |
-| 5 | Movimiento reducido | Falló (BV-10, 11) → corregido. **Falta celular real** |
+| 4 | Al sol | **Sin resultado registrado** (prueba manual en exteriores) |
+| 5 | Movimiento reducido | Falló (BV-10, 11) → corregido; regla global en `globals.css`. **Sin resultado registrado en celular real** |
 | 6 | Nada depende solo del color | Falló (BV-12, 13) → corregido |
 | 7 | Contraste en ambos temas | Falló (BV-14) → corregido. Tokens: `contraste.test.ts` en verde |
 
-## Abiertos
+## Cierre (2026-11-03)
 
-### BV-17 — Portada: "se desbordan las categorías en las tarjetas" (por confirmar)
+- `npx tsc --noEmit`, `npm run lint`, `npx vitest run` (1574 pruebas) y `npm run build`: en verde.
+- Último barrido completo en verde antes de BV-18 a BV-23; esos seis se verificaron con su captura antes/después y el barrido del panel con el detector corregido.
+- **Fuera de alcance / pendiente:**
+  - Letra al 200 % en celular (375 px): no es meta de esta tarea (equivale a ~187 px de ancho); queda por decidir si se hace una pasada solo de lo que impida usar la plataforma.
+  - Navegadores del piso de calidad: todo se probó en Chrome; faltan Safari, Firefox, Edge y Samsung Internet.
+  - El barrido no detecta superposiciones: se revisaron en capturas y a mano.
+
+## Sin reproducir
+
+### BV-17 — Portada: "se desbordan las categorías en las tarjetas"
 
 - **Prueba:** 2 · **Detectó:** prueba manual del usuario (letra al 150 %, 375 px)
-- La lista "Explora por categoría" de la portada y las tarjetas de curso se ven bien en las capturas; puede ser BV-22 (la misma lista en el inicio del panel). Falta confirmar.
+- La lista "Explora por categoría" de la portada y las tarjetas de curso se ven bien en las capturas. Lo más probable es que fuera la misma lista en el inicio del panel (con sesión, el logo lleva ahí), corregida en BV-22.
 
 ## Resueltos
 
