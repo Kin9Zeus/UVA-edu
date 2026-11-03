@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { CABECERA_ORIGEN, peticionDesdeCloudflare, secretoDeOrigen } from "@/lib/origen";
+import { CABECERA_ORIGEN, cierreDeOrigenEncendido, peticionDesdeCloudflare } from "@/lib/origen";
 
 /**
  * IP del cliente para las claves de rate limiting, leída de forma que el
@@ -203,7 +203,7 @@ export async function diagnosticoIp(): Promise<DiagnosticoIp> {
   return construirDiagnostico(headersList.get("x-forwarded-for"), saltos, configurado, {
     cfConnectingIp: headersList.get("cf-connecting-ip"),
     desdeCloudflare: peticionDesdeCloudflare(headersList.get(CABECERA_ORIGEN)),
-    cierreOrigen: secretoDeOrigen() !== null,
+    cierreOrigen: cierreDeOrigenEncendido(),
   });
 }
 

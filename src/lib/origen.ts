@@ -30,22 +30,39 @@ const RUTAS_SIN_CABECERA = new Set(["/api/health"]);
  */
 export const RUTA_SIN_SESION = /^\/(?:_next\/static\/|_next\/image|favicon\.ico$)|\.(?:svg|png|jpg|jpeg|gif|webp)$/;
 
-/** El secreto vigente, o null si el cierre está apagado. */
-export function secretoDeOrigen(valor = process.env.ORIGEN_SECRETO): string | null {
-  const secreto = valor?.trim();
-  return secreto ? secreto : null;
+/**
+ * Los secretos vigentes; vacío si el cierre está apagado. Para cambiar el
+ * secreto sin dejar el sitio en 403 mientras Railway redespliega, la variable
+ * acepta dos valores separados por coma, "nuevo,viejo", durante el cambio
+ * (pasos en docs/ops/cloudflare.md).
+ */
+export function secretosDeOrigen(valor = process.env.ORIGEN_SECRETO): string[] {
+  return (valor ?? "")
+    .split(",")
+    .map((secreto) => secreto.trim())
+    .filter(Boolean);
 }
 
 /**
- * true si la cabecera trae exactamente el secreto. Compara los resúmenes
- * SHA-256 con `timingSafeEqual`: el tiempo de respuesta no revela cuántos
- * caracteres acertó quien prueba, y los dos lados miden siempre lo mismo.
+ * true si la cabecera trae exactamente uno de los secretos. Compara los
+ * resúmenes SHA-256 con `timingSafeEqual`: el tiempo de respuesta no revela
+ * cuántos caracteres acertó quien prueba, y los dos lados miden siempre lo
+ * mismo. Revisa todos los secretos aunque el primero ya coincida.
  */
-export function cabeceraDeOrigenValida(recibida: string | null | undefined, secreto: string): boolean {
+export function cabeceraDeOrigenValida(recibida: string | null | undefined, secretos: string[]): boolean {
   if (!recibida) return false;
   const a = createHash("sha256").update(recibida).digest();
-  const b = createHash("sha256").update(secreto).digest();
-  return timingSafeEqual(a, b);
+  let valida = false;
+  for (const secreto of secretos) {
+    const b = createHash("sha256").update(secreto).digest();
+    if (timingSafeEqual(a, b)) valida = true;
+  }
+  return valida;
+}
+
+/** true si ORIGEN_SECRETO está puesta, es decir, si el cierre está encendido. */
+export function cierreDeOrigenEncendido(valor = process.env.ORIGEN_SECRETO): boolean {
+  return secretosDeOrigen(valor).length > 0;
 }
 
 /**
@@ -54,8 +71,7 @@ export function cabeceraDeOrigenValida(recibida: string | null | undefined, secr
  * no hay forma de saber si pasó o no.
  */
 export function peticionDesdeCloudflare(recibida: string | null | undefined, valor = process.env.ORIGEN_SECRETO): boolean {
-  const secreto = secretoDeOrigen(valor);
-  return secreto !== null && cabeceraDeOrigenValida(recibida, secreto);
+  return cabeceraDeOrigenValida(recibida, secretosDeOrigen(valor));
 }
 
 /** Lo que `src/proxy.ts` hace con la petición. */
@@ -64,8 +80,8 @@ export function decidirOrigen(
   recibida: string | null | undefined,
   valor = process.env.ORIGEN_SECRETO,
 ): "seguir" | "rechazar" {
-  const secreto = secretoDeOrigen(valor);
-  if (secreto === null) return "seguir";
+  const secretos = secretosDeOrigen(valor);
+  if (secretos.length === 0) return "seguir";
   if (RUTAS_SIN_CABECERA.has(ruta)) return "seguir";
-  return cabeceraDeOrigenValida(recibida, secreto) ? "seguir" : "rechazar";
+  return cabeceraDeOrigenValida(recibida, secretos) ? "seguir" : "rechazar";
 }

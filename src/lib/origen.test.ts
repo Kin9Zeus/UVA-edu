@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   RUTA_SIN_SESION,
   cabeceraDeOrigenValida,
+  cierreDeOrigenEncendido,
   decidirOrigen,
   peticionDesdeCloudflare,
-  secretoDeOrigen,
+  secretosDeOrigen,
 } from "@/lib/origen";
 
 // Fase 2 del plan de blindaje: quien llama directo a Railway, sin pasar por
@@ -12,30 +13,44 @@ import {
 // nada cambia: así el código se despliega antes de tener el dominio.
 const SECRETO = "s3creto-largo-de-cloudflare-0123456789";
 
-describe("secretoDeOrigen", () => {
+describe("secretosDeOrigen", () => {
   it("sin variable, vacía o con solo espacios: el cierre está apagado", () => {
-    expect(secretoDeOrigen(undefined)).toBeNull();
-    expect(secretoDeOrigen("")).toBeNull();
-    expect(secretoDeOrigen("   ")).toBeNull();
+    for (const valor of [undefined, "", "   ", " , "]) {
+      expect(secretosDeOrigen(valor)).toEqual([]);
+      expect(cierreDeOrigenEncendido(valor)).toBe(false);
+    }
   });
 
   it("quita espacios de los bordes (un salto de línea pegado en Railway)", () => {
-    expect(secretoDeOrigen(` ${SECRETO}\n`)).toBe(SECRETO);
+    expect(secretosDeOrigen(` ${SECRETO}\n`)).toEqual([SECRETO]);
+  });
+
+  it("durante un cambio acepta dos, separados por coma", () => {
+    expect(secretosDeOrigen(`nuevo-secreto, ${SECRETO}`)).toEqual(["nuevo-secreto", SECRETO]);
   });
 });
 
 describe("cabeceraDeOrigenValida", () => {
   it("solo el secreto exacto vale", () => {
-    expect(cabeceraDeOrigenValida(SECRETO, SECRETO)).toBe(true);
-    expect(cabeceraDeOrigenValida(SECRETO.slice(0, -1), SECRETO)).toBe(false);
-    expect(cabeceraDeOrigenValida(`${SECRETO}x`, SECRETO)).toBe(false);
-    expect(cabeceraDeOrigenValida(SECRETO.toUpperCase(), SECRETO)).toBe(false);
+    expect(cabeceraDeOrigenValida(SECRETO, [SECRETO])).toBe(true);
+    expect(cabeceraDeOrigenValida(SECRETO.slice(0, -1), [SECRETO])).toBe(false);
+    expect(cabeceraDeOrigenValida(`${SECRETO}x`, [SECRETO])).toBe(false);
+    expect(cabeceraDeOrigenValida(SECRETO.toUpperCase(), [SECRETO])).toBe(false);
   });
 
-  it("sin cabecera no vale", () => {
-    expect(cabeceraDeOrigenValida(null, SECRETO)).toBe(false);
-    expect(cabeceraDeOrigenValida(undefined, SECRETO)).toBe(false);
-    expect(cabeceraDeOrigenValida("", SECRETO)).toBe(false);
+  it("sin cabecera, o sin secretos, no vale", () => {
+    expect(cabeceraDeOrigenValida(null, [SECRETO])).toBe(false);
+    expect(cabeceraDeOrigenValida(undefined, [SECRETO])).toBe(false);
+    expect(cabeceraDeOrigenValida("", [SECRETO])).toBe(false);
+    expect(cabeceraDeOrigenValida(SECRETO, [])).toBe(false);
+  });
+
+  it("con dos secretos (en pleno cambio), vale cualquiera de los dos y nada más", () => {
+    expect(cabeceraDeOrigenValida("nuevo-secreto", ["nuevo-secreto", SECRETO])).toBe(true);
+    expect(cabeceraDeOrigenValida(SECRETO, ["nuevo-secreto", SECRETO])).toBe(true);
+    expect(cabeceraDeOrigenValida("otro", ["nuevo-secreto", SECRETO])).toBe(false);
+    // La coma no es un comodín: la cabecera con los dos juntos no vale.
+    expect(cabeceraDeOrigenValida(`nuevo-secreto,${SECRETO}`, ["nuevo-secreto", SECRETO])).toBe(false);
   });
 });
 
