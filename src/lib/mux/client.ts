@@ -1,3 +1,5 @@
+// Lee MUX_TOKEN_SECRET y la llave privada de firma: importarlo desde un componente de cliente hace fallar el build (fase 7).
+import "server-only";
 import Mux from "@mux/mux-node";
 
 // jwtSigningKey/jwtPrivateKey son el fallback que usa mux.jwt.signPlaybackId()

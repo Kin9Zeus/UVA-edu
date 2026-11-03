@@ -1,3 +1,5 @@
+// Lee GEMINI_API_KEY: importarlo desde un componente de cliente hace fallar el build (fase 7).
+import "server-only";
 import { ApiError, GoogleGenAI, type HttpRetryOptions } from "@google/genai";
 import { configuracionGemini, ESPERA_MAXIMA_S } from "./configuracion";
 

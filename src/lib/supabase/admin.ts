@@ -1,3 +1,5 @@
+// Lee SUPABASE_SERVICE_ROLE_KEY: importarlo desde un componente de cliente hace fallar el build (fase 7).
+import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
