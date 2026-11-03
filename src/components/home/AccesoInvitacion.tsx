@@ -36,7 +36,7 @@ export function AccesoInvitacion({ hrefCodigo }: { hrefCodigo: string }) {
           Abrimos cupos limitados, sin costo. Solo necesitas un código.
         </p>
 
-        <div className="grid md:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2">
           <div className="flex flex-col items-start pb-8 md:pr-12 md:pb-0">
             <h3 className="mb-2 text-uva-titulo-4 text-uva-text">¿Ya tienes un código?</h3>
             <p className="mb-5 max-w-[26em] text-uva-cuerpo text-uva-text-muted lg:mb-6">
@@ -47,7 +47,7 @@ export function AccesoInvitacion({ hrefCodigo }: { hrefCodigo: string }) {
               nativeButton={false}
               variant="uva-primary"
               size="uva"
-              className="mt-auto min-h-13 px-[26px] text-uva-cuerpo sm:w-auto"
+              className="mt-auto min-h-13 px-[26px] text-uva-cuerpo whitespace-normal sm:w-auto"
             >
               Tengo un código
             </Button>
@@ -69,7 +69,7 @@ export function AccesoInvitacion({ hrefCodigo }: { hrefCodigo: string }) {
               nativeButton={false}
               variant="uva-secondary"
               size="uva"
-              className="mt-auto min-h-13 px-[26px] text-uva-cuerpo sm:w-auto"
+              className="mt-auto min-h-13 px-[26px] text-uva-cuerpo whitespace-normal sm:w-auto"
             >
               Quiero una invitación
               <span className="sr-only"> (abre WhatsApp en otra pestaña)</span>

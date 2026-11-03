@@ -30,7 +30,9 @@ export function BottomTabBar() {
       aria-label="Navegación principal"
       className="fixed inset-x-0 bottom-0 z-40 px-[max(0.5rem,env(safe-area-inset-left))] pb-[calc(env(safe-area-inset-bottom)+14px)] md:hidden"
     >
-      <div className="mx-auto flex max-w-[440px] items-center rounded-full border border-uva-line-strong bg-uva-surface p-1">
+      {/* Ancho máximo en rem, como los rótulos: en px no crecía con la letra
+          agrandada y a 768 px los rótulos se montaban. */}
+      <div className="mx-auto flex max-w-[27.5rem] items-center rounded-full border border-uva-line-strong bg-uva-surface p-1">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (

@@ -50,7 +50,7 @@ export function LeccionVistaPreviaContent({
           <ChevronLeft className="size-[15px]" strokeWidth={2.75} />
           {data.cursoTitulo}
         </Link>
-        <span className="text-[12.5px] text-uva-text opacity-50">
+        <span className="text-uva-detalle text-uva-text-muted">
           Clase {data.numero} de {data.totalClases}
         </span>
         <div className="ml-auto flex items-center gap-2">

@@ -54,7 +54,7 @@ export const CLASE_CAMPO_PERFIL =
   "h-12 border-[1.5px] border-uva-line-strong bg-uva-surface text-base sm:text-base placeholder:text-uva-text-muted";
 export const CLASE_ETIQUETA_PERFIL = "mb-1.5 text-uva-cuerpo font-semibold text-uva-text";
 /** Bloques de la columna del formulario: raya arriba, sin tarjeta. */
-export const CLASE_BLOQUE_PERFIL = "grid gap-4 border-t border-uva-divider pt-[22px]";
+export const CLASE_BLOQUE_PERFIL = "grid grid-cols-1 gap-4 border-t border-uva-divider pt-[22px]";
 
 /**
  * "Mi perfil" con la dirección visual «Carné»: a la izquierda el carné de
@@ -120,7 +120,7 @@ export function PerfilForm({
     <div className="@container flex flex-col gap-[22px] lg:gap-7">
       <h1 className="text-uva-titulo-3 text-uva-text">Mi perfil</h1>
 
-      <div className="grid gap-7 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-x-14">
+      <div className="grid grid-cols-1 gap-7 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-x-14">
         <div className="contents @min-[900px]:grid @min-[900px]:content-start @min-[900px]:gap-6">
           {/* El carné cuelga de una cinta desde 900 px; en celular va solo. */}
           <div className="relative order-1 grid justify-items-center @min-[900px]:order-none @min-[900px]:mb-3 @min-[900px]:pt-[150px]">
@@ -285,7 +285,7 @@ export function PerfilForm({
                     >
                       <SelectTrigger
                         aria-label="Indicativo del país"
-                        className="w-[108px] shrink-0 border-[1.5px] border-uva-line-strong bg-uva-surface text-base font-semibold data-[size=default]:h-12"
+                        className="w-[6.75rem] shrink-0 border-[1.5px] border-uva-line-strong bg-uva-surface text-base font-semibold data-[size=default]:h-12"
                       >
                         <SelectValue>
                           {(codigo: string) => {
@@ -392,7 +392,7 @@ export function PerfilForm({
             </p>
             {/* Formulario y no onClick: funciona aunque el JavaScript no haya cargado. */}
             <form action={logout}>
-              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base">
+              <Button type="submit" variant="uva-secondary" size="uva" className="min-h-12 w-auto gap-2 px-[22px] text-base whitespace-normal">
                 <LogOut className="size-[18px]" strokeWidth={1.8} aria-hidden />
                 Cerrar sesión
               </Button>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BeneficioPlan } from "@/components/BeneficioPlan";
 import { buttonVariants } from "@/components/ui/button";
 import { slugificar } from "@/lib/slug";
 import {
@@ -127,33 +128,13 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
                   Elegir {plan.nombre}
                 </Link>
 
-                <div className="flex flex-col gap-1.5 text-[12.5px]">
-                  {sharedBenefits.map((benefit, index) => {
-                    const included = index < incluidos;
-                    return (
-                      <div
-                        key={benefit}
-                        className={
-                          included
-                            ? "flex items-center gap-2 text-uva-text"
-                            : "flex items-center gap-2 text-uva-text-disabled opacity-45"
-                        }
-                      >
-                        <span
-                          className={
-                            included
-                              ? "shrink-0 text-uva-accent-2-text"
-                              : "shrink-0 text-uva-text-disabled"
-                          }
-                          aria-hidden
-                        >
-                          –
-                        </span>
-                        {benefit}
-                      </div>
-                    );
-                  })}
-                </div>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-uva-detalle">
+                  {sharedBenefits.map((benefit, index) => (
+                    <BeneficioPlan key={benefit} incluido={index < incluidos}>
+                      {benefit}
+                    </BeneficioPlan>
+                  ))}
+                </ul>
               </div>
             );
           })}
@@ -165,7 +146,7 @@ export function PlanesContent({ planes }: { planes: PlanRow[] }) {
           así que el acceso se compra por períodos. El recibo y el aviso de
           vencimiento ya lo decían bien (src/emails/), y esta línea los
           contradecía en la pantalla donde el estudiante decide. */}
-      <p className="mt-[18px] text-center text-[11.5px] text-uva-text-faint opacity-45">
+      <p className="mt-[18px] text-center text-uva-detalle text-uva-text-muted">
         Pago único por el período elegido. No se renueva solo: te avisamos por
         correo unos días antes de que termine.
       </p>

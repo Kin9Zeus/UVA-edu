@@ -37,7 +37,9 @@ export function FiltroCursos({ filas }: { filas: { id: string; completado: boole
               onClick={() => setFiltro(valor)}
               className={cn(
                 "min-h-11 rounded-uva-sm px-2.5 text-uva-detalle font-semibold whitespace-nowrap text-uva-text-muted sm:px-3 md:pointer-fine:min-h-9",
-                filtro === valor && "bg-uva-surface-2 font-bold text-uva-text",
+                // Relleno invertido, como los filtros del catálogo: un gris
+                // apenas distinto no se ve al sol ni sin distinguir colores.
+                filtro === valor && "bg-uva-text font-bold text-uva-bg",
               )}
             >
               {texto}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BeneficioPlan } from "@/components/BeneficioPlan";
 import { createPublicClient } from "@/lib/supabase/public";
 import {
   type PlanRow,
@@ -143,30 +144,12 @@ export async function Pricing({
                   <p className="text-xs text-uva-text-faint">{cuotas ?? " "}</p>
                 </div>
 
-                <ul className="mb-4 flex flex-1 flex-col gap-1.5 sm:mb-9 sm:gap-2.5">
-                  {sharedBenefits.map((benefit, index) => {
-                    const included = index < incluidos;
-                    return (
-                      <li
-                        key={benefit}
-                        className={`flex items-center gap-2.5 text-[13.5px] ${
-                          included ? "text-uva-text" : "text-uva-text-disabled"
-                        }`}
-                      >
-                        <span
-                          className={
-                            included
-                              ? "shrink-0 text-uva-accent-2-text"
-                              : "shrink-0 text-uva-text-disabled"
-                          }
-                          aria-hidden
-                        >
-                          –
-                        </span>
-                        {benefit}
-                      </li>
-                    );
-                  })}
+                <ul className="mb-4 flex flex-1 flex-col gap-1.5 text-uva-detalle sm:mb-9 sm:gap-2.5">
+                  {sharedBenefits.map((benefit, index) => (
+                    <BeneficioPlan key={benefit} incluido={index < incluidos}>
+                      {benefit}
+                    </BeneficioPlan>
+                  ))}
                 </ul>
 
                 <Link

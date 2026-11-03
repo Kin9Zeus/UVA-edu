@@ -156,7 +156,7 @@ export function EnlacesVistaPrevia({
             value={String(minutos)}
             onValueChange={(value) => value && setMinutos(Number(value))}
           >
-            <SelectTrigger className="w-[140px]" aria-label="Vigencia del enlace">
+            <SelectTrigger className="w-[8.75rem]" aria-label="Vigencia del enlace">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

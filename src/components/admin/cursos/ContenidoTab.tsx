@@ -122,10 +122,12 @@ export function ContenidoTab({
     // El editor se abre en línea, justo debajo de la fila elegida: sin este
     // scroll, tocar una lección más abajo en una lista larga no da ninguna
     // señal de que sí se seleccionó.
+    // El scroll pedido desde JS no respeta el scroll-behavior de globals.css.
     requestAnimationFrame(() => {
+      const reducir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       document
         .getElementById(`leccion-editor-${leccion.id}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        ?.scrollIntoView({ behavior: reducir ? "auto" : "smooth", block: "start" });
     });
   }
 
