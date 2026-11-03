@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { revalidarCatalogoPublico } from "@/lib/cache-catalogo";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
-// Llave maestra: reordenar (reespaciar_orden_modulos/lecciones) es una RPC solo para service_role, y borrar videos escribe en la cola mux_assets_pendientes_eliminacion, que las sesiones solo pueden leer.
+// Llave maestra: borrar videos escribe en la cola mux_assets_pendientes_eliminacion, que las sesiones solo pueden leer.
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   borrarAssetsEncolados,
@@ -929,11 +929,9 @@ export async function moverModulo(
     const indiceDestino = idAnterior ? ordenados.findIndex((m) => m.id === idAnterior) + 1 : 0;
     ordenados.splice(indiceDestino, 0, { id: moduloId });
 
-    // Server Actions no llegan a la base con la Service Role Key
-    // (requireAdmin da el cliente de sesión); la RPC sí la necesita porque
-    // está restringida a service_role — mismo criterio que
-    // canjear_codigo_invitacion (017_canjear_codigo_invitacion.sql).
-    const { error } = await createAdminClient().rpc("reespaciar_orden_modulos", {
+    // Con la sesión del administrador: la RPC comprueba por su cuenta que
+    // sea administrador con segundo factor (132_admin_rpc_con_sesion.sql).
+    const { error } = await admin.supabase.rpc("reespaciar_orden_modulos", {
       p_curso_id: cursoId,
       p_ids: ordenados.map((modulo) => modulo.id),
     });
@@ -1133,7 +1131,8 @@ export async function moverLeccion(
     const indiceDestino = idAnterior ? ordenadas.findIndex((l) => l.id === idAnterior) + 1 : 0;
     ordenadas.splice(indiceDestino, 0, { id: leccionId });
 
-    const { error } = await createAdminClient().rpc("reespaciar_orden_lecciones", {
+    // Con la sesión del administrador, como en moverModulo (132).
+    const { error } = await admin.supabase.rpc("reespaciar_orden_lecciones", {
       p_modulo_id: moduloId,
       p_ids: ordenadas.map((leccion) => leccion.id),
     });

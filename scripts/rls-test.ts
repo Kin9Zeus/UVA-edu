@@ -75,6 +75,19 @@ async function esperarBloqueado(
   registrar(nombre, bloqueado, error ? error.message : bloqueado ? "0 filas (filtrado por RLS)" : `${filas} fila(s) expuestas`);
 }
 
+/**
+ * La llamada DEBE fallar con 42501 (sin permiso). Para RPC que no devuelven
+ * nada: con ellas `esperarBloqueado` no sirve, porque un éxito sin filas se
+ * leería como bloqueado.
+ */
+async function esperarSinPermiso(
+  nombre: string,
+  promesa: PromiseLike<{ error: { code?: string; message: string } | null }>,
+) {
+  const { error } = await promesa;
+  registrar(nombre, error?.code === "42501", error ? `${error.code}: ${error.message}` : "la llamada funcionó");
+}
+
 /** El intento DEBE funcionar (acceso legítimo). */
 async function esperarPermitido(
   nombre: string,
@@ -574,11 +587,11 @@ async function main() {
     // AUDIT-2026-09-15.md). Mismo endurecimiento: si fuera invocable desde
     // PostgREST, cualquier sesión podría limpiar o mentir su propio contador.
     await esperarBloqueado(
-      "anon no puede llamar verificar_limite_generar_examen (RPC solo service_role, P3-9)",
+      "anon no puede llamar verificar_limite_generar_examen (P3-9; con sesión solo un admin, 132)",
       clienteAnonimo.rpc("verificar_limite_generar_examen", { p_usuario_id: userSinAcceso.user!.id }),
     );
     await esperarBloqueado(
-      "anon no puede llamar registrar_generacion_examen (RPC solo service_role, P3-9)",
+      "anon no puede llamar registrar_generacion_examen (P3-9; con sesión solo un admin, 132)",
       clienteAnonimo.rpc("registrar_generacion_examen", { p_usuario_id: userSinAcceso.user!.id }),
     );
     // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
@@ -1931,6 +1944,14 @@ async function main() {
       !errComunidadAal1 && comunidadAal1 === false,
       errComunidadAal1 ? errComunidadAal1.message : `comunidad_tiene_acceso=${comunidadAal1}`,
     );
+    await esperarSinPermiso(
+      "administrador aal1 NO puede reordenar módulos (132)",
+      clienteAdmin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    await esperarSinPermiso(
+      "administrador aal1 NO puede consultar el límite de generaciones con IA (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
     await esperarPermitido(
       "administrador aal1 SÍ lee su propio perfil (lo necesita /seguridad/activar)",
       clienteAdmin.from("perfiles").select("id").eq("id", userAdmin.user!.id).single(),
@@ -1944,6 +1965,68 @@ async function main() {
       "con aal2 vuelve el atajo de administrador a Comunidad (131)",
       !errComunidadAal2 && comunidadAal2 === true,
       errComunidadAal2 ? errComunidadAal2.message : `comunidad_tiene_acceso=${comunidadAal2}`,
+    );
+
+    // ------------------------------------------------------------------
+    // 132: reordenar y el límite de generaciones con IA aceptan la sesión de
+    // un administrador con segundo factor, no solo la llave maestra. Los
+    // reordenamientos dejan el mismo orden que ya había: no mueven nada.
+    // ------------------------------------------------------------------
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena módulos con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena lecciones con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_lecciones", {
+        p_modulo_id: moduloAcceso.id,
+        p_ids: [idLeccionIntroductoria, idLeccionDePago],
+      }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena preguntas con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_preguntas", { p_examen_id: idExamenPrueba!, p_ids: [] }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ consulta SU límite de generaciones con IA (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ registra SU generación con IA (132)",
+      clienteAdmin.rpc("registrar_generacion_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
+    await esperarSinPermiso(
+      "administrador aal2 NO consulta el límite de OTRA persona (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarSinPermiso(
+      "administrador aal2 NO gasta el cupo de OTRA persona (132)",
+      clienteAdmin.rpc("registrar_generacion_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede reordenar lecciones (132)",
+      clienteConAcceso.rpc("reespaciar_orden_lecciones", {
+        p_modulo_id: moduloAcceso.id,
+        p_ids: [idLeccionDePago, idLeccionIntroductoria],
+      }),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede consultar ni su propio límite de generaciones (132)",
+      clienteConAcceso.rpc("verificar_limite_generar_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarPermitido(
+      "la llave maestra sigue pudiendo reordenar (132: compatible con el código anterior)",
+      admin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    const { data: ordenLecciones } = await admin
+      .from("lecciones")
+      .select("id")
+      .eq("id_modulo", moduloAcceso.id)
+      .order("orden");
+    registrar(
+      "el intento de reordenar del estudiante no movió nada (132)",
+      ordenLecciones?.[0]?.id === idLeccionIntroductoria,
+      `primera lección: ${ordenLecciones?.[0]?.id === idLeccionIntroductoria ? "la introductoria" : "otra"}`,
     );
 
     // Notas, parte 3: ni un administrador lee los apuntes de otra persona

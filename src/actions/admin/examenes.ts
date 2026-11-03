@@ -5,7 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
-// Llave maestra: reordenar preguntas es una RPC solo para service_role; las columnas con respuestas de intentos_examen están cerradas a las sesiones, y otorgar un intento extra lo crea a nombre del estudiante.
+// Llave maestra: las columnas con respuestas de intentos_examen están cerradas a las sesiones, y otorgar un intento extra lo crea a nombre del estudiante.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { revalidarCursoAdmin } from "@/lib/admin/revalidarCurso";
@@ -557,7 +557,9 @@ export async function moverPregunta(
     const indiceDestino = idAnterior ? ordenadas.findIndex((p) => p.id === idAnterior) + 1 : 0;
     ordenadas.splice(indiceDestino, 0, { id: preguntaId });
 
-    const { error } = await createAdminClient().rpc("reespaciar_orden_preguntas", {
+    // Con la sesión del administrador: la RPC comprueba por su cuenta que
+    // sea administrador con segundo factor (132_admin_rpc_con_sesion.sql).
+    const { error } = await admin.supabase.rpc("reespaciar_orden_preguntas", {
       p_examen_id: examenId,
       p_ids: ordenadas.map((pregunta) => pregunta.id),
     });

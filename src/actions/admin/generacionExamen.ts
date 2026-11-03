@@ -3,8 +3,6 @@
 import { after } from "next/server";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
-// Llave maestra: el límite de generaciones (verificar_limite_generar_examen, registrar_generacion_examen) es solo para service_role, y la generación sigue en after(), ya sin sesión.
-import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import {
   completarGeneracionExamenCurso,
@@ -74,9 +72,10 @@ export async function generarExamenDelCurso(
   // dinero y tarda minutos — sin esto, nada impide disparar generaciones en
   // loop contra muchos cursos. Se verifica ANTES de reclamar el turno, para
   // no dejar el candado de idempotencia del curso abierto por algo que de
-  // todas formas se va a rechazar acá.
-  const supabaseAdmin = createAdminClient();
-  const { data: limite, error: limiteError } = await supabaseAdmin
+  // todas formas se va a rechazar acá. Con la sesión del administrador: la
+  // base solo le deja consultar y gastar SU cupo, y exige su segundo factor
+  // (132_admin_rpc_con_sesion.sql).
+  const { data: limite, error: limiteError } = await admin.supabase
     .rpc("verificar_limite_generar_examen", { p_usuario_id: admin.adminId })
     .single();
 
@@ -119,7 +118,7 @@ export async function generarExamenDelCurso(
   // Cuenta para el tope de la hora recién acá, con el reclamo YA ganado: los
   // casos "omitido"/"fallido" de arriba no llaman a Gemini, así que no deben
   // consumir cupo de algo que no se disparó.
-  await supabaseAdmin.rpc("registrar_generacion_examen", { p_usuario_id: idAdmin });
+  await admin.supabase.rpc("registrar_generacion_examen", { p_usuario_id: idAdmin });
 
   // La bitácora se escribe ACÁ, con el disparo, y no al terminar: es la acción
   // administrativa —quién pidió regenerar el examen y cuándo— y tiene que
