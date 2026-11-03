@@ -75,6 +75,19 @@ async function esperarBloqueado(
   registrar(nombre, bloqueado, error ? error.message : bloqueado ? "0 filas (filtrado por RLS)" : `${filas} fila(s) expuestas`);
 }
 
+/**
+ * La llamada DEBE fallar con 42501 (sin permiso). Para RPC que no devuelven
+ * nada: con ellas `esperarBloqueado` no sirve, porque un éxito sin filas se
+ * leería como bloqueado.
+ */
+async function esperarSinPermiso(
+  nombre: string,
+  promesa: PromiseLike<{ error: { code?: string; message: string } | null }>,
+) {
+  const { error } = await promesa;
+  registrar(nombre, error?.code === "42501", error ? `${error.code}: ${error.message}` : "la llamada funcionó");
+}
+
 /** El intento DEBE funcionar (acceso legítimo). */
 async function esperarPermitido(
   nombre: string,
@@ -151,6 +164,8 @@ async function main() {
   // en cascada con el perfil).
   let idCursoExamen: string | null = null;
   let idExamenPrueba: string | null = null;
+  // Archivos que subió la sección de IDOR (fase 7); se borran en la limpieza.
+  const archivosStoragePrueba: { bucket: string; ruta: string }[] = [];
 
   console.log("Preparando datos de prueba desechables...\n");
 
@@ -574,11 +589,11 @@ async function main() {
     // AUDIT-2026-09-15.md). Mismo endurecimiento: si fuera invocable desde
     // PostgREST, cualquier sesión podría limpiar o mentir su propio contador.
     await esperarBloqueado(
-      "anon no puede llamar verificar_limite_generar_examen (RPC solo service_role, P3-9)",
+      "anon no puede llamar verificar_limite_generar_examen (P3-9; con sesión solo un admin, 132)",
       clienteAnonimo.rpc("verificar_limite_generar_examen", { p_usuario_id: userSinAcceso.user!.id }),
     );
     await esperarBloqueado(
-      "anon no puede llamar registrar_generacion_examen (RPC solo service_role, P3-9)",
+      "anon no puede llamar registrar_generacion_examen (P3-9; con sesión solo un admin, 132)",
       clienteAnonimo.rpc("registrar_generacion_examen", { p_usuario_id: userSinAcceso.user!.id }),
     );
     // Endurecida en 050 (Certificado.md): antes era pública, ahora solo
@@ -1931,6 +1946,14 @@ async function main() {
       !errComunidadAal1 && comunidadAal1 === false,
       errComunidadAal1 ? errComunidadAal1.message : `comunidad_tiene_acceso=${comunidadAal1}`,
     );
+    await esperarSinPermiso(
+      "administrador aal1 NO puede reordenar módulos (132)",
+      clienteAdmin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    await esperarSinPermiso(
+      "administrador aal1 NO puede consultar el límite de generaciones con IA (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
     await esperarPermitido(
       "administrador aal1 SÍ lee su propio perfil (lo necesita /seguridad/activar)",
       clienteAdmin.from("perfiles").select("id").eq("id", userAdmin.user!.id).single(),
@@ -1944,6 +1967,68 @@ async function main() {
       "con aal2 vuelve el atajo de administrador a Comunidad (131)",
       !errComunidadAal2 && comunidadAal2 === true,
       errComunidadAal2 ? errComunidadAal2.message : `comunidad_tiene_acceso=${comunidadAal2}`,
+    );
+
+    // ------------------------------------------------------------------
+    // 132: reordenar y el límite de generaciones con IA aceptan la sesión de
+    // un administrador con segundo factor, no solo la llave maestra. Los
+    // reordenamientos dejan el mismo orden que ya había: no mueven nada.
+    // ------------------------------------------------------------------
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena módulos con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena lecciones con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_lecciones", {
+        p_modulo_id: moduloAcceso.id,
+        p_ids: [idLeccionIntroductoria, idLeccionDePago],
+      }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ reordena preguntas con su sesión (132)",
+      clienteAdmin.rpc("reespaciar_orden_preguntas", { p_examen_id: idExamenPrueba!, p_ids: [] }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ consulta SU límite de generaciones con IA (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
+    await esperarPermitido(
+      "administrador aal2 SÍ registra SU generación con IA (132)",
+      clienteAdmin.rpc("registrar_generacion_examen", { p_usuario_id: userAdmin.user!.id }),
+    );
+    await esperarSinPermiso(
+      "administrador aal2 NO consulta el límite de OTRA persona (132)",
+      clienteAdmin.rpc("verificar_limite_generar_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarSinPermiso(
+      "administrador aal2 NO gasta el cupo de OTRA persona (132)",
+      clienteAdmin.rpc("registrar_generacion_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede reordenar lecciones (132)",
+      clienteConAcceso.rpc("reespaciar_orden_lecciones", {
+        p_modulo_id: moduloAcceso.id,
+        p_ids: [idLeccionDePago, idLeccionIntroductoria],
+      }),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede consultar ni su propio límite de generaciones (132)",
+      clienteConAcceso.rpc("verificar_limite_generar_examen", { p_usuario_id: userConAcceso.user!.id }),
+    );
+    await esperarPermitido(
+      "la llave maestra sigue pudiendo reordenar (132: compatible con el código anterior)",
+      admin.rpc("reespaciar_orden_modulos", { p_curso_id: cursoAcceso.id, p_ids: [moduloAcceso.id] }),
+    );
+    const { data: ordenLecciones } = await admin
+      .from("lecciones")
+      .select("id")
+      .eq("id_modulo", moduloAcceso.id)
+      .order("orden");
+    registrar(
+      "el intento de reordenar del estudiante no movió nada (132)",
+      ordenLecciones?.[0]?.id === idLeccionIntroductoria,
+      `primera lección: ${ordenLecciones?.[0]?.id === idLeccionIntroductoria ? "la introductoria" : "otra"}`,
     );
 
     // Notas, parte 3: ni un administrador lee los apuntes de otra persona
@@ -4368,8 +4453,162 @@ async function main() {
       "un administrador con sesión no puede llamar a la purga",
       clienteAdmin.rpc("purgar_texto_legal_de_prueba", { p_version: vPublicado }),
     );
+
+    // ------------------------------------------------------------------
+    // IDOR — FASE 7 (datos, tarea 3) del plan de blindaje. Una persona (B,
+    // userSinAcceso) contra los datos de otra (A, userConAcceso), cambiando
+    // ids a mano como haría alguien desde la consola del navegador con la
+    // llave pública. Para cada tabla con datos de una persona: B no lee lo de
+    // A (salvo lo público por diseño), no se lo apropia y no lo borra; y al
+    // final la fila de A sigue igual, comprobado con la llave maestra.
+    // ------------------------------------------------------------------
+    console.log("\n=== IDOR: un estudiante contra los datos de otro (fase 7) ===\n");
+
+    const idPersonaA = userConAcceso.user!.id;
+    const idPersonaB = userSinAcceso.user!.id;
+    const tablasConDuenio: { tabla: string; clave: string[]; lecturaPublica?: string }[] = [
+      { tabla: "suscripciones", clave: ["id"] },
+      { tabla: "intentos_pago", clave: ["id"] },
+      { tabla: "intentos_examen", clave: ["id"] },
+      { tabla: "progreso", clave: ["id"] },
+      { tabla: "actividad_diaria", clave: ["id_usuario", "fecha"] },
+      { tabla: "notas_leccion", clave: ["id"] },
+      { tabla: "certificados", clave: ["id"] },
+      { tabla: "inscripciones", clave: ["id"] },
+      { tabla: "comentarios", clave: ["id"] },
+      { tabla: "comentario_likes", clave: ["id_comentario", "id_usuario"] },
+      { tabla: "comunidad_posts", clave: ["id"] },
+      { tabla: "comunidad_respuestas", clave: ["id"] },
+      { tabla: "comunidad_reacciones", clave: ["id"] },
+      { tabla: "notificaciones", clave: ["id"] },
+      { tabla: "comunidad_adjuntos", clave: ["id"] },
+      { tabla: "curso_calificaciones", clave: ["id"] },
+      { tabla: "curso_calificacion_reacciones", clave: ["id"] },
+    ];
+
+    // Lo que A todavía no tiene a esta altura del arnés: se crea con la llave
+    // maestra colgando de lo que sí tiene, y se borra al terminar la sección.
+    const datosIdorCreados: { tabla: string; id: Record<string, unknown> }[] = [];
+    const crearDatoIdor = async (tabla: string, valores: Record<string, unknown>, clave: string[]) => {
+      const { data, error } = await admin.from(tabla).insert(valores).select(clave.join(", ")).single();
+      if (error || !data) throw new Error(`No pude crear el dato de prueba de IDOR en ${tabla}: ${error?.message}`);
+      datosIdorCreados.push({ tabla, id: data as unknown as Record<string, unknown> });
+    };
+    const primeraDeA = async (tabla: string) => {
+      const { data, error } = await admin.from(tabla).select("id").eq("id_usuario", idPersonaA).limit(1).single();
+      if (error || !data) throw new Error(`A no tiene filas en ${tabla} para colgar el dato de IDOR: ${error?.message}`);
+      return (data as { id: string }).id;
+    };
+    const { data: planIdor, error: errPlanIdor } = await admin.from("planes").select("id").limit(1).single();
+    if (errPlanIdor || !planIdor) throw new Error(`No hay un plan para el intento de pago de IDOR: ${errPlanIdor?.message}`);
+
+    await crearDatoIdor(
+      "intentos_pago",
+      { referencia: `rls-test-idor-${sufijo}`, id_usuario: idPersonaA, id_plan: planIdor.id, monto_centavos: 100, moneda: "COP" },
+      ["id"],
+    );
+    await crearDatoIdor(
+      "notas_leccion",
+      { id_usuario: idPersonaA, id_leccion: idLeccionIntroductoria, segundo: 0, contenido: "Nota de IDOR" },
+      ["id"],
+    );
+    await crearDatoIdor(
+      "comentario_likes",
+      { id_comentario: await primeraDeA("comentarios"), id_usuario: idPersonaA },
+      ["id_comentario", "id_usuario"],
+    );
+    await crearDatoIdor("comunidad_reacciones", { id_post: await primeraDeA("comunidad_posts"), id_usuario: idPersonaA }, ["id"]);
+    await crearDatoIdor(
+      "curso_calificacion_reacciones",
+      { id_calificacion: await primeraDeA("curso_calificaciones"), id_usuario: idPersonaA },
+      ["id"],
+    );
+
+    for (const { tabla, clave, lecturaPublica } of tablasConDuenio) {
+      const { data: filasA, error: errFilasA } = await admin.from(tabla).select("*").eq("id_usuario", idPersonaA).limit(1);
+      if (errFilasA || !filasA?.length) {
+        registrar(`IDOR ${tabla}: hay una fila de A para probar`, false, errFilasA?.message ?? "A no tiene filas aquí");
+        continue;
+      }
+      const fila = filasA[0] as Record<string, unknown>;
+      // `any`: el nombre de la tabla es dinámico; los filtros son los de su clave.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const deLaFila = (consulta: any) => clave.reduce((q, columna) => q.eq(columna, fila[columna]), consulta);
+
+      if (lecturaPublica) {
+        registrar(`IDOR ${tabla}: B puede leerla a propósito`, true, lecturaPublica);
+      } else {
+        await esperarBloqueado(`IDOR ${tabla}: B NO lee la fila de A`, deLaFila(clienteSinAcceso.from(tabla).select("*")));
+      }
+      await esperarBloqueado(
+        `IDOR ${tabla}: B NO se apropia de la fila de A (cambiar id_usuario)`,
+        deLaFila(clienteSinAcceso.from(tabla).update({ id_usuario: idPersonaB })).select(),
+      );
+      await esperarBloqueado(`IDOR ${tabla}: B NO borra la fila de A`, deLaFila(clienteSinAcceso.from(tabla).delete()).select());
+
+      const { data: despues } = await deLaFila(admin.from(tabla).select("*"));
+      registrar(
+        `IDOR ${tabla}: la fila de A sigue intacta`,
+        despues?.length === 1 && JSON.stringify(despues[0]) === JSON.stringify(fila),
+        despues?.length === 1 ? undefined : `${despues?.length ?? 0} fila(s)`,
+      );
+    }
+
+    for (const { tabla, id } of datosIdorCreados.reverse()) {
+      const consulta = Object.entries(id).reduce((q, [columna, valor]) => q.eq(columna, valor), admin.from(tabla).delete());
+      const { error } = await consulta;
+      if (error) console.warn(`⚠️  No pude borrar el dato de IDOR de ${tabla}: ${error.message}`);
+    }
+
+    // --- Storage: archivos en la carpeta de A (`<id de A>/...`) ---
+    const archivoPrueba = new Blob(["rls-test"], { type: "text/plain" });
+    const rutasStorageA: { bucket: string; ruta: string; lecturaPublica?: boolean }[] = [
+      { bucket: "avatares", ruta: `${idPersonaA}/rls-test-${sufijo}.png`, lecturaPublica: true },
+      { bucket: "certificados", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
+      { bucket: "comunidad-adjuntos", ruta: `${idPersonaA}/rls-test-${sufijo}.txt` },
+    ];
+    for (const { bucket, ruta } of rutasStorageA) {
+      const { error } = await admin.storage.from(bucket).upload(ruta, archivoPrueba, { upsert: true });
+      if (error) throw new Error(`No pude subir el archivo de prueba a ${bucket}: ${error.message}`);
+      archivosStoragePrueba.push({ bucket, ruta });
+    }
+
+    for (const { bucket, ruta, lecturaPublica } of rutasStorageA) {
+      if (!lecturaPublica) {
+        const { data: descarga, error: errDescarga } = await clienteSinAcceso.storage.from(bucket).download(ruta);
+        registrar(`IDOR storage ${bucket}: B NO descarga el archivo de A`, !!errDescarga || !descarga, errDescarga?.message);
+      }
+      const { error: errSobrescribir } = await clienteSinAcceso.storage
+        .from(bucket)
+        .upload(ruta, new Blob(["reemplazo"], { type: "text/plain" }), { upsert: true });
+      registrar(`IDOR storage ${bucket}: B NO sobrescribe el archivo de A`, !!errSobrescribir, errSobrescribir?.message);
+      const rutaIntrusa = `${idPersonaA}/rls-test-intruso-${sufijo}.txt`;
+      const { error: errNuevo } = await clienteSinAcceso.storage.from(bucket).upload(rutaIntrusa, archivoPrueba);
+      registrar(`IDOR storage ${bucket}: B NO sube archivos a la carpeta de A`, !!errNuevo, errNuevo?.message);
+      if (!errNuevo) archivosStoragePrueba.push({ bucket, ruta: rutaIntrusa });
+
+      await clienteSinAcceso.storage.from(bucket).remove([ruta]);
+      const { data: sigue } = await admin.storage.from(bucket).download(ruta);
+      registrar(
+        `IDOR storage ${bucket}: el archivo de A sigue ahí y sin cambios tras los intentos de B`,
+        !!sigue && (await sigue.text()) === "rls-test",
+      );
+    }
+
+    // Comunidad: B no tiene acceso, así que arriba también lo frena eso. Aquí
+    // A (con acceso) intenta escribir en la carpeta de B: solo lo frena que la
+    // carpeta no es suya.
+    const rutaEnCarpetaDeB = `${idPersonaB}/rls-test-intruso-${sufijo}.txt`;
+    const { error: errAdjuntoAjeno } = await clienteConAcceso.storage.from("comunidad-adjuntos").upload(rutaEnCarpetaDeB, archivoPrueba);
+    registrar("IDOR storage comunidad-adjuntos: A, con acceso, NO sube a la carpeta de B", !!errAdjuntoAjeno, errAdjuntoAjeno?.message);
+    if (!errAdjuntoAjeno) archivosStoragePrueba.push({ bucket: "comunidad-adjuntos", ruta: rutaEnCarpetaDeB });
   } finally {
     console.log("\nLimpiando datos de prueba...");
+
+    for (const { bucket, ruta } of archivosStoragePrueba) {
+      const { error } = await admin.storage.from(bucket).remove([ruta]);
+      if (error) console.warn(`⚠️  No pude borrar ${bucket}/${ruta}: ${error.message}`);
+    }
 
     // `textos_legales` (130): lo publicado no se borra con un DELETE; solo por
     // la purga de pruebas. Sin FK a nada, así que va primero y no depende del resto.

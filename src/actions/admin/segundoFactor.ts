@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
+// Llave maestra: ver y quitar el 2FA de OTRA persona solo existe en la API de administración de Supabase Auth.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { esUuid } from "@/lib/slug";
 import { logError } from "@/lib/log";

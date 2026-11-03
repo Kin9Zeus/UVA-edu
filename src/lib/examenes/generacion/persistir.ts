@@ -1,3 +1,4 @@
+// Llave maestra: guarda las preguntas que generó la IA desde un trabajo en segundo plano, ya sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DocumentoContenido } from "@/lib/editor/tipos";
 import type { OpcionPregunta, ParEmparejar } from "@/lib/examenes/tipos";

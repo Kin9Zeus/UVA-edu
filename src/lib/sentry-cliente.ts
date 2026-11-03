@@ -1,4 +1,5 @@
 import { captureException, captureRouterTransitionStart, init } from "@sentry/nextjs";
+import { opcionesPrivacidadSentry } from "@/lib/sentry-privacidad";
 
 /**
  * Lo único que el navegador usa de `@sentry/nextjs`, reexportado por nombre.
@@ -20,6 +21,8 @@ export function iniciarSentry() {
     tracesSampleRate: 0.1,
     // `next dev` no reporta (ver src/instrumentation.ts).
     enabled: process.env.NODE_ENV === "production",
+    // Sin correos, códigos de enlaces ni datos de la sesión (fase 7).
+    ...opcionesPrivacidadSentry,
   });
 }
 

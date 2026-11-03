@@ -50,6 +50,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Fase 7 del plan de blindaje: el CI bloquea un commit con una llave.
+  # Revisa TODO el historial (unos 2 s), no solo el cambio: así también
+  # detecta una llave que alguien subió y luego "borró" en otro commit, que
+  # sigue en git. Los falsos positivos conocidos están en .gitleaksignore.
+  # El binario va fijado a una versión y a su suma SHA-256 publicada: si el
+  # archivo de la release cambia, el job falla en vez de correr otra cosa.
+  secretos:
+    name: Llaves en el código (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Instalar gitleaks (versión y suma fijas)
+        run: |
+          archivo="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$archivo" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archivo}"
+          echo "${GITLEAKS_SHA256}  ${archivo}" | sha256sum --check --strict
+          tar -xzf "$archivo" gitleaks
+
+      # --redact: si encuentra una llave, el registro (público, el repo lo es)
+      # muestra dónde está pero no su valor.
+      - name: Buscar llaves en todo el historial
+        run: ./gitleaks git . --redact --no-banner --exit-code 1
+
   checks:
     name: Tipos, lint y pruebas unitarias
     runs-on: ubuntu-latest

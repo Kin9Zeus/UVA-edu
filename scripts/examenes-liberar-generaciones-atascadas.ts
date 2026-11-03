@@ -47,6 +47,7 @@ try {
 
 import { createClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
+import { opcionesPrivacidadSentry } from "../src/lib/sentry-privacidad";
 import { configuracionGemini } from "../src/lib/gemini/configuracion";
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,7 +64,8 @@ if (!URL_SUPABASE || !SERVICE_KEY) {
 // src/instrumentation.ts, que solo corre dentro del runtime de Next.js).
 // Sin DSN el SDK no envía nada; el log de consola y el código de salida
 // quedan como respaldo.
-Sentry.init({ dsn: process.env.SENTRY_DSN });
+// Sin correos ni datos personales en los eventos (fase 7).
+Sentry.init({ dsn: process.env.SENTRY_DSN, ...opcionesPrivacidadSentry });
 
 const supabase = createClient(URL_SUPABASE, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // P2-7 (AUDIT-2026-08-24.md): empezó cubriendo solo lógica pura (src/lib/**).
@@ -7,6 +8,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
+    // `server-only` lanza fuera del build de Next; ver src/test/server-only-vacio.ts.
+    alias: { "server-only": fileURLToPath(new URL("./src/test/server-only-vacio.ts", import.meta.url)) },
   },
   test: {
     environment: "node",

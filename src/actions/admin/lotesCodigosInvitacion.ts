@@ -106,6 +106,7 @@ export async function crearLoteCodigosInvitacion(input: {
         entidadAfectada: "lotes_codigos_invitacion",
         idEntidadAfectada: loteId as string,
         detalles: `${input.cantidad} código(s) — ${input.duracionDias} día(s) de acceso`,
+        cantidad: input.cantidad,
       });
 
       revalidatePath("/admin/codigos");

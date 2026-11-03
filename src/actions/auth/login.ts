@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role: abierto, cualquiera reiniciaría su contador o bloquearía cuentas ajenas.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";

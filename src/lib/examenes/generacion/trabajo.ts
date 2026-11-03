@@ -1,3 +1,4 @@
+// Llave maestra: lleva el estado de los trabajos de generación, que corren en segundo plano sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";

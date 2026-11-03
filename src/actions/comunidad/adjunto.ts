@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: firmar la URL del adjunto, solo DESPUÉS de comprobar con la sesión (RLS) que la persona puede verlo.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BUCKET_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-adjuntos";
 import { getUsuarioActual } from "@/lib/perfil";

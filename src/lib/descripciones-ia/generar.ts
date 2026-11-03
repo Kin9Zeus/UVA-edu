@@ -1,6 +1,7 @@
 import { crearClienteGemini } from "@/lib/gemini/client";
 import { pedirConCadenaDeModelos } from "@/lib/examenes/generacion/generar";
 import { obtenerTranscripcionDeVideo } from "@/lib/examenes/generacion/transcripciones";
+// Llave maestra: generación con IA que pide un administrador y sigue después de responderle, ya sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolverContenidoLeccion, type DocumentoContenido } from "@/lib/editor/tipos";
 import { logError } from "@/lib/log";

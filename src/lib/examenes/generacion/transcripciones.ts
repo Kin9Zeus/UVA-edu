@@ -1,3 +1,4 @@
+// Llave maestra: lee transcripciones de video para la IA desde un trabajo en segundo plano, sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CursoSinVideosError,

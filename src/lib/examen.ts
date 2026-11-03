@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: las respuestas y las preguntas congeladas de intentos_examen están cerradas a las sesiones: se leen aquí, comparando con el usuarioId que da la sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";

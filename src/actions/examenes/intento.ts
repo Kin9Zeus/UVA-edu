@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: las respuestas correctas y las notas no están al alcance del estudiante: solo el servidor lee y escribe intentos_examen, con el usuarioId que da la sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calcularVidasRestantes, calificarEmparejarParcial, calificarPregunta } from "@/lib/examenes/calificar";
 import { congelarPreguntas } from "@/lib/examenes/congelar";

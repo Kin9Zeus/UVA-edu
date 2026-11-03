@@ -1,0 +1,13 @@
+# Hallazgos de gitleaks que NO son secretos, ya en el historial de git (no se
+# pueden quitar sin reescribirlo). Cada línea es la huella que imprime
+# gitleaks: commit:archivo:regla:línea. En el código actual esas líneas
+# llevan `gitleaks:allow` con su razón.
+#
+# Antes de agregar una huella aquí, confirma que el valor es de prueba o
+# público. Si es una llave real: se rota primero, y después se ignora.
+
+# Vector oficial del RFC 6238 para probar el generador de códigos del 2FA.
+d8763a88bfabeaab086c7ed9180206ebf2a819e2:src/test/totp.test.ts:generic-api-key:9
+
+# La llave del DSN de Sentry en esa prueba de la CSP es inventada.
+1e7d5fa1f198fd1504f133e3ce7dd62fa3687052:src/lib/csp.test.ts:generic-api-key:121

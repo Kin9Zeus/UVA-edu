@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: canjear_codigo_invitacion y su límite de intentos son RPC solo para service_role: el canje solo puede pasar por aquí, después de comprobar la sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enviarCorreoBienvenida } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";

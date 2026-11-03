@@ -6,7 +6,7 @@ import { generarCodigoTotp } from "@/test/totp";
  * ASCII "12345678901234567890", que en Base32 es el de abajo. El RFC da
  * códigos de 8 dígitos; las apps usan 6, que son los 6 últimos.
  */
-const SECRETO_RFC = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+const SECRETO_RFC = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow (vector público del RFC)
 
 describe("generarCodigoTotp (RFC 6238)", () => {
   it.each([

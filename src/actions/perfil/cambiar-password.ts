@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role; ver login.ts.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";

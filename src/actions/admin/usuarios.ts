@@ -8,6 +8,7 @@ import { revalidarUsuarioAdmin } from "@/lib/admin/revalidarUsuario";
 import { buscarMembresiaVigente, mensajeMembresiaYaVigente } from "@/lib/admin/membresiaManual";
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { borrarFotoPerfil } from "@/lib/perfil/avatar";
+// Llave maestra: cerrar las sesiones de OTRA persona (auth.admin.signOut) solo existe en la API de administración de Supabase Auth.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { olvidarGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import type { ProveedorSuscripcion } from "@/lib/pagos/proveedores";

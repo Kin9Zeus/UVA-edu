@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: firmar la URL del recurso, solo DESPUÉS de comprobar con la sesión (RLS) que la persona tiene acceso al curso.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsuarioActual } from "@/lib/perfil";
 

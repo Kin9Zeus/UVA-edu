@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { esUuid } from "@/lib/slug";
+// Llave maestra: firmar las URLs de las imágenes adjuntas, solo de publicaciones que la sesión (RLS) ya dejó leer.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tiempoRelativo, formatFecha, extensionArchivo } from "@/lib/admin/format";
 import { logError } from "@/lib/log";

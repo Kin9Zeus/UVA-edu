@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { mux } from "@/lib/mux/client";
 import { borrarAssetsEncolados, deshacerEncolado, encolarAssetsParaBorrar } from "@/lib/mux/limpieza";
+// Llave maestra: quitar un video escribe en la cola mux_assets_pendientes_eliminacion y borra avance y transcripciones de otros usuarios, que RLS no deja tocar ni a un administrador.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";

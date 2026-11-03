@@ -1,3 +1,4 @@
+// Llave maestra: concilia pagos desde el webhook de la pasarela, sin sesión de nadie (aplicar_pago_wompi es solo para service_role).
 import { createAdminClient } from "@/lib/supabase/admin";
 import { consultarTransaccion, type EstadoTransaccion } from "@/lib/pagos/wompi";
 import { normalizarMoneda } from "@/lib/pagos/proveedores";

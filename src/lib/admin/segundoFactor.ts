@@ -1,3 +1,4 @@
+// Llave maestra: contar los dispositivos 2FA de OTRA persona solo existe en la API de administración de Supabase Auth.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registrarSiFalla } from "@/lib/supabase/registrar";
 

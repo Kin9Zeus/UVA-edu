@@ -112,6 +112,8 @@ describe("Admin: si falla la lectura previa, NO se hace nada irreversible", () =
 
     expect(await moverModulo(CURSO, MODULO, VECINO_A, VECINO_B)).toEqual({ success: true });
     expect(servidorFalso.llamadasA("rpc:reespaciar_orden_modulos")).toHaveLength(1);
+    // 132: con la sesión del administrador, no con la llave maestra (la base exige su 2FA).
+    expect(servidorFalso.llamadasA("rpc:reespaciar_orden_modulos")[0].cliente).toBe("sesion");
   });
 
   it("moverModulo: si fallan los vecinos tampoco calcula un orden a ciegas", async () => {

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+// Llave maestra: el límite de reenvíos (registrar_reenvio_verificacion) es una RPC solo para service_role; quien lo pide aún no tiene sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";

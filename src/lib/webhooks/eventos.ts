@@ -1,3 +1,4 @@
+// Llave maestra: registro de idempotencia de webhooks (eventos_webhook), que llegan sin sesión.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
 import type { ProveedorWebhook } from "@/lib/pagos/proveedores";
