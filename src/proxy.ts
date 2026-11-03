@@ -1,8 +1,21 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 import { construirCsp, generarNonce } from "@/lib/csp";
+import { CABECERA_ORIGEN, RUTA_SIN_SESION, decidirOrigen } from "@/lib/origen";
 
 export async function proxy(request: NextRequest) {
+  // Fase 2 del plan de blindaje: con ORIGEN_SECRETO puesta, quien llame directo
+  // a Railway sin pasar por Cloudflare recibe 403 (src/lib/origen.ts). Va
+  // primero y cubre también /_next/image, la ruta del optimizador que protege
+  // el WAF: la regla no sirve si el origen responde por otra vía.
+  if (decidirOrigen(request.nextUrl.pathname, request.headers.get(CABECERA_ORIGEN)) === "rechazar") {
+    return new NextResponse("Acceso directo no permitido.", { status: 403 });
+  }
+
+  if (RUTA_SIN_SESION.test(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   // P2-2 (AUDIT-2026-09-08): la CSP se arma aquí y no en next.config.ts
   // porque lleva un nonce distinto en cada petición.
   const nonce = generarNonce();
@@ -45,7 +58,8 @@ export const config = {
   // WebSocket eso rompe el handshake, y un proxy delante (p. ej. Cloudflare
   // Tunnel) lo ve como una respuesta HTTP malformada. En producción no existe
   // este tráfico, así que excluirlo es inerte ahí.
-  matcher: [
-    "/((?!_next/static|_next/image|_next/hmr|_next/webpack-hmr|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  //
+  // _next/static, _next/image y las imágenes sí pasan desde la fase 2, por el
+  // cierre del origen; el propio proxy() las despacha antes de la sesión.
+  matcher: ["/((?!_next/hmr|_next/webpack-hmr).*)"],
 };

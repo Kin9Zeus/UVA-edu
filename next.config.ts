@@ -70,6 +70,14 @@ const nextConfig: NextConfig = {
       // nada — 2 MB deja margen para el resto de las Server Actions del
       // proyecto sin abrir la misma puerta.
       bodySizeLimit: "2mb",
+      // Sin `allowedOrigins` a propósito (fase 1 del plan de blindaje). Next
+      // rechaza una Server Action si el `Origin` de la petición no es el mismo
+      // host que la recibió (`X-Forwarded-Host`, o `Host`): esa es la
+      // protección contra peticiones falsificadas desde otro sitio. Con
+      // Cloudflare delante los dos son el dominio propio y coinciden solos.
+      // Solo haría falta si la app respondiera en dos dominios a la vez, y
+      // agregar uno de más abre esa protección a ese origen: revisarlo al
+      // cambiar de dominio, no llenarlo "por si acaso".
     },
   },
 

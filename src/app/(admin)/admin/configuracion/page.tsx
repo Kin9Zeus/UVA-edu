@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminCard } from "@/components/admin/AdminCard";
+import { DiagnosticoRed } from "@/components/admin/configuracion/DiagnosticoRed";
 import { PerfilAdminForm } from "@/components/admin/configuracion/PerfilAdminForm";
+import { diagnosticoIp } from "@/lib/clientIp";
 import { getPerfilActual } from "@/lib/perfil";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
@@ -23,6 +25,8 @@ export default async function AdminConfiguracionPage() {
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";
   const correo = perfil?.correo ?? user.email ?? "";
+  // Temporal, para el paso a Cloudflare (docs/ops/cloudflare.md).
+  const diagnostico = await diagnosticoIp();
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,6 +34,11 @@ export default async function AdminConfiguracionPage() {
       <AdminCard className="max-w-[640px]">
         <TituloTarjeta>Perfil del administrador</TituloTarjeta>
         <PerfilAdminForm nombre={nombre} correo={correo} fotoUrl={perfil?.foto_url ?? null} />
+      </AdminCard>
+
+      <AdminCard className="max-w-[640px]">
+        <TituloTarjeta>Diagnóstico de red</TituloTarjeta>
+        <DiagnosticoRed diagnostico={diagnostico} />
       </AdminCard>
     </div>
   );
