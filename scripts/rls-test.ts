@@ -4481,6 +4481,92 @@ async function main() {
     );
 
     // ------------------------------------------------------------------
+    // LÍMITES DE USO — FASE 3 del plan de blindaje (134_limites_uso.sql). Lo
+    // que vitest no puede probar: que la base cuente bien, corte en el máximo,
+    // separe a cada usuario, no deje pasar a dos a la vez y frene también a
+    // quien escribe directo por la API (el trigger). Usa "reportar" (máximo
+    // 10 por hora), que estas dos cuentas no vuelven a usar en el resto.
+    // ------------------------------------------------------------------
+    console.log("\n=== Límites de uso (fase 3) ===\n");
+
+    await esperarSinPermiso(
+      "límites: anon no puede llamar a consumir_limite",
+      clienteAnonimo.rpc("consumir_limite", { p_accion: "reportar" }),
+    );
+
+    {
+      const { error } = await clienteSinAcceso.rpc("consumir_limite", { p_accion: "accion_inventada" });
+      registrar("límites: una acción sin límite definido se rechaza (22023)", error?.code === "22023", error?.message ?? "la aceptó");
+    }
+    {
+      const { error } = await clienteSinAcceso.rpc("consumir_limite", { p_accion: "reportar", p_cantidad: 0 });
+      registrar("límites: una cantidad de 0 se rechaza (22023)", error?.code === "22023", error?.message ?? "la aceptó");
+    }
+    {
+      const { data, error } = await clienteSinAcceso.rpc("consumir_limite", { p_accion: "comunidad_adjuntos", p_cantidad: 21 });
+      registrar("límites: pedir más que el máximo de una vez no pasa (21 adjuntos, máximo 20)", !error && data === false, error?.message ?? String(data));
+    }
+
+    // B gasta sus 10 reportes uno por uno: los 10 pasan y el 11 no.
+    {
+      const respuestas: unknown[] = [];
+      for (let i = 0; i < 11; i++) {
+        const { data, error } = await clienteSinAcceso.rpc("consumir_limite", { p_accion: "reportar" });
+        respuestas.push(error ? `error ${error.code}` : data);
+      }
+      const esperado = [...Array(10).fill(true), false];
+      registrar(
+        "límites: corta exactamente en el máximo (10 pasan, el 11 no)",
+        JSON.stringify(respuestas) === JSON.stringify(esperado),
+        JSON.stringify(respuestas),
+      );
+    }
+
+    // El cupo es de cada uno: B agotado no frena a A.
+    {
+      const { data, error } = await clienteConAcceso.rpc("consumir_limite", { p_accion: "reportar" });
+      registrar("límites: el cupo agotado de B no frena a A", !error && data === true, error?.message ?? String(data));
+    }
+
+    // A, con 9 de cupo, manda 15 a la vez: pasan exactamente 9.
+    {
+      const respuestas = await Promise.all(
+        Array.from({ length: 15 }, () => clienteConAcceso.rpc("consumir_limite", { p_accion: "reportar" })),
+      );
+      const pasaron = respuestas.filter((r) => !r.error && r.data === true).length;
+      const errores = respuestas.filter((r) => r.error).map((r) => r.error!.message);
+      registrar(
+        "límites: 15 a la vez con 9 de cupo, pasan exactamente 9 (atómica)",
+        pasaron === 9 && errores.length === 0,
+        `pasaron ${pasaron}${errores.length ? `; errores: ${errores[0]}` : ""}`,
+      );
+    }
+
+    // El trigger: con el cupo agotado, escribir directo por la API también se frena.
+    {
+      const { error } = await clienteConAcceso
+        .from("comunidad_reportes")
+        .insert({ id_post: crypto.randomUUID(), id_reportante: userConAcceso.user!.id, motivo: "Prueba del límite" });
+      registrar(
+        "límites: escribir directo por la API sin cupo lo frena el trigger (UV429)",
+        error?.code === "UV429",
+        error ? `${error.code}: ${error.message}` : "el INSERT pasó",
+      );
+    }
+
+    // La llave maestra (crons, scripts) no tiene tope: auth.uid() es nulo.
+    {
+      const { error } = await admin
+        .from("comunidad_reportes")
+        .insert({ id_post: crypto.randomUUID(), id_reportante: userConAcceso.user!.id, motivo: "Prueba del límite" });
+      registrar(
+        "límites: la llave maestra no pasa por el tope (falla por otra cosa, no por UV429)",
+        error?.code !== "UV429",
+        error ? `${error.code}: ${error.message}` : "insertó",
+      );
+    }
+
+    // ------------------------------------------------------------------
     // IDOR — FASE 7 (datos, tarea 3) del plan de blindaje. Una persona (B,
     // userSinAcceso) contra los datos de otra (A, userConAcceso), cambiando
     // ids a mano como haría alguien desde la consola del navegador con la

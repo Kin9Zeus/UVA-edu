@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { consumirLimite } from "@/lib/limites-uso";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados, borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
 import {
@@ -99,8 +100,16 @@ export async function editarPostComunidad(
     };
   }
 
-  if (adjuntosFormData.getAll("token").length > MAX_ADJUNTOS_COMUNIDAD) {
+  const cantidadAdjuntos = adjuntosFormData.getAll("token").length;
+  if (cantidadAdjuntos > MAX_ADJUNTOS_COMUNIDAD) {
     return { error: `No puedes adjuntar más de ${MAX_ADJUNTOS_COMUNIDAD} archivos por publicación.` };
+  }
+
+  // Editar no cuenta como publicar, pero los archivos nuevos sí gastan el
+  // tope diario de adjuntos (fase 3): si no, editar sería la vía para llenar Storage.
+  if (cantidadAdjuntos > 0) {
+    const limiteAdjuntos = await consumirLimite(supabase, "comunidad_adjuntos", cantidadAdjuntos);
+    if (limiteAdjuntos) return limiteAdjuntos;
   }
 
   const { data: adjuntosPrevios, error: errorAdjuntosPrevios } = await supabase

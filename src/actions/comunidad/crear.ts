@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { MENSAJE_LIMITE_ALCANZADO, consumirLimite, esLimiteDeUso } from "@/lib/limites-uso";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
 import { getUsuarioActual } from "@/lib/perfil";
@@ -131,8 +132,17 @@ export async function crearPostComunidad(
     }
   }
 
-  if (adjuntosFormData.getAll("token").length > MAX_ADJUNTOS_COMUNIDAD) {
+  const cantidadAdjuntos = adjuntosFormData.getAll("token").length;
+  if (cantidadAdjuntos > MAX_ADJUNTOS_COMUNIDAD) {
     return { error: `No puedes adjuntar más de ${MAX_ADJUNTOS_COMUNIDAD} archivos por publicación.` };
+  }
+
+  // Fase 3 del plan de blindaje: el tope de publicaciones lo aplica la base
+  // (trigger en comunidad_posts); el de adjuntos se cuenta aquí, antes de
+  // procesar los archivos, que es lo costoso.
+  if (cantidadAdjuntos > 0) {
+    const limiteAdjuntos = await consumirLimite(supabase, "comunidad_adjuntos", cantidadAdjuntos);
+    if (limiteAdjuntos) return limiteAdjuntos;
   }
 
   const resultadoAdjuntos = await prepararAdjuntosNuevos(parseoContenido.data, adjuntosFormData);
@@ -155,6 +165,7 @@ export async function crearPostComunidad(
     .select("id")
     .single();
 
+  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
   if (error || !data) return { error: "No pudimos publicar tu mensaje." };
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idPost: postId, idUsuario: user.id });
@@ -220,8 +231,14 @@ export async function responderPostComunidad(
     respuestaPadreId = (contestada.id_respuesta_padre as string | null) ?? respuestaContestadaId;
   }
 
-  if (adjuntosFormData.getAll("token").length > MAX_ADJUNTOS_COMUNIDAD) {
+  const cantidadAdjuntos = adjuntosFormData.getAll("token").length;
+  if (cantidadAdjuntos > MAX_ADJUNTOS_COMUNIDAD) {
     return { error: `No puedes adjuntar más de ${MAX_ADJUNTOS_COMUNIDAD} archivos por respuesta.` };
+  }
+
+  if (cantidadAdjuntos > 0) {
+    const limiteAdjuntos = await consumirLimite(supabase, "comunidad_adjuntos", cantidadAdjuntos);
+    if (limiteAdjuntos) return limiteAdjuntos;
   }
 
   const resultadoAdjuntos = await prepararAdjuntosNuevos(parseo.data, adjuntosFormData);
@@ -240,6 +257,7 @@ export async function responderPostComunidad(
     .select("id")
     .single();
 
+  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
   if (error || !data) return { error: "No pudimos publicar tu respuesta." };
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idRespuesta: respuestaId, idUsuario: user.id });
