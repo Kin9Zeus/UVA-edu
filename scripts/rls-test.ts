@@ -1135,6 +1135,32 @@ async function main() {
       `certificados=${certificadosTrasRepetir}`,
     );
 
+    // 133: la guardia de acceso de la emisión reconoce al ADMINISTRADOR (sin
+    // suscripción ni cortesía) y sigue negando al estudiante sin acceso. Se
+    // escribe con service_role: el trigger corre igual y lo que se prueba es la
+    // guardia por usuario, no la policy de `progreso`.
+    for (const [quien, id, debeEmitir] of [
+      ["un ADMINISTRADOR sin suscripción", userAdmin.user.id, true],
+      ["un estudiante sin acceso", userSinAcceso.user!.id, false],
+    ] as const) {
+      await admin
+        .from("progreso")
+        .upsert(
+          { id_usuario: id, id_leccion: idLeccionReproduccion, completado: true },
+          { onConflict: "id_usuario,id_leccion" },
+        );
+      const { count } = await admin
+        .from("certificados")
+        .select("id", { count: "exact", head: true })
+        .eq("id_usuario", id)
+        .eq("id_curso", cursoReproduccion.id);
+      registrar(
+        `${quien} ${debeEmitir ? "SÍ" : "NO"} obtiene el certificado al completar el curso (guardia 133)`,
+        count === (debeEmitir ? 1 : 0),
+        `certificados=${count}`,
+      );
+    }
+
     const { data: verificacionOk } = await admin.rpc("verificar_certificado", {
       p_codigo: certificadoEmitido!.codigo_verificacion,
     });
