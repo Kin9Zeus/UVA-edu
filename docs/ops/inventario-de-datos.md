@@ -45,7 +45,7 @@ romper los certificados ni los registros contables.
 | --- | --- | --- | --- | --- |
 | Publicaciones, respuestas, comentarios, reseñas | `comunidad_posts`, `comunidad_respuestas`, `comentarios`, `curso_calificaciones` | Comunidad | Mientras exista la cuenta | Texto vaciado, marcados como eliminados |
 | Reacciones y "me gusta" | `comunidad_reacciones`, `comentario_likes`, `curso_calificacion_reacciones` | Contadores | Mientras exista la cuenta | Los "me gusta" de comentarios se borran; ver hallazgo 4 |
-| Archivos adjuntos (con su nombre original) | `comunidad_adjuntos`, bucket `comunidad-adjuntos` | Adjuntos de la comunidad | Mientras exista la cuenta | Ver hallazgo 3 |
+| Archivos adjuntos (con su nombre original) | `comunidad_adjuntos`, bucket `comunidad-adjuntos` | Adjuntos de la comunidad | Mientras exista la cuenta | Archivo y fila borrados |
 | Copia del texto que un administrador eliminó | `comunidad_moderacion`, `comentario_moderacion` | Revisar una moderación | Indefinido | **Se conserva**; ver hallazgo 4 |
 | Reportes (quién reportó y el motivo) | `comunidad_reportes` | Moderación | Indefinido | Se conservan |
 | Notificaciones | `notificaciones` | Avisos dentro de la app | Indefinido | Se conservan (solo ids) |
@@ -90,11 +90,11 @@ esas copias vencen. Retención real y simulacro de restauración:
    en `src/components/features/VideoPlayer.tsx` (perderíamos las
    estadísticas de reproducción del panel de Mux). Confirmar en el panel
    de Mux, sección Data, si de verdad llegan.
-3. **Cuando una persona borra su propia cuenta, sus adjuntos de la comunidad
-   no se borran.** El administrador sí los borra (`src/actions/admin/usuarios.ts`,
-   `borrarAdjuntoComunidad`), pero `src/actions/perfil/eliminar-cuenta.ts` solo
-   borra la foto. El archivo y su nombre original quedan en el bucket.
-   Arreglo: llamar al mismo helper antes de la supresión propia, con prueba.
+3. **(Corregido, noviembre de 2026)** Al borrar su propia cuenta, los
+   adjuntos de la comunidad no se borraban (el administrador sí los borraba).
+   Ahora `src/actions/perfil/eliminar-cuenta.ts` los borra antes de la
+   supresión, con la llave maestra porque una persona con el acceso a la
+   comunidad vencido ya no ve los suyos.
 4. **La supresión deja copias del texto.** Si un administrador había
    eliminado una publicación o un comentario, la copia del texto original
    (`contenido_original` en `comunidad_moderacion` y `comentario_moderacion`)
