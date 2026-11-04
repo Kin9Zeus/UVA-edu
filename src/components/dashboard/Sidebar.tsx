@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { guardarSidebarColapsado, type PreferenciaSidebar } from "@/lib/sidebar-preferencia";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
 import { GraciaCard } from "@/components/dashboard/GraciaCard";
 import { LogoUva } from "@/components/home/LogoUva";
 import type { AccesoVigente } from "@/lib/dashboard-chrome";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { TooltipEnlace } from "@/components/dashboard/TooltipEnlace";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
 
 const navPrincipal = [
   { href: "/dashboard", label: "Inicio", icon: Home },
@@ -55,6 +56,17 @@ const navProgreso = [
   { href: "/dashboard/suscripcion", label: "Suscripción", icon: CreditCard },
 ];
 
+let tooltip: Promise<typeof TooltipEnlace> | null = null;
+function cargarTooltip() {
+  tooltip ??= import("@/components/dashboard/TooltipEnlace")
+    .then((m) => m.TooltipEnlace)
+    .catch((error) => {
+      tooltip = null;
+      throw error;
+    });
+  return tooltip;
+}
+
 function NavLink({
   href,
   label,
@@ -70,8 +82,28 @@ function NavLink({
   modo: Modo;
   badge?: string;
 }) {
+  // El tooltip (base-ui y floating-ui) se descarga al pasar el mouse o enfocar
+  // el enlace, no con la página (ver useModuloDiferido). Mientras llega se
+  // pinta el enlace solo; si tenía el foco al llegar, el enlace nuevo lo
+  // recibe, o el foco del teclado se perdería al reemplazarlo.
+  const { modulo: ConTooltip, pedir } = useModuloDiferido(cargarTooltip);
+  const enlaceRef = useRef<HTMLAnchorElement>(null);
+  const enfocado = useRef(false);
+  useEffect(() => {
+    if (ConTooltip && enfocado.current) enlaceRef.current?.focus();
+  }, [ConTooltip]);
+
   const link = (
     <Link
+      ref={enlaceRef}
+      onPointerEnter={modo === "completo" ? undefined : pedir}
+      onFocus={() => {
+        enfocado.current = true;
+        if (modo !== "completo") pedir();
+      }}
+      onBlur={() => {
+        enfocado.current = false;
+      }}
       href={href}
       aria-current={active ? "page" : undefined}
       // Compacto no hay texto visible: el tooltip solo aparece al pasar el
@@ -95,16 +127,19 @@ function NavLink({
 
   // Colapsado: el ícono solo no dice nada (estilo Platzi) — un tooltip al
   // pasar el mouse muestra la etiqueta sin tener que expandir el menú.
-  if (modo === "completo") return link;
+  if (modo === "completo" || !ConTooltip) return link;
 
   return (
-    <Tooltip>
-      <TooltipTrigger render={link} />
-      <TooltipContent className={SOLO_COMPACTO[modo]}>
-        {label}
-        {badge && <span className="ml-1.5 text-uva-text-faint">{badge}</span>}
-      </TooltipContent>
-    </Tooltip>
+    <ConTooltip
+      enlace={link}
+      className={SOLO_COMPACTO[modo]}
+      contenido={
+        <>
+          {label}
+          {badge && <span className="ml-1.5 text-uva-text-faint">{badge}</span>}
+        </>
+      }
+    />
   );
 }
 
@@ -213,37 +248,35 @@ export function Sidebar({
         </button>
       </div>
 
-      <TooltipProvider delay={150}>
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2" aria-label="Navegación principal">
-          {navPrincipal.map((item) => (
-            <NavLink
-              key={item.href}
-              {...item}
-              active={isActive(item.href)}
-              modo={modo}
-            />
-          ))}
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2" aria-label="Navegación principal">
+        {navPrincipal.map((item) => (
+          <NavLink
+            key={item.href}
+            {...item}
+            active={isActive(item.href)}
+            modo={modo}
+          />
+        ))}
 
-          <p className={cn("mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
-            Tu progreso
-          </p>
-          <div className={cn("my-3 border-t border-uva-divider", SOLO_COMPACTO[modo])} />
+        <p className={cn("mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
+          Tu progreso
+        </p>
+        <div className={cn("my-3 border-t border-uva-divider", SOLO_COMPACTO[modo])} />
 
-          {navProgreso.map((item) => (
-            <NavLink
-              key={item.href}
-              {...item}
-              active={isActive(item.href)}
-              modo={modo}
-              badge={
-                item.href === "/dashboard/certificados"
-                  ? String(certificadosCount).padStart(2, "0")
-                  : undefined
-              }
-            />
-          ))}
-        </nav>
-      </TooltipProvider>
+        {navProgreso.map((item) => (
+          <NavLink
+            key={item.href}
+            {...item}
+            active={isActive(item.href)}
+            modo={modo}
+            badge={
+              item.href === "/dashboard/certificados"
+                ? String(certificadosCount).padStart(2, "0")
+                : undefined
+            }
+          />
+        ))}
+      </nav>
 
       {/* Fuera del `nav` que scrollea: la tarjeta de gracia y Soporte deben
           quedarse siempre visibles al fondo del sidebar, no desplazarse con
@@ -263,15 +296,13 @@ export function Sidebar({
       )}
 
       <div className="shrink-0 border-t border-uva-divider px-3 py-2">
-        <TooltipProvider delay={150}>
-          <NavLink
-            href="/dashboard/soporte"
-            label="Soporte"
-            icon={HelpCircle}
-            active={isActive("/dashboard/soporte")}
-            modo={modo}
-          />
-        </TooltipProvider>
+        <NavLink
+          href="/dashboard/soporte"
+          label="Soporte"
+          icon={HelpCircle}
+          active={isActive("/dashboard/soporte")}
+          modo={modo}
+        />
       </div>
     </aside>
   );
