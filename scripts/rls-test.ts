@@ -4673,33 +4673,36 @@ async function main() {
     }
 
     // --- Storage: archivos en la carpeta de A (`<id de A>/...`) ---
-    // Cada bucket solo acepta ciertos tipos (`allowed_mime_types`): con
-    // text/plain Storage rechaza la subida por el tipo y no por la política, y
-    // las pruebas de abajo "pasarían" por la razón equivocada. Todo se sube
-    // con un tipo que el bucket admite, para que solo lo frene la RLS.
-    const archivoPrueba = (tipo: string, contenido = "rls-test") => new Blob([contenido], { type: tipo });
-    const rutasStorageA: { bucket: string; ext: string; tipo: string; ruta: string; lecturaPublica?: boolean }[] = [
-      { bucket: "avatares", ext: "png", tipo: "image/png", ruta: `${idPersonaA}/rls-test-${sufijo}.png`, lecturaPublica: true },
-      { bucket: "certificados", ext: "pdf", tipo: "application/pdf", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
-      { bucket: "comunidad-adjuntos", ext: "pdf", tipo: "application/pdf", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
+    // Cada archivo con un tipo que su bucket acepta (135): así lo que frena a B
+    // es el permiso, no el tipo de archivo.
+    const tipoPermitido: Record<string, string> = {
+      avatares: "image/webp",
+      certificados: "application/pdf",
+      "comunidad-adjuntos": "application/pdf",
+    };
+    const archivoDe = (bucket: string, contenido = "rls-test") => new Blob([contenido], { type: tipoPermitido[bucket] });
+    const rutasStorageA: { bucket: string; ruta: string; lecturaPublica?: boolean }[] = [
+      { bucket: "avatares", ruta: `${idPersonaA}/rls-test-${sufijo}.webp`, lecturaPublica: true },
+      { bucket: "certificados", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
+      { bucket: "comunidad-adjuntos", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
     ];
-    for (const { bucket, ruta, tipo } of rutasStorageA) {
-      const { error } = await admin.storage.from(bucket).upload(ruta, archivoPrueba(tipo), { upsert: true });
+    for (const { bucket, ruta } of rutasStorageA) {
+      const { error } = await admin.storage.from(bucket).upload(ruta, archivoDe(bucket), { upsert: true });
       if (error) throw new Error(`No pude subir el archivo de prueba a ${bucket}: ${error.message}`);
       archivosStoragePrueba.push({ bucket, ruta });
     }
 
-    for (const { bucket, ruta, ext, tipo, lecturaPublica } of rutasStorageA) {
+    for (const { bucket, ruta, lecturaPublica } of rutasStorageA) {
       if (!lecturaPublica) {
         const { data: descarga, error: errDescarga } = await clienteSinAcceso.storage.from(bucket).download(ruta);
         registrar(`IDOR storage ${bucket}: B NO descarga el archivo de A`, !!errDescarga || !descarga, errDescarga?.message);
       }
       const { error: errSobrescribir } = await clienteSinAcceso.storage
         .from(bucket)
-        .upload(ruta, archivoPrueba(tipo, "reemplazo"), { upsert: true });
+        .upload(ruta, archivoDe(bucket, "reemplazo"), { upsert: true });
       registrar(`IDOR storage ${bucket}: B NO sobrescribe el archivo de A`, !!errSobrescribir, errSobrescribir?.message);
-      const rutaIntrusa = `${idPersonaA}/rls-test-intruso-${sufijo}.${ext}`;
-      const { error: errNuevo } = await clienteSinAcceso.storage.from(bucket).upload(rutaIntrusa, archivoPrueba(tipo));
+      const rutaIntrusa = `${idPersonaA}/rls-test-intruso-${sufijo}.pdf`;
+      const { error: errNuevo } = await clienteSinAcceso.storage.from(bucket).upload(rutaIntrusa, archivoDe(bucket));
       registrar(`IDOR storage ${bucket}: B NO sube archivos a la carpeta de A`, !!errNuevo, errNuevo?.message);
       if (!errNuevo) archivosStoragePrueba.push({ bucket, ruta: rutaIntrusa });
 
@@ -4715,9 +4718,32 @@ async function main() {
     // A (con acceso) intenta escribir en la carpeta de B: solo lo frena que la
     // carpeta no es suya.
     const rutaEnCarpetaDeB = `${idPersonaB}/rls-test-intruso-${sufijo}.pdf`;
-    const { error: errAdjuntoAjeno } = await clienteConAcceso.storage.from("comunidad-adjuntos").upload(rutaEnCarpetaDeB, archivoPrueba("application/pdf"));
+    const { error: errAdjuntoAjeno } = await clienteConAcceso.storage
+      .from("comunidad-adjuntos")
+      .upload(rutaEnCarpetaDeB, archivoDe("comunidad-adjuntos"));
     registrar("IDOR storage comunidad-adjuntos: A, con acceso, NO sube a la carpeta de B", !!errAdjuntoAjeno, errAdjuntoAjeno?.message);
     if (!errAdjuntoAjeno) archivosStoragePrueba.push({ bucket: "comunidad-adjuntos", ruta: rutaEnCarpetaDeB });
+
+    // ------------------------------------------------------------------
+    // BUCKETS — FASE 5 (135): en SU PROPIA carpeta, donde el permiso sí lo
+    // deja subir, Storage frena lo que la app nunca sube: HTML (una vía de
+    // XSS servido desde Storage) y archivos por encima del tope.
+    // ------------------------------------------------------------------
+    console.log("\n=== Buckets: tipo y tamaño (fase 5) ===\n");
+    const subidasPropias: { nombre: string; bucket: string; archivo: Blob; debePasar: boolean }[] = [
+      { nombre: "avatares: una foto WebP en su carpeta SÍ sube", bucket: "avatares", archivo: archivoDe("avatares"), debePasar: true },
+      { nombre: "avatares: HTML en su carpeta NO sube", bucket: "avatares", archivo: new Blob(["<script>1</script>"], { type: "text/html" }), debePasar: false },
+      { nombre: "avatares: SVG en su carpeta NO sube", bucket: "avatares", archivo: new Blob(["<svg/>"], { type: "image/svg+xml" }), debePasar: false },
+      { nombre: "comunidad-adjuntos: HTML en su carpeta NO sube", bucket: "comunidad-adjuntos", archivo: new Blob(["<script>1</script>"], { type: "text/html" }), debePasar: false },
+      { nombre: "certificados: algo que no es PDF en su carpeta NO sube", bucket: "certificados", archivo: new Blob(["hola"], { type: "text/plain" }), debePasar: false },
+      { nombre: "certificados: un PDF de 3 MB (tope 2 MB) NO sube", bucket: "certificados", archivo: new Blob([new Uint8Array(3 * 1024 * 1024)], { type: "application/pdf" }), debePasar: false },
+    ];
+    for (const { nombre, bucket, archivo, debePasar } of subidasPropias) {
+      const ruta = `${idPersonaA}/rls-test-tipo-${sufijo}-${archivosStoragePrueba.length}`;
+      const { error } = await clienteConAcceso.storage.from(bucket).upload(ruta, archivo);
+      if (!error) archivosStoragePrueba.push({ bucket, ruta });
+      registrar(`buckets: ${nombre}`, debePasar ? !error : !!error, error?.message ?? "subió");
+    }
   } finally {
     console.log("\nLimpiando datos de prueba...");
 

@@ -217,6 +217,14 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Verificar que ninguna función quede expuesta sin justificar
+        # Fase 5 del plan de blindaje: la API de Supabase expone toda función
+        # de `public` que el rol pueda ejecutar, y Postgres le da EXECUTE a
+        # todos por defecto. Va después de db:rls porque consulta el catálogo.
+        run: npm run db:check-permisos-funciones
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Pruebas de autorización (RLS)
         run: npm run test:rls
         env:
