@@ -56,6 +56,7 @@ romper los certificados ni los registros contables.
 | --- | --- | --- | --- |
 | Acciones de los administradores (quién, qué, cuándo) | `bitacora_administrativa` | Auditoría | Indefinido |
 | Correos e IP de intentos de entrar, recuperar contraseña, canjear o validar | `private.intentos_*`, `private.*_reenvios` | Frenar abusos | Se purgan solos un día después de vencer (cron `limpiar-rate-limit`, 3:30) |
+| Cuándo publicó, respondió, comentó, reaccionó, reportó, escribió notas o adjuntó cada usuario (solo su id, la acción y la hora) | `private.limites_uso` | Límites de uso (`134`) | **2 días** (cron `purgar-limites-uso`, 3:50) |
 | Avisos de proveedores (pueden traer correo o nombre) | `eventos_webhook` | No procesar dos veces un aviso | **90 días** (cron `purgar-webhooks-y-assets`, 3:45) |
 | Enlaces de vista previa | `tokens_vista_previa` | Mostrar un curso sin publicar | Un día después de vencer o revocarse (cron, 3:15) |
 

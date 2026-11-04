@@ -27,8 +27,16 @@
  *
  * Contra el catálogo, no contra los archivos: corre en CI DESPUÉS de
  * `npm run db:rls`, igual que check-rls-initplan.ts.
+ *
+ * Staging es compartido: una función que creó el SQL de OTRA rama (aplicado
+ * en staging y todavía sin mezclar) no debe tumbar el CI de este PR. Por eso
+ * solo falla por funciones que define algún archivo de supabase/sql/ de esta
+ * rama; las demás se avisan sin bloquear. Se revisan cuando esa otra rama
+ * llegue con su script.
  */
 
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Client } from "pg";
 
 try {
@@ -76,7 +84,19 @@ const PERMITIDAS_DEFINER_CON_SESION: Record<string, string> = {
   consumir_limite: "Solo gasta el cupo de auth.uid(); los topes los fija la base (134).",
 };
 
+/** Nombres de las funciones de `public` que define algún script de esta rama. */
+function funcionesDelRepo(): Set<string> {
+  const carpeta = join(process.cwd(), "supabase", "sql");
+  const nombres = new Set<string>();
+  for (const archivo of readdirSync(carpeta).filter((n) => n.endsWith(".sql"))) {
+    const sql = readFileSync(join(carpeta, archivo), "utf8");
+    for (const m of sql.matchAll(/function\s+public\.([a-z_0-9]+)\s*\(/gi)) nombres.add(m[1].toLowerCase());
+  }
+  return nombres;
+}
+
 async function main() {
+  const delRepo = funcionesDelRepo();
   const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
@@ -94,12 +114,23 @@ async function main() {
     `);
 
     const sinJustificar: string[] = [];
+    const deOtraRama: string[] = [];
     for (const fila of rows) {
+      let motivo: string | null = null;
       if (fila.anon && !PERMITIDAS_ANON[fila.nombre]) {
-        sinJustificar.push(`${fila.nombre} — ejecutable SIN sesión${fila.definer ? " (SECURITY DEFINER)" : ""}`);
+        motivo = `${fila.nombre} — ejecutable SIN sesión${fila.definer ? " (SECURITY DEFINER)" : ""}`;
       } else if (fila.definer && fila.con_sesion && !PERMITIDAS_DEFINER_CON_SESION[fila.nombre]) {
-        sinJustificar.push(`${fila.nombre} — SECURITY DEFINER ejecutable con sesión`);
+        motivo = `${fila.nombre} — SECURITY DEFINER ejecutable con sesión`;
       }
+      if (!motivo) continue;
+      (delRepo.has(fila.nombre) ? sinJustificar : deOtraRama).push(motivo);
+    }
+
+    if (deOtraRama.length > 0) {
+      console.warn(
+        `\n⚠️  ${deOtraRama.length} función(es) expuesta(s) que no define ningún script de esta rama (¿SQL de otra rama aplicado en staging?). No bloquea:\n`,
+      );
+      for (const linea of deOtraRama) console.warn(`   ${linea}`);
     }
 
     if (sinJustificar.length > 0) {
