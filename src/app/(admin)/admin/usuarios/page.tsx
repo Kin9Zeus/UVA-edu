@@ -12,6 +12,7 @@ import {
 } from "@/lib/parametros-url";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Usuarios",
@@ -33,6 +34,8 @@ export default async function AdminUsuariosPage({
     page?: ParametroUrl;
   }>;
 }) {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/usuarios");
   const filtros = await searchParams;
 
   // Las invitaciones (cuántas quedan, cuánta gente entró) viven en Códigos de

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { DiagnosticoRed } from "@/components/admin/configuracion/DiagnosticoRed";
 import { PerfilAdminForm } from "@/components/admin/configuracion/PerfilAdminForm";
 import { diagnosticoIp } from "@/lib/clientIp";
-import { getPerfilActual } from "@/lib/perfil";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
@@ -20,8 +19,8 @@ function TituloTarjeta({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminConfiguracionPage() {
-  const { user, perfil } = await getPerfilActual();
-  if (!user) redirect("/login?redirect=/admin/configuracion");
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  const { user, perfil } = await exigirAdministradorEnPagina("/admin/configuracion");
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";
   const correo = perfil?.correo ?? user.email ?? "";
