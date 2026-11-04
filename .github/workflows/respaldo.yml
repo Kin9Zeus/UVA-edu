@@ -1,0 +1,107 @@
+name: Respaldo propio de la base
+
+# Fase 11.3 del plan de blindaje: una copia de la base de PRODUCCIÓN fuera
+# de Supabase, cifrada, en otro proveedor. Si Supabase pierde el proyecto,
+# lo suspende o alguien lo borra con una llave robada, esta copia sigue ahí.
+# Procedimiento completo y restauración: docs/ops/respaldos-y-restauracion.md
+# (Parte D).
+#
+# APAGADO hasta que exista el environment `respaldo-produccion` con sus
+# secretos: sin ellos, el job termina en verde con un aviso y no hace nada.
+#
+# Por qué es seguro tener esto en GitHub (la lección del incidente de
+# Railway es que un secreto en un proveedor se puede robar):
+#   · La base se lee con `respaldo_lector`, un usuario de SOLO LECTURA. Con
+#     su contraseña se puede copiar la base, no cambiarla ni borrarla. No es
+#     la llave maestra ni la DATABASE_URL de `postgres`.
+#   · El archivo se cifra en el runner con `age`, con una llave PÚBLICA. La
+#     privada (la única que descifra) NO está en GitHub: vive en el gestor de
+#     contraseñas. Quien robe el almacenamiento solo ve basura.
+#   · Las credenciales del almacenamiento solo pueden ESCRIBIR en ese bucket
+#     (sin borrar ni listar), y el bucket conserva versiones: una llave
+#     robada no puede borrar los respaldos viejos.
+#   · El environment se limita a la rama master: un PR no puede leerlos.
+#   · Ninguna acción de terceros: solo herramientas del sistema del runner.
+
+on:
+  schedule:
+    # Todos los días a las 4:20 de Colombia (9:20 UTC), fuera de los crons
+    # de limpieza de la base (3:00-3:50 Colombia).
+    - cron: "20 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo-produccion
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    name: Copiar, cifrar y subir
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: respaldo-produccion
+    env:
+      RESPALDO_DATABASE_URL: ${{ secrets.RESPALDO_DATABASE_URL }}
+      RESPALDO_AGE_PUBLICA: ${{ secrets.RESPALDO_AGE_PUBLICA }}
+      RESPALDO_S3_ENDPOINT: ${{ secrets.RESPALDO_S3_ENDPOINT }}
+      RESPALDO_S3_BUCKET: ${{ secrets.RESPALDO_S3_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.RESPALDO_S3_LLAVE_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RESPALDO_S3_LLAVE_SECRETA }}
+      AWS_DEFAULT_REGION: auto
+    steps:
+      - name: ¿Está configurado?
+        id: config
+        run: |
+          faltan=""
+          for v in RESPALDO_DATABASE_URL RESPALDO_AGE_PUBLICA RESPALDO_S3_ENDPOINT RESPALDO_S3_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            [ -n "${!v}" ] || faltan="$faltan $v"
+          done
+          if [ -n "$faltan" ]; then
+            echo "::notice::Respaldo apagado: faltan secretos ($faltan). Ver docs/ops/respaldos-y-restauracion.md, Parte D."
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Instalar pg_dump (la versión del servidor) y age
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common age >/dev/null
+          # pg_dump debe ser de la misma versión mayor que el servidor o más
+          # nueva. Se instala la del servidor desde el repositorio oficial.
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          mayor=$(psql "$RESPALDO_DATABASE_URL" -tAc "show server_version_num" | cut -c1-2)
+          sudo apt-get install -y -qq "postgresql-client-${mayor}" >/dev/null
+          echo "PG_BIN=/usr/lib/postgresql/${mayor}/bin" >> "$GITHUB_ENV"
+
+      - name: Copiar y cifrar
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          set -euo pipefail
+          fecha=$(date -u +%Y-%m-%dT%H%MZ)
+          mkdir -p respaldo && cd respaldo
+          # 1. Lo nuestro, con esquema y datos: tablas, RLS, funciones, triggers.
+          "$PG_BIN/pg_dump" "$RESPALDO_DATABASE_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=private --file=app.dump
+          # 2. Las cuentas y los metadatos de Storage: solo datos (el esquema
+          #    lo crea Supabase en el proyecto nuevo). Los ARCHIVOS de los
+          #    buckets no están aquí: ver Parte D, "Qué no cubre".
+          "$PG_BIN/pg_dump" "$RESPALDO_DATABASE_URL" --format=custom --no-owner --no-privileges \
+            --data-only --schema=auth --schema=storage --file=cuentas.dump
+          tar -cf - app.dump cuentas.dump | age -r "$RESPALDO_AGE_PUBLICA" > "uva-${fecha}.tar.age"
+          # Nada sin cifrar queda en el runner.
+          shred -u app.dump cuentas.dump
+          ls -lh "uva-${fecha}.tar.age"
+          echo "ARCHIVO=uva-${fecha}.tar.age" >> "$GITHUB_ENV"
+
+      - name: Subir al almacenamiento externo
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          aws s3 cp "respaldo/$ARCHIVO" "s3://${RESPALDO_S3_BUCKET}/diario/$ARCHIVO" \
+            --endpoint-url "$RESPALDO_S3_ENDPOINT" --only-show-errors
+          echo "Subido: diario/$ARCHIVO"

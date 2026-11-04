@@ -107,3 +107,92 @@ día completo** de:
 Si el proyecto tiene **PITR** activo, este peor caso baja a minutos en vez
 de a un día — por eso la Parte A pregunta explícitamente si el respaldo es
 diario o PITR, no solo si "hay respaldos".
+
+## Parte D — Respaldo propio fuera de Supabase (fase 11.3)
+
+Los respaldos de las partes A y B viven **dentro** de Supabase: si se
+pierde la cuenta, el proyecto queda suspendido o alguien lo borra con una
+llave robada, se van con él. Esta copia vive en otro proveedor.
+
+Lo hace `.github/workflows/respaldo.yml`, todos los días a las 4:20 de
+Colombia. **Está apagado** hasta completar los pasos de abajo: mientras
+falte un secreto, termina en verde con un aviso y no copia nada.
+
+### Qué copia y qué no cubre
+
+| Copia | Formato |
+| --- | --- |
+| `public` y `private`: tablas, datos, RLS, funciones, triggers | `pg_dump` completo |
+| `auth` (cuentas, identidades, factores de 2FA) y `storage` (metadatos de archivos) | Solo datos: el esquema lo crea Supabase en el proyecto nuevo |
+
+**No cubre los archivos de los buckets** (avatares, adjuntos, portadas,
+certificados, materiales). Los certificados se pueden volver a generar; los
+demás no. Copiarlos es un paso aparte, todavía pendiente.
+
+Tampoco los videos: viven en Mux, no en Supabase.
+
+### Cómo encenderlo (una vez; lo hace un administrador del repo)
+
+1. **Almacenamiento:** crear un bucket en un proveedor que no sea Supabase
+   ni Railway. Cloudflare R2 encaja (10 GB gratis, sin cobro por bajar).
+   - Con **versiones** activadas y una regla de vida: borrar los objetos de
+     `diario/` a los 35 días.
+   - Una llave del bucket que solo pueda **escribir objetos**: ni borrar ni
+     listar.
+2. **Llave de cifrado:** en un computador de confianza, `age-keygen -o
+   uva-respaldo.key`. La línea `# public key: age1…` es la pública. **El
+   archivo completo (la privada) va al gestor de contraseñas y se borra del
+   computador.** Sin ella ningún respaldo se puede abrir: guardarla en dos
+   lugares.
+3. **Usuario de solo lectura en producción**, desde el SQL Editor de
+   Supabase (producción). Probarlo primero en staging:
+   ```sql
+   create role respaldo_lector with login password '<generada, 32+ caracteres>' bypassrls;
+   grant usage on schema public, private, auth, storage to respaldo_lector;
+   grant select on all tables in schema public, private, auth, storage to respaldo_lector;
+   grant select on all sequences in schema public, private, auth, storage to respaldo_lector;
+   alter default privileges in schema public, private grant select on tables to respaldo_lector;
+   ```
+   `bypassrls` porque `pg_dump` se niega a copiar una tabla que RLS le
+   filtraría. Si Supabase no deja darlo, anotarlo aquí y probar con el
+   usuario de solo lectura que ofrece el panel (Database → Roles). Va sin
+   esto en `supabase/sql/`, a propósito: esos scripts se aplican también en
+   staging y en el CI, y este usuario solo existe en producción.
+4. **Environment `respaldo-produccion`** en GitHub (Settings →
+   Environments), **limitado a la rama master** y sin revisores (un
+   respaldo programado no puede esperar una aprobación). Sus secretos:
+
+   | Secreto | Valor |
+   | --- | --- |
+   | `RESPALDO_DATABASE_URL` | Conexión de `respaldo_lector` (pooler de sesión, puerto 5432) |
+   | `RESPALDO_AGE_PUBLICA` | La línea `age1…` del paso 2 |
+   | `RESPALDO_S3_ENDPOINT` | `https://<cuenta>.r2.cloudflarestorage.com` |
+   | `RESPALDO_S3_BUCKET` | Nombre del bucket |
+   | `RESPALDO_S3_LLAVE_ID` / `RESPALDO_S3_LLAVE_SECRETA` | La llave del paso 1 |
+5. Correrlo a mano (Actions → Respaldo propio de la base → Run workflow) y
+   comprobar que aparece el archivo en el bucket.
+6. Anotar los seis secretos en la tabla de
+   `salida-de-miembro-y-cambio-de-llaves.md`.
+
+### Restaurar (cada mes, en staging)
+
+1. Bajar el último `uva-<fecha>.tar.age` y descifrarlo:
+   `age -d -i uva-respaldo.key uva-<fecha>.tar.age | tar -xf -`.
+2. En un proyecto de Supabase **de prueba** (staging o uno creado para el
+   simulacro, nunca producción):
+   ```
+   pg_restore --no-owner --no-privileges --clean --if-exists -d "<url de prueba>" app.dump
+   pg_restore --no-owner --no-privileges --data-only --disable-triggers -d "<url de prueba>" cuentas.dump
+   npm run db:rls && npm run test:rls     # con ENV_FILE apuntando a esa base
+   ```
+3. Contar filas de tres tablas grandes (`perfiles`, `progreso`,
+   `inscripciones`) contra producción.
+4. Borrar los archivos descifrados (`shred -u app.dump cuentas.dump`) y
+   anotar el resultado en la tabla de abajo.
+
+El primer simulacro va a mostrar ajustes (el orden de `cuentas.dump`, un
+permiso que falte): corregir este documento con lo que pase de verdad.
+
+| Fecha | Quién | Respaldo usado | ¿`test:rls` en verde? | Tiempo total | Notas |
+| --- | --- | --- | --- | --- | --- |
+| | | | | | |

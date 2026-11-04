@@ -70,6 +70,10 @@ Environments → `supabase-test`), que es donde la lee el CI, y en el
 | `GEMINI_API_KEY` | Google AI Studio → API Keys | Crear una nueva en el mismo proyecto (conserva el tope de gasto), cambiar y borrar la vieja | No |
 | `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens | Crear uno nuevo (solo para subir source maps), cambiar y revocar el viejo. Solo se usa al compilar | No |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Sentry → proyecto → Client Keys | Es pública (viaja en el navegador). Se cambia solo si alguien la usa para llenar Sentry de basura: crear una nueva y desactivar la vieja | No |
+| `RESPALDO_DATABASE_URL` (fase 11.3, GitHub → environment `respaldo-produccion`) | Supabase producción, usuario `respaldo_lector` (solo lectura) | `alter role respaldo_lector password '…'` en el SQL Editor y cambiar el secreto en GitHub | No: solo falla el respaldo de ese día |
+| `RESPALDO_S3_LLAVE_ID` + `RESPALDO_S3_LLAVE_SECRETA` | El proveedor del bucket de respaldos (p. ej. Cloudflare R2 → API Tokens) | Crear una llave nueva solo de escritura en ese bucket, cambiar los dos secretos en GitHub, borrar la vieja | No |
+| Llave privada de `age` de los respaldos | La genera `age-keygen`; vive **solo** en el gestor de contraseñas | No se cambia por rutina: con una nueva, los respaldos viejos solo se abren con la vieja. Si se filtró, generar otra, cambiar `RESPALDO_AGE_PUBLICA` y guardar las dos | No |
+| Llave de ingreso de registros (fase 10.1, cuando exista) | Better Stack o Axiom | Crear una nueva, cambiarla en el servicio de Vector de Railway, borrar la vieja | No: se pierden los registros de esos minutos |
 | `WOMPI_*`, `STRIPE_*` | Paneles de Wompi y Stripe | Hoy sin valor real (el cobro está apagado). Se documentan al conectar una pasarela | — |
 
 ### Llaves por entorno
