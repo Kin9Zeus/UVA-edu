@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isPasswordValid, passwordRules } from "@/lib/password";
 
 describe("isPasswordValid", () => {
-  it("acepta una contraseña que cumple las 4 reglas", () => {
+  it("acepta una contraseña que cumple las 5 reglas", () => {
     expect(isPasswordValid("Abcdefgh1!")).toBe(true);
   });
 
@@ -26,6 +26,10 @@ describe("isPasswordValid", () => {
 
   it("rechaza si falta mayúscula", () => {
     expect(isPasswordValid("abcdefgh1!")).toBe(false);
+  });
+
+  it("rechaza si falta minúscula (Supabase la exige también)", () => {
+    expect(isPasswordValid("ARQUITECTO2026!")).toBe(false);
   });
 
   it("rechaza si falta número", () => {
