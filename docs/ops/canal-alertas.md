@@ -75,8 +75,8 @@ El plan pide alertas para tres cosas. Cómo queda cada una:
 
 | Qué | Dónde se vigila | Estado |
 | --- | --- | --- |
-| Pico de errores | Sentry, Regla 2 de arriba (el mismo issue 5 veces en 10 minutos) | Crearla si no existe. Hoy el equipo recibe por **correo** (un solo miembro en Sentry), no por Slack: en el paso 3 y 4, la acción es "Notify on preferred channel" |
-| Fallos de webhooks | Sentry, Regla 1 de arriba (`area IN (webhook, mux-atascado, health)`, al primer evento) | Crearla si no existe. El código ya manda `area: "webhook"` en cada fallo de firma, de registro o de proceso |
+| Pico de errores | Sentry, regla **"Pico de errores"**: WHEN un evento nuevo de un issue; IF (all) *Number of events* más de 5 en 10 minutos y `area` distinta de webhook, mux-atascado y health; THEN notificar; Throttling **1 hora** (sin eso llega un correo por cada evento del pico) | **Creada 2026-11-04.** Hoy el equipo recibe por **correo** (un solo miembro en Sentry), no por Slack: en el paso 3 y 4, la acción es "Notify on preferred channel" |
+| Fallos de webhooks | Sentry, regla **"Falla de infraestructura"**: WHEN issue nuevo o issue resuelto que regresa; IF (any) `area` = webhook, mux-atascado o health; THEN notificar | **Creada 2026-11-04.** El código ya manda `area: "webhook"` en cada fallo de firma, de registro o de proceso |
 | Pico de respuestas 403 y 429 | **Cloudflare**, no Sentry: Notifications → *Security Events Alert* (`docs/ops/cloudflare.md`, sección 2.8) | Al poner Cloudflare. Los 403 del cierre del origen y los 429 del límite de acceso ocurren en el borde |
 
 Por qué los rechazos por límite no van a Sentry: los límites de uso de la
