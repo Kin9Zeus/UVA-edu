@@ -8,12 +8,15 @@ import { RUTA_DECISIONES_COMUNIDAD } from "@/lib/admin/bitacora-tipos";
 import { ResumenComunidad } from "@/components/admin/comunidad/ResumenComunidad";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { buttonVariants } from "@/components/ui/button";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Comunidad",
 };
 
 export default async function AdminComunidadPage() {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/comunidad");
   const [contenidos, resumen] = await Promise.all([getReportesComunidadPendientes(), getResumenComunidad()]);
   const pendientes = contenidos.reduce((suma, c) => suma + c.reportes.length, 0);
   const diasMasAntiguo = contenidos.length ? Math.max(...contenidos.map((c) => c.reportes[0].dias)) : null;

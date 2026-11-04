@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { MENSAJE_LIMITE_ALCANZADO, esLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 
 export type LikeComentarioResultado = { error: string } | { success: true };
@@ -28,6 +29,8 @@ export async function darLikeComentario(
       { onConflict: "id_comentario,id_usuario", ignoreDuplicates: true },
     );
 
+  // Fase 3: el tope lo aplica la base (trigger), compartido con las reacciones.
+  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
   if (error) return { error: "No pudimos guardar tu like." };
   revalidatePath(ruta);
   return { success: true };

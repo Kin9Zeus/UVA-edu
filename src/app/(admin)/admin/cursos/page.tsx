@@ -3,12 +3,15 @@ import { getCursosListado, getCategoriasActivas } from "@/lib/admin/cursos";
 import { CursosTable } from "@/components/admin/cursos/CursosTable";
 import { ResumenCursos } from "@/components/admin/cursos/ResumenCursos";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Cursos",
 };
 
 export default async function AdminCursosPage() {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/cursos");
   const [resumen, categorias] = await Promise.all([getCursosListado(), getCategoriasActivas()]);
 
   return (

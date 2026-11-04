@@ -1,10 +1,24 @@
-# Configuración conservadora a propósito (ver AUDIT-2026-08-24.md, P2-4):
-# sin CI todavía (P1-2 sigue bloqueado por el scope `workflow` del token de
-# git), cada PR de Dependabot hay que revisarlo a mano. Agrupar minor/patch
-# en un solo PR semanal evita saturar al equipo; las actualizaciones major
-# se ignoran aquí porque suelen traer cambios de comportamiento (Next.js,
-# Prisma, React) que merecen su propia revisión dedicada, no un PR
+# Actualizaciones de VERSIÓN (las de seguridad son otra cosa, abajo).
+#
+# Configuración conservadora a propósito (AUDIT-2026-08-24.md, P2-4): minor
+# y patch agrupados en un solo PR semanal, para no saturar al equipo, y las
+# versiones mayores ignoradas, porque suelen traer cambios de comportamiento
+# (Next.js, Prisma, React) que merecen su propia revisión, no un PR
 # automático de fondo.
+#
+# Actualizaciones de SEGURIDAD (plan de blindaje, fases 3-6)
+# ----------------------------------------------------------
+# No se encienden desde este archivo: es un ajuste del repo (Settings → Code
+# security → Dependabot security updates) que activa un administrador.
+# Encendidas, llegan aunque impliquen una versión mayor: el `ignore` de abajo
+# está acotado a `version-update:semver-major`, y GitHub no aplica
+# `update-types` a las de seguridad. Tampoco esperan el `cooldown`.
+#
+# Espera antes de una versión nueva (`cooldown`, fase 6)
+# ------------------------------------------------------
+# Los paquetes comprometidos de npm suelen detectarse y retirarse en los
+# primeros días. Dependabot no propone una versión publicada hace menos de
+# 5 días. El CI instala con `npm ci`, que respeta exactamente el lockfile.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -13,6 +27,8 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5
     groups:
       dependencias-menores:
         update-types:

@@ -7,6 +7,7 @@ import { ResumenBitacora } from "@/components/admin/bitacora/ResumenBitacora";
 import { FiltrosBitacora } from "@/components/admin/bitacora/FiltrosBitacora";
 import { LineaTiempoBitacora } from "@/components/admin/bitacora/LineaTiempoBitacora";
 import { fechaDeFiltro, numeroDePagina, parametroUnico, textoDeBusqueda, type ParametroUrl } from "@/lib/parametros-url";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Bitácora",
@@ -28,6 +29,8 @@ function tipoDeFiltro(valor: ParametroUrl): TipoBitacora | null {
 }
 
 export default async function AdminBitacoraPage({ searchParams }: { searchParams: Promise<Parametros> }) {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/bitacora");
   // Tipo real (un parámetro repetido llega como arreglo) y valores inválidos
   // ignorados en vez de dar 500: ver lib/parametros-url.ts.
   const parametros = await searchParams;

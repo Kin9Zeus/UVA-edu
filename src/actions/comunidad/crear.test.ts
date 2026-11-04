@@ -48,6 +48,8 @@ function conAdjuntos(n: number): FormData {
 
 beforeEach(() => {
   servidorFalso.reiniciar();
+  // Fase 3: con cupo por defecto; el límite en sí se prueba aparte.
+  servidorFalso.responder("rpc:consumir_limite", { data: true });
   servidorFalso.conUsuario(ESTUDIANTE);
   servidorFalso.responder("rpc:comunidad_tiene_acceso", { data: true });
   servidorFalso.responder("from:perfiles", { data: { rol: "ESTUDIANTE" } });

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { MENSAJE_LIMITE_ALCANZADO, esLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 import { logError } from "@/lib/log";
 
@@ -66,6 +67,8 @@ export async function crearComentario(
     .select("id")
     .single();
 
+  // Fase 3 del plan de blindaje: el tope lo aplica la base (trigger).
+  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
   if (error || !data) {
     // 42501: la policy de INSERT lo rechazó (sin acceso vigente a la clase).
     // No es un fallo del sistema: decir "no pudimos" haría reintentar en vano.
