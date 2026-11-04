@@ -20,14 +20,13 @@
  *
  * Sin contraseñas en ningún archivo: las pantallas con sesión se miden
  * iniciando sesión a mano en la ventana que se abre (el admin pide además el
- * código de la app de autenticación, que no se puede automatizar). Al terminar
- * cada fase se pulsa Enter en la terminal.
+ * código de la app de autenticación, que no se puede automatizar). El script
+ * sigue solo cuando la ventana llega a /dashboard (estudiante) o /admin.
  *
  * Mide en el equipo donde corre: el TBT sale más alto en un computador lento.
  * Compara siempre "antes" y "después" en el mismo equipo. Local, bajo demanda.
  */
 
-import { createInterface } from "node:readline/promises";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -127,10 +126,10 @@ const mediana = (v: number[]) => {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 };
 
-async function pausa(mensaje: string) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  await rl.question(`\n>>> ${mensaje}\n    Pulsa Enter aquí cuando esté listo. `);
-  rl.close();
+/** Espera a que la persona inicie sesión a mano: sigue solo cuando la ventana llega a `destino` (15 min de margen). */
+async function esperarSesion(page: Page, mensaje: string, destino: RegExp) {
+  console.log(`\n>>> ${mensaje}`);
+  await page.waitForURL(destino, { timeout: 15 * 60_000 });
 }
 
 async function hrefs(page: Page, patron: RegExp): Promise<string[]> {
@@ -225,10 +224,12 @@ async function main() {
       if (rol !== "publico") {
         await contexto.clearCookies();
         await page.goto(`${baseUrl}/login`);
-        await pausa(
+        await esperarSesion(
+          page,
           rol === "admin"
-            ? "Inicia sesión como ADMINISTRADOR (con el código de la app) y deja la ventana en /admin."
-            : "Inicia sesión como ESTUDIANTE (con acceso al curso) y deja la ventana en /dashboard.",
+            ? "Inicia sesión como ADMINISTRADOR en la ventana (con el código de la app); sigue solo al llegar a /admin."
+            : "Inicia sesión como ESTUDIANTE (con acceso al curso) en la ventana; sigue solo al llegar a /dashboard.",
+          rol === "admin" ? /\/admin(\/|$)/ : /\/dashboard(\/|$)/,
         );
         if (rol === "estudiante") await descubrirSlugsConSesion(page, slugs);
       }
