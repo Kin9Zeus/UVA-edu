@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { guardarSidebarColapsado, type PreferenciaSidebar } from "@/lib/sidebar-preferencia";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoUva } from "@/components/home/LogoUva";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { TooltipEnlace } from "@/components/dashboard/TooltipEnlace";
+import { useModuloDiferido } from "@/lib/useModuloDiferido";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -80,9 +81,38 @@ const modoDe = (preferencia: PreferenciaSidebar): Modo =>
 const SOLO_COMPLETO: Record<Modo, string> = { compacto: "hidden", completo: "", auto: "max-xl:hidden" };
 const SOLO_COMPACTO: Record<Modo, string> = { compacto: "", completo: "hidden", auto: "xl:hidden" };
 
+// Mismo tooltip diferido que el Sidebar del estudiante (ver ahí por qué).
+let tooltip: Promise<typeof TooltipEnlace> | null = null;
+function cargarTooltip() {
+  tooltip ??= import("@/components/dashboard/TooltipEnlace")
+    .then((m) => m.TooltipEnlace)
+    .catch((error) => {
+      tooltip = null;
+      throw error;
+    });
+  return tooltip;
+}
+
 function NavLink({ href, label, icon: Icon, active, modo }: Item & { active: boolean; modo: Modo }) {
+  const { modulo: ConTooltip, pedir } = useModuloDiferido(cargarTooltip);
+  const enlaceRef = useRef<HTMLAnchorElement>(null);
+  const enfocado = useRef(false);
+  // Si el enlace tenía el foco al llegar el tooltip, el enlace nuevo lo recibe.
+  useEffect(() => {
+    if (ConTooltip && enfocado.current) enlaceRef.current?.focus();
+  }, [ConTooltip]);
+
   const link = (
     <Link
+      ref={enlaceRef}
+      onPointerEnter={modo === "completo" ? undefined : pedir}
+      onFocus={() => {
+        enfocado.current = true;
+        if (modo !== "completo") pedir();
+      }}
+      onBlur={() => {
+        enfocado.current = false;
+      }}
       href={href}
       aria-current={active ? "page" : undefined}
       // Compacto no hay texto visible: el nombre accesible va en el enlace.
@@ -98,14 +128,9 @@ function NavLink({ href, label, icon: Icon, active, modo }: Item & { active: boo
     </Link>
   );
 
-  if (modo === "completo") return link;
+  if (modo === "completo" || !ConTooltip) return link;
 
-  return (
-    <Tooltip>
-      <TooltipTrigger render={link} />
-      <TooltipContent className={SOLO_COMPACTO[modo]}>{label}</TooltipContent>
-    </Tooltip>
-  );
+  return <ConTooltip enlace={link} className={SOLO_COMPACTO[modo]} contenido={label} />;
 }
 
 export function Sidebar({ preferenciaInicial = null }: { preferenciaInicial?: PreferenciaSidebar }) {
@@ -167,29 +192,27 @@ export function Sidebar({ preferenciaInicial = null }: { preferenciaInicial?: Pr
         </button>
       </div>
 
-      <TooltipProvider delay={150}>
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2" aria-label="Navegación del panel admin">
-          {secciones.map((seccion) => (
-            <div key={seccion.titulo ?? "inicio"} className="flex flex-col gap-0.5">
-              {seccion.titulo && (
-                <>
-                  <p className={cn("mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
-                    {seccion.titulo}
-                  </p>
-                  <div className={cn("my-3 border-t border-uva-divider", SOLO_COMPACTO[modo])} />
-                </>
-              )}
-              {seccion.items.map((item) => (
-                <NavLink key={item.href} {...item} active={isActive(item.href)} modo={modo} />
-              ))}
-            </div>
-          ))}
-        </nav>
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2" aria-label="Navegación del panel admin">
+        {secciones.map((seccion) => (
+          <div key={seccion.titulo ?? "inicio"} className="flex flex-col gap-0.5">
+            {seccion.titulo && (
+              <>
+                <p className={cn("mt-[18px] mb-1.5 px-3 text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
+                  {seccion.titulo}
+                </p>
+                <div className={cn("my-3 border-t border-uva-divider", SOLO_COMPACTO[modo])} />
+              </>
+            )}
+            {seccion.items.map((item) => (
+              <NavLink key={item.href} {...item} active={isActive(item.href)} modo={modo} />
+            ))}
+          </div>
+        ))}
+      </nav>
 
-        <div className="shrink-0 border-t border-uva-divider px-3 py-2">
-          <NavLink {...perfil} active={isActive(perfil.href)} modo={modo} />
-        </div>
-      </TooltipProvider>
+      <div className="shrink-0 border-t border-uva-divider px-3 py-2">
+        <NavLink {...perfil} active={isActive(perfil.href)} modo={modo} />
+      </div>
     </aside>
   );
 }
