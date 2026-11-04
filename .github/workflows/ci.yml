@@ -5,7 +5,8 @@ name: CI
 #   - checks: tsc, lint, vitest — puro, sin secretos, corre en cualquier PR
 #     (incluidas las de forks, que no reciben secretos de todas formas).
 #   - rls: aplica las migraciones de Prisma y los 32 scripts de RLS contra
-#     el proyecto real de Supabase y corre test:rls. Necesita secretos, así
+#     el proyecto de STAGING de Supabase (nunca el de producción, ver
+#     abajo) y corre test:rls. Necesita secretos, así
 #     que solo corre en push a master y en PRs del propio repo abiertas por
 #     una persona. Los forks quedan fuera solos (GitHub no les expone
 #     secretos), pero Dependabot NO: empuja la rama a este mismo repo, así
@@ -23,7 +24,8 @@ name: CI
 # `e2e/` y se corren a mano con `npm run test:e2e` (y `npm run
 # test:canje`); la tarea sigue viva en docs/qa/bugs-e2e.md. Sobre por qué
 # nunca corrió en PRs: esos specs llaman signUp()/resetPasswordForEmail()
-# de verdad contra el proyecto compartido con producción, y BUG-002 ya
+# de verdad contra Supabase (entonces el proyecto compartido con
+# producción; hoy staging), y BUG-002 ya
 # mostró que el Rate Limit de Auth de Supabase se agota con pocos
 # intentos seguidos.
 #
@@ -35,9 +37,31 @@ name: CI
 # por el que estos scripts no pueden vivir en prisma/migrations/. Un
 # contenedor de Postgres en el runner no tiene ese schema. Sin un stack
 # local de Supabase CLI (`supabase start`) configurado en el repo, la única
-# base que sí lo tiene es el proyecto real — el mismo que ya usan
+# base que sí lo tiene es un proyecto de Supabase — el mismo que ya usan
 # db:rls/test:rls/test:e2e/test:canje en local. Es una desviación consciente
 # del texto original, no un descuido.
+#
+# Fase 9 del plan de blindaje (CI/CD y cadena de suministro)
+# ----------------------------------------------------------
+# · Qué base usa `rls` (9.3): los secretos del environment `supabase-test`
+#   apuntan a STAGING (tmvmth…), un proyecto exclusivo de pruebas. Lo
+#   confirman los usuarios `rls-test-*` que test:rls deja en staging. La
+#   base de producción no tiene credenciales en GitHub, y no debe tenerlas.
+#   Pasar a `supabase start` dentro del CI queda como mejora: más lento y
+#   con su propia versión de Postgres/Auth que mantener al día.
+# · Environment `supabase-test` (9.4): exige revisores. NO está limitado a
+#   la rama master a propósito: con ese límite GitHub rechaza el job en
+#   cada PR, y las pruebas de RLS dejarían de correr antes de mezclar (son
+#   las que atraparon el problema de los tipos de archivo de la 135). El
+#   riesgo que el límite cubría ya está cubierto: la base es staging.
+# · Permisos (9.1): el token del workflow solo lee el repo. Ningún job
+#   escribe; si uno llega a necesitarlo, se abre en ese job, no aquí.
+# · Acciones (9.2): fijadas por el SHA exacto del commit, con la versión en
+#   un comentario. Una etiqueta (`@v5`) se puede mover a otro código; un
+#   SHA no. Dependabot (ecosistema github-actions) las mantiene al día.
+
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -65,7 +89,7 @@ jobs:
       GITLEAKS_VERSION: 8.30.1
       GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
@@ -85,7 +109,7 @@ jobs:
     name: Tipos, lint y pruebas unitarias
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # fetch-depth: 0 (historial completo) para que
           # verificar-migraciones-reversibles.ts pueda calcular el merge-base
@@ -93,7 +117,7 @@ jobs:
           # no tiene la historia común y el diff de tres puntos falla.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
@@ -173,9 +197,9 @@ jobs:
       && github.event.pull_request.user.login != 'dependabot[bot]') }}
     environment: supabase-test
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm

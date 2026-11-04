@@ -37,3 +37,23 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+
+  # Acciones de GitHub (fase 9.2). El CI las fija por SHA exacto: Dependabot
+  # entiende ese formato, propone el SHA nuevo y actualiza el comentario con
+  # la versión. Misma política que npm: menores agrupadas, mayores a mano.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 5
+    groups:
+      acciones-menores:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

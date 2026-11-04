@@ -1,6 +1,11 @@
 # Quién debe aprobar cambios en las partes que, si se alteran, abren la puerta
-# a producción. Solo tiene efecto si el ruleset de master exige
-# "Require review from Code Owners".
+# a producción (fase 9.7 del plan de blindaje).
+#
+# OJO, dos condiciones para que esto haga efecto, ambas en la regla de
+# master (Settings → Rules, la configura un administrador):
+#   1. "Require review from Code Owners". Sin ella este archivo no bloquea.
+#   2. "Required approvals: 2". CODEOWNERS sola se conforma con UNO de los
+#      dueños listados; que revisen dos personas lo exige el número.
 
 # El propio CI y esta regla: si se pudieran editar sin revisión, se apagaría
 # todo lo demás.
@@ -10,11 +15,25 @@
 /supabase/sql/                  @Kin9Zeus @andresescobar12 @JuanLarrota
 /prisma/                        @Kin9Zeus @andresescobar12 @JuanLarrota
 
-# Webhooks, cliente con service_role y configuración de build
+# Clientes de Supabase (incluido el de la llave maestra) y sesión
+/src/lib/supabase/              @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# La puerta de entrada: proxy, cierre de origen, CSP e IP del cliente
+/src/proxy.ts                   @Kin9Zeus @andresescobar12 @JuanLarrota
+/src/lib/origen.ts              @Kin9Zeus @andresescobar12 @JuanLarrota
+/src/lib/csp.ts                 @Kin9Zeus @andresescobar12 @JuanLarrota
+/src/lib/clientIp.ts            @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Muro del panel de administración (rol + segundo factor)
+/src/lib/admin/guardiaPagina.ts @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Webhooks y configuración de build
 /src/app/api/                   @Kin9Zeus @andresescobar12 @JuanLarrota
-/src/lib/supabase/admin.ts      @Kin9Zeus @andresescobar12 @JuanLarrota
 /next.config.ts                 @Kin9Zeus @andresescobar12 @JuanLarrota
 
 # Dependencias: es por donde entra el código de terceros
 /package.json                   @Kin9Zeus @andresescobar12 @JuanLarrota
 /package-lock.json              @Kin9Zeus @andresescobar12 @JuanLarrota
+
+# Construcción reproducible (fase 11)
+/infra/                         @Kin9Zeus @andresescobar12 @JuanLarrota

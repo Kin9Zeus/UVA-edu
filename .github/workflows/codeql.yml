@@ -1,0 +1,54 @@
+name: CodeQL
+
+# Fase 9.6 del plan de blindaje: análisis de código estático. Busca patrones
+# de vulnerabilidad en el código propio (inyección, XSS, redirecciones
+# abiertas, rutas armadas con datos del usuario…), no en las dependencias
+# (eso lo cubren `npm audit` y Dependabot). Gratis porque el repo es público.
+#
+# Los hallazgos salen en la pestaña Security → Code scanning, y en el PR que
+# los introduce. Para que un hallazgo BLOQUEE el merge hace falta una regla
+# del repo ("Require code scanning results"), que configura un
+# administrador.
+#
+# Las llaves en el código las cubre gitleaks en ci.yml (fase 7).
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    # Una vez por semana también sin cambios: CodeQL agrega reglas nuevas.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analizar:
+    name: Análisis estático (CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Subir los resultados a Code scanning. Es lo único que escribe.
+      security-events: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      # `build-mode: none`: JavaScript/TypeScript se analiza sin compilar,
+      # así que no hace falta instalar dependencias ni secretos.
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          # Las del set por defecto más las de calidad de seguridad.
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:javascript-typescript"
