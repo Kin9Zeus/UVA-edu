@@ -68,3 +68,23 @@ cualquier otro error de la aplicación, avisa solo cuando se repite.
    ya documenta cómo se dispararon issues reales de prueba en los Módulos
    1 y 2 — el mismo patrón sirve para confirmar que la Regla 1 llega a
    Slack).
+
+## Fase 6 del plan de blindaje (2026-11-04)
+
+El plan pide alertas para tres cosas. Cómo queda cada una:
+
+| Qué | Dónde se vigila | Estado |
+| --- | --- | --- |
+| Pico de errores | Sentry, Regla 2 de arriba (el mismo issue 5 veces en 10 minutos) | Crearla si no existe. Hoy el equipo recibe por **correo** (un solo miembro en Sentry), no por Slack: en el paso 3 y 4, la acción es "Notify on preferred channel" |
+| Fallos de webhooks | Sentry, Regla 1 de arriba (`area IN (webhook, mux-atascado, health)`, al primer evento) | Crearla si no existe. El código ya manda `area: "webhook"` en cada fallo de firma, de registro o de proceso |
+| Pico de respuestas 403 y 429 | **Cloudflare**, no Sentry: Notifications → *Security Events Alert* (`docs/ops/cloudflare.md`, sección 2.8) | Al poner Cloudflare. Los 403 del cierre del origen y los 429 del límite de acceso ocurren en el borde |
+
+Por qué los rechazos por límite no van a Sentry: los límites de uso de la
+base (`supabase/sql/134_limites_uso.sql`) frenan a un bot en cada intento,
+y mandar un evento por intento gastaría la cuota del plan gratuito de
+Sentry justo durante un ataque, dejando sin registrar los errores reales.
+La tabla `private.limites_uso` guarda los usos que pasaron (dos días), no
+los rechazos: sirve para ver quién llegó al tope, no cuántas veces insistió.
+
+La alerta de acciones sensibles del panel (`area=alerta-admin`, fase 7) ya
+está creada.
