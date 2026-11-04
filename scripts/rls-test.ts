@@ -4587,29 +4587,33 @@ async function main() {
     }
 
     // --- Storage: archivos en la carpeta de A (`<id de A>/...`) ---
-    const archivoPrueba = new Blob(["rls-test"], { type: "text/plain" });
-    const rutasStorageA: { bucket: string; ruta: string; lecturaPublica?: boolean }[] = [
-      { bucket: "avatares", ruta: `${idPersonaA}/rls-test-${sufijo}.png`, lecturaPublica: true },
-      { bucket: "certificados", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
-      { bucket: "comunidad-adjuntos", ruta: `${idPersonaA}/rls-test-${sufijo}.txt` },
+    // Cada bucket solo acepta ciertos tipos (`allowed_mime_types`): con
+    // text/plain Storage rechaza la subida por el tipo y no por la política, y
+    // las pruebas de abajo "pasarían" por la razón equivocada. Todo se sube
+    // con un tipo que el bucket admite, para que solo lo frene la RLS.
+    const archivoPrueba = (tipo: string, contenido = "rls-test") => new Blob([contenido], { type: tipo });
+    const rutasStorageA: { bucket: string; ext: string; tipo: string; ruta: string; lecturaPublica?: boolean }[] = [
+      { bucket: "avatares", ext: "png", tipo: "image/png", ruta: `${idPersonaA}/rls-test-${sufijo}.png`, lecturaPublica: true },
+      { bucket: "certificados", ext: "pdf", tipo: "application/pdf", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
+      { bucket: "comunidad-adjuntos", ext: "pdf", tipo: "application/pdf", ruta: `${idPersonaA}/rls-test-${sufijo}.pdf` },
     ];
-    for (const { bucket, ruta } of rutasStorageA) {
-      const { error } = await admin.storage.from(bucket).upload(ruta, archivoPrueba, { upsert: true });
+    for (const { bucket, ruta, tipo } of rutasStorageA) {
+      const { error } = await admin.storage.from(bucket).upload(ruta, archivoPrueba(tipo), { upsert: true });
       if (error) throw new Error(`No pude subir el archivo de prueba a ${bucket}: ${error.message}`);
       archivosStoragePrueba.push({ bucket, ruta });
     }
 
-    for (const { bucket, ruta, lecturaPublica } of rutasStorageA) {
+    for (const { bucket, ruta, ext, tipo, lecturaPublica } of rutasStorageA) {
       if (!lecturaPublica) {
         const { data: descarga, error: errDescarga } = await clienteSinAcceso.storage.from(bucket).download(ruta);
         registrar(`IDOR storage ${bucket}: B NO descarga el archivo de A`, !!errDescarga || !descarga, errDescarga?.message);
       }
       const { error: errSobrescribir } = await clienteSinAcceso.storage
         .from(bucket)
-        .upload(ruta, new Blob(["reemplazo"], { type: "text/plain" }), { upsert: true });
+        .upload(ruta, archivoPrueba(tipo, "reemplazo"), { upsert: true });
       registrar(`IDOR storage ${bucket}: B NO sobrescribe el archivo de A`, !!errSobrescribir, errSobrescribir?.message);
-      const rutaIntrusa = `${idPersonaA}/rls-test-intruso-${sufijo}.txt`;
-      const { error: errNuevo } = await clienteSinAcceso.storage.from(bucket).upload(rutaIntrusa, archivoPrueba);
+      const rutaIntrusa = `${idPersonaA}/rls-test-intruso-${sufijo}.${ext}`;
+      const { error: errNuevo } = await clienteSinAcceso.storage.from(bucket).upload(rutaIntrusa, archivoPrueba(tipo));
       registrar(`IDOR storage ${bucket}: B NO sube archivos a la carpeta de A`, !!errNuevo, errNuevo?.message);
       if (!errNuevo) archivosStoragePrueba.push({ bucket, ruta: rutaIntrusa });
 
@@ -4624,8 +4628,8 @@ async function main() {
     // Comunidad: B no tiene acceso, así que arriba también lo frena eso. Aquí
     // A (con acceso) intenta escribir en la carpeta de B: solo lo frena que la
     // carpeta no es suya.
-    const rutaEnCarpetaDeB = `${idPersonaB}/rls-test-intruso-${sufijo}.txt`;
-    const { error: errAdjuntoAjeno } = await clienteConAcceso.storage.from("comunidad-adjuntos").upload(rutaEnCarpetaDeB, archivoPrueba);
+    const rutaEnCarpetaDeB = `${idPersonaB}/rls-test-intruso-${sufijo}.pdf`;
+    const { error: errAdjuntoAjeno } = await clienteConAcceso.storage.from("comunidad-adjuntos").upload(rutaEnCarpetaDeB, archivoPrueba("application/pdf"));
     registrar("IDOR storage comunidad-adjuntos: A, con acceso, NO sube a la carpeta de B", !!errAdjuntoAjeno, errAdjuntoAjeno?.message);
     if (!errAdjuntoAjeno) archivosStoragePrueba.push({ bucket: "comunidad-adjuntos", ruta: rutaEnCarpetaDeB });
   } finally {
