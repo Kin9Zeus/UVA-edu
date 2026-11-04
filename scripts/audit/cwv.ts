@@ -171,7 +171,8 @@ async function descubrirSlugsConSesion(page: Page, slugs: Record<string, string>
 function urlDe(p: Pantalla, slugs: Record<string, string>): string | null {
   let ruta = p.ruta;
   for (const [k, v] of Object.entries(slugs)) ruta = ruta.replace(`{${k}}`, v ?? "");
-  return /\{\w+\}/.test(ruta) || ruta.includes("//") ? null : baseUrl + ruta;
+  // Un slug que falta deja "//" o una barra final (ej. /dashboard/comunidad/): se omite en vez de medir otra página.
+  return /\{\w+\}/.test(ruta) || ruta.includes("//") || (ruta.length > 1 && ruta.endsWith("/")) ? null : baseUrl + ruta;
 }
 
 async function medir(url: string): Promise<Corrida> {
