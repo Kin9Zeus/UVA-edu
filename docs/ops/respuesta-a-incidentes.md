@@ -47,7 +47,7 @@ ejemplo, cambiar una llave filtrada): se contiene y se avisa.
 | Caso | Qué hacer |
 | --- | --- |
 | **Una llave filtrada** | Cambiarla ya, aunque corte unos minutos: `docs/ops/salida-de-miembro-y-cambio-de-llaves.md`, sección 3 |
-| **Railway comprometido** (como el 2026-10-21) | Asumir que **todas** las variables de Railway se filtraron y cambiarlas en el orden de la fase E: llave maestra → `DATABASE_URL` → Mux → hook de correos → Resend → Gemini → Sentry. Revisar los despliegues recientes por si alguien subió código |
+| **Railway comprometido** (como el 2026-10-21) | Asumir que **todas** las variables de Railway se filtraron y cambiarlas en el orden de la fase E: llave maestra → Mux → hook de correos → Resend → Gemini → Sentry. (`DATABASE_URL` ya no está en Railway desde el 2026-11-04.) Revisar los despliegues recientes por si alguien subió código |
 | **Cuenta de administrador tomada** | Quitarle el rol en `perfiles` y cerrar todas sus sesiones (con la skill `pasar-a-produccion`). Quitarle el 2FA para que el dueño lo registre de nuevo. Revisar en la bitácora del panel (`/admin/bitacora`) qué hizo esa cuenta y desde cuándo |
 | **Datos de estudiantes expuestos** | Cerrar la vía (revertir el despliegue o la política). Sacar del inventario de datos (`docs/ops/inventario-de-datos.md`) qué datos y de cuántas personas. Ver "Avisar afuera" |
 | **Vulnerabilidad en una dependencia** | Ver "Compromiso de parcheo" |
