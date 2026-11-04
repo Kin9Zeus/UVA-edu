@@ -41,6 +41,11 @@ FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3
 WORKDIR /app
 COPY --from=dependencias /app/node_modules ./node_modules
 COPY . .
+# El cliente de Prisma que generó `postinstall` en la etapa anterior. Está
+# en .gitignore (no viene con el código) y `next build` revisa los tipos de
+# prisma/seed.ts, que lo importa: sin esto el build normal falla. El modo
+# `compile` del CI no revisa tipos y no lo notaría.
+COPY --from=dependencias /app/src/generated ./src/generated
 
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -65,9 +70,17 @@ ENV NEXT_OUTPUT=standalone \
 # El token de Sentry (subir los source maps) es opcional y entra como secreto
 # de BuildKit: existe solo durante este RUN y no queda en ninguna capa.
 #   docker build --secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN ...
+#
+# `compile` se salta la revisión de tipos que sí hace el build normal: se
+# corre a mano, para que el CI detecte lo que rompería la imagen de verdad
+# (así se encontró que faltaba copiar src/generated).
 RUN --mount=type=secret,id=sentry_auth_token \
     if [ -f /run/secrets/sentry_auth_token ]; then export SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token)"; fi; \
-    if [ "${NEXT_BUILD_MODE}" = "compile" ]; then npx next build --experimental-build-mode=compile; else npx next build; fi
+    if [ "${NEXT_BUILD_MODE}" = "compile" ]; then \
+      npx next typegen && npx tsc --noEmit && npx next build --experimental-build-mode=compile; \
+    else \
+      npx next build; \
+    fi
 
 # ---------- 3. Imagen final: solo lo que corre ----------
 FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS app

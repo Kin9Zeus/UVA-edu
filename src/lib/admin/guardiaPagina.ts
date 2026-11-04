@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getPerfilActual } from "@/lib/perfil";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
@@ -23,6 +24,14 @@ import { getNivelAalActual, pantallaDeSegundoFactor, rutaSegundoFactor } from "@
  * El orden importa: el rol va ANTES del segundo factor (a un estudiante se
  * le dice "acceso denegado", no que active el 2FA).
  */
+/**
+ * Usuarios ya avisados en ESTA petición. El layout y la página llaman la
+ * guardia en la misma petición: sin esto, cada entrada negada contaría dos
+ * veces (y llegarían dos avisos a Sentry). `cache()` de React vive lo que
+ * dura una petición.
+ */
+const avisadosEnLaPeticion = cache(() => new Set<string>());
+
 export async function exigirAdministradorEnPagina(rutaDeVuelta = "/admin") {
   const { user, perfil } = await getPerfilActual();
 
@@ -39,7 +48,11 @@ export async function exigirAdministradorEnPagina(rutaDeVuelta = "/admin") {
   if (perfil?.rol !== "ADMINISTRADOR") {
     // Fase 10.2: un estudiante con sesión pidiendo /admin. Lo inocente es
     // un enlace viejo; repetido, es alguien probando.
-    await registrarEventoDeLaPeticion("admin_denegado", { usuarioId: user.id, ruta: rutaDeVuelta, motivo: "rol" });
+    const avisados = avisadosEnLaPeticion();
+    if (!avisados.has(user.id)) {
+      avisados.add(user.id);
+      await registrarEventoDeLaPeticion("admin_denegado", { usuarioId: user.id, ruta: rutaDeVuelta, motivo: "rol" });
+    }
     redirect("/acceso-denegado");
   }
 

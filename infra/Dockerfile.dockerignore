@@ -8,6 +8,8 @@
 .git
 node_modules
 .next
+# Se genera dentro de la imagen; una copia vieja del computador no debe colarse.
+src/generated
 coverage
 test-results
 playwright-report
