@@ -187,6 +187,10 @@ async function medir(url: string, guardarEn?: string): Promise<Corrida> {
     disableStorageReset: true, // conserva la sesión iniciada
   });
   const lhr = r!.lhr;
+  // Una corrida fallida (p. ej. la página no pintó nada) trae puntaje nulo: se descarta en vez de contar como 0 y arruinar la mediana.
+  if (lhr.runtimeError || lhr.categories.performance.score === null) {
+    throw new Error(lhr.runtimeError?.message ?? "Lighthouse no dio puntaje");
+  }
   if (guardarEn) writeFileSync(guardarEn, JSON.stringify(lhr));
   const a = lhr.audits;
   const avisos = Object.entries(AUDITORIAS_A_ANOTAR)
