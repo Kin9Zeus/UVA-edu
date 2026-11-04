@@ -263,3 +263,38 @@ jobs:
           # supabase-test`), separado del de Railway.
           MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+  # Fase 11.1: la imagen de Docker (plan B si hay que salir de Railway) se
+  # construye y arranca en cada PR. Si nadie la construye, el día que haga
+  # falta no funciona. Sin secretos: compila en modo `compile` (sin
+  # pre-generar páginas, que consultan la base) y comprueba que el servidor
+  # arranca y responde /api/health. Responde 503 a propósito: no tiene
+  # Supabase, Mux ni Resend; lo que se prueba es que la imagen corre.
+  imagen:
+    name: Imagen de Docker (construye y arranca)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Construir
+        run: docker build -f infra/Dockerfile --build-arg NEXT_BUILD_MODE=compile -t uva:ci .
+
+      - name: La imagen no lleva archivos .env
+        run: |
+          if docker run --rm --entrypoint sh uva:ci -c 'ls -a /app | grep -E "^\.env"'; then
+            echo "::error::La imagen trae un archivo .env"; exit 1
+          fi
+
+      - name: Arranca y responde
+        run: |
+          docker run -d --name uva -p 3000:3000 uva:ci
+          for i in $(seq 1 30); do
+            codigo=$(curl -s -o salud.json -w '%{http_code}' http://localhost:3000/api/health || true)
+            if [ "$codigo" = "200" ] || [ "$codigo" = "503" ]; then break; fi
+            sleep 1
+          done
+          echo "HTTP $codigo"; cat salud.json; echo
+          docker logs uva | tail -20
+          grep -q '"checks"' salud.json
+          test "$(docker exec uva id -u)" != "0" || { echo "::error::El contenedor corre como root"; exit 1; }

@@ -52,12 +52,21 @@ type SendEmailHookPayload = {
   };
 };
 
-const hookSecret = process.env.SEND_EMAIL_HOOK_SECRET!.replace(
-  "v1,whsec_",
-  "",
-);
+// Se lee en cada petición y no al cargar el módulo (fase 11.1): `next build`
+// carga esta ruta, y el build no tiene (ni debe tener) los secretos.
+function secretoDelHook(): string | null {
+  return process.env.SEND_EMAIL_HOOK_SECRET?.replace("v1,whsec_", "") || null;
+}
 
 export async function POST(request: NextRequest) {
+  const hookSecret = secretoDelHook();
+  if (!hookSecret) {
+    // Falla cerrado: sin el secreto no hay cómo comprobar la firma. 500 para
+    // que Supabase reintente cuando la variable vuelva.
+    logError("webhook:supabase-auth", "falta SEND_EMAIL_HOOK_SECRET", undefined, { area: "webhook" });
+    return NextResponse.json({ error: "not configured" }, { status: 500 });
+  }
+
   const payload = await request.text();
   const headers = Object.fromEntries(request.headers);
 

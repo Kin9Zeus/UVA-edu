@@ -1,0 +1,21 @@
+# Lo que NUNCA entra a la imagen (BuildKit lee este archivo porque se llama
+# igual que el Dockerfile). Lo más importante son las variables de entorno:
+# una imagen con .env adentro es una llave publicada.
+.env
+.env.*
+*.pem
+
+.git
+node_modules
+.next
+coverage
+test-results
+playwright-report
+blob-report
+lighthouse-baseline
+viewport-screenshots
+.playwright-mcp
+.capturas-tmp
+Cerebro
+.claude
+.obsidian
