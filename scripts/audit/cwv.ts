@@ -149,7 +149,7 @@ async function descubrirSlugs(page: Page): Promise<Record<string, string>> {
     if (v) slugs[k] = v;
   }
   if (!slugs.categoria || !slugs.curso) {
-    await page.goto(`${baseUrl}/catalogo`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/catalogo`, { waitUntil: "domcontentloaded" });
     slugs.categoria ??= (await hrefs(page, /^\/catalogo\/[^/?]+$/))[0]?.split("/")[2];
     slugs.curso ??= (await hrefs(page, /^\/cursos\/[^/?]+$/))[0]?.split("/")[2];
   }
@@ -158,12 +158,12 @@ async function descubrirSlugs(page: Page): Promise<Record<string, string>> {
 
 async function descubrirSlugsConSesion(page: Page, slugs: Record<string, string>) {
   if (!slugs.leccion && slugs.curso) {
-    await page.goto(`${baseUrl}/cursos/${slugs.curso}`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/cursos/${slugs.curso}`, { waitUntil: "domcontentloaded" });
     const enlace = (await hrefs(page, new RegExp(`^/cursos/${slugs.curso}/(?!examen)[^/?]+$`)))[0];
     slugs.leccion = enlace?.split("/")[3];
   }
   if (!slugs.post) {
-    await page.goto(`${baseUrl}/dashboard/comunidad`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/dashboard/comunidad`, { waitUntil: "domcontentloaded" });
     slugs.post = (await hrefs(page, /^\/dashboard\/comunidad\/[^/?]+$/))[0]?.split("/")[3];
   }
 }
