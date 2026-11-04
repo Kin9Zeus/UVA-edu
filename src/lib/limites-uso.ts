@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 
 /**
  * Límites de uso de las acciones con sesión (fase 3 del plan de blindaje).
@@ -57,8 +58,16 @@ export async function consumirLimite(
     logError("limites-uso", "no se pudo comprobar el límite de uso", error, { area: "limites", accion });
     return { error: MENSAJE_LIMITE_SIN_COMPROBAR };
   }
-  if (data !== true) {
-    return { error: accion === "comunidad_adjuntos" ? MENSAJE_LIMITE_ADJUNTOS : MENSAJE_LIMITE_ALCANZADO };
-  }
+  if (data !== true) return respuestaLimiteDeUso(accion);
   return null;
+}
+
+/**
+ * La respuesta de una Server Action cuando la base dijo UV429 (o el cupo de
+ * adjuntos se agotó), con su evento de seguridad (fase 10.2): un pico de
+ * estos es alguien automatizando publicaciones.
+ */
+export async function respuestaLimiteDeUso(accion: AccionLimitada): Promise<{ error: string }> {
+  await registrarEventoDeLaPeticion("limite_de_uso", { accion });
+  return { error: accion === "comunidad_adjuntos" ? MENSAJE_LIMITE_ADJUNTOS : MENSAJE_LIMITE_ALCANZADO };
 }

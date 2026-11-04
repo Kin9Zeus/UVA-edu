@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { MENSAJE_LIMITE_ALCANZADO, esLimiteDeUso } from "@/lib/limites-uso";
+import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 import { logError } from "@/lib/log";
 import { contenidoNotaSchema, idSchema, segundoNotaSchema } from "@/lib/notas-validacion";
@@ -44,7 +44,7 @@ export async function editarNota(
     .eq("id", id.data)
     .select("actualizado_en");
 
-  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
+  if (esLimiteDeUso(error)) return respuestaLimiteDeUso("notas");
   if (error) {
     logError("notas:editar", "no se pudo editar la nota", error, { area: "notas", notaId });
     return { error: "No pudimos guardar los cambios. Intenta de nuevo." };

@@ -66,6 +66,7 @@ romper los certificados ni los registros contables.
 | --- | --- | --- |
 | **Supabase** | Todo lo de la sección 1, más los registros de Auth (correo, IP, fecha de cada entrada) | Panel, Logs. Los registros los guarda Supabase según su plan |
 | **Railway** | Nada guardado. Sus registros traen lo que la app escribe con `console`: ids, rutas y mensajes de error. Los campos con nombre de correo, contraseña o token salen como `[redactado]` (`src/lib/log.ts`); un correo escrito dentro de un mensaje de error sí pasaría | Panel de Railway, pestaña de registros |
+| **Railway: eventos de seguridad** (fase 10.2) | Una línea por inicio de sesión fallido o bloqueado, código de 2 pasos rechazado, 403 del origen, límite de uso alcanzado, entrada negada al panel y acción de administrador: **id del usuario, IP**, ruta sin la query y qué se intentó. Nunca correos, contraseñas, códigos ni formularios: los campos son una lista cerrada (`src/lib/eventos-seguridad.ts`) | Railway, y el servicio de registros externo cuando exista (fase 10.1: retención de 90 días) |
 | **Resend** | Correo y nombre de quien recibe cada correo, y el texto del correo | Panel de Resend, Emails |
 | **Sentry** | Errores con ids y la ruta. Correos, tokens de enlaces, cookies, IP y cuerpo se quitan antes de salir (`src/lib/sentry-privacidad.ts`) | Panel de Sentry |
 | **Mux** | Los videos. El reproductor manda por defecto métricas de reproducción (navegador, país aproximado por la IP); la app no le pasa nombre ni correo, solo el título del video | Panel de Mux, Data |

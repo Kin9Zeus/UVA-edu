@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { qrDeActivacion } from "@/lib/auth/qr";
 import {
   CODIGO_INVALIDO,
@@ -158,9 +159,16 @@ export async function verificarSegundoFactor(
     }
     // Pasar al siguiente dispositivo solo tiene sentido si el código fue
     // rechazado; con límite de intentos, seguir insistiendo lo empeora.
-    if (esLimiteDeIntentos(error)) return { error: mensaje };
+    if (esLimiteDeIntentos(error)) {
+      await registrarEventoDeLaPeticion("segundo_factor_fallido", { usuarioId: user.id, motivo: "limite_de_intentos" });
+      return { error: mensaje };
+    }
     ultimoMensaje = mensaje;
   }
 
+  // Fase 10.2: ningún dispositivo aceptó el código. Con la contraseña ya
+  // validada, repetirlo puede ser alguien que tiene la contraseña y no el
+  // celular.
+  await registrarEventoDeLaPeticion("segundo_factor_fallido", { usuarioId: user.id, motivo: "codigo_incorrecto" });
   return { error: ultimoMensaje };
 }

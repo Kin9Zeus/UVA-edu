@@ -6,8 +6,10 @@ vi.mock("@/lib/supabase/admin", () => import("@/test/servidor-falso").then((m) =
 vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.moduloNextNavigation()));
 vi.mock("next/headers", () => import("@/test/servidor-falso").then((m) => m.moduloNextHeaders()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
+vi.mock("@/lib/eventos-seguridad", () => ({ registrarEventoDeLaPeticion: vi.fn(async () => {}) }));
 
 import { login } from "@/actions/auth/login";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 
 /**
  * Login — P2-6 (AUDIT-2026-09-22.md). El destino de `redirect` ya lo cubre
@@ -38,6 +40,7 @@ async function destinoDe(accion: Promise<unknown>): Promise<string> {
 
 beforeEach(() => {
   servidorFalso.reiniciar();
+  vi.mocked(registrarEventoDeLaPeticion).mockClear();
   servidorFalso.responder("rpc:verificar_intentos_login", { data: { permitido: true, segundos_espera: 0 } });
   servidorFalso.responder("auth:signInWithPassword", { data: { user: USUARIO }, error: null });
   servidorFalso.responder("from:perfiles", { data: { estado: "ACTIVO" } });
@@ -101,6 +104,7 @@ describe("login", () => {
     expect(await entrar()).toEqual({ error: "Correo o contraseña incorrectos." });
     expect(servidorFalso.argumentosDe("rpc:registrar_login_fallido")).toEqual({ p_correo: CORREO });
     expect(servidorFalso.llamadasA("rpc:limpiar_intentos_login")).toHaveLength(0);
+    expect(registrarEventoDeLaPeticion).toHaveBeenCalledWith("login_fallido", { accion: "login" });
   });
 
   it("correo sin verificar: ofrece el reenvío y NO cuenta como intento fallido", async () => {
@@ -118,6 +122,7 @@ describe("login", () => {
 
     expect(await entrar()).toEqual({ error: "Demasiados intentos. Espera 10 minutos e intenta de nuevo." });
     expect(servidorFalso.llamadasA("auth:signInWithPassword")).toHaveLength(0);
+    expect(registrarEventoDeLaPeticion).toHaveBeenCalledWith("login_bloqueado", { accion: "login" });
   });
 
   it("si la consulta del límite falla, BLOQUEA: no prueba la contraseña (falla cerrado)", async () => {

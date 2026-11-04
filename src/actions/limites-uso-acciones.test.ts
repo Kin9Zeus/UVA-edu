@@ -4,6 +4,7 @@ import { servidorFalso } from "@/test/servidor-falso";
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
+vi.mock("@/lib/eventos-seguridad", () => ({ registrarEventoDeLaPeticion: vi.fn(async () => {}) }));
 vi.mock("@/lib/comunidad-adjuntos", () => ({
   prepararAdjuntosNuevos: vi.fn(async (contenido: string) => ({ contenido, procesados: [] })),
   subirAdjuntosProcesados: vi.fn(),
@@ -20,7 +21,9 @@ import { crearNota } from "@/actions/notas/crear";
 import { editarNota } from "@/actions/notas/editar";
 import { prepararAdjuntosNuevos } from "@/lib/comunidad-adjuntos";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import {
+  ACCIONES_LIMITADAS,
   CODIGO_LIMITE_DE_USO,
   MENSAJE_LIMITE_ADJUNTOS,
   MENSAJE_LIMITE_ALCANZADO,
@@ -63,6 +66,7 @@ beforeEach(() => {
   servidorFalso.responder("rpc:comunidad_tiene_acceso", { data: true });
   servidorFalso.responder("rpc:consumir_limite", { data: true });
   vi.mocked(logError).mockClear();
+  vi.mocked(registrarEventoDeLaPeticion).mockClear();
   vi.mocked(prepararAdjuntosNuevos).mockClear();
 });
 
@@ -125,6 +129,11 @@ describe.each([
 
     expect(await ejecutar()).toEqual({ error: MENSAJE_LIMITE_ALCANZADO });
     expect(servidorFalso.revalidaciones).toEqual([]);
+    // Fase 10.2: deja su evento de seguridad, con el nombre de la acción de la base.
+    expect(registrarEventoDeLaPeticion).toHaveBeenCalledTimes(1);
+    const [evento, datos] = vi.mocked(registrarEventoDeLaPeticion).mock.calls[0];
+    expect(evento).toBe("limite_de_uso");
+    expect(ACCIONES_LIMITADAS).toContain(datos?.accion);
   });
 });
 

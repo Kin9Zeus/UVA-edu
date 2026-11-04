@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 
 /**
  * Límite de intentos de contraseña (022_rate_limit_login_y_recuperacion.sql:
@@ -31,7 +32,10 @@ export async function comprobarLimiteLogin(
   }
 
   const { permitido, segundos_espera } = data as { permitido: boolean; segundos_espera: number };
-  return permitido ? null : mensajeEspera(segundos_espera);
+  if (permitido) return null;
+  // Fase 10.2: un bloqueo es la señal más clara de fuerza bruta.
+  await registrarEventoDeLaPeticion("login_bloqueado", { accion: scope });
+  return mensajeEspera(segundos_espera);
 }
 
 function mensajeEspera(segundos: number): string {

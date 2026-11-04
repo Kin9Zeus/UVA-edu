@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { MENSAJE_LIMITE_ALCANZADO, consumirLimite, esLimiteDeUso } from "@/lib/limites-uso";
+import { consumirLimite, esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados } from "@/lib/comunidad-adjuntos";
 import { MAX_ADJUNTOS_COMUNIDAD } from "@/lib/comunidad-tipos";
 import { getUsuarioActual } from "@/lib/perfil";
@@ -165,7 +165,7 @@ export async function crearPostComunidad(
     .select("id")
     .single();
 
-  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
+  if (esLimiteDeUso(error)) return respuestaLimiteDeUso("comunidad_publicar");
   if (error || !data) return { error: "No pudimos publicar tu mensaje." };
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idPost: postId, idUsuario: user.id });
@@ -257,7 +257,7 @@ export async function responderPostComunidad(
     .select("id")
     .single();
 
-  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
+  if (esLimiteDeUso(error)) return respuestaLimiteDeUso("comunidad_responder");
   if (error || !data) return { error: "No pudimos publicar tu respuesta." };
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idRespuesta: respuestaId, idUsuario: user.id });

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { MENSAJE_LIMITE_ALCANZADO, esLimiteDeUso } from "@/lib/limites-uso";
+import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 
 export type ReaccionComunidadResultado = { error: string } | { success: true };
@@ -30,7 +30,7 @@ async function reaccionar(
     .insert({ id_usuario: user.id, [columnaObjetivo]: objetivoId });
 
   // Fase 3: el tope lo aplica la base (trigger), compartido con los likes.
-  if (esLimiteDeUso(error)) return { error: MENSAJE_LIMITE_ALCANZADO };
+  if (esLimiteDeUso(error)) return respuestaLimiteDeUso("reaccionar");
   if (error && error.code !== "23505") return { error: "No pudimos guardar tu reacción." };
 
   revalidatePath(ruta);

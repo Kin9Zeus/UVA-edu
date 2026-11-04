@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getPerfilActual } from "@/lib/perfil";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { getNivelAalActual, pantallaDeSegundoFactor, rutaSegundoFactor } from "@/lib/auth/aal";
 
 /**
@@ -36,6 +37,9 @@ export async function exigirAdministradorEnPagina(rutaDeVuelta = "/admin") {
   }
 
   if (perfil?.rol !== "ADMINISTRADOR") {
+    // Fase 10.2: un estudiante con sesión pidiendo /admin. Lo inocente es
+    // un enlace viejo; repetido, es alguien probando.
+    await registrarEventoDeLaPeticion("admin_denegado", { usuarioId: user.id, ruta: rutaDeVuelta, motivo: "rol" });
     redirect("/acceso-denegado");
   }
 

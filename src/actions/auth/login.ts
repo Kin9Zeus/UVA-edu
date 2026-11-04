@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 // Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role: abierto, cualquiera reiniciaría su contador o bloquearía cuentas ajenas.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { suscripcionDaAcceso, type EstadoSuscripcionAdmin } from "@/lib/estadoAcceso";
@@ -57,6 +58,7 @@ export async function login(
     if (errorRegistro) {
       logError("login", "registrar_login_fallido rpc falló", errorRegistro);
     }
+    await registrarEventoDeLaPeticion("login_fallido", { accion: "login" });
 
     return { error: "Correo o contraseña incorrectos." };
   }
