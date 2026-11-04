@@ -15,6 +15,7 @@
  *   --corridas=<n>       Corridas por pantalla. Default: 3.
  *   --solo=1,5,23        Solo esas filas de la hoja.
  *   --curso= --leccion= --categoria= --post=   Slugs fijos (si no, toma el primero que encuentra).
+ *   --guardar-lhr       Guarda el reporte completo de cada corrida (lhr-<fila>-<n>.json) para ver qué scripts pesan.
  *   --reusar=<carpeta>   Usa los mismos slugs de una corrida anterior: así el
  *                        "después" mide exactamente las mismas URLs.
  *
@@ -103,6 +104,7 @@ const roles = (leerArg("roles") ?? "publico,estudiante,admin").split(",") as Rol
 const corridas = Number(leerArg("corridas") ?? 3);
 const solo = leerArg("solo")?.split(",").map(Number);
 const reusar = leerArg("reusar");
+const guardarLhr = process.argv.includes("--guardar-lhr");
 
 interface Corrida {
   rendimiento: number;
@@ -175,7 +177,7 @@ function urlDe(p: Pantalla, slugs: Record<string, string>): string | null {
   return /\{\w+\}/.test(ruta) || ruta.includes("//") || (ruta.length > 1 && ruta.endsWith("/")) ? null : baseUrl + ruta;
 }
 
-async function medir(url: string): Promise<Corrida> {
+async function medir(url: string, guardarEn?: string): Promise<Corrida> {
   const { default: lighthouse } = await import("lighthouse");
   const r = await lighthouse(url, {
     port: PUERTO,
@@ -185,6 +187,7 @@ async function medir(url: string): Promise<Corrida> {
     disableStorageReset: true, // conserva la sesión iniciada
   });
   const lhr = r!.lhr;
+  if (guardarEn) writeFileSync(guardarEn, JSON.stringify(lhr));
   const a = lhr.audits;
   const avisos = Object.entries(AUDITORIAS_A_ANOTAR)
     .filter(([id]) => a[id] && a[id].score !== null && (a[id].score as number) < 0.9)
@@ -244,7 +247,7 @@ async function main() {
         const lista: Corrida[] = [];
         for (let i = 1; i <= corridas; i++) {
           try {
-            lista.push(await medir(url));
+            lista.push(await medir(url, guardarLhr ? join(salida, `lhr-${p.fila}-${i}.json`) : undefined));
           } catch (e) {
             console.log(`  Fila ${p.fila} corrida ${i} falló: ${e instanceof Error ? e.message : e}`);
           }
