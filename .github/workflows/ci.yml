@@ -294,3 +294,47 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  lighthouse:
+    name: Lighthouse CI (móvil)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Las páginas leen el catálogo de staging: mismos secretos y filtro que `e2e`.
+    if: >-
+      ${{ github.event_name != 'pull_request'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]') }}
+    environment: supabase-test
+    env:
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Mínimos en lighthouserc.json: Accesibilidad, Buenas prácticas y SEO 95
+      # bloquean; Rendimiento 85 solo avisa (el runner compartido varía mucho
+      # entre corridas; el rendimiento real se mide en producción).
+      - name: Lighthouse (4 páginas públicas, mediana de 3 corridas)
+        run: npx lhci autorun
+
+      - name: Informes de Lighthouse
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse
+          path: lighthouse-ci/
+          retention-days: 14

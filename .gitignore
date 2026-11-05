@@ -70,3 +70,7 @@ respaldos/
 # Capturas de referencia solo de Linux (CI): las de Windows/Mac no coinciden nunca
 e2e/**/*-win32.png
 e2e/**/*-darwin.png
+
+# Lighthouse CI (lighthouserc.json): resultados locales
+/.lighthouseci/
+/lighthouse-ci/
