@@ -41,6 +41,11 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      actualizar_capturas:
+        description: "Regenerar las capturas de referencia (retroceso-visual) y subirlas a esta rama"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -235,11 +240,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Mismo filtro que `rls`: necesita los secretos de staging, que ni los
-    # forks ni Dependabot reciben.
+    # forks ni Dependabot reciben. No corre mientras se regeneran capturas.
     if: >-
-      ${{ github.event_name != 'pull_request'
+      ${{ !inputs.actualizar_capturas
+      && (github.event_name != 'pull_request'
       || (github.event.pull_request.head.repo.full_name == github.repository
-      && github.event.pull_request.user.login != 'dependabot[bot]') }}
+      && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     environment: supabase-test
     env:
       CI: "true"
@@ -279,7 +285,7 @@ jobs:
         run: npx playwright test e2e/retroceso-accesibilidad.spec.ts
 
       # Compara contra e2e/retroceso-visual.spec.ts-snapshots/. Si el cambio
-      # visual es intencional: workflow "Actualizar capturas" (docs/qa/pruebas-visuales.md).
+      # visual es intencional: Run workflow con "actualizar_capturas" (docs/qa/pruebas-visuales.md).
       # Las diferencias quedan en el artefacto playwright-e2e (test-results/).
       - name: Capturas comparadas (375, 768 y 1440 px, claro y oscuro)
         if: ${{ !cancelled() }}
@@ -325,11 +331,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Mínimos en lighthouserc.json: Accesibilidad, Buenas prácticas y SEO 95
-      # bloquean; Rendimiento 85 solo avisa (el runner compartido varía mucho
-      # entre corridas; el rendimiento real se mide en producción).
+      # Mínimos en lighthouserc.json (todos como aviso, ver el paso siguiente).
       - name: Lighthouse (4 páginas públicas, mediana de 3 corridas)
         run: npx lhci autorun
+
+      # Todos los mínimos son avisos (no bloquean): un runner compartido da
+      # cifras limítrofes que cambian entre corridas. Para que no pasen
+      # desapercibidos: tabla en el resumen de la corrida y una advertencia
+      # (visible en el PR) por cada categoría bajo su mínimo.
+      - name: Resumen y avisos de Lighthouse
+        if: ${{ !cancelled() }}
+        run: node scripts/audit/lighthouse-ci-resumen.mjs
 
       - name: Informes de Lighthouse
         if: ${{ !cancelled() }}
@@ -338,3 +350,57 @@ jobs:
           name: lighthouse
           path: lighthouse-ci/
           retention-days: 14
+
+  # Regenera las capturas de referencia de e2e/retroceso-visual.spec.ts en
+  # Linux y las sube a la rama elegida: Actions → CI → Run workflow → rama del
+  # PR → marcar "actualizar_capturas". Vive en este workflow y no en uno
+  # aparte porque GitHub solo deja lanzar a mano workflows que ya están en
+  # master. Ver docs/qa/pruebas-visuales.md.
+  capturas:
+    name: Regenerar capturas de referencia
+    if: ${{ inputs.actualizar_capturas && github.ref != 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: supabase-test
+    permissions:
+      contents: write
+    env:
+      CI: "true"
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+      MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Regenerar capturas
+        run: npx playwright test e2e/retroceso-visual.spec.ts --update-snapshots
+
+      - name: Subir las capturas a la rama
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add e2e/retroceso-visual.spec.ts-snapshots
+          if git diff --cached --quiet; then
+            echo "Las capturas no cambiaron."
+          else
+            git commit -m "Pruebas: capturas de referencia actualizadas"
+            git push
+          fi

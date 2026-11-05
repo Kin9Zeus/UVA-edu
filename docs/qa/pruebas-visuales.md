@@ -17,7 +17,7 @@ Las fuentes y el suavizado de texto cambian entre Windows, Mac y Linux. Una capt
 Si cambiaste a propósito cómo se ve una pantalla, el CI del PR fallará en el paso «Capturas comparadas». Para aceptar el cambio:
 
 1. **Revisa qué cambió.** En la corrida fallida del PR, descarga el artefacto `playwright-e2e`. En `test-results/` hay, por cada captura distinta, tres imágenes: la esperada (`-expected`), la actual (`-actual`) y la diferencia en rojo (`-diff`). Confirma que la diferencia es justo la que buscabas y nada más.
-2. **Regenera las capturas.** En GitHub: **Actions → «Actualizar capturas» → Run workflow**, y elige la rama de tu PR, nunca `master`. Tarda unos 8 a 10 minutos y sube un commit «Pruebas: capturas de referencia actualizadas» a esa rama.
+2. **Regenera las capturas.** En GitHub: **Actions → CI → Run workflow**, elige la rama de tu PR (nunca `master`) y marca **actualizar_capturas**. Corre solo el job «Regenerar capturas de referencia»: tarda unos 8 a 10 minutos y sube un commit «Pruebas: capturas de referencia actualizadas» a esa rama. (Vive dentro de `ci.yml` porque GitHub solo deja lanzar a mano workflows que ya están en `master`.)
 3. **Vuelve a correr el CI del PR.** El commit del paso anterior no lo dispara solo: en el PR, **Re-run all jobs**, o empuja cualquier commit.
 4. **El revisor mira las capturas en el diff del PR.** GitHub muestra las imágenes nuevas lado a lado con las viejas.
 
