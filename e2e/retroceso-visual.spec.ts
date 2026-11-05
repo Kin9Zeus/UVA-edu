@@ -84,13 +84,17 @@ for (const tema of TEMAS) {
 
         for (const p of pantallas.filter((x) => x.conSesion === conSesion)) {
           await test.step(p.nombre, async () => {
-            await page.goto(p.ruta, { waitUntil: "load" });
+            const respuesta = await page.goto(p.ruta, { waitUntil: "load" });
+            // Nunca una pantalla de error como captura: pasó una vez que test:rls
+            // reaplicaba políticas en staging y el panel dio 500 justo al capturar.
+            expect(respuesta?.status() ?? 0, `${p.ruta} respondió con error`).toBeLessThan(400);
             await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
             // Imágenes diferidas (loading="lazy") de toda la página antes de capturarla entera.
             await page.evaluate(async () => {
               for (const img of Array.from(document.images)) img.loading = "eager";
               await Promise.all(Array.from(document.images).map((img) => (img.complete ? null : img.decode().catch(() => {}))));
             });
+            await expect(page.locator("[data-pantalla-error]"), `${p.ruta} muestra una pantalla de error`).toHaveCount(0);
             await expect.soft(page).toHaveScreenshot(`${p.nombre}-${tema}-${ancho}.png`, {
               fullPage: true,
               mask: variables(page),
