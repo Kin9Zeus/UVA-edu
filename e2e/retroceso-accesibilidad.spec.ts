@@ -4,7 +4,7 @@ import {
   adminClient,
   borrarUsuarioPorEmail,
   CURSO_FIXTURE,
-  crearUsuarioConfirmado,
+  crearEstudianteConSesion,
   limpiarDatosDeUsuario,
   obtenerSlugsCursoFixture,
 } from "./supabase-admin";
@@ -45,40 +45,12 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(3 * 60_000);
-  const user = await crearUsuarioConfirmado(admin, { email, password, nombre: "E2E Retroceso A11y" });
-  usuarioId = user.id;
-
-  const { data: plan, error: errPlan } = await admin.from("planes").select("id").limit(1).single();
-  if (errPlan || !plan) throw new Error(`No hay plan para dar acceso: ${errPlan?.message}`);
-  const { error: errSus } = await admin.from("suscripciones").insert({
-    id_usuario: usuarioId,
-    id_plan: plan.id,
-    fecha_inicio: new Date().toISOString(),
-    fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
-    estado: "ACTIVA",
-    proveedor: "manual",
-    monto_centavos: 0,
-    moneda: "COP",
-    acceso_manual: true,
-  });
-  if (errSus) throw new Error(`No pude dar acceso al estudiante: ${errSus.message}`);
+  ({ id: usuarioId, sesion } = await crearEstudianteConSesion(admin, browser, { email, password, nombre: "E2E Retroceso A11y" }));
 
   const { cursoSlug, leccionSlugs } = await obtenerSlugsCursoFixture(admin);
   const [intro, conAcceso] = CURSO_FIXTURE.lecciones;
   rutas.anonimo = ["/", "/catalogo", `/cursos/${cursoSlug}`, `/cursos/${cursoSlug}/${leccionSlugs[intro.id]}`, "/login", "/canjear"];
   rutas.estudiante = ["/dashboard", "/dashboard/catalogo", `/cursos/${cursoSlug}/${leccionSlugs[conAcceso.id]}`];
-
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto("/login");
-  await page.fill("#auth-email", email);
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
-  await page.fill("#login-pass", password);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
-  sesion = await context.storageState();
-  await context.close();
 });
 
 test.afterAll(async () => {

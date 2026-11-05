@@ -20,6 +20,9 @@ export default defineConfig({
   // cadena de redirects que toca 3-4 rutas nuevas puede tardar bastante
   // más que el timeout por defecto de Playwright.
   timeout: 90_000,
+  // Capturas (retroceso-visual.spec.ts): tolera el suavizado de imágenes y
+  // texto, no un cambio de color, tamaño o posición.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",

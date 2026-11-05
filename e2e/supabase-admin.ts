@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
 import { generarCodigoTotp } from "../src/test/totp";
 
 /**
@@ -299,4 +299,44 @@ export async function activarSegundoFactor(page: Page) {
   await page.fill("#activar-codigo", generarCodigoTotp(secreto));
   await page.getByRole("button", { name: "Activar y entrar" }).click();
   await expect(page).not.toHaveURL(/\/seguridad\//, { timeout: 30_000 });
+}
+
+/**
+ * Estudiante desechable con acceso vigente (suscripción manual de 30 días) y su
+ * sesión ya iniciada por la pantalla real de login, lista para `storageState`.
+ * Lo usan las pruebas que miran pantallas con sesión (accesibilidad, capturas).
+ */
+export async function crearEstudianteConSesion(
+  admin: ReturnType<typeof adminClient>,
+  browser: Browser,
+  { email, password, nombre }: { email: string; password: string; nombre: string },
+): Promise<{ id: string; sesion: BrowserContextOptions["storageState"] }> {
+  const user = await crearUsuarioConfirmado(admin, { email, password, nombre });
+  const { data: plan, error: errPlan } = await admin.from("planes").select("id").limit(1).single();
+  if (errPlan || !plan) throw new Error(`No hay plan para dar acceso: ${errPlan?.message}`);
+  const { error: errSus } = await admin.from("suscripciones").insert({
+    id_usuario: user.id,
+    id_plan: plan.id,
+    fecha_inicio: new Date().toISOString(),
+    fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    estado: "ACTIVA",
+    proveedor: "manual",
+    monto_centavos: 0,
+    moneda: "COP",
+    acceso_manual: true,
+  });
+  if (errSus) throw new Error(`No pude dar acceso al estudiante: ${errSus.message}`);
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/login");
+  await page.fill("#auth-email", email);
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
+  await page.fill("#login-pass", password);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
+  const sesion = await context.storageState();
+  await context.close();
+  return { id: user.id, sesion };
 }

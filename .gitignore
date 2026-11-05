@@ -66,3 +66,7 @@ next-env.d.ts
 
 # Respaldos locales de datos borrados con scripts (llevan ids de usuario)
 respaldos/
+
+# Capturas de referencia solo de Linux (CI): las de Windows/Mac no coinciden nunca
+e2e/**/*-win32.png
+e2e/**/*-darwin.png

@@ -230,7 +230,7 @@ jobs:
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
 
   e2e:
-    name: Recorrido crítico y accesibilidad (Playwright, staging)
+    name: Recorrido crítico, accesibilidad y capturas (Playwright, staging)
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -277,6 +277,13 @@ jobs:
       - name: Accesibilidad contra retrocesos (axe y teclado)
         if: ${{ !cancelled() }}
         run: npx playwright test e2e/retroceso-accesibilidad.spec.ts
+
+      # Compara contra e2e/retroceso-visual.spec.ts-snapshots/. Si el cambio
+      # visual es intencional: workflow "Actualizar capturas" (docs/qa/pruebas-visuales.md).
+      # Las diferencias quedan en el artefacto playwright-e2e (test-results/).
+      - name: Capturas comparadas (375, 768 y 1440 px, claro y oscuro)
+        if: ${{ !cancelled() }}
+        run: npx playwright test e2e/retroceso-visual.spec.ts
 
       - name: Informe y videos del fallo
         if: failure()
