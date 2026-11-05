@@ -236,7 +236,9 @@ jobs:
 
   e2e:
     name: Recorrido crítico, accesibilidad y capturas (Playwright, staging)
-    needs: checks
+    # Después de `rls`, no en paralelo: test:rls publica cursos de prueba en
+    # staging mientras corre y cambiaría el catálogo y la portada de las capturas.
+    needs: [checks, rls]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Mismo filtro que `rls`: necesita los secretos de staging, que ni los
@@ -375,6 +377,7 @@ jobs:
   # master. Ver docs/qa/pruebas-visuales.md.
   capturas:
     name: Regenerar capturas de referencia
+    needs: rls # mismo motivo que `e2e`: capturas sin los cursos temporales de test:rls
     if: ${{ inputs.actualizar_capturas && github.ref != 'refs/heads/master' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
