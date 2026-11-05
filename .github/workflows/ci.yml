@@ -248,6 +248,15 @@ jobs:
       && github.event.pull_request.user.login != 'dependabot[bot]')) }}
     environment: supabase-test
     env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       CI: "true"
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -313,6 +322,15 @@ jobs:
       && github.event.pull_request.user.login != 'dependabot[bot]') }}
     environment: supabase-test
     env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -340,7 +358,6 @@ jobs:
       # desapercibidos: tabla en el resumen de la corrida y una advertencia
       # (visible en el PR) por cada categoría bajo su mínimo.
       - name: Resumen y avisos de Lighthouse
-        if: ${{ !cancelled() }}
         run: node scripts/audit/lighthouse-ci-resumen.mjs
 
       - name: Informes de Lighthouse
@@ -365,6 +382,15 @@ jobs:
     permissions:
       contents: write
     env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       CI: "true"
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
