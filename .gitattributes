@@ -1,0 +1,2 @@
+# Scripts y configuración que corren en contenedores Linux: siempre LF.
+infra/** text eol=lf

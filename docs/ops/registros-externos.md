@@ -26,29 +26,69 @@ contraseñas, códigos, tokens ni formularios. Un valor con "@" se redacta.
 
 Para buscarlos en Railway (pestaña de registros): `"tipo":"seguridad"`.
 
-## 10.1 — Llevarlos fuera de Railway (pendiente: necesita una cuenta)
+## 10.1 — Llevarlos fuera de Railway, 90 días
 
-Railway **no tiene** un envío nativo de registros a otro servicio
-([guía de Railway](https://docs.railway.com/guides/ship-logs-third-party)).
-Opciones:
+Decisión (2026-11-05): **Better Stack** gratis para buscar y alertar (guarda
+3 días) y **Cloudflare R2** como archivo de 90 días. Ningún plan gratis
+guarda 90 días buscables; R2 cuesta $0 con nuestro volumen (10 GB gratis).
 
-| Opción | Cómo | Veredicto |
-| --- | --- | --- |
-| **Vector en Railway** (la de la guía oficial) | Un servicio pequeño en el mismo proyecto recibe los registros por la red privada y los manda a Better Stack o Axiom | **Recomendada.** Solo necesita la llave de ingreso del servicio externo, que sirve para escribir registros, no para leerlos |
-| Locomotive (plantilla de la comunidad) | Lee los registros con la API de Railway | **No:** pide una llave de la **cuenta** de Railway. Si la roban, da acceso a todo el proyecto, que es justo lo que pasó el 21 de octubre |
-| Enviarlos desde la app | La app manda cada línea por HTTP | Solo si Vector no funciona: suma latencia y un punto de falla a cada petición |
+```
+App (Railway) --POST por la red privada--> Vector (Railway) --> Better Stack (3 días)
+      |                                                    \-> R2: registros/AAAA/MM/DD/ (90 días)
+      \-- sigue escribiendo en la salida estándar (Railway)
+```
 
-Servicio de destino, con retención de al menos 90 días: **Better Stack
-(Logs)** o **Axiom**. Confirmar la retención del plan antes de elegir.
+Railway no tiene envío nativo de registros a otro servicio: la app manda
+una copia ([guía de Railway](https://railway.com/guides/ship-logs-third-party)).
 
-Pasos (los hace quien tenga acceso a Railway y abra la cuenta):
-1. Crear la cuenta y una "source" (Better Stack) o un dataset (Axiom), con
-   retención de 90 días o más.
-2. Desplegar Vector según la guía de Railway, con la llave de ingreso como
-   variable del servicio de Vector, no del de la app.
-3. Comprobar que llegan las líneas `"tipo":"seguridad"`.
-4. Anotar la llave en `salida-de-miembro-y-cambio-de-llaves.md`.
-5. Agregar el servicio a `inventario-de-datos.md` (recibe ids e IP).
+| Pieza | Dónde |
+| --- | --- |
+| Enviador de la app: junta las líneas y las manda en lotes cada 2 s, en segundo plano. Si Vector no responde, descarta el lote y avisa una vez por minuto; nunca frena una petición | `src/lib/envio-registros.ts` |
+| Qué se manda: los eventos de seguridad y las líneas de `logError` (ya filtradas por privacidad) | `eventos-seguridad.ts`, `log.ts` |
+| Configuración de Vector (versión y digest fijos) | `infra/vector/` |
+
+Probado en local (2026-11-05) con Vector 0.61.0: la configuración valida, un
+inicio de sesión fallido llega a Vector a los 2 s, y con Vector apagado la
+app responde igual (contraseña incorrecta en < 1 s) y deja un solo aviso.
+
+### Paso a paso para encenderlo
+
+**1. Better Stack**
+1. Cuenta nueva → "Log management".
+2. Telemetry → Sources → Connect source. Nombre `uva-produccion`,
+   plataforma HTTP, región de Estados Unidos.
+3. Anotar en el gestor de contraseñas el **Source token** y el
+   **Ingesting host**.
+
+**2. Cloudflare R2**
+1. Cuenta de Cloudflare (gratis; R2 pide una tarjeta aunque no cobre
+   dentro de los 10 GB).
+2. R2 → Create bucket: `uva-registros`.
+3. Bucket → Settings → Object lifecycle rules: borrar los objetos con
+   prefijo `registros/` a los **90 días**.
+4. R2 → Manage API tokens → Create token: permiso **Object Read & Write**
+   solo para `uva-registros`. Anotar el Access Key ID, el Secret Access Key
+   y el endpoint (`https://<cuenta>.r2.cloudflarestorage.com`).
+
+**3. Railway** (proyecto de producción)
+1. New → GitHub Repo → este repo. Nombre del servicio: **`vector`** (la
+   dirección privada sale del nombre: `vector.railway.internal`).
+2. Settings → Root Directory: `/infra/vector`. Watch paths:
+   `/infra/vector/**` (para que no se redespliegue con cada cambio de la app).
+3. **Sin dominio público.** No agregar uno.
+4. Variables del servicio `vector`: `BETTERSTACK_HOST`, `BETTERSTACK_TOKEN`,
+   `R2_ENDPOINT`, `R2_BUCKET`, `R2_LLAVE_ID`, `R2_LLAVE_SECRETA`. Si falta
+   una, Vector no arranca (a propósito: se ve en Railway).
+5. Desplegar y esperar el verde.
+6. En el servicio **de la app**, agregar `VECTOR_URL` =
+   `http://vector.railway.internal:9000` (http, no https: es la red
+   privada). Redesplegar la app.
+7. Comprobar: un inicio de sesión fallido aparece en Better Stack (Live
+   tail) a los pocos segundos, y a los 5 minutos hay un archivo en R2 bajo
+   `registros/<fecha>/`.
+8. Anotar las variables en `salida-de-miembro-y-cambio-de-llaves.md`.
+
+Para apagarlo: quitar `VECTOR_URL` de la app. Todo vuelve a ser como antes.
 
 ## 10.3 — Alertas
 

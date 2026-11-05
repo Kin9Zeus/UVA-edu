@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { enviarAlRegistroExterno } from "@/lib/envio-registros";
 
 /**
  * Log estructurado + reporte a Sentry (P1-3, AUDIT-2026-08-24.md).
@@ -74,19 +75,21 @@ export function logError(
     extra: { message, ...(causaOriginal !== undefined ? { causaOriginal } : {}), ...extra },
   });
 
-  (nivel === "warning" ? console.warn : console.error)(
-    JSON.stringify({
-      nivel,
-      timestamp: new Date().toISOString(),
-      eventId,
-      scope,
-      ...(area ? { area } : {}),
-      message,
-      error: { nombre: err.name, mensaje: err.message },
-      ...(causaOriginal !== undefined ? { causaOriginal } : {}),
-      ...extra,
-    }),
-  );
+  const linea = {
+    nivel,
+    timestamp: new Date().toISOString(),
+    eventId,
+    scope,
+    ...(area ? { area } : {}),
+    message,
+    error: { nombre: err.name, mensaje: err.message },
+    ...(causaOriginal !== undefined ? { causaOriginal } : {}),
+    ...extra,
+  };
+  (nivel === "warning" ? console.warn : console.error)(JSON.stringify(linea));
+  // Fase 10.1: copia a Vector en el servidor (Better Stack + archivo de 90
+  // días en R2). En el navegador no hace nada.
+  enviarAlRegistroExterno(linea);
 
   return eventId;
 }
