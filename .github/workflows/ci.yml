@@ -230,7 +230,7 @@ jobs:
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
 
   e2e:
-    name: Recorrido crítico (Playwright, staging)
+    name: Recorrido crítico y accesibilidad (Playwright, staging)
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -271,6 +271,12 @@ jobs:
 
       - name: Recorrido crítico
         run: npx playwright test e2e/recorrido-critico.spec.ts
+
+      # Falla con violaciones critical/serious de axe (contraste incluido),
+      # foco invisible o trampas de teclado en las pantallas principales.
+      - name: Accesibilidad contra retrocesos (axe y teclado)
+        if: ${{ !cancelled() }}
+        run: npx playwright test e2e/retroceso-accesibilidad.spec.ts
 
       - name: Informe y videos del fallo
         if: failure()
