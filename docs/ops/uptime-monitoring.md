@@ -46,3 +46,17 @@ Dos monitores, si el plan gratuito lo permite:
 
 Que el monitor no mande la cabecera `X-Origen-Uva`: no la necesita y sería
 otro lugar donde guardar el secreto.
+
+## Estado (2026-11-06): hecho
+
+- Monitor en **Better Stack** (Uptime): `https://beta.uvarq.com/api/health`,
+  que pasa por Cloudflare (`cf-ray` en la respuesta). Cada 3 minutos,
+  confirmación y recuperación de 3 minutos, verificación de SSL, aviso por
+  correo al responsable de turno (hoy Miguel). "Send test alert" probado.
+- **Sin monitor de origen** (`*.up.railway.app`) por decisión del equipo: los
+  estudiantes no usan esa dirección y puede borrarse al terminar el paso a
+  Cloudflare. Para diagnosticar a mano: si `beta.uvarq.com` cae, abrir la
+  de Railway; si responde, el problema es Cloudflare o el DNS.
+- Cuando la plataforma pase a `www.uvarq.com`, cambiar la URL del monitor.
+- El plan gratis no revisa el vencimiento del dominio ni del certificado:
+  `uvarq.com` vence el 2026-11-24 (renovación automática en GoDaddy).
