@@ -53,6 +53,8 @@ incidente: seguir `respuesta-a-incidentes.md`.
       alta).
 - [ ] CodeQL (Security → Code scanning): ningún hallazgo nuevo sin revisar.
 - [ ] El job `imagen` del CI está en verde. Sin eso, el plan B no funciona.
+- [ ] ¿Se cerró el bug de Vector con R2 ([#23029](https://github.com/vectordotdev/vector/issues/23029))? Si sí, subir Vector desde 0.45.0 (`infra/vector/Dockerfile`) y comprobar que llega un archivo a R2.
+- [ ] R2 `uva-registros`: hay archivos de los últimos días en `registros/`.
 
 ## 5. Accesos
 
