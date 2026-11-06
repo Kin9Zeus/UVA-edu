@@ -45,8 +45,10 @@ name: CI
 #   base de producción no tiene credenciales en GitHub, y no debe tenerlas.
 #   Pasar a `supabase start` dentro del CI queda como mejora: más lento y
 #   con su propia versión de Postgres/Auth que mantener al día.
-# · Environment `supabase-test` (9.4): exige revisores. NO está limitado a
-#   la rama master a propósito: con ese límite GitHub rechaza el job en
+# · Environment `supabase-test` (9.4): sin revisores obligatorios desde el
+#   2026-11-06, por decisión del equipo (la aprobación frenaba cada PR). Sus
+#   secretos son de staging; forks y Dependabot siguen sin recibirlos (filtro
+#   `if` de cada job). NO está limitado a la rama master a propósito: con ese límite GitHub rechaza el job en
 #   cada PR, y las pruebas de RLS dejarían de correr antes de mezclar (son
 #   las que atraparon el problema de los tipos de archivo de la 135). El
 #   riesgo que el límite cubría ya está cubierto: la base es staging.
@@ -345,7 +347,12 @@ jobs:
 
   lighthouse:
     name: Lighthouse CI (móvil)
-    needs: checks
+    # Después de `rls`, no en paralelo (igual que `e2e`). `db:rls` aplica los
+    # 136 scripts en UNA transacción que bloquea las tablas hasta el final;
+    # el `next build` de este job consulta staging (sitemap, categorías) al
+    # mismo tiempo, y los dos se quedaban esperándose hasta cortarse por
+    # tiempo ("statement timeout"). Pasó en el PR #34, dos veces seguidas.
+    needs: [checks, rls]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Las páginas leen el catálogo de staging: mismos secretos y filtro que `e2e`.
