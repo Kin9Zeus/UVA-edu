@@ -6,6 +6,7 @@ import { getCategoriasParaEdicion } from "@/lib/admin/cursos";
 import { getPerfilesProfesor } from "@/lib/admin/profesores";
 import { esUuid } from "@/lib/slug";
 import { CursoDetalleView, type PestanaCurso } from "@/components/admin/cursos/CursoDetalleView";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de curso",
@@ -35,6 +36,8 @@ export default async function AdminCursoDetallePage({
   params: Promise<{ cursoSlug: string }>;
   searchParams: Promise<{ pestana?: string | string[] }>;
 }) {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/cursos");
   const [{ cursoSlug }, { pestana }] = await Promise.all([params, searchParams]);
   // `?pestana=` repetido o inventado abre Información en vez de fallar.
   const pestanaInicial = PESTANAS.find((valor) => valor === pestana) ?? "informacion";

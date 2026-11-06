@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
 import { getNivelAalActual } from "@/lib/auth/aal";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 
 /**
  * Guard para Server Actions del panel admin. RLS ya bloquea en la base de
@@ -38,6 +39,9 @@ export async function requireAdmin() {
   }
 
   if (perfil?.rol !== "ADMINISTRADOR") {
+    // Fase 10.2: llamar una acción de administrador sin serlo no pasa usando
+    // la app (los botones no se muestran): es alguien llamándola a mano.
+    await registrarEventoDeLaPeticion("admin_denegado", { usuarioId: user.id, motivo: "accion" });
     return { error: "No tienes permisos de administrador." } as const;
   }
 

@@ -28,3 +28,21 @@ cayó" la dispara el servicio externo que lo consulta.
 
 Esto es responsabilidad de quien tenga acceso a facturación/cuentas del
 equipo; no se puede hacer desde el código ni desde esta sesión.
+
+## Fase 10.4: el monitor pasa por Cloudflare
+
+Cuando el dominio esté detrás de Cloudflare (fases 1 y 2), el monitor
+apunta al **dominio**, no a `*.up.railway.app`. Así prueba el camino real de
+un estudiante (DNS, Cloudflare, origen). Con el cierre de origen encendido,
+la URL de Railway responde 403 a todo salvo `/api/health`, que queda
+abierta para que este mismo monitor sirva de respaldo si Cloudflare falla.
+
+Dos monitores, si el plan gratuito lo permite:
+
+| Monitor | URL | Qué detecta |
+| --- | --- | --- |
+| Principal | `https://<dominio>/api/health` | Cualquier caída que vea un estudiante |
+| Origen | `https://<servicio>.up.railway.app/api/health` | Si el principal cae y este no, el problema es Cloudflare o el DNS, no la app |
+
+Que el monitor no mande la cabecera `X-Origen-Uva`: no la necesita y sería
+otro lugar donde guardar el secreto.

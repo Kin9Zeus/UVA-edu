@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 import { logError } from "@/lib/log";
 import { aNotaLeccion, type NotaLeccion } from "@/lib/notas";
@@ -53,6 +54,8 @@ export async function crearNota(
     .select("id, id_leccion, segundo, contenido, id_video_mux, actualizado_en")
     .single();
 
+  // Fase 3: crear y editar comparten un tope por hora que aplica la base (trigger).
+  if (esLimiteDeUso(error)) return respuestaLimiteDeUso("notas");
   if (error || !data) {
     if (error?.code === "P0N01") {
       return { error: `Llegaste al máximo de ${MAX_NOTAS_POR_LECCION} notas en esta clase.` };

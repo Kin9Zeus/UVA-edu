@@ -56,6 +56,7 @@ romper los certificados ni los registros contables.
 | --- | --- | --- | --- |
 | Acciones de los administradores (quién, qué, cuándo) | `bitacora_administrativa` | Auditoría | Indefinido |
 | Correos e IP de intentos de entrar, recuperar contraseña, canjear o validar | `private.intentos_*`, `private.*_reenvios` | Frenar abusos | Se purgan solos un día después de vencer (cron `limpiar-rate-limit`, 3:30) |
+| Cuándo publicó, respondió, comentó, reaccionó, reportó, escribió notas o adjuntó cada usuario (solo su id, la acción y la hora) | `private.limites_uso` | Límites de uso (`134`) | **2 días** (cron `purgar-limites-uso`, 3:50) |
 | Avisos de proveedores (pueden traer correo o nombre) | `eventos_webhook` | No procesar dos veces un aviso | **90 días** (cron `purgar-webhooks-y-assets`, 3:45) |
 | Enlaces de vista previa | `tokens_vista_previa` | Mostrar un curso sin publicar | Un día después de vencer o revocarse (cron, 3:15) |
 
@@ -65,6 +66,7 @@ romper los certificados ni los registros contables.
 | --- | --- | --- |
 | **Supabase** | Todo lo de la sección 1, más los registros de Auth (correo, IP, fecha de cada entrada) | Panel, Logs. Los registros los guarda Supabase según su plan |
 | **Railway** | Nada guardado. Sus registros traen lo que la app escribe con `console`: ids, rutas y mensajes de error. Los campos con nombre de correo, contraseña o token salen como `[redactado]` (`src/lib/log.ts`); un correo escrito dentro de un mensaje de error sí pasaría | Panel de Railway, pestaña de registros |
+| **Railway: eventos de seguridad** (fase 10.2) | Una línea por inicio de sesión fallido o bloqueado, código de 2 pasos rechazado, 403 del origen, límite de uso alcanzado, entrada negada al panel y acción de administrador: **id del usuario, IP**, ruta sin la query y qué se intentó. Nunca correos, contraseñas, códigos ni formularios: los campos son una lista cerrada (`src/lib/eventos-seguridad.ts`) | Railway, y el servicio de registros externo cuando exista (fase 10.1: retención de 90 días) |
 | **Resend** | Correo y nombre de quien recibe cada correo, y el texto del correo | Panel de Resend, Emails |
 | **Sentry** | Errores con ids y la ruta. Correos, tokens de enlaces, cookies, IP y cuerpo se quitan antes de salir (`src/lib/sentry-privacidad.ts`) | Panel de Sentry |
 | **Mux** | Los videos. El reproductor manda por defecto métricas de reproducción (navegador, país aproximado por la IP); la app no le pasa nombre ni correo, solo el título del video | Panel de Mux, Data |

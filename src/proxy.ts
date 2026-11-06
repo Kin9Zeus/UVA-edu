@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 import { construirCsp, generarNonce } from "@/lib/csp";
 import { CABECERA_ORIGEN, RUTA_SIN_SESION, decidirOrigen } from "@/lib/origen";
+import { resolverIp, saltosConfiables } from "@/lib/clientIp";
+import { registrarEventoSeguridad } from "@/lib/eventos-seguridad";
 
 export async function proxy(request: NextRequest) {
   // Fase 2 del plan de blindaje: con ORIGEN_SECRETO puesta, quien llame directo
@@ -9,6 +11,17 @@ export async function proxy(request: NextRequest) {
   // primero y cubre también /_next/image, la ruta del optimizador que protege
   // el WAF: la regla no sirve si el origen responde por otra vía.
   if (decidirOrigen(request.nextUrl.pathname, request.headers.get(CABECERA_ORIGEN)) === "rechazar") {
+    // Fase 10.2. Sin el secreto no se confía en CF-Connecting-IP: la IP sale
+    // de X-Forwarded-For, igual que en el resto de la app.
+    registrarEventoSeguridad("origen_rechazado", {
+      ruta: request.nextUrl.pathname,
+      ip: resolverIp({
+        cfConnectingIp: null,
+        forwardedFor: request.headers.get("x-forwarded-for"),
+        desdeCloudflare: false,
+        saltos: saltosConfiables(),
+      }).ip,
+    });
     return new NextResponse("Acceso directo no permitido.", { status: 403 });
   }
 

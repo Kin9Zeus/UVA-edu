@@ -6,12 +6,15 @@ import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { CuponesTable } from "@/components/admin/cupones/CuponesTable";
 import { ResumenCupones } from "@/components/admin/cupones/ResumenCupones";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Cupones",
 };
 
 export default async function AdminCuponesPage() {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/cupones");
   const [cupones, planes] = await Promise.all([getCuponesAdmin(), getPlanesAdmin()]);
   // Con el cobro apagado nadie puede pagar: no se consultan los intentos de
   // pago y la pantalla dice por qué no hay usos, en vez de mostrar ceros.

@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-import { getPerfilActual } from "@/lib/perfil";
-import { getNivelAalActual, pantallaDeSegundoFactor, rutaSegundoFactor } from "@/lib/auth/aal";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
 import { Header } from "@/components/admin/Header";
@@ -13,53 +11,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, perfil } = await getPerfilActual();
-
-  if (!user) {
-    redirect("/login?redirect=/admin");
-  }
-
-  // Cuenta suspendida: esto SÍ es defensa en profundidad. El middleware
-  // (src/lib/supabase/proxy.ts) ya cierra la sesión de una cuenta suspendida
-  // en cada request a ruta protegida; esta línea cubre el caso de que el
-  // layout se renderice sin haber pasado por él.
-  if (perfil?.estado === "SUSPENDIDO") {
-    redirect("/login");
-  }
-
-  // ATENCIÓN: este redirect es la ÚNICA puerta de rol del panel. No es
-  // redundante y no se puede quitar (P2-1, AUDIT-2026-09-08).
-  //
-  // El comentario anterior decía que el middleware "ya bloquea /admin para
-  // no administradores" y que esto era defensa en profundidad. Dejó de ser
-  // cierto al cerrar P2-8 de AUDIT-2026-09-04: proxy.ts quitó a propósito
-  // su consulta de rol —para no pagarla dos veces por request— delegando
-  // justamente en este layout, y su propio comentario lo explica. Los dos
-  // archivos se señalaban mutuamente como la capa redundante, así que quien
-  // leyera cualquiera de los dos podía quitar el otro sin ver el hueco.
-  //
-  // Si algún día hay que quitarlo de aquí, primero hay que devolver el
-  // chequeo de rol al middleware. Lo que protege es la LECTURA del panel
-  // (bitácora, listado de usuarios, métricas): las mutaciones tienen
-  // además requireAdmin() en las 51 Server Actions y RLS
-  // (private.es_administrador()) detrás, pero ninguna de esas dos capas
-  // impide renderizar la pantalla.
-  //
-  // La regresión está cubierta por src/lib/admin/muro-admin.test.ts.
-  if (perfil?.rol !== "ADMINISTRADOR") {
-    redirect("/acceso-denegado");
-  }
-
-  // FASE 8.1 (2FA de administradores): el rol solo no basta, la sesión tiene
-  // que ser aal2 (contraseña + código de la app). Va DESPUÉS del rol, no antes:
-  // a un estudiante se le dice "acceso denegado", no que active el 2FA. Se
-  // redirige y no se muestra un 403 porque un aal1 aquí suele ser inocente (el
-  // administrador acaba de entrar, o dejó una pestaña abierta); lo único que
-  // le falta es escribir su código. El mismo nivel se exige en `requireAdmin()`
-  // para las acciones: esta puerta cubre LEER el panel, aquella ESCRIBIR.
-  if ((await getNivelAalActual()) !== "aal2") {
-    redirect(rutaSegundoFactor(await pantallaDeSegundoFactor(), "/admin"));
-  }
+  // La puerta del panel (rol, cuenta activa y segundo factor). Cada página la
+  // llama también: un layout no se vuelve a ejecutar al navegar y no impide
+  // que la página corra (ver src/lib/admin/guardiaPagina.ts). Quitarla de
+  // aquí no abre nada mientras las páginas la tengan, pero el layout también
+  // pinta datos del administrador (nombre, foto) y debe tenerla.
+  const { user, perfil } = await exigirAdministradorEnPagina("/admin");
 
   const nombre = perfil?.nombre ?? user.email?.split("@")[0] ?? "Administrador";
   const fotoUrl = perfil?.foto_url ?? null;

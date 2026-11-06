@@ -1,11 +1,85 @@
-# U.V.A (Unidad Vectorial de Arquitectura) v2
+<div align="center">
 
-Plataforma de cursos en línea. Next.js (App Router) + TypeScript + Supabase +
-Prisma + Tailwind CSS. Ver `CLAUDE.md` para la arquitectura completa y
-`docs/` (`functional-spec.md`, `technical-spec.md`, `development-plan.md`)
-para las reglas de negocio y el esquema.
+<img src="docs/readme/hero.jpg" alt="Portada de U.V.A: «La escuela del sector de la construcción» junto a volúmenes isométricos por escuela de cursos" width="100%" />
+
+# U.V.A · Unidad Vectorial de Arquitectura
+
+**La escuela en línea del sector de la construcción: cursos en video protegido, pagos, exámenes generados con IA y certificados verificables por QR, sobre una base de datos que se defiende sola.**
+
+<br/>
+
+![Next.js](https://img.shields.io/badge/Next.js_16-0a0a0c?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-0a0a0c?style=for-the-badge&logo=typescript&logoColor=3178C6)
+![Supabase](https://img.shields.io/badge/Supabase_·_RLS-0a0a0c?style=for-the-badge&logo=supabase&logoColor=3ECF8E)
+
+![Prisma](https://img.shields.io/badge/Prisma-FF007A?style=flat-square&logo=prisma&logoColor=white)
+![Mux](https://img.shields.io/badge/Mux_video-FF007A?style=flat-square&logoColor=white)
+![Stripe](https://img.shields.io/badge/Stripe-FF007A?style=flat-square&logo=stripe&logoColor=white)
+![Wompi](https://img.shields.io/badge/Wompi-FF007A?style=flat-square&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-FF007A?style=flat-square&logo=googlegemini&logoColor=white)
+![Resend](https://img.shields.io/badge/Resend-FFC400?style=flat-square&logo=resend&logoColor=black)
+![Sentry](https://img.shields.io/badge/Sentry-FFC400?style=flat-square&logo=sentry&logoColor=black)
+![Vitest](https://img.shields.io/badge/Vitest-FFC400?style=flat-square&logo=vitest&logoColor=black)
+![Playwright](https://img.shields.io/badge/Playwright-FFC400?style=flat-square&logo=playwright&logoColor=black)
+
+[El producto](#el-producto) · [En cifras](#en-cifras) · [Capturas](#capturas) · [Ingeniería](#ingeniería) · [Arrancar desde cero](#arrancar-desde-cero)
+
+</div>
+
+---
+
+## El producto
+
+U.V.A es la plataforma de formación de una escuela de arquitectura y construcción: **del primer boceto a la entrega final** —diseño, modelado BIM, presupuesto, contratación y gestión de obra— en clases cortas, plantillas listas para usar y casos reales.
+
+| Para quién | Qué puede hacer |
+|---|---|
+| **Visitante** | Explorar el catálogo por escuela y nivel, ver vistas previas, **verificar un certificado** con su código y pedir soporte. |
+| **Estudiante** | Acceder por suscripción, compra o código de invitación; ver lecciones en video protegido; avanzar con progreso guardado; presentar exámenes y descargar su certificado en PDF con QR. |
+| **Administración** | Gestionar cursos, módulos y lecciones, códigos y cupones, accesos manuales, y **generar exámenes con IA** a partir del contenido del curso, con revisión humana antes de publicarlos. Acceso protegido con segundo factor (TOTP). |
+
+## En cifras
+
+Contado en el código de este repositorio:
+
+| | |
+|---|---|
+| **53** | páginas en tres áreas: pública, estudiante y administración |
+| **140** | archivos de pruebas unitarias (Vitest) |
+| **17** | flujos end-to-end (Playwright) |
+| **56** | migraciones de Prisma, inmutables |
+| **136** | scripts SQL de Row Level Security, triggers y funciones, aplicados en una sola transacción |
+| **72** | capturas de QA de compatibilidad: 9 dispositivos × 4 pantallas × tema claro y oscuro |
+| **7** | auditorías internas documentadas en `auditorias/` |
+
+## Capturas
+
+<div align="center">
+  <img src="docs/readme/screens.jpg" alt="Cuatro pantallas de escritorio: catálogo de cursos en tema oscuro, portada en tema claro, centro de soporte e inicio de sesión" width="100%" />
+  <br/><sub><b>Escritorio</b> — catálogo, portada en tema claro, centro de soporte e inicio de sesión con Google.</sub>
+  <br/><br/>
+  <img src="docs/readme/mobile.jpg" alt="Tres pantallas móviles: portada, catálogo y soporte" width="80%" />
+  <br/><sub><b>Móvil</b> — iPhone y Android, en ambos temas. Todas las capturas están en <code>docs/qa/compatibilidad/capturas/</code>.</sub>
+</div>
+
+## Ingeniería
+
+| | |
+|---|---|
+| 🛡️ **La base de datos es la última línea de defensa** | Todo el CRUD en tiempo de ejecución pasa por `@supabase/supabase-js`, así que cada consulta la filtra **Row Level Security**. Prisma solo define el esquema y siembra datos de prueba. |
+| 🎬 **Video que no se puede compartir** | Lecciones servidas por **Mux** con URLs firmadas y webhooks verificados. |
+| 💳 **Dos pasarelas** | **Stripe** para pagos internacionales y **Wompi** para Colombia. Los webhooks responden 500 —nunca 200— si falta su secreto, para que la pasarela reintente en vez de perder el evento. |
+| 🤖 **IA con revisión humana** | **Gemini** genera exámenes desde el contenido del curso; el modelo está fijado en código, no en una variable de entorno, porque cambiarlo cambia la calidad de un examen calificable. |
+| 📜 **Certificados verificables** | PDF generado en servidor (`pdf-lib`) con un QR que apunta a la página pública de verificación. |
+| 🔍 **Calidad continua** | CI con tipos, lint, pruebas y build; **CodeQL**; respaldo propio de la base programado; errores reportados a **Sentry**. |
+| 🎨 **Sistema de diseño con piso de calidad** | Magenta `#FF007A` y amarillo `#FFC400` como únicos acentos, contraste AA en ambos temas, verificado de 320 px a 2560 px. |
+
+---
 
 ## Arrancar desde cero
+
+> Documentación técnica: `CLAUDE.md` describe la arquitectura completa y `docs/` (`functional-spec.md`, `technical-spec.md`, `development-plan.md`) las reglas de negocio y el esquema.
+
 
 Requiere un proyecto de Supabase vacío (nuevo, no el de producción) y Node 20+.
 

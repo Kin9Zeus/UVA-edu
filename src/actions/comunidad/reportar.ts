@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
 
 export type ReportarComunidadResultado = { error: string } | { success: true };
@@ -32,6 +33,8 @@ export async function reportarComunidad(
   });
 
   if (error) {
+    // Fase 3: el tope lo aplica la base (trigger), contra inundar la moderación.
+    if (esLimiteDeUso(error)) return respuestaLimiteDeUso("reportar");
     if (error.code === "23505") return { error: "Ya reportaste esto." };
     // RLS rechaza reportar tu propio contenido (comunidad_reportes_insert_propio):
     // llega como violación de policy, no como un código específico.

@@ -5,12 +5,15 @@ import { DIAS_AVISO_CODIGOS, getResumenCodigos } from "@/lib/admin/codigos-uso";
 import { CodigosLista } from "@/components/admin/codigos/CodigosLista";
 import { ResumenCodigos } from "@/components/admin/codigos/ResumenCodigos";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Códigos de invitación",
 };
 
 export default async function AdminCodigosPage() {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/codigos");
   const [codigos, lotes] = await Promise.all([getCodigosInvitacion(), getLotesCodigosInvitacion()]);
   const compartidos = codigos.filter((c) => c.idLote === null);
   const deLote = codigos.filter((c) => c.idLote !== null);

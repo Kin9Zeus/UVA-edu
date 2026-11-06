@@ -61,7 +61,7 @@ Environments → `supabase-test`), que es donde la lee el CI, y en el
 | --- | --- | --- | --- |
 | `SUPABASE_SERVICE_ROLE_KEY` (llave maestra) | Supabase → Project Settings → API Keys | Con las llaves nuevas de Supabase (`sb_secret_…`): crear una, cambiarla, borrar la vieja. Con las llaves antiguas (JWT), cambiarla obliga a cambiar el secreto JWT del proyecto, y eso también cambia la llave pública y cierra la sesión de todos | Con las nuevas, no. Con las antiguas, sí: todos vuelven a entrar |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` (llave pública) | Igual que la anterior (`sb_publishable_…`) | Igual. Es pública a propósito (viaja en el navegador); se cambia solo si se cambia el secreto JWT | Igual que la anterior |
-| `DATABASE_URL` (contraseña de la base) | Supabase → Database → Settings → Reset password | No admite dos a la vez: la vieja deja de valer al instante. Cambiarla en Railway justo después | Sí, de 2 a 3 minutos, hasta que Railway redespliega. Hacerlo en un horario tranquilo |
+| `DATABASE_URL` (contraseña de la base) | Supabase → Database → Settings → Reset password | No admite dos a la vez: la vieja deja de valer al instante. **Ya no vive en Railway** (se quitó el 2026-11-04: ni la app ni los crons la usan); solo está en el `.env.produccion.local` de quien corre scripts de producción y en la bóveda. Cambiarla en esos dos lugares | No: la app no se conecta directo a Postgres. Solo fallan los scripts de producción hasta actualizar el archivo |
 | `SEND_EMAIL_HOOK_SECRET` | Supabase → Authentication → Hooks → Send Email | Generar uno nuevo y cambiarlo en Railway enseguida | Sí: hasta el redespliegue, los correos de Auth (confirmar cuenta, recuperar contraseña) fallan |
 | `RESEND_API_KEY` | Resend → API Keys | Crear una con permiso **solo de envío** ("Sending access") y limitada al dominio. Cambiar y borrar la vieja | No |
 | `MUX_TOKEN_ID` + `MUX_TOKEN_SECRET` | Mux → Settings → Access Tokens | Crear un token nuevo (permiso Mux Video, lectura y escritura), cambiar **los dos valores juntos**, revocar el viejo | No |
@@ -70,6 +70,10 @@ Environments → `supabase-test`), que es donde la lee el CI, y en el
 | `GEMINI_API_KEY` | Google AI Studio → API Keys | Crear una nueva en el mismo proyecto (conserva el tope de gasto), cambiar y borrar la vieja | No |
 | `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens | Crear uno nuevo (solo para subir source maps), cambiar y revocar el viejo. Solo se usa al compilar | No |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Sentry → proyecto → Client Keys | Es pública (viaja en el navegador). Se cambia solo si alguien la usa para llenar Sentry de basura: crear una nueva y desactivar la vieja | No |
+| `RESPALDO_DATABASE_URL` (fase 11.3, GitHub → environment `respaldo-produccion`) | Supabase producción, usuario `respaldo_lector` (solo lectura) | `alter role respaldo_lector password '…'` en el SQL Editor y cambiar el secreto en GitHub | No: solo falla el respaldo de ese día |
+| `RESPALDO_S3_LLAVE_ID` + `RESPALDO_S3_LLAVE_SECRETA` | El proveedor del bucket de respaldos (p. ej. Cloudflare R2 → API Tokens) | Crear una llave nueva solo de escritura en ese bucket, cambiar los dos secretos en GitHub, borrar la vieja | No |
+| Llave privada de `age` de los respaldos | La genera `age-keygen`; vive **solo** en el gestor de contraseñas | No se cambia por rutina: con una nueva, los respaldos viejos solo se abren con la vieja. Si se filtró, generar otra, cambiar `RESPALDO_AGE_PUBLICA` y guardar las dos | No |
+| Llave de ingreso de registros (fase 10.1, cuando exista) | Better Stack o Axiom | Crear una nueva, cambiarla en el servicio de Vector de Railway, borrar la vieja | No: se pierden los registros de esos minutos |
 | `WOMPI_*`, `STRIPE_*` | Paneles de Wompi y Stripe | Hoy sin valor real (el cobro está apagado). Se documentan al conectar una pasarela | — |
 
 ### Llaves por entorno

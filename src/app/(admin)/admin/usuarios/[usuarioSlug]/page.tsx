@@ -8,6 +8,7 @@ import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { getUsuarioActual } from "@/lib/perfil";
 import { contarDispositivosSegundoFactor } from "@/lib/admin/segundoFactor";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Detalle de usuario",
@@ -25,6 +26,8 @@ export default async function AdminUsuarioDetallePage({
 }: {
   params: Promise<{ usuarioSlug: string }>;
 }) {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin/usuarios");
   const { usuarioSlug } = await params;
   const referencia = await resolverUsuarioAdmin(usuarioSlug);
   if (!referencia) notFound();

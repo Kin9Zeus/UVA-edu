@@ -23,6 +23,18 @@ const nextConfig: NextConfig = {
   // cabecera.
   poweredByHeader: false,
 
+  // Fase 11.1 del plan de blindaje: la imagen de Docker (infra/Dockerfile)
+  // construye con `NEXT_OUTPUT=standalone`, que deja en .next/standalone un
+  // servidor que corre sin node_modules completos. Solo ahí: Railway arranca
+  // con `next start`, que no funciona con esa salida, y sigue igual.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const } : {}),
+  // Las fuentes del certificado se leen con fs y una ruta armada en tiempo
+  // de ejecución (src/lib/certificados/pdf.ts): el rastreo de archivos no
+  // las ve solo, y sin esto el certificado fallaría en la imagen.
+  outputFileTracingIncludes: {
+    "/**": ["./src/lib/certificados/fonts/**"],
+  },
+
   // Probar desde el celular contra `next dev` por la IP de la red local
   // (http://192.168.x.x:3000): Next bloquea por defecto los recursos de
   // desarrollo (/_next/*, HMR) pedidos desde un origen que no sea localhost,

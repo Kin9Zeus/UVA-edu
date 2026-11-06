@@ -8,6 +8,7 @@ import { borrarFotoPerfil } from "@/lib/perfil/avatar";
 import { borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
 import { revalidarResenasPublicas } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 
 export type EliminarCuentaState = { error: string } | null;
@@ -76,6 +77,7 @@ export async function eliminarMiCuenta(
       if (errorRegistro) {
         logError("eliminarMiCuenta", "registrar_login_fallido rpc falló", errorRegistro);
       }
+      await registrarEventoDeLaPeticion("login_fallido", { accion: "eliminar_cuenta", usuarioId: user.id });
       return { error: "Tu contraseña actual no es correcta." };
     }
 

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 
@@ -91,6 +92,7 @@ export async function cambiarPassword(
     if (errorRegistro) {
       logError("cambiarPassword", "registrar_login_fallido rpc falló", errorRegistro);
     }
+    await registrarEventoDeLaPeticion("login_fallido", { accion: "cambiar_password", usuarioId: user.id });
     return { error: "Tu contraseña actual no es correcta." };
   }
 

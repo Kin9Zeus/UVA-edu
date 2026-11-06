@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
+import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { accionEnFrase, esSensible, tipoDeAccion, type TipoBitacora } from "@/lib/admin/bitacora-tipos";
 import { avisarAccionSensible } from "@/lib/admin/alertas-bitacora";
@@ -39,6 +40,15 @@ export async function registrarBitacora(
   },
 ) {
   avisarAccionSensible(params);
+  // Fase 10.2: la acción también sale a los registros, fuera de la base. Si
+  // alguien con la llave maestra borra la bitácora, queda esta copia. Sin
+  // `detalles`: es texto libre y puede traer datos de la persona afectada.
+  await registrarEventoDeLaPeticion("accion_admin", {
+    usuarioId: params.idAdmin,
+    accion: params.accion,
+    entidad: params.entidadAfectada,
+    entidadId: params.idEntidadAfectada,
+  });
 
   const { error } = await supabase.from("bitacora_administrativa").insert({
     id_admin: params.idAdmin,

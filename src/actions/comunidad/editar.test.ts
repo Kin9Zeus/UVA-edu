@@ -40,6 +40,8 @@ function editar(campos: { titulo?: string; contenido?: string; empleo?: Paramete
 
 beforeEach(() => {
   servidorFalso.reiniciar();
+  // Fase 3: con cupo por defecto; el límite en sí se prueba aparte.
+  servidorFalso.responder("rpc:consumir_limite", { data: true });
   servidorFalso.responder("from:comunidad_posts", { data: POST });
   servidorFalso.responder("from:comunidad_adjuntos", { data: [] });
   vi.mocked(borrarAdjuntoComunidad).mockReset();

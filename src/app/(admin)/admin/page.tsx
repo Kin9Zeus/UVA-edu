@@ -4,12 +4,15 @@ import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { ComoVa, PagosInicio } from "@/components/admin/inicio/GraficasInicio";
 import { ParaAtender } from "@/components/admin/inicio/ParaAtender";
 import { CursosAhora, Embudo, LoUltimo } from "@/components/admin/inicio/BloquesInicio";
+import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
   title: "U.V.A. Admin — Inicio",
 };
 
 export default async function AdminDashboardPage() {
+  // Fase 6: cada página comprueba el rol por su cuenta (src/lib/admin/guardiaPagina.ts).
+  await exigirAdministradorEnPagina("/admin");
   const datos = await getDashboardData();
 
   return (
