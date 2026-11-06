@@ -17,9 +17,9 @@ name: Respaldo propio de la base
 #   · El archivo se cifra en el runner con `age`, con una llave PÚBLICA. La
 #     privada (la única que descifra) NO está en GitHub: vive en el gestor de
 #     contraseñas. Quien robe el almacenamiento solo ve basura.
-#   · Las credenciales del almacenamiento solo pueden ESCRIBIR en ese bucket
-#     (sin borrar ni listar), y el bucket conserva versiones: una llave
-#     robada no puede borrar los respaldos viejos.
+#   · Las credenciales del almacenamiento solo sirven para ese bucket, y el
+#     bucket tiene una regla de bloqueo (R2: Bucket lock rules) de 35 días:
+#     una llave robada no puede borrar ni pisar los respaldos viejos.
 #   · El environment se limita a la rama master: un PR no puede leerlos.
 #   · Ninguna acción de terceros: solo herramientas del sistema del runner.
 

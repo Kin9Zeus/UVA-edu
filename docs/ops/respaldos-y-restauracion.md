@@ -135,10 +135,14 @@ Tampoco los videos: viven en Mux, no en Supabase.
 
 1. **Almacenamiento:** crear un bucket en un proveedor que no sea Supabase
    ni Railway. Cloudflare R2 encaja (10 GB gratis, sin cobro por bajar).
-   - Con **versiones** activadas y una regla de vida: borrar los objetos de
-     `diario/` a los 35 días.
-   - Una llave del bucket que solo pueda **escribir objetos**: ni borrar ni
-     listar.
+   - Un bucket **aparte** del de registros (`uva-respaldos`), clase
+     Standard.
+   - Regla de vida: borrar los objetos de `diario/` a los 35 días.
+   - **Regla de bloqueo** (Bucket lock rules) sobre `diario/` de 35 días.
+     R2 no tiene llaves "solo de escritura": el bloqueo es lo que impide
+     que una llave robada borre los respaldos.
+   - Una llave de cuenta (Account API token) con Object Read & Write solo
+     para ese bucket.
 2. **Llave de cifrado:** en un computador de confianza, `age-keygen -o
    uva-respaldo.key`. La línea `# public key: age1…` es la pública. **El
    archivo completo (la privada) va al gestor de contraseñas y se borra del

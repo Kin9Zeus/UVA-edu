@@ -9,7 +9,8 @@
 #   BETTERSTACK_TOKEN   token de la fuente (solo escribe registros)
 #   R2_ENDPOINT         https://<cuenta>.r2.cloudflarestorage.com
 #   R2_BUCKET           nombre del bucket de registros
-#   R2_LLAVE_ID / R2_LLAVE_SECRETA   llave de R2 que solo escribe en ese bucket
+#   R2_LLAVE_ID / R2_LLAVE_SECRETA   llave de R2 solo para ese bucket (Object Read & Write;
+#                                    el bloqueo del bucket impide borrar antes de 90 días)
 #
 # Este servicio NO lleva dominio público: solo la app lo ve, por
 # vector.railway.internal.

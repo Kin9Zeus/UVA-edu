@@ -71,10 +71,10 @@ Environments → `supabase-test`), que es donde la lee el CI, y en el
 | `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens | Crear uno nuevo (solo para subir source maps), cambiar y revocar el viejo. Solo se usa al compilar | No |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Sentry → proyecto → Client Keys | Es pública (viaja en el navegador). Se cambia solo si alguien la usa para llenar Sentry de basura: crear una nueva y desactivar la vieja | No |
 | `RESPALDO_DATABASE_URL` (fase 11.3, GitHub → environment `respaldo-produccion`) | Supabase producción, usuario `respaldo_lector` (solo lectura) | `alter role respaldo_lector password '…'` en el SQL Editor y cambiar el secreto en GitHub | No: solo falla el respaldo de ese día |
-| `RESPALDO_S3_LLAVE_ID` + `RESPALDO_S3_LLAVE_SECRETA` | El proveedor del bucket de respaldos (p. ej. Cloudflare R2 → API Tokens) | Crear una llave nueva solo de escritura en ese bucket, cambiar los dos secretos en GitHub, borrar la vieja | No |
+| `RESPALDO_S3_LLAVE_ID` + `RESPALDO_S3_LLAVE_SECRETA` | El proveedor del bucket de respaldos (p. ej. Cloudflare R2 → API Tokens) | Crear una llave nueva solo para ese bucket (en R2: Account API token, Object Read & Write; el bloqueo del bucket impide borrar), cambiar los dos secretos en GitHub, borrar la vieja | No |
 | Llave privada de `age` de los respaldos | La genera `age-keygen`; vive **solo** en el gestor de contraseñas | No se cambia por rutina: con una nueva, los respaldos viejos solo se abren con la vieja. Si se filtró, generar otra, cambiar `RESPALDO_AGE_PUBLICA` y guardar las dos | No |
 | `BETTERSTACK_TOKEN` (servicio `vector` de Railway, fase 10.1) | Better Stack → Sources → `uva-produccion` | Crear una fuente o token nuevo, cambiarlo en el servicio `vector`, borrar el viejo | No: se pierden los registros de esos minutos en Better Stack; Railway y R2 siguen |
-| `R2_LLAVE_ID` + `R2_LLAVE_SECRETA` (servicio `vector`) | Cloudflare → R2 → Manage API tokens | Token nuevo solo para el bucket `uva-registros`, cambiar los dos en el servicio `vector`, borrar el viejo | No |
+| `R2_LLAVE_ID` + `R2_LLAVE_SECRETA` (servicio `vector`) | Cloudflare → R2 → Manage API tokens | Account API token nuevo (Object Read & Write, solo `uva-registros`), cambiar los dos en el servicio `vector`, borrar el viejo | No |
 | `WOMPI_*`, `STRIPE_*` | Paneles de Wompi y Stripe | Hoy sin valor real (el cobro está apagado). Se documentan al conectar una pasarela | — |
 
 ### Llaves por entorno

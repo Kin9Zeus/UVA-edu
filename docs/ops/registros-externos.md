@@ -63,12 +63,27 @@ app responde igual (contraseña incorrecta en < 1 s) y deja un solo aviso.
 **2. Cloudflare R2**
 1. Cuenta de Cloudflare (gratis; R2 pide una tarjeta aunque no cobre
    dentro de los 10 GB).
-2. R2 → Create bucket: `uva-registros`.
-3. Bucket → Settings → Object lifecycle rules: borrar los objetos con
-   prefijo `registros/` a los **90 días**.
-4. R2 → Manage API tokens → Create token: permiso **Object Read & Write**
-   solo para `uva-registros`. Anotar el Access Key ID, el Secret Access Key
-   y el endpoint (`https://<cuenta>.r2.cloudflarestorage.com`).
+2. R2 → Create bucket: `uva-registros`, clase **Standard** (la única dentro
+   del plan gratis).
+3. Bucket → Settings → **Object lifecycle rules**: `borrar-90-dias`, prefijo
+   `registros/`, borrar a los **90 días**. (La regla "Default Multipart
+   Abort Rule" que trae el bucket se deja.)
+4. Bucket → Settings → **Bucket lock rules**: `proteger-90-dias`, prefijo
+   `registros/`, retención de **90 días**. R2 no tiene llaves "solo de
+   escritura": el permiso mínimo para escribir también deja borrar. El
+   bloqueo es lo que impide que una llave robada (o una cuenta comprometida)
+   borre o pise un registro antes de tiempo.
+5. R2 → Manage API tokens → **Create Account API token** (queda de la
+   cuenta, no de una persona: sigue funcionando si alguien sale del equipo).
+   Nombre `vector-registros`, permiso **Object Read & Write** (nunca Admin),
+   solo para `uva-registros`, TTL Forever, sin filtro de IP (Railway no tiene
+   IP fija). Anotar el Access Key ID, el Secret Access Key y el endpoint
+   (`https://<cuenta>.r2.cloudflarestorage.com`).
+
+Hecho el 2026-11-06: fuente `uva-produccion` en Better Stack (plataforma
+Vector, región Estados Unidos, host `…us-west-2a.betterstackdata.com`, 3
+días), R2 activado, bucket `uva-registros` con la regla de 90 días y la
+llave `vector-registros`.
 
 **3. Railway** (proyecto de producción)
 1. New → GitHub Repo → este repo. Nombre del servicio: **`vector`** (la
