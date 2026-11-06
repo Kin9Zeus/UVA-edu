@@ -82,6 +82,8 @@ const PERMITIDAS_DEFINER_CON_SESION: Record<string, string> = {
   registrar_archivo_certificado: "Solo sobre un certificado de auth.uid() (049).",
   solicitar_supresion_propia: "Solo suprime la cuenta de auth.uid(); rechaza administradores (109/110).",
   consumir_limite: "Solo gasta el cupo de auth.uid(); los topes los fija la base (134).",
+  reclamar_reproduccion: "Solo reemplaza el token de reproducción de auth.uid(); exige sesión (136).",
+  reproduccion_vigente: "Solo responde por el token de reproducción de auth.uid(); exige sesión (136).",
 };
 
 /** Nombres de las funciones de `public` que define algún script de esta rama. */
