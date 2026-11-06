@@ -63,7 +63,9 @@ export function ErrorBlock({
   cajetin,
 }: ErrorBlockProps) {
   const bloque = (
-    <div className="relative isolate flex flex-1 items-center justify-center px-uva-margen py-[clamp(40px,8vh,88px)]">
+    // data-pantalla-error: lo usan las pruebas de capturas para no aceptar una
+    // pantalla de error (404, 403, 500) como captura de referencia.
+    <div data-pantalla-error="" className="relative isolate flex flex-1 items-center justify-center px-uva-margen py-[clamp(40px,8vh,88px)]">
       <div aria-hidden="true" className="uva-reticula pointer-events-none absolute inset-0 -z-10" />
       <div className="flex w-full max-w-[560px] flex-col items-start gap-4">
         {codigo ? (

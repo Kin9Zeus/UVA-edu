@@ -6,6 +6,7 @@ import {
   CURSO_FIXTURE,
   limpiarDatosDeUsuario,
   verificarCursoFixture,
+  reproducirVideo,
 } from "./supabase-admin";
 
 /**
@@ -87,7 +88,7 @@ test("login, catálogo, ficha del curso y arranque del video sobreviven a una co
     await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
     await page.fill("#login-pass", password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 60_000 });
+    await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 60_000 });
   });
 
   await test.step("el catálogo carga y muestra el curso fixture", async () => {
@@ -106,9 +107,7 @@ test("login, catálogo, ficha del curso y arranque del video sobreviven a una co
 
   await test.step("la lección introductoria carga y el video arranca", async () => {
     await page.goto(`/cursos/${CURSO_FIXTURE.id}/${leccion1.id}`);
-    const reproductor = page.locator("mux-player");
-    await expect(reproductor).toBeVisible({ timeout: 60_000 });
-    await reproductor.click(); // gesto real de usuario: dispara play()
+    await reproducirVideo(page, 60_000); // gesto real de usuario: dispara play()
 
     await expect
       .poll(

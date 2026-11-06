@@ -5,6 +5,7 @@ import {
   crearUsuarioConfirmado,
   promoverAAdministrador,
   promoverAProfesor,
+  activarSegundoFactor,
 } from "./supabase-admin";
 
 // P2-7 Fase B (AUDIT-2026-08-24.md), recorrido 2 de 3: admin crea y
@@ -39,7 +40,7 @@ test.beforeAll(async () => {
 
   const { data: categoria, error: errCategoria } = await admin
     .from("categorias")
-    .insert({ nombre: nombreCategoria, activo: true })
+    .insert({ nombre: nombreCategoria, slug: `e2e-${sufijo}`, activo: true })
     .select("id")
     .single();
   if (errCategoria || !categoria) throw new Error(`No pude crear la categoría de prueba: ${errCategoria?.message}`);
@@ -81,7 +82,7 @@ test.afterAll(async () => {
   }
 });
 
-test("admin crea y publica un curso", async ({ page }) => {
+test("admin crea un curso en borrador", async ({ page }) => {
   await test.step("inicia sesión como el admin de prueba, directo al formulario de curso nuevo", async () => {
     await page.goto(`/login?redirect=${encodeURIComponent("/admin/cursos/nuevo")}`);
     await page.fill("#auth-email", emailAdmin);
@@ -89,6 +90,8 @@ test("admin crea y publica un curso", async ({ page }) => {
     await expect(page.locator("#login-pass")).toBeVisible();
     await page.fill("#login-pass", passwordAdmin);
     await page.getByRole("button", { name: "Entrar" }).click();
+    await activarSegundoFactor(page);
+    await page.goto("/admin/cursos/nuevo");
     await expect(page).toHaveURL(/\/admin\/cursos\/nuevo/, { timeout: 30_000 });
   });
 
@@ -96,14 +99,16 @@ test("admin crea y publica un curso", async ({ page }) => {
     await page.fill("#curso-titulo", tituloCurso);
     await page.fill("#curso-descripcion", "Curso creado por el spec E2E de P2-7.");
 
-    await page.locator("#curso-categoria").click();
-    await page.getByRole("option", { name: nombreCategoria }).click();
+    // Casillas, no Select: un curso puede estar en varias categorías.
+    await page.locator(`label[for="curso-categorias-${categoriaId}"]`).click();
 
     // Checkbox, no Select: el selector de instructores es múltiple desde que
     // un curso puede tener más de uno.
-    await page.locator(`#curso-instructores-${instructorId}`).click();
+    await page.locator(`label[for="curso-instructores-${instructorId}"]`).click();
 
-    await page.getByRole("button", { name: "Publicar curso" }).click();
+    // El formulario ya no publica: crea un borrador. Publicar exige portada y
+    // todas las clases con video listo, y se hace después en la ficha.
+    await page.getByRole("button", { name: "Crear borrador" }).click();
     // La ficha se direcciona por slug (/admin/cursos/[cursoSlug]), así que la
     // URL ya no trae el id: se busca en la base por el slug que slugificar()
     // genera a partir del título.
@@ -114,7 +119,7 @@ test("admin crea y publica un curso", async ({ page }) => {
     expect(cursoId).not.toBeNull();
   });
 
-  await test.step("el curso quedó publicado (mostrado = true) en la base real", async () => {
+  await test.step("el curso quedó en borrador (mostrado = false) en la base real", async () => {
     const { data: curso, error } = await admin
       .from("cursos")
       .select("titulo, mostrado")
@@ -122,7 +127,7 @@ test("admin crea y publica un curso", async ({ page }) => {
       .single();
     expect(error).toBeNull();
     expect(curso?.titulo).toBe(tituloCurso);
-    expect(curso?.mostrado).toBe(true);
+    expect(curso?.mostrado).toBe(false);
 
     // El instructor vive en la puente, no en `cursos.id_instructor` (columna
     // vestigial que crearCurso() ya no escribe).

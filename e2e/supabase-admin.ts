@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { expect, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
+import { generarCodigoTotp } from "../src/test/totp";
 
 /**
  * Cliente con Service Role Key para preparar y limpiar datos desechables
@@ -96,8 +98,8 @@ export async function generarEnlaceConfirmacion(
 /**
  * Curso semilla real usado como fixture de reproducción/progreso/certificado
  * (e2e/recorrido-critico.spec.ts): "Render Fotorrealista con V-Ray", único
- * módulo, 3 lecciones ya procesadas en Mux con video real y corto (9s, 31s,
- * 9s — ver el propio video de cada una). Se reusa este curso en vez de subir
+ * módulo, 3 lecciones ya procesadas en Mux con video real y corto (las tres con el mismo
+ * clip de ~10 s que deja `scripts/e2e-fixture-video.mts`). Se reusa este curso en vez de subir
  * un video nuevo en cada corrida para no tocar la cuenta real de Mux (ni su
  * costo) solo para pruebas: el ID es determinístico porque viene de datos
  * semilla, no de un registro random.
@@ -108,9 +110,9 @@ export const CURSO_FIXTURE = {
   categoriaSlug: "visualizacion-arquitectonica",
   // Orden real (columna `orden`), no el orden de inserción en la tabla.
   lecciones: [
-    { id: "0e000000-0000-4000-8000-000000007595", titulo: "Sol, cielo y HDRI: cuándo usar cada uno", duracionSeg: 9 },
-    { id: "b5211deb-0619-476d-bfa6-e6550bf140bd", titulo: "ANDRES", duracionSeg: 31 },
-    { id: "0e000000-0000-4000-8000-000000007596", titulo: "Iluminación de interiores sin ruido", duracionSeg: 9 },
+    { id: "0e000000-0000-4000-8000-000000007595", titulo: "Sol, cielo y HDRI: cuándo usar cada uno", duracionSeg: 10 },
+    { id: "0e000000-0000-4000-8000-000000007596", titulo: "Iluminación de interiores sin ruido", duracionSeg: 10 },
+    { id: "0e000000-0000-4000-8000-0000000075f9", titulo: "Materiales PBR: metalness y roughness", duracionSeg: 10 },
   ],
 } as const;
 
@@ -267,4 +269,74 @@ export async function borrarUsuarioPorEmail(admin: ReturnType<typeof adminClient
     // proyecto real de Supabase (no hay staging separado).
     console.error(`No pude borrar el usuario de prueba ${email}: ${errDelete.message}`);
   }
+}
+
+/**
+ * FASE 8.1: un administrador sin segundo factor cae en /seguridad/activar al
+ * entrar. Lo activa por la pantalla real, como una persona: «Empezar», copia la
+ * clave escrita, calcula el código (src/test/totp.ts) y «Activar y entrar». El
+ * factor se borra con el usuario de prueba.
+ */
+/**
+ * El reproductor de Mux se descarga con la intención de usarlo (VideoFrame.tsx,
+ * tarea de rendimiento): hasta tocar el póster no existe `<mux-player>`. Tocarlo
+ * ya arranca el video (`reproducirAlCargar`), así que NO hay que hacer clic otra
+ * vez en el reproductor: eso lo pausaría.
+ */
+export async function reproducirVideo(page: Page, timeout = 20_000) {
+  await page.getByRole("button", { name: "Reproducir video" }).click({ timeout });
+  const reproductor = page.locator("mux-player");
+  await expect(reproductor).toBeVisible({ timeout });
+  return reproductor;
+}
+
+export async function activarSegundoFactor(page: Page) {
+  await expect(page).toHaveURL(/\/seguridad\/activar/, { timeout: 30_000 });
+  await page.getByRole("button", { name: "Empezar" }).click();
+  const clave = page.locator("code.select-all");
+  await expect(clave).toBeVisible({ timeout: 30_000 });
+  const secreto = (await clave.innerText()).replace(/[^A-Z2-7]/gi, "").toUpperCase();
+  await page.fill("#activar-codigo", generarCodigoTotp(secreto));
+  await page.getByRole("button", { name: "Activar y entrar" }).click();
+  await expect(page).not.toHaveURL(/\/seguridad\//, { timeout: 30_000 });
+}
+
+/**
+ * Estudiante desechable con acceso vigente (suscripción manual de 30 días) y su
+ * sesión ya iniciada por la pantalla real de login, lista para `storageState`.
+ * Lo usan las pruebas que miran pantallas con sesión (accesibilidad, capturas).
+ */
+export async function crearEstudianteConSesion(
+  admin: ReturnType<typeof adminClient>,
+  browser: Browser,
+  { email, password, nombre }: { email: string; password: string; nombre: string },
+): Promise<{ id: string; sesion: BrowserContextOptions["storageState"] }> {
+  const user = await crearUsuarioConfirmado(admin, { email, password, nombre });
+  const { data: plan, error: errPlan } = await admin.from("planes").select("id").limit(1).single();
+  if (errPlan || !plan) throw new Error(`No hay plan para dar acceso: ${errPlan?.message}`);
+  const { error: errSus } = await admin.from("suscripciones").insert({
+    id_usuario: user.id,
+    id_plan: plan.id,
+    fecha_inicio: new Date().toISOString(),
+    fecha_renovacion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    estado: "ACTIVA",
+    proveedor: "manual",
+    monto_centavos: 0,
+    moneda: "COP",
+    acceso_manual: true,
+  });
+  if (errSus) throw new Error(`No pude dar acceso al estudiante: ${errSus.message}`);
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/login");
+  await page.fill("#auth-email", email);
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
+  await page.fill("#login-pass", password);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
+  const sesion = await context.storageState();
+  await context.close();
+  return { id: user.id, sesion };
 }

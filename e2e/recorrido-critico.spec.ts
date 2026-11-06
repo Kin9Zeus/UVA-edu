@@ -10,6 +10,7 @@ import {
   limpiarDatosDeUsuario,
   obtenerSlugsCursoFixture,
   verificarCursoFixture,
+  reproducirVideo,
 } from "./supabase-admin";
 
 /**
@@ -98,10 +99,13 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     // escáner de enlaces de correo consuma el token antes que la persona
     // real, ver Sentry UVA-EDU-10/13/14) — hace falta el clic.
     await page.getByRole("button", { name: "Confirmar" }).click();
+    // Ahora hay una pantalla "¡Correo confirmado!" antes del login.
+    await page.getByRole("link", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/login\?email=/);
     await page.fill("#login-pass", password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+    // Sin suscripción todavía: el login lleva a canjear el código.
+    await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 30_000 });
 
     const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
     usuarioId = data?.users.find((u) => u.email === email)?.id ?? null;
@@ -130,17 +134,15 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
   });
 
   await test.step("reproduce la primera lección (video real y corto)", async () => {
-    await page.getByRole("button", { name: "Comenzar curso" }).click();
+    await page.getByRole("link", { name: /^Comenzar curso/ }).click();
     await expect(page).toHaveURL(`/cursos/${cursoSlug}/${leccionSlugs[leccion1.id]}`, { timeout: 15_000 });
 
-    const reproductor = page.locator("mux-player");
-    await expect(reproductor).toBeVisible({ timeout: 20_000 });
-    await reproductor.click(); // gesto real de usuario: dispara play()
+    await reproducirVideo(page); // gesto real de usuario: dispara play()
 
     // El primer guardado de progreso (sin esperar el throttle de 10s, ver
     // VideoPlayer.tsx) cae casi al segundo 0 (Math.floor(0.x) = 0), así que
     // no sirve para probar "retoma donde quedó". Se deja correr un poco de
-    // los 9s del video y se navega fuera a continuación — eso es lo que de
+    // los 10s del video y se navega fuera a continuación — eso es lo que de
     // verdad guarda una posición distinta de 0 (ver el siguiente paso).
     await page.waitForTimeout(4000);
   });
@@ -149,7 +151,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
   await test.step("cierra y vuelve", async () => {
     // Navegar fuera dispara un `pagehide` real, que guarda la posición con
     // `sendBeacon` (guardarAlSalir, VideoPlayer.tsx) sin depender del
-    // throttle de 10s — en un video de 9s ese throttle nunca llegaría a
+    // throttle de 10s — en un video de 10s ese throttle nunca llegaría a
     // dispararse una segunda vez.
     await page.goto("/dashboard");
     await expect
@@ -175,8 +177,8 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     // startTime es el prop que VideoPlayer.tsx recibe de getLeccionPlayer()
     // (server-side, de la fila `progreso` real) — comprobar esto prueba el
     // camino completo servidor -> reproductor, no una carrera de reproducción.
-    const reproductor = page.locator("mux-player");
-    await expect(reproductor).toBeVisible({ timeout: 20_000 });
+    // Tocar el póster monta el reproductor y sigue reproduciendo desde ahí.
+    const reproductor = await reproducirVideo(page);
     const startTime = await reproductor.evaluate((el) => (el as unknown as { startTime: number }).startTime);
     expect(startTime).toBeGreaterThanOrEqual(segundoAlCerrar - 1);
   });
@@ -184,7 +186,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
   await test.step("completa el curso", async () => {
     // Termina de ver la lección 1 (real, a través de la UI): el umbral de
     // "completada" es 90% de la duración (VideoPlayer.tsx).
-    await page.locator("mux-player").click();
+    // Ya está reproduciéndose desde el paso anterior: se deja terminar.
     await expect
       .poll(
         async () => {
@@ -200,7 +202,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
       )
       .toBe(true);
 
-    // Lección 2 ("ANDRES", 31s): completada por fixture directo, no
+    // Lección 2 ("Iluminación de interiores"): completada por fixture directo, no
     // reproduciéndola de verdad — el mecanismo de reproducción ya quedó
     // probado con la lección 1, y repetirlo acá solo alargaría el spec sin
     // cubrir nada nuevo (ver docs/qa/bugs-e2e.md, sección de alcance).
@@ -218,9 +220,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     // certificado exista de verdad es la prueba de que el trigger corrió,
     // no un valor sembrado a mano.
     await page.goto(`/cursos/${CURSO_FIXTURE.id}/${leccion3.id}`);
-    const reproductorLeccion3 = page.locator("mux-player");
-    await expect(reproductorLeccion3).toBeVisible({ timeout: 20_000 });
-    await reproductorLeccion3.click();
+    await reproducirVideo(page);
 
     await expect
       .poll(
@@ -260,7 +260,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
       .not.toBeNull();
 
     await page.goto("/dashboard/certificados");
-    await expect(page.getByText(CURSO_FIXTURE.titulo)).toBeVisible();
+    await expect(page.getByRole("heading", { name: CURSO_FIXTURE.titulo })).toBeVisible();
 
     const descargaPromesa = page.waitForEvent("download", { timeout: 15_000 });
     await page.getByRole("button", { name: "Descargar PDF" }).click();

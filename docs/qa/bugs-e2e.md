@@ -11,9 +11,34 @@ rodeo) · **Baja** (cosmético).
 
 ## Abiertos
 
-Ninguno abierto por el momento.
+### BUG-005 — Los 6 tests de manipulación del examen siguen el examen viejo
+
+- **Severidad:** Media (sin cobertura automática del examen, no un fallo de la app)
+- **Encontrado por:** `e2e/capa2-examen-manipulacion.spec.ts` (tarea "Pruebas automáticas contra retrocesos", 2026-11-05).
+- **Dónde:** el examen se rediseñó (`src/components/examen/ExamenRendir.tsx`): una pregunta a la vez, tocar una opción la califica al instante, uvas como vidas. Ya no hay radios, autoguardado cada 10 s ni botón «Enviar examen», que es lo que estos tests comprueban.
+- **Estado:** los 6 quedaron como `test.fixme` con la nota `FIXME(examen-rediseñado)`. Falta reescribirlos para el flujo nuevo (doble toque, red caída al responder, dos pestañas, sesión cerrada). «Doble clic en Iniciar examen» sigue vigente y pasa.
 
 ## Resueltos
+
+### BUG-006 — La suite e2e se quedó atrás de la app (2026-11-05)
+
+- **Severidad:** Alta (la red de regresión no corría: 11 de 30 pruebas fallaban)
+- **Encontrado por:** corrida completa de `npm run test:e2e` contra staging con `next start` (28 min, 17 pasan, 11 fallan).
+- **Causa:** ningún fallo era un bug de la app; las pruebas no se actualizaron con cambios intencionales:
+
+  | Cambio en la app | Pruebas | Arreglo en la prueba |
+  |---|---|---|
+  | Staging no tenía videos reales en Mux (el fixture apuntaba a lecciones de la base vieja compartida, incluida «ANDRES», que no existe en staging) | recorrido-critico, red-cae-video, conexion-lenta, capa1 | `scripts/e2e-fixture-video.mts` sube un clip de 10 s a Mux (política *signed*) y lo asigna a las lecciones 7595, 7596 y 75f9 del curso V-Ray; `CURSO_FIXTURE` usa esas tres |
+  | `categorias.slug` pasó a obligatorio | admin-crea-curso | la categoría de prueba lleva `slug` |
+  | 2FA obligatorio para administradores (FASE 8.1) | admin-crea-curso | helper `activarSegundoFactor`: activa el factor por la pantalla real con `src/test/totp.ts` |
+  | El formulario de curso crea un borrador (categorías con casillas, «Crear borrador») | admin-crea-curso | marca la casilla por su etiqueta y comprueba `mostrado = false` |
+  | Pantalla «¡Correo confirmado!» antes del login | recorrido-critico | clic en «Iniciar sesión» |
+  | Sin suscripción, el login lleva a `/canjear` | recorrido-critico, red-cae-video, conexion-lenta | se acepta `/dashboard` o `/canjear` |
+  | «Comenzar curso» pasó de botón a enlace | recorrido-critico | `getByRole("link", { name: /^Comenzar curso/ })` |
+  | El reproductor de Mux carga diferido: no existe hasta tocar el póster | recorrido-critico, red-cae-video, conexion-lenta | helper `reproducirVideo`: toca «Reproducir video»; sin el clic extra, que lo pausaría |
+
+- **Verificado por:** corridas contra staging con `next start` (2026-11-05): `recorrido-critico` (1,5 min), `admin-crea-curso`, `red-cae-video` y `conexion-lenta` en verde. El recorrido crítico queda en CI (job `e2e`).
+- **Estado:** corregido en la rama `front-pruebas-retrocesos`.
 
 ### BUG-001 — `/login` nunca muestra el motivo de un enlace vencido/usado
 

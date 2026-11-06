@@ -18,16 +18,12 @@ name: CI
 #     Dependabot por su almacén propio expondría la base real a un flujo
 #     automático que instala dependencias de terceros recién publicadas.
 #
-# El job `e2e` (Playwright: recorrido crítico y casos límite de
-# canje/acceso, + test:canje) se quitó de CI el 2026-09-08: 4 de sus 11
-# pruebas fallaban y bloqueaban el merge a master. Los specs siguen en
-# `e2e/` y se corren a mano con `npm run test:e2e` (y `npm run
-# test:canje`); la tarea sigue viva en docs/qa/bugs-e2e.md. Sobre por qué
-# nunca corrió en PRs: esos specs llaman signUp()/resetPasswordForEmail()
-# de verdad contra Supabase (entonces el proyecto compartido con
-# producción; hoy staging), y BUG-002 ya
-# mostró que el Rate Limit de Auth de Supabase se agota con pocos
-# intentos seguidos.
+# El job `e2e` volvió el 2026-11-05 (se había quitado el 2026-09-08 porque
+# 4 de sus pruebas fallaban; la causa y los arreglos están en
+# docs/qa/bugs-e2e.md, BUG-006). Corre solo el recorrido crítico, contra
+# STAGING (el entorno `supabase-test` ya no apunta a producción desde el
+# 2026-10-05). El resto de e2e/ sigue a mano con `npm run test:e2e`: la
+# suite completa tarda ~28 min.
 #
 # Por qué el job de RLS NO usa una base efímera (el plan original de la
 # auditoría decía "prisma migrate deploy contra una base efímera"): los
@@ -68,6 +64,11 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      actualizar_capturas:
+        description: "Regenerar las capturas de referencia (retroceso-visual) y subirlas a esta rama"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -263,6 +264,206 @@ jobs:
           # supabase-test`), separado del de Railway.
           MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
           MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+
+  e2e:
+    name: Recorrido crítico, accesibilidad y capturas (Playwright, staging)
+    # Después de `rls`, no en paralelo: test:rls publica cursos de prueba en
+    # staging mientras corre y cambiaría el catálogo y la portada de las capturas.
+    needs: [checks, rls]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Mismo filtro que `rls`: necesita los secretos de staging, que ni los
+    # forks ni Dependabot reciben. No corre mientras se regeneran capturas.
+    if: >-
+      ${{ !inputs.actualizar_capturas
+      && (github.event_name != 'pull_request'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]')) }}
+    environment: supabase-test
+    env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
+      CI: "true"
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # global-setup.ts reinicia el límite de check-email de staging con esto.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Firma del token de reproducción: sin esto el video del fixture no carga.
+      MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+      MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Recorrido crítico
+        run: npx playwright test e2e/recorrido-critico.spec.ts
+
+      # Falla con violaciones critical/serious de axe (contraste incluido),
+      # foco invisible o trampas de teclado en las pantallas principales.
+      - name: Accesibilidad contra retrocesos (axe y teclado)
+        if: ${{ !cancelled() }}
+        run: npx playwright test e2e/retroceso-accesibilidad.spec.ts
+
+      # Compara contra e2e/retroceso-visual.spec.ts-snapshots/. Si el cambio
+      # visual es intencional: Run workflow con "actualizar_capturas" (docs/qa/pruebas-visuales.md).
+      # Las diferencias quedan en el artefacto playwright-e2e (test-results/).
+      - name: Capturas comparadas (375, 768 y 1440 px, claro y oscuro)
+        if: ${{ !cancelled() }}
+        run: npx playwright test e2e/retroceso-visual.spec.ts
+
+      - name: Informe y videos del fallo
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-e2e
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  lighthouse:
+    name: Lighthouse CI (móvil)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Las páginas leen el catálogo de staging: mismos secretos y filtro que `e2e`.
+    if: >-
+      ${{ github.event_name != 'pull_request'
+      || (github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]') }}
+    environment: supabase-test
+    env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Mínimos en lighthouserc.json (todos como aviso, ver el paso siguiente).
+      - name: Lighthouse (4 páginas públicas, mediana de 3 corridas)
+        run: npx lhci autorun
+
+      # Todos los mínimos son avisos (no bloquean): un runner compartido da
+      # cifras limítrofes que cambian entre corridas. Para que no pasen
+      # desapercibidos: tabla en el resumen de la corrida y una advertencia
+      # (visible en el PR) por cada categoría bajo su mínimo.
+      - name: Resumen y avisos de Lighthouse
+        run: node scripts/audit/lighthouse-ci-resumen.mjs
+
+      - name: Informes de Lighthouse
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lighthouse
+          path: lighthouse-ci/
+          retention-days: 14
+
+  # Regenera las capturas de referencia de e2e/retroceso-visual.spec.ts en
+  # Linux y las sube a la rama elegida: Actions → CI → Run workflow → rama del
+  # PR → marcar "actualizar_capturas". Vive en este workflow y no en uno
+  # aparte porque GitHub solo deja lanzar a mano workflows que ya están en
+  # master. Ver docs/qa/pruebas-visuales.md.
+  capturas:
+    name: Regenerar capturas de referencia
+    needs: rls # mismo motivo que `e2e`: capturas sin los cursos temporales de test:rls
+    if: ${{ inputs.actualizar_capturas && github.ref != 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: supabase-test
+    permissions:
+      contents: write
+    env:
+      # Clientes y secretos que se leen al cargar el módulo (resend, stripe, mux,
+      # hook de correo):
+      # sin valor, `next build` falla. Aquí nunca envían ni cobran: el hook de
+      # correo de Supabase apunta a la app desplegada y los pagos están apagados.
+      RESEND_API_KEY: re_ci_sin_envio
+      STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
+      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+      SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
+      CI: "true"
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+      MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Regenerar capturas
+        run: npx playwright test e2e/retroceso-visual.spec.ts --update-snapshots
+
+      - name: Subir las capturas a la rama
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add e2e/retroceso-visual.spec.ts-snapshots
+          if git diff --cached --quiet; then
+            echo "Las capturas no cambiaron."
+          else
+            git commit -m "Pruebas: capturas de referencia actualizadas"
+            git push
+          fi
 
   # Fase 11.1: la imagen de Docker (plan B si hay que salir de Railway) se
   # construye y arranca en cada PR. Si nadie la construye, el día que haga
