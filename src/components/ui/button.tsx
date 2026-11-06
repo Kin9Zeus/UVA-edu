@@ -17,7 +17,7 @@ const TACTIL_CUADRADO =
   "max-sm:min-h-11 max-sm:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-uva-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap outline-hidden select-none focus-visible:ring-0 focus-visible:outline-0 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-invalid:border-uva-error [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -48,13 +48,13 @@ const buttonVariants = cva(
            transition-all heredada de la base para no animar lo que antes
            cambiaba de forma instantánea. */
         "uva-primary":
-          "w-full rounded-uva-md border border-transparent text-uva-on-accent bg-uva-btn transition-none hover:bg-uva-btn-hover active:not-aria-[haspopup]:bg-uva-btn-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-transparent text-uva-text-faint bg-uva-btn transition-none hover:bg-uva-btn-hover active:not-aria-[haspopup]:bg-uva-btn-active active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-0 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-secondary":
-          "w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent text-uva-text transition-none hover:border-uva-text active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border-[1.5px] border-uva-line-strong bg-transparent text-uva-text transition-none hover:border-uva-text active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-0 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-ghost":
-          "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent-ink transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
+          "w-full rounded-uva-md border border-transparent bg-transparent text-uva-accent-ink transition-none hover:bg-uva-accent/10 active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-0 focus-visible:outline-0 focus-visible:outline-offset-2 focus-visible:outline-uva-accent",
         "uva-icon":
-          "rounded-uva-sm border-0 bg-transparent text-uva-text-faint !transition-none hover:text-uva-text-muted hover:bg-uva-text/8 active:not-aria-[haspopup]:!translate-y-0 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none",
+          "rounded-uva-sm border-0 bg-transparent text-uva-text-faint !transition-none hover:text-uva-text-muted hover:bg-uva-text/8 active:not-aria-[haspopup]:!translate-y-0 focus-visible:ring-0 focus-visible:outline-0 focus-visible:outline-offset-2 focus-visible:outline-uva-accent [&_svg]:pointer-events-none",
       },
       size: {
         /* `.btn` — el mockup no fija alto: lo define el padding */
