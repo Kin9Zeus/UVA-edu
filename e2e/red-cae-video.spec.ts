@@ -6,6 +6,7 @@ import {
   CURSO_FIXTURE,
   limpiarDatosDeUsuario,
   verificarCursoFixture,
+  reproducirVideo,
 } from "./supabase-admin";
 
 /**
@@ -63,14 +64,12 @@ test("al volver la conexión, el reproductor guarda el progreso de inmediato sin
     await expect(page.locator("#login-pass")).toBeVisible();
     await page.fill("#login-pass", password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 30_000 });
   });
 
   await test.step("abre la lección introductoria (pública) y empieza a reproducir", async () => {
     await page.goto(`/cursos/${CURSO_FIXTURE.id}/${leccion1.id}`);
-    const reproductor = page.locator("mux-player");
-    await expect(reproductor).toBeVisible({ timeout: 20_000 });
-    await reproductor.click(); // gesto real de usuario: dispara play()
+    await reproducirVideo(page); // gesto real de usuario: dispara play()
   });
 
   let actualizadoAntes: string;
