@@ -9,7 +9,7 @@ set -eu
 umask 077
 DIR=/run/vector-secretos
 mkdir -p "$DIR"
-for nombre in BETTERSTACK_HOST BETTERSTACK_TOKEN R2_ENDPOINT R2_BUCKET R2_LLAVE_ID R2_LLAVE_SECRETA; do
+for nombre in BETTERSTACK_TOKEN R2_ENDPOINT R2_BUCKET R2_LLAVE_ID R2_LLAVE_SECRETA; do
   eval "valor=\${$nombre:-}"
   if [ -z "$valor" ]; then
     echo "Falta la variable $nombre en el servicio de Vector." >&2

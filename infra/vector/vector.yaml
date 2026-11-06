@@ -5,7 +5,6 @@
 #                                                     \-> Cloudflare R2 (90 días: archivo)
 #
 # Variables del servicio de Vector en Railway (NUNCA en el de la app):
-#   BETTERSTACK_HOST    host de ingreso de la fuente (sin https://)
 #   BETTERSTACK_TOKEN   token de la fuente (solo escribe registros)
 #   R2_ENDPOINT         https://<cuenta>.r2.cloudflarestorage.com
 #   R2_BUCKET           nombre del bucket de registros
@@ -15,8 +14,9 @@
 # Este servicio NO lleva dominio público: solo la app lo ve, por
 # vector.railway.internal.
 
-# Los valores llegan como SECRET[...] y no como ${VARIABLE}: Vector apaga
-# por defecto leer variables de entorno dentro de la configuración. El
+# Los valores llegan como SECRET[...] y no como variables de entorno
+# escritas en este archivo: las versiones nuevas de Vector apagan eso por
+# defecto, y así la configuración sirve igual en todas. El
 # script de arranque (arrancar.sh) copia las variables de Railway a archivos
 # que solo ve este contenedor, y Vector los lee de ahí.
 secret:
@@ -51,7 +51,9 @@ sinks:
     type: http
     inputs: [sellado]
     method: post
-    uri: "https://SECRET[railway.BETTERSTACK_HOST]"
+    # El host no es secreto (sin el token no sirve) y va escrito aquí: Vector
+    # 0.45 no reemplaza SECRET[...] dentro de una URL.
+    uri: "https://s2826009.us-west-2a.betterstackdata.com"
     encoding:
       codec: json
     compression: gzip

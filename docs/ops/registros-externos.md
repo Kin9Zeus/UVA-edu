@@ -91,7 +91,7 @@ llave `vector-registros`.
 2. Settings → Root Directory: `/infra/vector`. Watch paths:
    `/infra/vector/**` (para que no se redespliegue con cada cambio de la app).
 3. **Sin dominio público.** No agregar uno.
-4. Variables del servicio `vector`: `BETTERSTACK_HOST`, `BETTERSTACK_TOKEN`,
+4. Variables del servicio `vector`: `BETTERSTACK_TOKEN`,
    `R2_ENDPOINT`, `R2_BUCKET`, `R2_LLAVE_ID`, `R2_LLAVE_SECRETA`. Si falta
    una, Vector no arranca (a propósito: se ve en Railway).
 5. Desplegar y esperar el verde.
@@ -104,6 +104,26 @@ llave `vector-registros`.
 8. Anotar las variables en `salida-de-miembro-y-cambio-de-llaves.md`.
 
 Para apagarlo: quitar `VECTOR_URL` de la app. Todo vuelve a ser como antes.
+
+### Por qué Vector 0.45.0 y no la última (2026-11-06)
+
+Con Vector 0.61.0, Better Stack recibía bien pero R2 rechazaba cada archivo:
+"You can only specify one non-default checksum at a time" (400). Es un bug
+abierto de Vector con R2 desde mayo de 2025
+([vectordotdev/vector#23029](https://github.com/vectordotdev/vector/issues/23029)):
+el SDK nuevo de AWS manda dos sumas de verificación. Las variables
+`AWS_REQUEST_CHECKSUM_CALCULATION` y `AWS_RESPONSE_CHECKSUM_VALIDATION` en
+`when_required` **no** lo arreglan (probado en Railway). La solución que
+reporta la comunidad es 0.45.0, la última anterior al cambio.
+
+- La configuración se validó con el binario oficial de 0.45.0. Esa versión
+  no reemplaza `SECRET[...]` dentro de una URL, así que el host de Better
+  Stack va escrito en `vector.yaml` (no es secreto: sin el token no sirve).
+- Avisos de seguridad que afectan a 0.45.0: solo la entrada `logstash` y el
+  destino `file`, que no se usan. Vector solo se alcanza por la red privada.
+- Dependabot no propone versiones nuevas de Vector (`ignore` en
+  `dependabot.yml`). Revisar el issue en la revisión mensual; al cerrarse,
+  subir de versión y comprobar que llega un archivo a R2.
 
 ## 10.3 — Alertas
 
