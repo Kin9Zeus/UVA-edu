@@ -125,20 +125,27 @@ reporta la comunidad es 0.45.0, la última anterior al cambio.
   `dependabot.yml`). Revisar el issue en la revisión mensual; al cerrarse,
   subir de versión y comprobar que llega un archivo a R2.
 
-## 10.3 — Alertas
+## 10.3 — Alertas (hechas y probadas el 2026-11-06)
 
-Hoy, en Sentry: los eventos marcados "Sí" arriba llegan como avisos con el
-tag `area:seguridad`. Falta crear la regla (ver `canal-alertas.md`): "tag
-`area` igual a `seguridad`, más de 5 eventos en 10 min, aviso al canal".
+| Alerta | Dónde | Condición | A quién | Probada |
+| --- | --- | --- | --- | --- |
+| Seguridad — fuerza bruta (login fallido) | Better Stack, fuente `uva-produccion` | `evento:login_fallido`, más de **30** en los últimos **10 min** | Equipo de Better Stack, correo | Sí, con umbral 0: llegó el correo del incidente |
+| Seguridad — ráfaga de abuso (límite de uso) | Better Stack | `evento:limite_de_uso`, más de **20** en **10 min** | Equipo de Better Stack, correo | No (habría que llegar a un límite de verdad); mismo mecanismo que la anterior |
+| Seguridad — eventos graves (area:seguridad) | Sentry, `uva-edu`, entorno `production` | "An event or issue activity is captured" + tag `area` equals `seguridad`; un aviso cada **10 min** por issue | Miembro Sebastian (cuenta de Sentry del equipo) | Sí: un código de 2FA equivocado en `/seguridad/verificar` llegó a Sentry y mandó el correo |
 
-En el servicio de registros, cuando exista:
+En las dos de Better Stack: "If data is missing" = **Don't start an incident** (sin
+intentos fallidos no hay datos, y eso no es un incidente).
 
-| Alerta | Condición | Por qué |
-| --- | --- | --- |
-| Fuerza bruta | `login_fallido` > 30 en 10 min en total, o > 10 de una misma `ip` | Alguien probando contraseñas |
-| Ráfaga de abuso | `limite_de_uso` > 20 en 10 min | Un script publicando |
-| Intento en el panel | `admin_denegado`, cualquier ocurrencia | Nadie llega ahí usando la app normal |
-| Administrador de madrugada | `accion_admin` entre 0:00 y 6:00 de Colombia | Una sesión de administrador robada suele actuar de noche |
-| Puerta trasera | `origen_rechazado` > 100 en 10 min, con el cierre de origen encendido | Alguien encontró el dominio de Railway |
+Cómo probar sin bloquear una cuenta: en `/seguridad/verificar` escribir a
+mano `000000` (el "000 000" gris del campo es solo el ejemplo: enviado
+vacío, la app lo rechaza antes de preguntarle a Supabase y no se registra
+nada). Cinco contraseñas equivocadas, en cambio, bloquean la cuenta 15 min.
+
+Pendientes:
+- Invitar a Aleck al equipo de Better Stack (hoy solo recibe Miguel).
+- Puerta trasera (`origen_rechazado` > 100 en 10 min): al encender el cierre
+  de origen con Cloudflare.
+- Fuerza bruta por IP y administrador de madrugada (`accion_admin` entre
+  0:00 y 6:00): cuando las de arriba lleven unos días y se vea el ruido real.
 
 Las de 403 y 429 por IP también pueden vivir en Cloudflare (`cloudflare.md`).
