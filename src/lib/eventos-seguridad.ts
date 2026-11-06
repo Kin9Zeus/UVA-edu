@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { clientIp } from "@/lib/clientIp";
+import { enviarAlRegistroExterno } from "@/lib/envio-registros";
 
 /**
  * Eventos de seguridad estructurados (fase 10.2 del plan de blindaje).
@@ -116,6 +117,8 @@ export function registrarEventoSeguridad(evento: EventoSeguridad, datos: DatosEv
   try {
     const linea = lineaEventoSeguridad(evento, datos);
     console.log(JSON.stringify(linea));
+    // Fase 10.1: copia a Vector (Better Stack + archivo de 90 días en R2).
+    enviarAlRegistroExterno(linea);
 
     if (AVISAR_A_SENTRY.has(evento)) {
       const sinIp = { ...linea };

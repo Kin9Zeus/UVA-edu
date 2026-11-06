@@ -1,0 +1,87 @@
+# Vector: reenvía los registros de la app (fase 10.1 del plan de blindaje).
+# Procedimiento completo: docs/ops/registros-externos.md.
+#
+#   App (Railway) --POST por la red privada--> Vector --> Better Stack (3 días: buscar y alertar)
+#                                                     \-> Cloudflare R2 (90 días: archivo)
+#
+# Variables del servicio de Vector en Railway (NUNCA en el de la app):
+#   BETTERSTACK_HOST    host de ingreso de la fuente (sin https://)
+#   BETTERSTACK_TOKEN   token de la fuente (solo escribe registros)
+#   R2_ENDPOINT         https://<cuenta>.r2.cloudflarestorage.com
+#   R2_BUCKET           nombre del bucket de registros
+#   R2_LLAVE_ID / R2_LLAVE_SECRETA   llave de R2 solo para ese bucket (Object Read & Write;
+#                                    el bloqueo del bucket impide borrar antes de 90 días)
+#
+# Este servicio NO lleva dominio público: solo la app lo ve, por
+# vector.railway.internal.
+
+# Los valores llegan como SECRET[...] y no como ${VARIABLE}: Vector apaga
+# por defecto leer variables de entorno dentro de la configuración. El
+# script de arranque (arrancar.sh) copia las variables de Railway a archivos
+# que solo ve este contenedor, y Vector los lee de ahí.
+secret:
+  railway:
+    type: directory
+    path: /run/vector-secretos
+    remove_trailing_whitespace: true
+
+sources:
+  app:
+    type: http_server
+    # [::] porque la red privada de Railway resuelve a IPv6.
+    address: "[::]:9000"
+    decoding:
+      codec: json
+    framing:
+      method: newline_delimited
+
+transforms:
+  sellado:
+    type: remap
+    inputs: [app]
+    # Vector agrega `path` y `source_type`, que no dicen nada aquí. La hora
+    # del evento (`timestamp`) es la de la app: Vector no la pisa.
+    source: |
+      .recibido_en = now()
+      del(.path)
+      del(.source_type)
+
+sinks:
+  better_stack:
+    type: http
+    inputs: [sellado]
+    method: post
+    uri: "https://SECRET[railway.BETTERSTACK_HOST]"
+    encoding:
+      codec: json
+    compression: gzip
+    auth:
+      strategy: bearer
+      token: "SECRET[railway.BETTERSTACK_TOKEN]"
+    batch:
+      max_events: 100
+      timeout_secs: 2
+
+  archivo_r2:
+    type: aws_s3
+    inputs: [sellado]
+    endpoint: "SECRET[railway.R2_ENDPOINT]"
+    bucket: "SECRET[railway.R2_BUCKET]"
+    region: auto
+    # Un archivo cada 5 minutos como mucho, agrupados por día. La regla de
+    # vida del bucket los borra a los 90 días.
+    key_prefix: "registros/%Y/%m/%d/"
+    compression: gzip
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    batch:
+      timeout_secs: 300
+    auth:
+      access_key_id: "SECRET[railway.R2_LLAVE_ID]"
+      secret_access_key: "SECRET[railway.R2_LLAVE_SECRETA]"
+    # La llave solo puede escribir: no tiene permiso para la comprobación
+    # de arranque (que lista el bucket).
+    healthcheck:
+      enabled: false
