@@ -207,6 +207,15 @@ export function VideoPlayer({
         return true;
       }
       sesionRef.current = resultado.sesion;
+      // Otro equipo pudo avanzar la misma clase mientras este estaba pausado:
+      // se sigue desde lo más avanzado. Solo con el reproductor desmontado
+      // (arranque o «Ver aquí»): cambiar `startTime` en plena reproducción
+      // haría saltar el video (ver el comentario de `tiempoInicio`).
+      const guardado = resultado.segundoGuardado;
+      if (!mediaRef.current && typeof guardado === "number" && guardado > posicionRef.current) {
+        posicionRef.current = guardado;
+        setTiempoInicio(guardado);
+      }
       setEstado({ tipo: "listo", playbackId: resultado.playbackId, token: resultado.token });
       tokenExpiraEnRef.current = Date.now() + DURACION_TOKEN_MS;
       return true;

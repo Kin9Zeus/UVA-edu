@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { resolverTokenReproduccion, type TokenReproduccionResultado } from "@/lib/video/reproduccion";
 import {
   MENSAJE_OTRO_DISPOSITIVO,
@@ -14,7 +15,11 @@ import {
  */
 export type TokenReproduccionConSesion =
   | (Extract<TokenReproduccionResultado, { error: string }> & { otroDispositivo?: true })
-  | (Extract<TokenReproduccionResultado, { token: string }> & { sesion: string | null });
+  | (Extract<TokenReproduccionResultado, { token: string }> & {
+      sesion: string | null;
+      /** Al reclamar: último segundo guardado de la clase (otro equipo pudo avanzar). */
+      segundoGuardado?: number | null;
+    });
 
 /**
  * Genera el token firmado para reproducir el video de una lección.
@@ -45,6 +50,22 @@ export async function obtenerTokenReproduccion(
 
   // La clase introductoria se ve sin cuenta: ahí no hay nada que reclamar.
   const { data: claims } = await supabase.auth.getClaims();
-  const nueva = claims?.claims?.sub ? await reclamarReproduccion(supabase) : null;
-  return { ...resultado, sesion: nueva };
+  const usuarioId = claims?.claims?.sub;
+  if (!usuarioId) return { ...resultado, sesion: null };
+
+  // Al reclamar (también con «Ver aquí») se devuelve el avance guardado: si
+  // otro equipo vio la MISMA clase más adelante, este sigue desde ahí en vez
+  // de retroceder el avance con su posición vieja. Dato secundario: si falla,
+  // el reproductor sigue desde su propia posición.
+  const [nueva, { data: progreso, error }] = await Promise.all([
+    reclamarReproduccion(supabase),
+    supabase
+      .from("progreso")
+      .select("segundo_actual")
+      .eq("id_usuario", usuarioId)
+      .eq("id_leccion", leccionId)
+      .maybeSingle(),
+  ]);
+  registrarSiFalla(error, "video:reproduccion", "no se pudo leer el avance al reclamar", { leccionId });
+  return { ...resultado, sesion: nueva, segundoGuardado: progreso?.segundo_actual ?? null };
 }

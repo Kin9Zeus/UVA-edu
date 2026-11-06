@@ -59,13 +59,37 @@ async function entrarYReproducir(page: Page) {
   });
 }
 
+/**
+ * El reproductor sigue reproduciendo (y latiendo) pero casi sin avanzar, en
+ * bucle: su posición queda claramente detrás del segundo que se fija abajo.
+ */
+async function lentoCercaDelInicio(page: Page) {
+  // Antes de que cargue el video, el reproductor ignora `currentTime` y luego
+  // arranca en su `startTime`: se repite hasta que el salto de verdad quede.
+  await expect
+    .poll(
+      () =>
+        page.locator("mux-player").evaluate((el) => {
+          const media = el as HTMLMediaElement;
+          if (media.readyState < 1) return Infinity;
+          media.loop = true;
+          media.playbackRate = 0.1;
+          if (media.currentTime > 2) media.currentTime = 1;
+          return media.currentTime;
+        }),
+      { timeout: 20_000 },
+    )
+    .toBeLessThan(2);
+}
+
 test("el segundo dispositivo pausa al primero, y «Ver aquí» lo recupera", async ({ browser }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const laptop = await (await browser.newContext()).newPage();
   const tablet = await (await browser.newContext()).newPage();
 
-  await test.step("la laptop reproduce", async () => {
+  await test.step("la laptop reproduce, muy lento y cerca del inicio", async () => {
     await entrarYReproducir(laptop);
+    await lentoCercaDelInicio(laptop);
   });
 
   await test.step("la tablet reproduce y la laptop se pausa en su siguiente latido", async () => {
@@ -78,5 +102,37 @@ test("el segundo dispositivo pausa al primero, y «Ver aquí» lo recupera", asy
     await laptop.getByRole("button", { name: "Ver aquí" }).click();
     await expect(laptop.locator("mux-player")).toBeVisible({ timeout: 20_000 });
     await expect(tablet.getByText(AVISO)).toBeVisible({ timeout: 30_000 });
+    await lentoCercaDelInicio(laptop);
+  });
+
+  await test.step("misma clase: «Ver aquí» sigue desde lo que avanzó el otro equipo", async () => {
+    // La tablet vuelve a tomar la clase y "avanza" hasta el segundo 8 (se fija
+    // en la base: el clip dura 10 s y su posición real depende del bucle).
+    await tablet.getByRole("button", { name: "Ver aquí" }).click();
+    await expect(laptop.getByText(AVISO)).toBeVisible({ timeout: 30_000 });
+    await tablet.close();
+    // El guardado final de la tablet (sendBeacon al cerrar) no debe llegar
+    // después de fijar el segundo 8.
+    await laptop.waitForTimeout(3_000);
+    const { error } = await admin
+      .from("progreso")
+      .update({ segundo_actual: 8 })
+      .eq("id_usuario", usuarioId)
+      .eq("id_leccion", leccion1.id);
+    expect(error).toBeNull();
+
+    await laptop.getByRole("button", { name: "Ver aquí" }).click();
+    // La posición AL ARRANCAR: más tarde el clip llega solo al segundo 8.
+    const reproductor = laptop.locator("mux-player");
+    await reproductor.waitFor({ timeout: 20_000 });
+    const arranque = await reproductor.evaluate(
+      (el) =>
+        new Promise<number>((listo) => {
+          const media = el as HTMLMediaElement;
+          if (media.readyState >= 1 && !media.paused) listo(media.currentTime);
+          else media.addEventListener("playing", () => listo(media.currentTime), { once: true });
+        }),
+    );
+    expect(arranque).toBeGreaterThanOrEqual(7.5);
   });
 });
