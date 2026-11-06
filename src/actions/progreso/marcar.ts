@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
+import { reproduccionVigente } from "@/lib/video/reproduccionUnica";
 
 export type MarcarLeccionState = { error: string } | { ok: true; completado: boolean };
 
@@ -91,12 +92,18 @@ export async function iniciarProgresoLeccion(leccionId: string): Promise<void> {
 export async function guardarSegundoActual(
   leccionId: string,
   segundos: number,
-): Promise<{ ok: boolean }> {
+  sesion: string | null = null,
+): Promise<{ ok: boolean; otroDispositivo?: true }> {
   const supabase = await createClient();
   const user = await getUsuarioActual();
 
   if (!user) return { ok: false };
   if (!Number.isFinite(segundos)) return { ok: false };
+
+  // Este guardado es el latido del Flujo 05 (un video a la vez por cuenta):
+  // si otro equipo reclamó la reproducción, no se guarda —su posición es la
+  // que vale— y el reproductor se pausa.
+  if (!(await reproduccionVigente(supabase, sesion))) return { ok: false, otroDispositivo: true };
 
   const segundoActual = Math.max(0, Math.floor(segundos));
 

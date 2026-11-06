@@ -109,7 +109,13 @@ export function VideoPlayer({
     | { tipo: "cargando" }
     | { tipo: "error"; mensaje: string; sinAcceso: boolean }
     | { tipo: "listo"; playbackId: string; token: string }
+    | { tipo: "otroDispositivo" }
   >({ tipo: "cargando" });
+  // Token de "un video a la vez por cuenta" (Flujo 05, 136_reproduccion_unica.sql).
+  // Null hasta reclamar, y siempre null para administradores.
+  const sesionRef = useRef<string | null>(null);
+  // Tras "Ver aquí" el video vuelve a arrancar solo, donde iba.
+  const [reanudarAlCargar, setReanudarAlCargar] = useState(false);
 
   const mediaRef = useRef<MuxPlayerElement | null>(null);
   // Congela el punto de partida en el primer render: `segundoActual` sigue
@@ -125,7 +131,7 @@ export function VideoPlayer({
   // umbral de completado, que es exactamente cuando dispara el refresh.
   // Con `useState` (no `useRef`) el valor inicial es estable entre renders
   // sin depender de la prop después del primero.
-  const [tiempoInicio] = useState(segundoActual);
+  const [tiempoInicio, setTiempoInicio] = useState(segundoActual);
   // Última posición conocida, actualizada en CADA timeupdate (sin
   // throttle): es lo que usan el guardado al salir y el beacon, que
   // necesitan el dato más fresco posible, no el del último guardado
@@ -177,17 +183,30 @@ export function VideoPlayer({
     };
   }, [controlRef]);
 
+  // Otro equipo de la misma cuenta empezó a reproducir: este se pausa. Sin
+  // `reprodujoRef`, el guardado al salir no pisa la posición del otro equipo.
+  const dejarAlOtroDispositivo = useCallback(() => {
+    mediaRef.current?.pause();
+    reprodujoRef.current = false;
+    setEstado({ tipo: "otroDispositivo" });
+  }, []);
+
   // Pide el token firmado (server-side, valida acceso vigente en cada
   // llamada — CLAUDE.md §3.3). Devuelve si la llamada llegó a resolverse
   // (con o sin acceso) para que quien reprograma la siguiente renovación
   // sepa si debe esperar el intervalo normal o reintentar pronto.
   const cargarToken = useCallback(async (): Promise<boolean> => {
     try {
-      const resultado = await obtenerTokenReproduccion(leccionId);
+      const resultado = await obtenerTokenReproduccion(leccionId, sesionRef.current);
       if ("error" in resultado) {
+        if (resultado.otroDispositivo) {
+          dejarAlOtroDispositivo();
+          return true;
+        }
         setEstado({ tipo: "error", mensaje: resultado.error, sinAcceso: resultado.sinAcceso === true });
         return true;
       }
+      sesionRef.current = resultado.sesion;
       setEstado({ tipo: "listo", playbackId: resultado.playbackId, token: resultado.token });
       tokenExpiraEnRef.current = Date.now() + DURACION_TOKEN_MS;
       return true;
@@ -205,7 +224,7 @@ export function VideoPlayer({
       );
       return false;
     }
-  }, [leccionId]);
+  }, [leccionId, dejarAlOtroDispositivo]);
 
   useEffect(() => {
     let cancelado = false;
@@ -283,7 +302,11 @@ export function VideoPlayer({
       if (guardandoRef.current) return;
       guardandoRef.current = true;
       try {
-        const resultado = await guardarSegundoActual(leccionId, segundos);
+        const resultado = await guardarSegundoActual(leccionId, segundos, sesionRef.current);
+        if (resultado.otroDispositivo) {
+          dejarAlOtroDispositivo();
+          return;
+        }
         proximoIntentoRef.current = Date.now() + (resultado.ok ? INTERVALO_GUARDADO_MS : INTERVALO_REINTENTO_MS);
       } catch {
         proximoIntentoRef.current = Date.now() + INTERVALO_REINTENTO_MS;
@@ -291,7 +314,7 @@ export function VideoPlayer({
         guardandoRef.current = false;
       }
     },
-    [leccionId],
+    [leccionId, dejarAlOtroDispositivo],
   );
 
   // Si el navegador estuvo sin conexión y la vuelve a tener, no hay que
@@ -347,6 +370,33 @@ export function VideoPlayer({
     return <PosterDelVideo posterUrl={posterUrl} />;
   }
 
+  if (estado.tipo === "otroDispositivo") {
+    return (
+      <div
+        role="alert"
+        className="flex aspect-video flex-col items-center justify-center gap-3 bg-uva-bg px-6 text-center text-uva-text"
+      >
+        <p className="m-0 text-uva-cuerpo font-bold">Tu cuenta se está reproduciendo en otro dispositivo.</p>
+        <p className="m-0 max-w-[46ch] text-uva-detalle text-uva-text-muted">
+          Puedes ver un video a la vez. Si lo ves aquí, se pausará en el otro dispositivo.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            sesionRef.current = null;
+            setTiempoInicio(posicionRef.current);
+            setReanudarAlCargar(true);
+            setEstado({ tipo: "cargando" });
+            void cargarToken();
+          }}
+          className={BOTON_VIDEO_PRIMARIO}
+        >
+          Ver aquí
+        </button>
+      </div>
+    );
+  }
+
   if (estado.tipo === "error") {
     return (
       <div
@@ -397,7 +447,7 @@ export function VideoPlayer({
       playbackId={estado.playbackId}
       tokens={{ playback: estado.token }}
       poster={posterUrl ?? undefined}
-      autoPlay={reproducirAlCargar}
+      autoPlay={reproducirAlCargar || reanudarAlCargar}
       style={CONTROLES_SIEMPRE_VISIBLES}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
