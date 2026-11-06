@@ -16,12 +16,14 @@ que alguien entró.
 **Estado: creadas en la fase E** (llaves AWS señuelo, octubre de 2026). Son
 credenciales de AWS falsas: no abren nada, pero si alguien intenta usarlas,
 el servicio que las generó avisa. Van **sin sellar** a propósito: un intruso
-que mire las variables tiene que verlas y caer.
+que mire las variables tiene que verlas y caer. El sufijo `_BACKUP` la hace
+parecer una llave de respaldos, y ninguna librería la toma sola (no son los
+nombres estándar de AWS): la app nunca la usa por accidente.
 
 | Llave trampa | Dónde está | Creada | El aviso va a |
 | --- | --- | --- | --- |
-| Llave AWS señuelo (par ID + secreta) | Variables de Railway, servicio de la app, sin sellar | Fase E (octubre 2026) | Aleck |
-| La misma llave, copia local | `.env.local` y `.env.produccion.local` de quien corre scripts, como `AWS_ACCESS_KEY_ID_BACKUP` y `AWS_SECRET_ACCESS_KEY_BACKUP` | Fase E | Aleck |
+| Llave AWS señuelo (par ID + secreta) | Variables de Railway, servicio de la app, sin sellar, como `AWS_ACCESS_KEY_ID_BACKUP` y `AWS_SECRET_ACCESS_KEY_BACKUP` | Fase E (octubre 2026) | Aleck |
+| La misma llave, copia local | `.env.local` y `.env.produccion.local` de quien corre scripts, con los mismos nombres | Fase E | Aleck |
 
 **Pendiente:** confirmar que el aviso llega. Nunca se probó (Cerebro,
 "Hallazgos abiertos"). Prueba segura: desde un computador cualquiera, con
