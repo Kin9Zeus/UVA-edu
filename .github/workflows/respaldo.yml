@@ -11,9 +11,11 @@ name: Respaldo propio de la base
 #
 # Por qué es seguro tener esto en GitHub (la lección del incidente de
 # Railway es que un secreto en un proveedor se puede robar):
-#   · La base se lee con `respaldo_lector`, un usuario de SOLO LECTURA. Con
-#     su contraseña se puede copiar la base, no cambiarla ni borrarla. No es
-#     la llave maestra ni la DATABASE_URL de `postgres`.
+#   · La base se lee con `respaldo_lector`, un usuario de SOLO LECTURA
+#     (`pg_read_all_data` + `bypassrls`, probado en staging el 2026-11-06:
+#     lee todo, incluidas las cuentas, y no puede escribir). Con su
+#     contraseña se puede copiar la base, no cambiarla ni borrarla. No es la
+#     llave maestra ni la DATABASE_URL de `postgres`.
 #   · El archivo se cifra en el runner con `age`, con una llave PÚBLICA. La
 #     privada (la única que descifra) NO está en GitHub: vive en el gestor de
 #     contraseñas. Quien robe el almacenamiento solo ve basura.
@@ -89,10 +91,14 @@ jobs:
           "$PG_BIN/pg_dump" "$RESPALDO_DATABASE_URL" --format=custom --no-owner --no-privileges \
             --schema=public --schema=private --file=app.dump
           # 2. Las cuentas y los metadatos de Storage: solo datos (el esquema
-          #    lo crea Supabase en el proyecto nuevo). Los ARCHIVOS de los
-          #    buckets no están aquí: ver Parte D, "Qué no cubre".
+          #    lo crea Supabase en el proyecto nuevo). Sin el historial de
+          #    versiones internas de Supabase: el proyecto nuevo trae el suyo y
+          #    restaurarlo encima daría error. Los ARCHIVOS de los buckets no
+          #    están aquí: ver Parte D, "Qué no cubre".
           "$PG_BIN/pg_dump" "$RESPALDO_DATABASE_URL" --format=custom --no-owner --no-privileges \
-            --data-only --schema=auth --schema=storage --file=cuentas.dump
+            --data-only --schema=auth --schema=storage \
+            --exclude-table-data=auth.schema_migrations --exclude-table-data=storage.migrations \
+            --file=cuentas.dump
           tar -cf - app.dump cuentas.dump | age -r "$RESPALDO_AGE_PUBLICA" > "uva-${fecha}.tar.age"
           # Nada sin cifrar queda en el runner.
           shred -u app.dump cuentas.dump
