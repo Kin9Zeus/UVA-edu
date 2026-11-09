@@ -8,6 +8,7 @@ import {
   formatearCodigoDePrueba,
   limpiarDatosDeUsuario,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Casos límite obligatorios de canje de código, ejercitados por la pantalla
@@ -76,6 +77,7 @@ test("código inválido, agotado, vencido y ya canjeado muestran el motivo corre
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(page.locator("#login-pass")).toBeVisible();
     await page.fill("#login-pass", password);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/dashboard\/suscripcion/, { timeout: 30_000 });
   });

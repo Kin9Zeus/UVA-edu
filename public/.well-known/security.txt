@@ -1,0 +1,6 @@
+# U.V.A — cómo reportar una vulnerabilidad (RFC 9116).
+# Gracias por avisarnos en privado antes de publicar nada.
+Contact: mailto:seguridad@uvarq.com
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: es, en
+Policy: https://github.com/Kin9Zeus/UVA-edu/blob/master/SECURITY.md

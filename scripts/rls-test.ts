@@ -120,6 +120,15 @@ async function subirAAal2(cliente: SupabaseClient): Promise<void> {
   }
 }
 
+/**
+ * Fase 4 (Turnstile): con el CAPTCHA de Supabase encendido en staging (con
+ * la llave secreta DE PRUEBA de Cloudflare), todo inicio de sesión con
+ * contraseña necesita un token. Este es el token falso fijo que aceptan las
+ * llaves de prueba. Si el CAPTCHA está apagado, Supabase lo ignora. Nunca
+ * sirve contra producción (su llave secreta es real y lo rechaza).
+ */
+const OPCIONES_LOGIN = { captchaToken: process.env.TURNSTILE_TOKEN_PRUEBA ?? "XXXX.DUMMY.TOKEN.XXXX" };
+
 async function main() {
   const { resolverTokenReproduccion }: { resolverTokenReproduccion: ResolverTokenReproduccion } =
     await import("../src/lib/video/reproduccion");
@@ -333,17 +342,18 @@ async function main() {
   const clienteAnonimo: SupabaseClient = createClient(URL, ANON_KEY);
 
   const clienteSinAcceso: SupabaseClient = createClient(URL, ANON_KEY);
-  const loginSinAcceso = await clienteSinAcceso.auth.signInWithPassword({ email: correoSinAcceso, password });
+  const loginSinAcceso = await clienteSinAcceso.auth.signInWithPassword({ email: correoSinAcceso, password, options: OPCIONES_LOGIN });
   if (loginSinAcceso.error) throw new Error(`No pude iniciar sesión (sin acceso): ${loginSinAcceso.error.message}`);
 
   const clienteConAcceso: SupabaseClient = createClient(URL, ANON_KEY);
-  const loginConAcceso = await clienteConAcceso.auth.signInWithPassword({ email: correoConAcceso, password });
+  const loginConAcceso = await clienteConAcceso.auth.signInWithPassword({ email: correoConAcceso, password, options: OPCIONES_LOGIN });
   if (loginConAcceso.error) throw new Error(`No pude iniciar sesión (con acceso): ${loginConAcceso.error.message}`);
 
   const clienteSupresionPropia: SupabaseClient = createClient(URL, ANON_KEY);
   const loginSupresionPropia = await clienteSupresionPropia.auth.signInWithPassword({
     email: correoSupresionPropia,
     password,
+    options: OPCIONES_LOGIN,
   });
   if (loginSupresionPropia.error) {
     throw new Error(`No pude iniciar sesión (supresión propia): ${loginSupresionPropia.error.message}`);
@@ -1941,6 +1951,7 @@ async function main() {
     const loginAdmin = await clienteAdmin.auth.signInWithPassword({
       email: correoAdmin,
       password,
+      options: OPCIONES_LOGIN,
     });
     if (loginAdmin.error) throw new Error(`No pude iniciar sesión como admin: ${loginAdmin.error.message}`);
 

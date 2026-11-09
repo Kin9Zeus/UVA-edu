@@ -149,19 +149,30 @@ Tampoco los videos: viven en Mux, no en Supabase.
    computador.** Sin ella ningún respaldo se puede abrir: guardarla en dos
    lugares.
 3. **Usuario de solo lectura en producción**, desde el SQL Editor de
-   Supabase (producción). Probarlo primero en staging:
+   Supabase (producción), **el mismo día que se configura el paso 4**: la
+   contraseña va directo al gestor y al secreto de GitHub.
    ```sql
    create role respaldo_lector with login password '<generada, 32+ caracteres>' bypassrls;
-   grant usage on schema public, private, auth, storage to respaldo_lector;
-   grant select on all tables in schema public, private, auth, storage to respaldo_lector;
-   grant select on all sequences in schema public, private, auth, storage to respaldo_lector;
-   alter default privileges in schema public, private grant select on tables to respaldo_lector;
+   grant pg_read_all_data to respaldo_lector;
    ```
-   `bypassrls` porque `pg_dump` se niega a copiar una tabla que RLS le
-   filtraría. Si Supabase no deja darlo, anotarlo aquí y probar con el
-   usuario de solo lectura que ofrece el panel (Database → Roles). Va sin
-   esto en `supabase/sql/`, a propósito: esos scripts se aplican también en
-   staging y en el CI, y este usuario solo existe en producción.
+   Probado en staging el 2026-11-06 (y borrado después):
+   - **Permisos tabla por tabla no sirven.** Supabase deja a `postgres`
+     entrar al esquema `auth` pero no compartir ese acceso (`postgres=U`,
+     sin `*`): el `grant usage` se ignora con un aviso y el respaldo saldría
+     sin las cuentas. Por eso `pg_read_all_data`, el rol estándar de
+     Postgres que `postgres` sí puede otorgar (lo mismo que usa el
+     `supabase_read_only_user` de Supabase).
+   - Con él lee `auth.users`, `identities`, `mfa_factors`, `public`,
+     `private` y `storage`. `bypassrls` porque `pg_dump` se niega a copiar
+     una tabla que RLS le filtraría.
+   - **No puede escribir:** un `update` sobre `perfiles` dio "permission
+     denied".
+   - Para borrarlo: `grant respaldo_lector to postgres with inherit true,
+     set true; drop owned by respaldo_lector; revoke respaldo_lector from
+     postgres; drop role respaldo_lector;`
+
+   Va sin esto en `supabase/sql/`, a propósito: esos scripts se aplican
+   también en staging y en el CI, y este usuario solo existe en producción.
 4. **Environment `respaldo-produccion`** en GitHub (Settings →
    Environments), **limitado a la rama master** y sin revisores (un
    respaldo programado no puede esperar una aprobación). Sus secretos:

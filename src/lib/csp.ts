@@ -76,6 +76,9 @@ export function generarNonce(): string {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64");
 }
 
+/** Cloudflare Turnstile: el script y el iframe del recuadro anti-bots (fase 4). */
+export const TURNSTILE = "https://challenges.cloudflare.com";
+
 export function construirCsp(opciones: OpcionesCsp): string {
   const { nonce, desarrollo, supabaseUrl, sentryDsn } = opciones;
 
@@ -102,6 +105,11 @@ export function construirCsp(opciones: OpcionesCsp): string {
       "'self'",
       `'nonce-${nonce}'`,
       "'strict-dynamic'",
+      // El script de Turnstile lo agrega un script propio (ya numerado), así
+      // que 'strict-dynamic' lo permite; el dominio queda para los
+      // navegadores que no entienden 'strict-dynamic' (ellos ignoran el
+      // nonce y miran la lista).
+      TURNSTILE,
       desarrollo && "'unsafe-eval'",
     ],
 
@@ -197,11 +205,12 @@ export function construirCsp(opciones: OpcionesCsp): string {
     // El reproductor descompone HLS en un worker creado desde un blob.
     "worker-src": ["'self'", "blob:"],
 
-    // Ningún componente de src/ monta un <iframe> (verificado por grep), así
-    // que nada que enmarcar. frame-ancestors duplica el X-Frame-Options: DENY
-    // de next.config.ts a propósito — es el sucesor moderno y el que
-    // entienden los navegadores actuales.
-    "frame-src": ["'none'"],
+    // El único <iframe> es el recuadro de Cloudflare Turnstile (fase 4,
+    // components/auth/VerificacionTurnstile.tsx). Nada más se puede
+    // enmarcar. frame-ancestors duplica el X-Frame-Options: DENY de
+    // next.config.ts a propósito — es el sucesor moderno y el que entienden
+    // los navegadores actuales.
+    "frame-src": [TURNSTILE],
     "frame-ancestors": ["'none'"],
     "object-src": ["'none'"],
 

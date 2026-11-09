@@ -48,7 +48,7 @@ function nadaIrreversible() {
   expect(servidorFalso.llamadasA("storage:avatares")).toHaveLength(0);
   expect(servidorFalso.llamadasA("storage:comunidad-adjuntos")).toHaveLength(0);
   expect(servidorFalso.encadenado("from:comunidad_adjuntos", "delete")).toHaveLength(0);
-  expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
+  expect(servidorFalso.llamadasA("auth:signOut").filter((c) => c.cliente !== "admin")).toHaveLength(0);
 }
 
 async function destinoDe(accion: Promise<unknown>): Promise<string> {
@@ -145,7 +145,9 @@ describe("eliminarMiCuenta — la supresión", () => {
     expect(servidorFalso.encadenado("storage:avatares", "remove")).toEqual([[["estudiante-1/foto.webp"]]]);
     const orden = servidorFalso.operaciones();
     expect(orden.indexOf("storage:avatares")).toBeLessThan(orden.indexOf("rpc:solicitar_supresion_propia"));
-    expect(orden.indexOf("rpc:solicitar_supresion_propia")).toBeLessThan(orden.indexOf("auth:signOut"));
+    // lastIndexOf: el primer signOut es el de la sesión de prueba de la
+    // reautenticación (cliente aparte); el último, el de la persona.
+    expect(orden.indexOf("rpc:solicitar_supresion_propia")).toBeLessThan(orden.lastIndexOf("auth:signOut"));
     // La supresión corre con la SESIÓN: la RPC decide por auth.uid(), no por un id que mande la acción.
     expect(servidorFalso.llamadasA("rpc:solicitar_supresion_propia")[0].cliente).toBe("sesion");
     // Las reseñas públicas están cacheadas: el nombre de quien se va no debe quedarse en ellas.
@@ -166,7 +168,7 @@ describe("eliminarMiCuenta — la supresión", () => {
     });
 
     expect(await eliminar()).toEqual({ error: "Una cuenta de administrador no se puede eliminar desde aquí." });
-    expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("auth:signOut").filter((c) => c.cliente !== "admin")).toHaveLength(0);
   });
 
   it("si no puede leer la foto, NO sigue: dejaría la foto huérfana en Storage. Pide reintentar y no toca nada", async () => {
@@ -242,6 +244,6 @@ describe("eliminarMiCuenta — la supresión", () => {
       expect.objectContaining({ code: "57014" }),
       { area: "cuenta" },
     );
-    expect(servidorFalso.llamadasA("auth:signOut")).toHaveLength(0);
+    expect(servidorFalso.llamadasA("auth:signOut").filter((c) => c.cliente !== "admin")).toHaveLength(0);
   });
 });

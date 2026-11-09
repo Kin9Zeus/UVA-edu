@@ -358,3 +358,7 @@ No cambiar el esquema ni las políticas directamente desde el panel web de
 Supabase. Ese cambio no queda versionado y el entorno de otro desarrollador
 deja de coincidir — todo cambio de esquema va por una migración de Prisma, y
 todo cambio de RLS/triggers va por un nuevo archivo en `supabase/sql/`.
+
+## Licencia
+
+© 2026 Devleck (Aleck Martinez). **Todos los derechos reservados.** El código se publica como caso de estudio de portafolio: puedes leerlo y ejecutarlo en local para evaluarlo, pero no copiarlo, redistribuirlo ni usarlo en otro producto sin permiso escrito. Las marcas, logotipos, fotografías y textos pertenecen a sus respectivos dueños. Ver [LICENSE](LICENSE) · Permisos: contact@devleck.com

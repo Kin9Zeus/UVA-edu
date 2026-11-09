@@ -4,6 +4,7 @@ import {
   borrarUsuarioPorEmail,
   generarEnlaceConfirmacion,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 // P2-7 Fase B (AUDIT-2026-08-24.md), recorrido 1 de 3: registro →
 // verificación → login. La confirmación de correo se resuelve con
@@ -35,6 +36,7 @@ test("registro -> verificación de correo -> login llega a canjear el código", 
     await page.fill("#reg-pass", password);
     await page.fill("#reg-pass2", password);
     await page.getByRole("checkbox").check();
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Crear mi cuenta" }).click();
     await expect(
       page.getByText(`Te enviamos un correo de confirmación a ${email}`),
@@ -69,6 +71,7 @@ test("registro -> verificación de correo -> login llega a canjear el código", 
 
   await test.step("inicia sesión con la contraseña recién creada", async () => {
     await page.fill("#login-pass", password);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     // Una cuenta nueva no tiene acceso: el login la lleva a canjear su
     // invitación (destinoTrasEntrar en actions/auth/login.ts), no al panel.

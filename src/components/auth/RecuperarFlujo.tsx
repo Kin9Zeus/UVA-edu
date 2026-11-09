@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AvisoAcceso } from "@/components/auth/AvisoAcceso";
 import { MensajeError } from "@/components/auth/MensajeError";
+import { VerificacionTurnstile } from "@/components/auth/VerificacionTurnstile";
 import { PasoAcceso } from "@/components/auth/PasoAcceso";
 import { POSICION_NIVEL } from "@/components/auth/NivelObra";
 import {
@@ -135,6 +136,7 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
               aria-describedby={state?.error ? "recuperar-email-error" : undefined}
             />
           </div>
+          <VerificacionTurnstile reiniciarCon={state} accion="recuperar" />
           {state?.error && <MensajeError id="recuperar-email-error">{state.error}</MensajeError>}
           <Button
             type="submit"

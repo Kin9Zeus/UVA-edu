@@ -79,6 +79,9 @@ describe("cambiarPassword", () => {
     expect(servidorFalso.argumentosDe("rpc:verificar_intentos_login")).toEqual({ p_correo: ESTUDIANTE.email });
     const [reauth] = servidorFalso.llamadasA("auth:signInWithPassword");
     expect(reauth.argumentos[0]).toEqual({ email: ESTUDIANTE.email, password: VALIDO.password_actual });
+    // Fase 4: con un cliente aparte de llave maestra (sin captcha) y nunca
+    // con el de la sesión, que la reemplazaba y le quitaba el aal2 a un admin.
+    expect(reauth.cliente).toBe("admin");
 
     const operaciones = servidorFalso.operaciones();
     expect(operaciones.indexOf("auth:signInWithPassword")).toBeLessThan(operaciones.indexOf("auth:updateUser"));
@@ -120,9 +123,13 @@ describe("cambiarPassword", () => {
   it("cambiarla cierra las DEMÁS sesiones y deja viva la actual (scope others)", async () => {
     await cambiar();
 
-    const cierres = servidorFalso.llamadasA("auth:signOut");
+    const todos = servidorFalso.llamadasA("auth:signOut");
+    // La sesión de la persona: solo se cierran las DEMÁS.
+    const cierres = todos.filter((c) => c.cliente !== "admin");
     expect(cierres).toHaveLength(1);
     expect(cierres[0].argumentos[0]).toEqual({ scope: "others" });
+    // La sesión de prueba de la reautenticación se cierra enseguida.
+    expect(todos.filter((c) => c.cliente === "admin").map((c) => c.argumentos[0])).toEqual([{ scope: "local" }]);
   });
 
   it("si cerrar las otras sesiones falla, el cambio sigue siendo éxito pero NO afirma que las cerró", async () => {

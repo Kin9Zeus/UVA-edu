@@ -7,6 +7,7 @@ import {
   promoverAProfesor,
   activarSegundoFactor,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 // P2-7 Fase B (AUDIT-2026-08-24.md), recorrido 2 de 3: admin crea y
 // publica un curso. El admin, la categoría y el instructor son
@@ -89,6 +90,7 @@ test("admin crea un curso en borrador", async ({ page }) => {
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(page.locator("#login-pass")).toBeVisible();
     await page.fill("#login-pass", passwordAdmin);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     await activarSegundoFactor(page);
     await page.goto("/admin/cursos/nuevo");

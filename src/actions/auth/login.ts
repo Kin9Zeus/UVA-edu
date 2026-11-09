@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 // Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role: abierto, cualquiera reiniciaría su contador o bloquearía cuentas ajenas.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logError } from "@/lib/log";
+import { MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
@@ -37,9 +38,16 @@ export async function login(
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
+    options: { captchaToken: tokenTurnstile(formData) },
   });
 
   if (error) {
+    // Fase 4: un rechazo del captcha no es una contraseña equivocada. No
+    // suma al límite de intentos ni cuenta como login fallido.
+    if (esFalloCaptcha(error)) {
+      return { error: MENSAJE_CAPTCHA };
+    }
+
     // Flujo 02 (ampliación): con "Confirm email" activo, Supabase rechaza
     // el login antes de crear sesión para una cuenta sin confirmar — se
     // distingue de "credenciales incorrectas" para poder ofrecer el

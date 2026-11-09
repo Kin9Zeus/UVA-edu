@@ -7,6 +7,7 @@ import {
   limpiarDatosDeUsuario,
   promoverAAdministrador,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Preparación común de los barridos de accesibilidad (a11y-barrido,
@@ -36,6 +37,7 @@ async function iniciarSesion(browser: Browser, email: string) {
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
   const estado = await context.storageState();

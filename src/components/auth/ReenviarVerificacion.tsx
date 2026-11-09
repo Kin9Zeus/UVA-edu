@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MensajeError } from "@/components/auth/MensajeError";
+import { VerificacionTurnstile } from "@/components/auth/VerificacionTurnstile";
 import { ACCESO_INPUT, ACCESO_LABEL } from "@/components/auth/acceso";
 import {
   reenviarVerificacion,
@@ -84,6 +85,8 @@ export function ReenviarVerificacion({
       ) : (
         <input type="hidden" name="email" value={email} />
       )}
+
+      <VerificacionTurnstile reiniciarCon={state} accion="reenviar" />
 
       {state?.error && <MensajeError id="reenviar-error">{state.error}</MensajeError>}
       {state?.success && (

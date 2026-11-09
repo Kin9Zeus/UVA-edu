@@ -4,7 +4,7 @@ import { resend } from "@/lib/resend/client";
 import { ASUNTO_RECUPERAR_PASSWORD, RecuperarPasswordEmail } from "@/lib/resend/emails/recuperar-password-email";
 import { ASUNTO_CONFIRMAR_CUENTA, ConfirmarCuentaEmail } from "@/emails/confirmar-cuenta";
 import { asuntoConfirmarAccion, ConfirmarAccionEmail } from "@/emails/confirmar-accion";
-import { conTextoPlano } from "@/emails/marco/texto-plano";
+import { envioTransaccional } from "@/emails/marco/envio";
 import { logError } from "@/lib/log";
 
 /**
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     let sendResult: Awaited<ReturnType<typeof resend.emails.send>>;
     switch (email_data.email_action_type) {
       case "recovery":
-        sendResult = await resend.emails.send(await conTextoPlano({
+        sendResult = await resend.emails.send(await envioTransaccional({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
           subject: ASUNTO_RECUPERAR_PASSWORD,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         }));
         break;
       case "signup":
-        sendResult = await resend.emails.send(await conTextoPlano({
+        sendResult = await resend.emails.send(await envioTransaccional({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
           subject: ASUNTO_CONFIRMAR_CUENTA,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         // ningún flujo de la app las dispara hoy, pero si llegan (panel de
         // Supabase) salen con el mismo diseño. Mismo destinatario y mismo
         // enlace que antes: solo cambia la presentación.
-        sendResult = await resend.emails.send(await conTextoPlano({
+        sendResult = await resend.emails.send(await envioTransaccional({
           from: process.env.RESEND_FROM_EMAIL!,
           to: user.email,
           subject: asuntoConfirmarAccion(email_data.email_action_type),
