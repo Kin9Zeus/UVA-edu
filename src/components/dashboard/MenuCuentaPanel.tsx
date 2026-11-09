@@ -51,9 +51,9 @@ export function MenuCuentaPanel({
           <User className="size-4" />
           Ver mi perfil
         </DropdownMenuLinkItem>
-        {/* En el panel, en celular el Sidebar (con su ítem de Comunidad) está
-            oculto: BottomTabBar reserva este espacio del menú para
-            Comunidad/Perfil/Suscripción, ver el comentario en ese archivo. */}
+        {/* En celular el Sidebar está oculto; Comunidad también vive en el
+            «Más» de la barra inferior (BottomTabBar). En escritorio va en el
+            Sidebar, por eso aquí se oculta desde md. */}
         <DropdownMenuLinkItem
           render={<Link href="/dashboard/comunidad" />}
           className={cn(ITEM, !comunidadSiempre && "md:hidden")}
