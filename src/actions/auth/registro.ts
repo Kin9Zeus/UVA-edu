@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { LARGO_MAXIMO_NOMBRE, MENSAJE_NOMBRE_LARGO } from "@/lib/nombre";
+import { MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never; email?: never }
@@ -61,10 +62,12 @@ export async function registro(
       // email=: precarga el correo en /login para que AuthFlow salte
       // directo al paso de contraseña, sin tener que volver a escribirlo.
       emailRedirectTo: `${origin}/login?signout=1&email=${encodeURIComponent(email)}`,
+      captchaToken: tokenTurnstile(formData),
     },
   });
 
   if (error) {
+    if (esFalloCaptcha(error)) return { error: MENSAJE_CAPTCHA };
     logError("registro", "supabase.auth.signUp error", error);
 
     if (error.message.toLowerCase().includes("already registered")) {

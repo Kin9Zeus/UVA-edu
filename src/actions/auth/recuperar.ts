@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,7 +50,13 @@ export async function recuperar(
     // ese webhook sobre evitar el doble anidado con este mismo next.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${origin}/auth/confirm?next=/actualizar-password`,
+      captchaToken: tokenTurnstile(formData),
     });
+
+    // Fase 4: si el captcha falló, el correo NO salió. Decir "listo" haría
+    // esperar un correo que nunca llega. No revela si la cuenta existe: el
+    // captcha falla igual con cualquier correo.
+    if (esFalloCaptcha(error)) return { error: MENSAJE_CAPTCHA };
 
     if (error) {
       logError("recuperar", "resetPasswordForEmail error", error, { area: "email" });

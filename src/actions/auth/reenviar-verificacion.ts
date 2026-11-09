@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { logError } from "@/lib/log";
+import { MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -47,8 +48,12 @@ export async function reenviarVerificacion(
       // Ver la nota en registro.ts: destino final directo, no /auth/confirm,
       // con el correo precargado para saltar directo al paso de contraseña.
       emailRedirectTo: `${origin}/login?signout=1&email=${encodeURIComponent(email)}`,
+      captchaToken: tokenTurnstile(formData),
     },
   });
+
+  // Fase 4: mismo criterio que recuperar.ts. Sin correo, no se dice "listo".
+  if (esFalloCaptcha(error)) return { error: MENSAJE_CAPTCHA };
 
   if (error) {
     logError("reenviarVerificacion", "resend error", error, { area: "email" });

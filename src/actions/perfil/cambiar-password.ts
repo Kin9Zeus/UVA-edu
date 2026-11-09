@@ -8,6 +8,7 @@ import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
+import { comprobarPasswordActual } from "@/lib/auth/passwordActual";
 import { tienePasswordPropia } from "@/lib/auth/tienePassword";
 
 export type CambiarPasswordState =
@@ -79,13 +80,11 @@ export async function cambiarPassword(
   if (bloqueo) return { error: bloqueo };
 
   // Reautenticación: confirma que quien está en esta sesión conoce la
-  // contraseña actual antes de dejarlo ponerle una nueva.
-  const { error: errorReauth } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: passwordActual,
-  });
+  // contraseña actual antes de dejarlo ponerle una nueva. Con un cliente
+  // aparte, sin captcha y sin tocar esta sesión (lib/auth/passwordActual.ts).
+  const reauth = await comprobarPasswordActual(user.email, passwordActual);
 
-  if (errorReauth) {
+  if (!reauth.ok) {
     const { error: errorRegistro } = await admin.rpc("registrar_login_fallido", {
       p_correo: user.email,
     });
@@ -104,6 +103,14 @@ export async function cambiarPassword(
   }
 
   const { error: errorUpdate } = await supabase.auth.updateUser({ password: passwordNueva });
+
+  // Si Supabase tiene "Secure password change" activo, pide una sesión
+  // reciente para cambiar la contraseña. Antes la reautenticación creaba una
+  // sesión nueva; ahora se conserva la de la persona (fase 4), así que una
+  // sesión vieja puede caer aquí.
+  if (errorUpdate?.code === "reauthentication_needed") {
+    return { error: "Por seguridad, cierra sesión, vuelve a entrar y cambia la contraseña de nuevo." };
+  }
 
   if (errorUpdate) {
     return { error: "No pudimos actualizar tu contraseña. Intenta de nuevo." };

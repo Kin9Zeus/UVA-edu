@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { MensajeError } from "@/components/auth/MensajeError";
+import { VerificacionTurnstile } from "@/components/auth/VerificacionTurnstile";
 import { ReglasPassword } from "@/components/auth/ReglasPassword";
 import type { DatosCarne } from "@/components/auth/CarneVistaPrevia";
 import {
@@ -207,6 +208,8 @@ export function RegistroForm({
             </Link>
           </span>
         </label>
+
+        <VerificacionTurnstile reiniciarCon={registroState} accion="registro" />
 
         {registroState?.error && (
           <MensajeError id="reg-error">{registroState.error}</MensajeError>
