@@ -16,3 +16,18 @@ export function urlWhatsapp(mensaje?: string): string {
   const texto = mensaje ? encodeURIComponent(mensaje) : "";
   return `https://api.whatsapp.com/send/?phone=${WHATSAPP_TELEFONO}&text=${texto}&type=phone_number&app_absent=0`;
 }
+
+/**
+ * Buzón de ayuda: lo citan los correos y es el "responder a" de todos los
+ * envíos (si alguien contesta un correo, llega aquí y no a una dirección
+ * que nadie lee). También para peticiones de datos personales (Habeas
+ * Data). Recibe por Cloudflare Email Routing, que lo reenvía al correo del
+ * equipo (docs/ops/correos.md).
+ *
+ * Antes las plantillas citaban un buzón en el dominio uva.edu, que es de la
+ * Universidad de Virginia, no de U.V.A. `contacto.test.ts` falla si vuelve.
+ */
+export const CORREO_SOPORTE = "soporte@uvarq.com";
+
+/** Para reportar vulnerabilidades: lo publica /.well-known/security.txt. */
+export const CORREO_SEGURIDAD = "seguridad@uvarq.com";

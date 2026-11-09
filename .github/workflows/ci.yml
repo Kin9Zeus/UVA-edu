@@ -296,6 +296,11 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
+      # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
+      # staging encendido con la secreta de prueba, el login de Playwright
+      # pasa por el recuadro igual que un estudiante.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # global-setup.ts reinicia el límite de check-email de staging con esto.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -374,6 +379,11 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
+      # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
+      # staging encendido con la secreta de prueba, el login de Playwright
+      # pasa por el recuadro igual que un estudiante.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -436,6 +446,11 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
+      # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
+      # staging encendido con la secreta de prueba, el login de Playwright
+      # pasa por el recuadro igual que un estudiante.
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}

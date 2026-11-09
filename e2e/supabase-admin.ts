@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
 import { generarCodigoTotp } from "../src/test/totp";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Cliente con Service Role Key para preparar y limpiar datos desechables
@@ -334,6 +335,7 @@ export async function crearEstudianteConSesion(
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).not.toHaveURL(/\/login/, { timeout: 60_000 });
   const sesion = await context.storageState();

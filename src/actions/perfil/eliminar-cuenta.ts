@@ -10,6 +10,7 @@ import { revalidarResenasPublicas } from "@/lib/cache-catalogo";
 import { logError } from "@/lib/log";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { comprobarLimiteLogin } from "@/lib/limiteIntentosLogin";
+import { comprobarPasswordActual } from "@/lib/auth/passwordActual";
 
 export type EliminarCuentaState = { error: string } | null;
 
@@ -67,12 +68,11 @@ export async function eliminarMiCuenta(
     const bloqueo = await comprobarLimiteLogin(admin, user.email, "eliminarMiCuenta");
     if (bloqueo) return { error: bloqueo };
 
-    const { error: errorReauth } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: passwordActual,
-    });
+    // Con un cliente aparte, sin captcha y sin tocar esta sesión
+    // (lib/auth/passwordActual.ts).
+    const reauth = await comprobarPasswordActual(user.email, passwordActual);
 
-    if (errorReauth) {
+    if (!reauth.ok) {
       const { error: errorRegistro } = await admin.rpc("registrar_login_fallido", { p_correo: user.email });
       if (errorRegistro) {
         logError("eliminarMiCuenta", "registrar_login_fallido rpc falló", errorRegistro);

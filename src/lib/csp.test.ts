@@ -126,7 +126,6 @@ describe("construirCsp — orígenes medidos, no supuestos", () => {
 describe("construirCsp — las directivas que cierran vectores clásicos", () => {
   it.each([
     ["object-src", "'none'"],
-    ["frame-src", "'none'"],
     ["frame-ancestors", "'none'"],
     ["base-uri", "'self'"],
     ["form-action", "'self'"],
@@ -196,5 +195,21 @@ describe("generarNonce", () => {
     // propio script.
     const muestras = new Set(Array.from({ length: 200 }, generarNonce));
     expect(muestras.size).toBe(200);
+  });
+});
+
+describe("construirCsp — Cloudflare Turnstile (fase 4)", () => {
+  it("frame-src solo deja enmarcar el recuadro de Turnstile, nada más", () => {
+    expect(directiva(csp(), "frame-src")).toBe("frame-src https://challenges.cloudflare.com");
+  });
+
+  it("script-src lista Turnstile sin abrir 'unsafe-inline' ni comodines", () => {
+    const scriptSrc = directiva(csp(), "script-src");
+    expect(scriptSrc).toContain("https://challenges.cloudflare.com");
+    expect(scriptSrc).not.toMatch(/\*|'unsafe-inline'/);
+  });
+
+  it("frame-ancestors sigue en 'none': a nosotros no nos enmarca nadie", () => {
+    expect(directiva(csp(), "frame-ancestors")).toBe("frame-ancestors 'none'");
   });
 });

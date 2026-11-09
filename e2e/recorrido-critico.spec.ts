@@ -12,6 +12,7 @@ import {
   verificarCursoFixture,
   reproducirVideo,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Recorrido crítico completo del MVP (tarea "Pruebas end-to-end del flujo de
@@ -80,6 +81,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     await page.fill("#reg-pass", password);
     await page.fill("#reg-pass2", password);
     await page.getByRole("checkbox").check();
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Crear mi cuenta" }).click();
     await expect(
       page.getByText(`Te enviamos un correo de confirmación a ${email}`),
@@ -103,6 +105,7 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     await page.getByRole("link", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/login\?email=/);
     await page.fill("#login-pass", password);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     // Sin suscripción todavía: el login lleva a canjear el código.
     await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 30_000 });

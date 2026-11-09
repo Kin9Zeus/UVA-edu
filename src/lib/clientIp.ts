@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { CABECERA_ORIGEN, cierreDeOrigenEncendido, peticionDesdeCloudflare } from "@/lib/origen";
+import { CABECERA_ORIGEN, peticionDesdeCloudflare } from "@/lib/origen";
 
 /**
  * IP del cliente para las claves de rate limiting, leída de forma que el
@@ -133,80 +133,6 @@ export function resolverIp(entrada: {
  * mañana cambia la infraestructura, se corrige acá y no en cada llamador
  * (que fue justo lo que dejó este fallo duplicado en dos sitios).
  */
-export type DiagnosticoIp = {
-  /** La cabecera tal cual llegó, sin tocar. */
-  crudo: string | null;
-  /** Cada entrada de la cadena, en orden (izquierda = lo que mandó el cliente). */
-  cadena: string[];
-  /** El TRUSTED_PROXY_HOPS vigente. */
-  saltos: number;
-  /** false si se está usando el defecto — porque no está puesta o porque
-   *  su valor no era válido, que es justo cuando conviene notarlo. */
-  saltosConfigurados: boolean;
-  /** Posición de la que sale la IP, o null si no hay cabecera. */
-  indiceUsado: number | null;
-  /** Lo que `clientIp()` devolvería ahora mismo. */
-  ipUsada: string;
-  /** De qué cabecera sale `ipUsada`. */
-  fuente: FuenteIp;
-  /** `CF-Connecting-IP` tal cual llegó (null si no vino). */
-  cfConnectingIp: string | null;
-  /** true si ORIGEN_SECRETO está puesta en este servidor. */
-  cierreOrigen: boolean;
-  /** true si esta petición trajo el secreto: pasó por Cloudflare. */
-  desdeCloudflare: boolean;
-};
-
-/**
- * Lógica pura del diagnóstico, para /admin/configuracion. Existe porque el
- * número correcto de TRUSTED_PROXY_HOPS no se puede deducir del código: hay
- * que ver la cadena real que arma la infraestructura (AUDIT-2026-09-04.md,
- * "Lo que no pude verificar" #3). Con esto se mide en vez de suponerse.
- */
-export function construirDiagnostico(
-  forwardedFor: string | null | undefined,
-  saltos: number = SALTOS_CONFIABLES_POR_DEFECTO,
-  saltosConfigurados = false,
-  cloudflare: { cfConnectingIp: string | null | undefined; desdeCloudflare: boolean; cierreOrigen?: boolean } = {
-    cfConnectingIp: null,
-    desdeCloudflare: false,
-  },
-): DiagnosticoIp {
-  const resuelta = resolverIp({ ...cloudflare, forwardedFor, saltos });
-  const cadena = (forwardedFor ?? "")
-    .split(",")
-    .map((entrada) => entrada.trim())
-    .filter(Boolean);
-
-  return {
-    crudo: forwardedFor ?? null,
-    cadena,
-    saltos,
-    saltosConfigurados,
-    indiceUsado: cadena.length === 0 ? null : Math.max(0, cadena.length - saltos),
-    ipUsada: resuelta.ip,
-    fuente: resuelta.fuente,
-    cfConnectingIp: cloudflare.cfConnectingIp ?? null,
-    cierreOrigen: cloudflare.cierreOrigen ?? false,
-    desdeCloudflare: cloudflare.desdeCloudflare,
-  };
-}
-
-/** Diagnóstico de la petición en curso. Solo se usa desde el panel admin. */
-export async function diagnosticoIp(): Promise<DiagnosticoIp> {
-  const headersList = await headers();
-  const crudo = process.env.TRUSTED_PROXY_HOPS;
-  const saltos = saltosConfiables(crudo);
-  // Un valor presente pero inválido ("dos", "0") cae al defecto: se informa
-  // como NO configurado, que es lo que de verdad está pasando.
-  const configurado = crudo !== undefined && saltos === Number(crudo);
-  return construirDiagnostico(headersList.get("x-forwarded-for"), saltos, configurado, {
-    cfConnectingIp: headersList.get("cf-connecting-ip"),
-    desdeCloudflare: peticionDesdeCloudflare(headersList.get(CABECERA_ORIGEN)),
-    cierreOrigen: cierreDeOrigenEncendido(),
-  });
-}
-
 export async function clientIp(): Promise<string> {
   const headersList = await headers();
   return resolverIp({

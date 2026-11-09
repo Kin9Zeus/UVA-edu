@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { MensajeError } from "@/components/auth/MensajeError";
+import { VerificacionTurnstile } from "@/components/auth/VerificacionTurnstile";
 import {
   ACCESO_BOTON,
   ACCESO_ENLACE,
@@ -61,6 +62,8 @@ export function LoginForm({
           describedBy={state?.error ? "login-error" : undefined}
         />
       </div>
+
+      <VerificacionTurnstile reiniciarCon={state} accion="login" />
 
       {state?.error && <MensajeError id="login-error">{state.error}</MensajeError>}
 
