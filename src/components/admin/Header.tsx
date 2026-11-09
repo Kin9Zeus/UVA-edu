@@ -78,14 +78,16 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
             táctil de 44px sin crecer el header (lo fija el avatar). */}
         <SelectorTemaBoton className="-my-0.5 text-uva-text hover:bg-uva-hover hover:text-uva-text" />
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label={`Menú de ${nombre.trim().split(/\s+/)[0] ?? nombre}`} className="flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-uva-detalle text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
-            <Avatar className="size-10 bg-uva-surface-2 after:hidden">
+          <DropdownMenuTrigger className="flex min-h-11 items-center gap-2 rounded-uva-md py-1 pr-1 pl-1 text-uva-detalle text-uva-text outline-hidden hover:bg-uva-hover focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-uva-accent">
+            <Avatar aria-hidden="true" className="size-10 bg-uva-surface-2 after:hidden">
               {fotoUrl && <AvatarImage src={fotoUrl} alt="" />}
               <AvatarFallback className="bg-uva-surface-2 font-heading text-uva-detalle font-bold text-uva-text">
                 {iniciales(nombre)}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden max-w-[180px] truncate text-uva-detalle font-semibold sm:inline">
+            {/* Nombre accesible desde el contenido, igual que en MenuCuenta (WCAG 2.5.3). */}
+            <span className="sr-only">Menú de </span>
+            <span className="max-w-[180px] truncate text-uva-detalle font-semibold max-sm:sr-only">
               {nombre}
             </span>
             <ChevronDown className="hidden size-3 text-uva-muted-2 sm:block" aria-hidden />

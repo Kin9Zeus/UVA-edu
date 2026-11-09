@@ -39,11 +39,10 @@ export function MenuCuentaPanel({
   useEffect(() => {
     if (enfocar.current) botonRef.current?.focus();
   }, []);
-  const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
   return (
     <DropdownMenu defaultOpen={abiertoAlInicio}>
-      <DropdownMenuTrigger ref={botonRef} aria-label={`Menú de ${primerNombre}`} className={CLASE_BOTON_CUENTA}>
+      <DropdownMenuTrigger ref={botonRef} className={CLASE_BOTON_CUENTA}>
         <ContenidoBotonCuenta nombre={nombre} fotoUrl={fotoUrl} mostrarNombre={mostrarNombre} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
