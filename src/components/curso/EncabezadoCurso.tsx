@@ -23,7 +23,7 @@ export function EncabezadoCurso({
 }: {
   /** Adónde lleva el logo y su nombre accesible. */
   inicio: { href: string; etiqueta: string };
-  /** "← nombre del curso". En celular, sin logo, queda solo la flecha. */
+  /** "← nombre del curso". Sin logo en celular: "← Volver" / "← Volver al curso". */
   volver?: { href: string; texto: string };
   /** Texto fijo en lugar de "← curso" (p. ej. "Examen final" mientras se rinde). */
   titulo?: string;
@@ -39,11 +39,15 @@ export function EncabezadoCurso({
           href={inicio.href}
           aria-label={inicio.etiqueta}
           className={cn(
-            "min-h-11 shrink-0 items-center text-uva-text",
+            "min-h-11 shrink-0 items-center gap-2 text-uva-text hover:no-underline",
             logoEnCelular ? "inline-flex" : "hidden lg:inline-flex",
           )}
         >
           <LogoUva className={cn("w-auto", logoEnCelular ? "h-6.5 lg:h-7.5" : "h-7.5")} />
+          {/* La palabra, no solo el logo: en la prueba de usabilidad (USA-02)
+              no todos sabían que el logo lleva al inicio. Va dentro del
+              nombre accesible («…ir al inicio…», WCAG 2.5.3). */}
+          <span className="hidden text-uva-cuerpo font-semibold lg:inline">Inicio</span>
         </Link>
         <span
           aria-hidden
@@ -59,14 +63,19 @@ export function EncabezadoCurso({
             )}
           >
             <ChevronLeft className="size-5 shrink-0" strokeWidth={2} aria-hidden />
-            <span
-              className={cn(
-                "truncate text-uva-cuerpo",
-                logoEnCelular ? "inline" : "hidden lg:inline",
-              )}
-            >
-              {volver.texto}
-            </span>
+            {logoEnCelular ? (
+              <span className="truncate text-uva-cuerpo">{volver.texto}</span>
+            ) : (
+              <>
+                {/* En celular y tableta la flecha sola no se entendía como
+                    salida (USA-02): «Volver» bajo 640 px (cabe a 320 junto a
+                    Temario y la cuenta), «Volver al curso» hasta 1024 y el
+                    nombre del curso en escritorio. */}
+                <span className="text-uva-cuerpo sm:hidden">Volver</span>
+                <span className="hidden whitespace-nowrap text-uva-cuerpo sm:inline lg:hidden">Volver al curso</span>
+                <span className="hidden truncate text-uva-cuerpo lg:inline">{volver.texto}</span>
+              </>
+            )}
           </Link>
         )}
         {titulo && <p className="m-0 min-w-0 truncate text-uva-cuerpo font-semibold text-uva-text">{titulo}</p>}
