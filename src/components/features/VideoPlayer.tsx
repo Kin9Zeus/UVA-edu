@@ -456,7 +456,12 @@ export function VideoPlayer({
       playbackId={estado.playbackId}
       tokens={{ playback: estado.token }}
       poster={posterUrl ?? undefined}
-      autoPlay={reproducirAlCargar || reanudarAlCargar}
+      // "any": intenta con sonido y, si el navegador lo bloquea (el toque
+      // al póster ya "venció" mientras se descargaba el reproductor y el
+      // token), arranca sin sonido en vez de mostrar un segundo botón de
+      // play (USA-03). Cargar Mux al abrir la clase lo evitaba, pero subía
+      // el TBT a ~950 ms (ver VideoFrame).
+      autoPlay={reproducirAlCargar || reanudarAlCargar ? "any" : false}
       style={CONTROLES_SIEMPRE_VISIBLES}
       metadata={{ video_title: titulo }}
       accentColor="#ff007a"
