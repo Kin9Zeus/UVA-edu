@@ -23,9 +23,11 @@ export function RegistroMarco({
       <Link
         href="/"
         aria-label="U.V.A., ir al inicio"
-        className="absolute top-5 left-10 z-[2] hidden min-h-11 items-center text-uva-text hover:text-uva-text min-[900px]:inline-flex min-[1920px]:top-7 min-[1920px]:left-14"
+        className="absolute top-5 left-10 z-[2] hidden min-h-11 items-center gap-2 text-uva-text hover:text-uva-text hover:no-underline min-[900px]:inline-flex min-[1920px]:top-7 min-[1920px]:left-14"
       >
         <LogoUva className="h-[31px] w-24 min-[1920px]:h-[43px] min-[1920px]:w-[132px]" />
+        {/* La palabra junto al logo: no todos saben que el logo lleva al inicio (USA-04). */}
+        <span className="text-uva-cuerpo font-semibold">Inicio</span>
       </Link>
 
       <div className="px-5 pt-3.5 min-[900px]:flex min-[900px]:flex-[1.05] min-[900px]:justify-center min-[900px]:p-0">
