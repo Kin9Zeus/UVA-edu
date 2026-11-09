@@ -45,8 +45,5 @@ export const FIJOS = {
 export const LETRA = "'Plus Jakarta Sans',Arial,Helvetica,sans-serif";
 export const LETRA_CODIGO = "'JetBrains Mono','Courier New',monospace";
 
-/**
- * Buzón de ayuda que citan los correos. Es el mismo que usaban las plantillas
- * anteriores; el sitio no lo publica en ningún otro lugar.
- */
-export const CORREO_SOPORTE = "soporte@uva.edu";
+/** Buzón de ayuda que citan los correos: vive en lib/contacto.ts. */
+export { CORREO_SOPORTE } from "@/lib/contacto";
