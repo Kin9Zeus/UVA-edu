@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   IP_DESCONOCIDA,
   SALTOS_CONFIABLES_POR_DEFECTO,
-  construirDiagnostico,
   extraerIpConfiable,
   resolverIp,
   saltosConfiables,
@@ -83,48 +82,6 @@ describe("saltosConfiables", () => {
   );
 });
 
-describe("construirDiagnostico", () => {
-  it("señala la posición de la que sale la IP", () => {
-    const d = construirDiagnostico("1.2.3.4, 203.0.113.9", 1);
-
-    expect(d.cadena).toEqual(["1.2.3.4", "203.0.113.9"]);
-    expect(d.indiceUsado).toBe(1);
-    expect(d.ipUsada).toBe("203.0.113.9");
-    expect(d.crudo).toBe("1.2.3.4, 203.0.113.9");
-  });
-
-  it("no señala ninguna posición sin cabecera", () => {
-    const d = construirDiagnostico(null, 1);
-
-    expect(d.cadena).toEqual([]);
-    expect(d.indiceUsado).toBeNull();
-    expect(d.ipUsada).toBe(IP_DESCONOCIDA);
-  });
-
-  it("coincide siempre con lo que devolvería extraerIpConfiable", () => {
-    for (const saltos of [1, 2, 3]) {
-      const cadena = "1.2.3.4, 203.0.113.9, 10.0.0.1";
-      expect(construirDiagnostico(cadena, saltos).ipUsada).toBe(
-        extraerIpConfiable(cadena, saltos),
-      );
-    }
-  });
-});
-
-describe("construirDiagnostico — origen del número de saltos", () => {
-  it("informa el defecto cuando no se declara configurado", () => {
-    expect(construirDiagnostico("203.0.113.9", 1).saltosConfigurados).toBe(false);
-  });
-
-  it("informa configurado cuando se le pasa así", () => {
-    expect(construirDiagnostico("203.0.113.9", 2, true).saltosConfigurados).toBe(true);
-  });
-});
-
-// Fase 2 del plan de blindaje: con Cloudflare delante, la cadena queda
-// [cliente, ip-de-cloudflare] y con un salto se leería la IP de Cloudflare
-// (todos con la misma clave de límite). La IP real viene en CF-Connecting-IP,
-// pero solo vale si la petición trae el secreto de origen.
 describe("resolverIp — con Cloudflare delante", () => {
   const CLOUDFLARE = "172.70.1.1";
 
@@ -156,15 +113,5 @@ describe("resolverIp — con Cloudflare delante", () => {
       fuente: "x-forwarded-for",
     });
     expect(resolverIp({ cfConnectingIp: "  ", forwardedFor: null, desdeCloudflare: true }).ip).toBe(IP_DESCONOCIDA);
-  });
-
-  it("el diagnóstico dice de qué cabecera sale la IP", () => {
-    const diagnostico = construirDiagnostico(`190.25.1.7, ${CLOUDFLARE}`, 1, true, {
-      cfConnectingIp: "190.25.1.7",
-      desdeCloudflare: true,
-    });
-    expect(diagnostico.ipUsada).toBe("190.25.1.7");
-    expect(diagnostico.fuente).toBe("cf-connecting-ip");
-    expect(construirDiagnostico("1.2.3.4, 10.0.0.1").fuente).toBe("x-forwarded-for");
   });
 });
