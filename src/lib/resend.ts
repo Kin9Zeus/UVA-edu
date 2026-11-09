@@ -6,7 +6,7 @@ import { asuntoComunidadModerada, ComunidadModeradaEmail } from "@/emails/comuni
 import { asuntoReciboPago, ReciboPagoEmail } from "@/emails/recibo-pago";
 import { formatFechaHora } from "@/lib/admin/format";
 import { siteUrl } from "@/lib/site-url";
-import { conTextoPlano } from "@/emails/marco/texto-plano";
+import { envioTransaccional } from "@/emails/marco/envio";
 
 export { resend };
 
@@ -20,7 +20,7 @@ export async function enviarCorreoBienvenida(
   urlAcceso: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send(await conTextoPlano({
+    const { data, error } = await resend.emails.send(await envioTransaccional({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: ASUNTO_BIENVENIDA,
@@ -60,7 +60,7 @@ export async function enviarCorreoCertificadoEmitido(
   urlCertificados: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send(await conTextoPlano({
+    const { data, error } = await resend.emails.send(await envioTransaccional({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoCertificadoEmitido(cursoTitulo),
@@ -93,7 +93,7 @@ export async function enviarCorreoPasswordActualizada(
   destinatario: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send(await conTextoPlano({
+    const { data, error } = await resend.emails.send(await envioTransaccional({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: ASUNTO_PASSWORD_ACTUALIZADA,
@@ -137,7 +137,7 @@ export async function enviarCorreoComunidadModerada(
   urlComunidad: string,
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send(await conTextoPlano({
+    const { data, error } = await resend.emails.send(await envioTransaccional({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoComunidadModerada(tipoContenido),
@@ -182,7 +182,7 @@ export async function enviarCorreoReciboPago(
   },
 ): Promise<EnviarCorreoResultado> {
   try {
-    const { data, error } = await resend.emails.send(await conTextoPlano({
+    const { data, error } = await resend.emails.send(await envioTransaccional({
       from: process.env.RESEND_FROM_EMAIL!,
       to: destinatario,
       subject: asuntoReciboPago(datos.vigenteHasta),

@@ -78,7 +78,7 @@ Para cualquier otro tema, usa el correo de la sección **Contacto**.
 ## 2. Contacto (`contacto`)
 
 **Soporte al estudiante**
-Escríbenos a **soporte@uva.edu** para dudas sobre tu cuenta, tu suscripción,
+Escríbenos a **soporte@uvarq.com** para dudas sobre tu cuenta, tu suscripción,
 un curso o un certificado. Respondemos en un plazo de **[X] horas/días
 hábiles**.
 
@@ -91,8 +91,7 @@ rápido que un correo.
 **Peticiones sobre tus datos personales (Habeas Data)**
 Para ejercer tus derechos de conocer, actualizar, rectificar o eliminar tus
 datos personales, o para revocar tu autorización de tratamiento, escribe a
-**[correo de protección de datos, puede ser el mismo soporte@uva.edu o uno
-dedicado]**, indicando el motivo de tu solicitud. Ver el detalle de plazos y
+**soporte@uvarq.com**, indicando el motivo de tu solicitud. Ver el detalle de plazos y
 procedimiento en **Privacidad**.
 
 **Datos de la empresa**
@@ -289,7 +288,7 @@ Esta política se expide en cumplimiento de la Ley 1581 de 2012, el Decreto
 - **Razón social:** [RAZÓN SOCIAL]
 - **NIT:** [NIT]
 - **Domicilio:** [DIRECCIÓN, CIUDAD, Colombia]
-- **Correo de contacto para temas de datos personales:** [CORREO]
+- **Correo de contacto para temas de datos personales:** soporte@uvarq.com
 
 ### 4.2. Datos que recolectamos
 
@@ -367,8 +366,7 @@ Conforme al artículo 8 de la Ley 1581 de 2012, tienes derecho a:
    no exista un deber legal o contractual que nos obligue a conservarlos.
 6. Acceder de forma gratuita a tus datos personales.
 
-Para ejercer cualquiera de estos derechos, escribe a **[CORREO DE DATOS
-PERSONALES]** indicando tu solicitud. Responderemos:
+Para ejercer cualquiera de estos derechos, escribe a **soporte@uvarq.com** indicando tu solicitud. Responderemos:
 
 - Las **consultas**, dentro de los diez (10) días hábiles siguientes a su
   recepción (prorrogable cinco días hábiles más, informándote el motivo).
@@ -427,8 +425,10 @@ entre en vigor.
 
 - [ ] Reemplazar todos los `[CORCHETES]` con la información real de la
       empresa.
-- [ ] Definir y confirmar el correo dedicado a peticiones de datos
-      personales (Habeas Data), si será distinto de `soporte@uva.edu`.
+- [x] Correo para peticiones de datos personales (Habeas Data):
+      `soporte@uvarq.com` (2026-11-09; el borrador anterior citaba un
+      buzón en uva.edu, que es de la Universidad de Virginia). Si se decide
+      uno dedicado, cambiarlo aquí y en `src/lib/contacto.ts`.
 - [ ] Confirmar la región/ubicación real de cada proveedor (Supabase, Mux,
       Stripe, Resend, Railway) para precisar la sección 4.6.
 - [ ] Confirmar si aplica o no la inscripción en el RNBD de la SIC.
