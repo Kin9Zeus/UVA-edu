@@ -8,6 +8,7 @@ import {
   reproducirVideo,
   verificarCursoFixture,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Un video a la vez por cuenta (functional-spec, Flujo 05;
@@ -50,6 +51,7 @@ async function entrarYReproducir(page: Page) {
     await expect(page.locator("#login-pass")).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 30_000 });
   await page.goto(`/cursos/${CURSO_FIXTURE.id}/${leccion1.id}`);

@@ -8,6 +8,7 @@ import {
   verificarCursoFixture,
   reproducirVideo,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Caso límite obligatorio: "Reproducción en móvil: ... red que se cae a
@@ -63,6 +64,7 @@ test("al volver la conexión, el reproductor guarda el progreso de inmediato sin
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(page.locator("#login-pass")).toBeVisible();
     await page.fill("#login-pass", password);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 30_000 });
   });

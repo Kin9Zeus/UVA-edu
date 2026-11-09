@@ -8,6 +8,7 @@ import {
   verificarCursoFixture,
   reproducirVideo,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Requisito de calidad obligatorio: "Probar... con una conexión lenta
@@ -87,6 +88,7 @@ test("login, catálogo, ficha del curso y arranque del video sobreviven a una co
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
     await page.fill("#login-pass", password);
+    await esperarTurnstile(page);
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/(dashboard|canjear)/, { timeout: 60_000 });
   });

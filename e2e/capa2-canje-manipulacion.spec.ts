@@ -8,6 +8,7 @@ import {
   formatearCodigoDePrueba,
   limpiarDatosDeUsuario,
 } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Capa 2 — manipulación del canje de código como lo haría una persona real:
@@ -66,6 +67,7 @@ async function iniciarSesion(page: Page, email: string) {
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.locator("#login-pass")).toBeVisible({ timeout: 30_000 });
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(new RegExp(RUTA), { timeout: 60_000 });
   await expect(page.locator("#codigo-invitacion")).toBeVisible();

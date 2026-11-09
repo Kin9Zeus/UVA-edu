@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { adminClient, borrarUsuarioPorEmail, crearUsuarioConfirmado, CURSO_FIXTURE } from "./supabase-admin";
+import { esperarTurnstile } from "./turnstile";
 
 /**
  * Caso límite obligatorio: "Usuario sin acceso intentando entrar por URL
@@ -43,6 +44,7 @@ test("con sesión pero sin suscripción: URL directa a una lección redirige a l
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.locator("#login-pass")).toBeVisible();
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
 
   // LeccionPlayerPage: sin acceso vigente, con el curso todavía visible, se
@@ -72,6 +74,7 @@ test("con sesión de estudiante: URL directa a /admin redirige a /acceso-denegad
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(page.locator("#login-pass")).toBeVisible();
   await page.fill("#login-pass", password);
+  await esperarTurnstile(page);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
 
