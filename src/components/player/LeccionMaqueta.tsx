@@ -352,9 +352,9 @@ export function LeccionMaqueta({
           <span className="sr-only">
             {" "}del curso, clase {data.numero} de {data.totalClases}
           </span>
-          {/* `max-[18rem]`: solo con la letra del sistema agrandada (a 16 px,
-              18rem = 288 px, menos que cualquier celular): cede la cifra. */}
-          <span aria-hidden className="font-mono text-uva-text-muted max-[18rem]:hidden">
+          {/* `max-[22.5rem]`: bajo 360 px (o antes con la letra del sistema
+              agrandada) cede la cifra para que quepa «← Volver» (USA-02). */}
+          <span aria-hidden className="font-mono text-uva-text-muted max-[22.5rem]:hidden">
             {data.numero}/{data.totalClases}
           </span>
         </button>

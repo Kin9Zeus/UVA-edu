@@ -144,7 +144,9 @@ export function SuscripcionContent({
         )}
         {/* Quien llega con un código es justo quien no tiene suscripción,
             así que aquí el formulario va destacado y no al final. */}
-        <section className="border-t-2 border-uva-text pt-6">
+        {/* Separador delgado: una raya gruesa del color del texto se leía
+            como el campo del código (USA-04). */}
+        <section className="border-t border-uva-divider pt-6">
           <CanjearCodigoForm tieneSuscripcion={false} />
         </section>
       </Marco>
@@ -230,6 +232,17 @@ export function SuscripcionContent({
                 ? `Tu acceso es ${origen}.`
                 : null}
           </Estado>
+          {/* Quien acaba de canjear quiere volver a los cursos, no quedarse
+              aquí (USA-04). */}
+          <Button
+            render={<Link href="/dashboard/catalogo" />}
+            nativeButton={false}
+            variant="uva-primary"
+            size="uva"
+            className="min-h-12 w-auto justify-self-start px-[22px] text-base"
+          >
+            Ver los cursos
+          </Button>
         </>
       ) : (
         <>
@@ -318,7 +331,7 @@ export function SuscripcionContent({
           respuestas a la misma pregunta. El plan va antes porque es el
           camino que el producto quiere; el código es la alternativa. */}
       {!accesoVigente && (
-        <section aria-labelledby={PRECIOS_HABILITADOS ? "recuperar-acceso" : undefined} className="grid gap-6 border-t-2 border-uva-text pt-6">
+        <section aria-labelledby={PRECIOS_HABILITADOS ? "recuperar-acceso" : undefined} className="grid gap-6 border-t border-uva-divider pt-6">
           {PRECIOS_HABILITADOS && (
             <>
               <h2 id="recuperar-acceso" className="text-uva-titulo-4 font-extrabold text-uva-text">

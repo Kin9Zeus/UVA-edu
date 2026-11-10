@@ -23,9 +23,11 @@ export function AccesoMarco({ children }: { children: ReactNode }) {
         <Link
           href="/"
           aria-label="U.V.A., ir al inicio"
-          className="inline-flex min-h-11 items-center text-uva-text hover:text-uva-text"
+          className="inline-flex min-h-11 items-center gap-2 text-uva-text hover:text-uva-text hover:no-underline"
         >
           <LogoUva className="h-[31px] w-24 muy-bajo:h-[26px] muy-bajo:w-20 min-[1920px]:h-[43px] min-[1920px]:w-[132px]" />
+          {/* La palabra junto al logo: no todos saben que el logo lleva al inicio (USA-04). */}
+          <span className="text-uva-cuerpo font-semibold">Inicio</span>
         </Link>
       </header>
 

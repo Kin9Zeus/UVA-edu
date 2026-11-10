@@ -59,6 +59,8 @@ Aplica siempre, tanto en tareas de diseño como de código:
   - `PGRST116` (cero filas en `.single()`) no es un fallo: es "no existe".
 
 ### 3.3 Sistema de diseño y tokens (UI)
+> Guía práctica (qué token y qué componente usar, patrones y cómo armar una pantalla nueva): `docs/sistema-de-diseno.md`. Catálogo vivo: `/dev/componentes`.
+
 - **Temas claro y oscuro:** la plataforma soporta ambos. Por defecto es **oscuro**; el selector manual permite claro u "Usar tema del sistema" (`prefers-color-scheme`) y se recuerda en `localStorage` (`src/lib/tema.ts`). El tema oscuro se activa con la clase `.dark` en `<html>`. Toda pantalla se revisa en los dos.
 - **Tokens:** viven en `src/app/globals.css` como variables `--uva-*`, expuestas a Tailwind como `uva-*` (`bg-uva-bg`, `bg-uva-surface`, `border-uva-divider`, `text-uva-text`…). Valores de referencia:
 
