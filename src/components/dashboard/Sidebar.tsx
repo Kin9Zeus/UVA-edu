@@ -45,6 +45,11 @@ const modoDe = (preferencia: PreferenciaSidebar): Modo =>
 
 /** Lo que solo se ve con el menú completo. */
 const SOLO_COMPLETO: Record<Modo, string> = { compacto: "hidden", completo: "", auto: "max-xl:hidden" };
+/** Texto de un enlace que el menú compacto esconde a la vista pero no al
+ * lector de pantalla: así el nombre accesible sale del propio texto y no de
+ * un aria-label que, con el menú completo, no coincidiría con lo visible
+ * (WCAG 2.5.3, regla label-content-name-mismatch de axe). */
+const SOLO_COMPLETO_VISUAL: Record<Modo, string> = { compacto: "sr-only", completo: "", auto: "max-xl:sr-only" };
 /** Lo que solo se ve con el menú compacto. */
 const SOLO_COMPACTO: Record<Modo, string> = { compacto: "", completo: "hidden", auto: "xl:hidden" };
 
@@ -106,9 +111,6 @@ function NavLink({
       }}
       href={href}
       aria-current={active ? "page" : undefined}
-      // Compacto no hay texto visible: el tooltip solo aparece al pasar el
-      // mouse, así que el nombre accesible tiene que ir en el propio enlace.
-      aria-label={modo === "completo" ? undefined : label}
       className={cn(
         "flex min-h-11 items-center gap-3 rounded-uva-md px-3 text-uva-cuerpo font-medium text-uva-text-muted transition-colors hover:bg-uva-hover hover:text-uva-text",
         active && "bg-uva-surface-2 font-bold text-uva-text shadow-[inset_3px_0_0_var(--uva-btn)]",
@@ -116,9 +118,9 @@ function NavLink({
       )}
     >
       <Icon className="size-5 shrink-0" strokeWidth={1.8} aria-hidden />
-      <span className={cn("flex-1 truncate", SOLO_COMPLETO[modo])}>{label}</span>
+      <span className={cn("flex-1 truncate", SOLO_COMPLETO_VISUAL[modo])}>{label}</span>
       {badge && (
-        <span className={cn("font-mono text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO[modo])}>
+        <span className={cn("font-mono text-uva-detalle font-bold text-uva-text-muted", SOLO_COMPLETO_VISUAL[modo])}>
           {badge}
         </span>
       )}

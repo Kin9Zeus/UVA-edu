@@ -42,7 +42,7 @@ export function ContenidoBotonCuenta({
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
   return (
     <>
-      <span className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border-[1.5px] border-uva-line-strong bg-uva-surface-2 text-uva-detalle font-extrabold text-uva-text">
+      <span aria-hidden="true" className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border-[1.5px] border-uva-line-strong bg-uva-surface-2 text-uva-detalle font-extrabold text-uva-text">
         {iniciales(nombre)}
         {fotoUrl && !sinFoto && (
           // Foto de perfil de Supabase Storage: tamaño fijo y pequeño, sin next/image.
@@ -50,9 +50,12 @@ export function ContenidoBotonCuenta({
           <img src={fotoUrl} alt="" onError={() => setSinFoto(true)} className="absolute inset-0 size-full object-cover" />
         )}
       </span>
-      {mostrarNombre && (
-        <span className="hidden max-w-[120px] truncate text-uva-cuerpo font-bold sm:inline">{primerNombre}</span>
-      )}
+      {/* El nombre accesible ("Menú de Ana") sale del contenido, no de un
+          aria-label: así incluye siempre el nombre visible (WCAG 2.5.3). */}
+      <span className="sr-only">Menú de </span>
+      <span className={mostrarNombre ? "max-w-[120px] truncate text-uva-cuerpo font-bold max-sm:sr-only" : "sr-only"}>
+        {primerNombre}
+      </span>
       <ChevronDown className="size-4 text-uva-text-faint max-[18rem]:hidden" aria-hidden="true" />
     </>
   );
@@ -86,7 +89,6 @@ export function MenuCuenta(props: PropsMenuCuenta) {
   // Si el botón simple tenía el foco (teclado) al llegar el menú, el botón
   // del menú lo recibe: si no, el foco se perdería al reemplazarlo.
   const [enfocado, setEnfocado] = useState(false);
-  const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre;
 
   if (Panel) {
     return (
@@ -100,7 +102,6 @@ export function MenuCuenta(props: PropsMenuCuenta) {
   return (
     <button
       type="button"
-      aria-label={`Menú de ${primerNombre}`}
       aria-haspopup="menu"
       aria-expanded={false}
       onPointerEnter={pedir}

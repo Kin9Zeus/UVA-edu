@@ -131,6 +131,7 @@ reporta la comunidad es 0.45.0, la última anterior al cambio.
 | --- | --- | --- | --- | --- |
 | Seguridad — fuerza bruta (login fallido) | Better Stack, fuente `uva-produccion` | `evento:login_fallido`, más de **30** en los últimos **10 min** | Equipo de Better Stack, correo | Sí, con umbral 0: llegó el correo del incidente |
 | Seguridad — ráfaga de abuso (límite de uso) | Better Stack | `evento:limite_de_uso`, más de **20** en **10 min** | Equipo de Better Stack, correo | No (habría que llegar a un límite de verdad); mismo mecanismo que la anterior |
+| Seguridad — puerta trasera (origen rechazado) | Better Stack | `evento:origen_rechazado`, más de **100** en **10 min** (los robots que tocan `*.up.railway.app` dan 403 sueltos; 100 es alguien insistiendo) | Equipo de Better Stack, correo | Sí (Miguel, al encender el cierre de origen); revisada el 2026-11-09 |
 | Seguridad — eventos graves (area:seguridad) | Sentry, `uva-edu`, entorno `production` | "An event or issue activity is captured" + tag `area` equals `seguridad`; un aviso cada **10 min** por issue | Miembro Sebastian (cuenta de Sentry del equipo) | Sí: un código de 2FA equivocado en `/seguridad/verificar` llegó a Sentry y mandó el correo |
 
 En las dos de Better Stack: "If data is missing" = **Don't start an incident** (sin
@@ -143,8 +144,6 @@ nada). Cinco contraseñas equivocadas, en cambio, bloquean la cuenta 15 min.
 
 Pendientes:
 - Invitar a Aleck al equipo de Better Stack (hoy solo recibe Miguel).
-- Puerta trasera (`origen_rechazado` > 100 en 10 min): al encender el cierre
-  de origen con Cloudflare.
 - Fuerza bruta por IP y administrador de madrugada (`accion_admin` entre
   0:00 y 6:00): cuando las de arriba lleven unos días y se vea el ruido real.
 
