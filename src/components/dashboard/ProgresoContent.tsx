@@ -347,21 +347,26 @@ function FilaCurso({ curso, hoy }: { curso: CursoConProgreso; hoy: string }) {
 
 function TerminasteTodo({ conCertificado }: { conCertificado: boolean }) {
   return (
-    <section className="flex flex-col items-start gap-3.5 rounded-uva-lg border border-uva-divider bg-uva-surface p-6 md:p-7">
-      <h2 className="text-uva-titulo-4 text-uva-text">Terminaste todos tus cursos</h2>
-      <p className="max-w-[52ch] text-uva-cuerpo text-uva-text-muted">
-        {conCertificado
-          ? "Tus certificados están listos para descargar y compartir. Cuando quieras, empieza otro curso del catálogo."
-          : "Cuando quieras, empieza otro curso del catálogo."}
-      </p>
-      <div className="flex w-full flex-wrap gap-2.5">
+    // Desde lg el texto va a la izquierda y los botones a la derecha, en una
+    // fila: con los botones a su ancho natural, apilados dejaban media tarjeta
+    // vacía. En tableta (con el menú lateral) no caben al lado del texto.
+    <section className="flex flex-col items-start gap-3.5 rounded-uva-lg border border-uva-divider bg-uva-surface p-6 md:p-7 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+      <div className="flex flex-col gap-3.5">
+        <h2 className="text-uva-titulo-4 text-uva-text">Terminaste todos tus cursos</h2>
+        <p className="max-w-[52ch] text-uva-cuerpo text-uva-text-muted">
+          {conCertificado
+            ? "Tus certificados están listos para descargar y compartir. Cuando quieras, empieza otro curso del catálogo."
+            : "Cuando quieras, empieza otro curso del catálogo."}
+        </p>
+      </div>
+      <div className="flex w-full flex-wrap gap-2.5 lg:w-auto lg:shrink-0 lg:flex-nowrap">
         {conCertificado && (
           <Button
             render={<Link href="/dashboard/certificados" />}
             nativeButton={false}
             variant="uva-primary"
             size="uva"
-            className={cn(BOTON, "max-sm:w-full")}
+            className={cn(BOTON, "w-auto max-sm:w-full")}
           >
             <Award className="size-[18px]" aria-hidden="true" />
             Ver mis certificados
@@ -372,7 +377,7 @@ function TerminasteTodo({ conCertificado }: { conCertificado: boolean }) {
           nativeButton={false}
           variant={conCertificado ? "uva-secondary" : "uva-primary"}
           size="uva"
-          className={cn(BOTON, "max-sm:w-full")}
+          className={cn(BOTON, "w-auto max-sm:w-full")}
         >
           <Compass className="size-[18px]" aria-hidden="true" />
           Explorar el catálogo
