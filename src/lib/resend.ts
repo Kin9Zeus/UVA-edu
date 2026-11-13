@@ -7,12 +7,24 @@ import { asuntoReciboPago, ReciboPagoEmail } from "@/emails/recibo-pago";
 import { formatFechaHora } from "@/lib/admin/format";
 import { siteUrl } from "@/lib/site-url";
 import { envioTransaccional } from "@/emails/marco/envio";
+import { logError } from "@/lib/log";
 
 export { resend };
 
 export type EnviarCorreoResultado =
   | { success: true; id: string }
   | { success: false; error: string };
+
+/**
+ * Resend devuelve sus errores en inglés. Al llamador (y de ahí al usuario) le
+ * damos un texto propio; el mensaje original queda registrado para diagnóstico.
+ */
+const MENSAJE_FALLO_ENVIO = "No pudimos enviar el correo. Inténtalo de nuevo más tarde.";
+
+function falloEnvio(causa: unknown): EnviarCorreoResultado {
+  logError("correo", "Resend no pudo enviar el correo", causa);
+  return { success: false, error: MENSAJE_FALLO_ENVIO };
+}
 
 export async function enviarCorreoBienvenida(
   destinatario: string,
@@ -28,18 +40,12 @@ export async function enviarCorreoBienvenida(
     }));
 
     if (error) {
-      return { success: false, error: error.message };
+      return falloEnvio(error);
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al enviar el correo.",
-    };
+    return falloEnvio(error);
   }
 }
 
@@ -74,18 +80,12 @@ export async function enviarCorreoCertificadoEmitido(
     }));
 
     if (error) {
-      return { success: false, error: error.message };
+      return falloEnvio(error);
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al enviar el correo.",
-    };
+    return falloEnvio(error);
   }
 }
 
@@ -107,18 +107,12 @@ export async function enviarCorreoPasswordActualizada(
     }));
 
     if (error) {
-      return { success: false, error: error.message };
+      return falloEnvio(error);
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al enviar el correo.",
-    };
+    return falloEnvio(error);
   }
 }
 
@@ -145,18 +139,12 @@ export async function enviarCorreoComunidadModerada(
     }));
 
     if (error) {
-      return { success: false, error: error.message };
+      return falloEnvio(error);
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al enviar el correo.",
-    };
+    return falloEnvio(error);
   }
 }
 
@@ -190,15 +178,11 @@ export async function enviarCorreoReciboPago(
     }));
 
     if (error) {
-      return { success: false, error: error.message };
+      return falloEnvio(error);
     }
 
     return { success: true, id: data.id };
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Error desconocido al enviar el correo.",
-    };
+    return falloEnvio(error);
   }
 }
