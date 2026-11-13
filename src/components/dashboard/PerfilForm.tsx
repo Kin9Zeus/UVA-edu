@@ -4,7 +4,8 @@
 // cae en texto plano ("CO") en Chrome/Windows. Se importa aquí y no en el
 // layout raíz para no bloquear el render de las páginas que no las usan.
 import "flag-icons/css/flag-icons.min.css";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,7 @@ import { formatFecha } from "@/lib/admin/format";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { PAISES, buscarPaisPorCodigo, partirCelular } from "@/lib/paises";
 import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
+import { Award, LogOut } from "lucide-react";
 import { logout, logoutEnTodos } from "@/actions/auth/logout";
 
 type Certificado = {
@@ -101,6 +102,29 @@ export function PerfilForm({
   // Lo que se está escribiendo, para el carné. Al guardar, la página se
   // revalida y los `key` de abajo remontan los campos con lo guardado.
   const [vista, setVista] = useState({ nombre, numero: numeroInicial, rol: rolGremio ?? "" });
+
+  // Los datos se leen en el carné; el formulario se abre solo cuando se pide
+  // (USA-05: abrir directo en edición se sentía invasivo). Con un error se
+  // queda abierto; al guardar bien se cierra y el foco vuelve al botón.
+  const [editando, setEditando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+  const [estadoVisto, setEstadoVisto] = useState(state);
+  if (state !== estadoVisto) {
+    setEstadoVisto(state);
+    if (state?.success) {
+      setEditando(false);
+      setGuardado(true);
+    }
+  }
+  useEffect(() => {
+    if (state?.success) document.getElementById("perfil-editar")?.focus();
+  }, [state]);
+
+  function abrirEdicion() {
+    setGuardado(false);
+    flushSync(() => setEditando(true));
+    document.getElementById("perfil-nombre")?.focus();
+  }
 
   const celularVista = vista.numero.trim()
     ? `${buscarPaisPorCodigo(paisCodigo).indicativo} ${vista.numero.trim()}`
@@ -188,20 +212,35 @@ export function PerfilForm({
             </div>
           )}
 
-          <div className="order-4 grid gap-2.5 @min-[900px]:order-none">
-            <div className="flex items-center justify-between gap-2.5">
-              <h2 className="text-uva-cuerpo font-extrabold text-uva-text">Mis certificados</h2>
-              {certificados.length > 0 && (
-                <Link
-                  href="/dashboard/certificados"
-                  className="inline-flex min-h-11 items-center text-uva-cuerpo font-bold whitespace-nowrap text-uva-accent-ink hover:underline hover:underline-offset-3"
-                >
-                  Ver todos
-                </Link>
-              )}
+          {/* En celular es una sección más, con su raya y título como las de
+              abajo (en la prueba de usabilidad buscaron el certificado aquí y
+              se veía como nota al pie). Desde 900 px vuelve a la columna del carné. */}
+          <section
+            aria-labelledby="perfil-certificados-titulo"
+            className={cn(
+              CLASE_BLOQUE_PERFIL,
+              "order-4 @min-[900px]:order-none @min-[900px]:gap-2.5 @min-[900px]:border-t-0 @min-[900px]:pt-0",
+            )}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-2.5">
+              <h2
+                id="perfil-certificados-titulo"
+                className="flex items-center gap-2.5 text-uva-titulo-4 font-extrabold text-uva-text @min-[900px]:text-uva-cuerpo"
+              >
+                <Award className="size-5 text-uva-text-muted @min-[900px]:hidden" strokeWidth={1.8} aria-hidden />
+                Mis certificados
+              </h2>
+              <Link
+                href="/dashboard/certificados"
+                className="inline-flex min-h-11 items-center text-uva-cuerpo font-bold whitespace-nowrap text-uva-accent-ink hover:underline hover:underline-offset-3"
+              >
+                {certificados.length > 0 ? "Ver todos" : "Ver mis certificados"}
+              </Link>
             </div>
             {certificados.length === 0 ? (
-              <p className="text-uva-cuerpo text-uva-text-muted">Aún no tienes certificados.</p>
+              <p className="text-uva-cuerpo text-uva-text-muted">
+                Todavía no tienes certificados. Termina un curso completo para ganar el tuyo.
+              </p>
             ) : (
               <ul className="grid gap-2">
                 {certificados.map((certificado) => (
@@ -212,7 +251,7 @@ export function PerfilForm({
                 ))}
               </ul>
             )}
-          </div>
+          </section>
         </div>
 
         <div className="contents @min-[900px]:grid @min-[900px]:content-start @min-[900px]:gap-7">
@@ -222,17 +261,45 @@ export function PerfilForm({
                 Tus datos de perfil
               </h2>
               <p className="mt-1 text-uva-cuerpo text-uva-text-muted">
-                Lo que cambies aquí se ve en tu carné. Para cambiar la foto, toca la de tu carné.
+                {editando ? "Lo que cambies aquí se ve en tu carné." : "Tu nombre, celular y rol se ven en tu carné."}{" "}
+                Para cambiar la foto, toca la de tu carné.
               </p>
             </div>
 
+            {!editando && (
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  id="perfil-editar"
+                  type="button"
+                  variant="uva-secondary"
+                  size="uva"
+                  aria-expanded={false}
+                  aria-controls="perfil-datos-form"
+                  onClick={abrirEdicion}
+                  className="min-h-12 w-auto px-[22px] text-base"
+                >
+                  Editar mis datos
+                </Button>
+                {guardado && (
+                  <span role="status" className="text-uva-cuerpo font-bold text-uva-text">
+                    Datos actualizados
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Montado aunque esté cerrado: conserva lo escrito y los `key` de
+                los campos remontan con lo guardado tras revalidar. */}
             <form
+              id="perfil-datos-form"
               action={formAction}
               onReset={() => {
                 setPaisCodigo(paisInicial.codigo);
                 setVista({ nombre, numero: numeroInicial, rol: rolGremio ?? "" });
+                flushSync(() => setEditando(false));
+                document.getElementById("perfil-editar")?.focus();
               }}
-              className="grid gap-4"
+              className={editando ? "grid gap-4" : "hidden"}
             >
               {state?.error && (
                 <div
@@ -363,11 +430,6 @@ export function PerfilForm({
                 >
                   Cancelar
                 </Button>
-                {state?.success && (
-                  <span role="status" className="text-uva-cuerpo font-bold text-uva-text">
-                    Datos actualizados
-                  </span>
-                )}
               </div>
             </form>
           </section>
