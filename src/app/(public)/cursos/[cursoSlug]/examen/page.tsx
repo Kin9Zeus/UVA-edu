@@ -13,7 +13,7 @@ import { ExamenIntro } from "@/components/examen/ExamenIntro";
 import { ExamenRendir } from "@/components/examen/ExamenRendir";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Examen final",
+  title: "Examen final",
   // SEO fase 14: exige sesión y no tiene contenido para un buscador.
   robots: { index: false, follow: false },
 };

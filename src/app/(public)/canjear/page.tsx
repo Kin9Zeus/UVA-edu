@@ -9,7 +9,7 @@ import { getUsuarioActual } from "@/lib/perfil";
 import { getSuscripcionActual } from "@/lib/suscripcion";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Canjea tu invitación",
+  title: "Canjea tu invitación",
   robots: { index: false, follow: false },
 };
 

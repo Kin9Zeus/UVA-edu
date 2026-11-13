@@ -38,11 +38,30 @@ const IMAGEN_MARCA = "/og-uva.png";
 export const DESCRIPCION_SITIO =
   "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de U.V.A., con acceso por invitación.";
 
-/** El prefijo que ya usaban a mano todas las páginas públicas. */
-const PREFIJO = "U.V.A. — ";
+/**
+ * Nombre corto de la marca en los títulos («Catálogo de cursos | U.V.A.»).
+ * Lo pone la plantilla `title.template` del layout raíz a todas las páginas;
+ * aquí solo se repite para Open Graph y Twitter, que no heredan la
+ * plantilla. Cuando Aleck decida el nombre oficial (decisión 1 de
+ * docs/seo/08-informe.md), se cambia solo esta constante.
+ */
+export const MARCA = "U.V.A.";
+
+/** Largo máximo de un título en resultados de búsqueda (tarea de metadatos, Notion). */
+export const LARGO_MAXIMO_TITULO = 60;
+
+/**
+ * Título de la ficha de curso: «[Curso] — Curso en línea». Si con la marca
+ * pasa de 60 caracteres, queda solo el nombre del curso: no se corta, Google
+ * ya recorta lo que no cabe y un nombre partido se lee peor.
+ */
+export function tituloCurso(nombre: string): string {
+  const conTipo = `${nombre} — Curso en línea`;
+  return `${conTipo} | ${MARCA}`.length <= LARGO_MAXIMO_TITULO ? conTipo : nombre;
+}
 
 type OpcionesMetadata = {
-  /** Sin el prefijo: la función lo antepone. */
+  /** Sin la marca: la agrega la plantilla del layout raíz. */
   titulo: string;
   descripcion: string;
   /** Ruta absoluta desde la raíz, con `/` inicial. La home es `"/"`. */
@@ -66,11 +85,11 @@ export function metadataPublica({
   imagen,
   indexable = true,
 }: OpcionesMetadata): Metadata {
-  const tituloCompleto = `${PREFIJO}${titulo}`;
+  const tituloCompleto = `${titulo} | ${MARCA}`;
   const imagenes = [imagen ?? `${siteUrl()}${IMAGEN_MARCA}`];
 
   return {
-    title: tituloCompleto,
+    title: titulo,
     description: descripcion,
     alternates: {
       canonical: `${siteUrl()}${ruta}`,
@@ -78,7 +97,7 @@ export function metadataPublica({
     openGraph: {
       type: "website",
       locale: "es_CO",
-      siteName: PREFIJO.replace(" — ", ""),
+      siteName: MARCA,
       title: tituloCompleto,
       description: descripcion,
       url: `${siteUrl()}${ruta}`,

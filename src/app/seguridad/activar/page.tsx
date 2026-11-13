@@ -6,7 +6,7 @@ import { resolverPantallaSegundoFactor } from "@/lib/auth/pantallaSegundoFactor"
 // Pantalla privada: no tiene nada que hacer en un buscador (`robots.ts` también
 // la deja fuera).
 export const metadata: Metadata = {
-  title: "U.V.A. — Activa la verificación en dos pasos",
+  title: "Activa la verificación en dos pasos",
   robots: { index: false, follow: false },
 };
 

@@ -4,7 +4,7 @@ import { getInicioData } from "@/lib/dashboard";
 import { InicioContent } from "@/components/dashboard/InicioContent";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Inicio",
+  title: "Inicio",
 };
 
 export default async function DashboardInicioPage() {

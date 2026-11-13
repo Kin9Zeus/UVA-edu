@@ -4,7 +4,7 @@ import { simuladorActivo } from "@/lib/pagos/simulador";
 import { formatearPrecio } from "@/lib/planes";
 import { SimuladorControles } from "@/components/dev/SimuladorControles";
 
-export const metadata: Metadata = { title: "U.V.A. — Simulador de pago" };
+export const metadata: Metadata = { title: "Simulador de pago" };
 
 /**
  * Pantalla que reemplaza al Web Checkout de Wompi mientras no hay cuenta de

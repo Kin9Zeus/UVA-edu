@@ -17,7 +17,7 @@ export async function generateMetadata({
   if (!categoria) {
     // La página hará notFound(); esto solo evita anunciar un canonical a una
     // ruta que devuelve 404.
-    return { title: "U.V.A. — Categoría" };
+    return { title: "Categoría" };
   }
 
   // El canonical apunta SIEMPRE al slug, nunca al uuid con el que se pudo
@@ -26,7 +26,9 @@ export async function generateMetadata({
   // Google las ve como contenido duplicado. Mismo criterio que la ficha de
   // curso, que ya lo hacía.
   return metadataPublica({
-    titulo: categoria.nombre,
+    // Plantilla de la tarea de metadatos: «Cursos de [escuela]». El público
+    // («para residentes de obra…») queda para cuando Aleck lo defina.
+    titulo: `Cursos de ${categoria.nombre}`,
     // La descripción propia de la escuela (se edita en /admin/categorias) para
     // que cada escuela no compita con el catálogo con el mismo texto (SEO
     // fase 14, docs/seo/03-mapa-contenidos.md). La plantilla queda de respaldo.

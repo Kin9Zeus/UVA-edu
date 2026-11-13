@@ -4,7 +4,7 @@ import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Catálogo",
+  title: "Catálogo",
 };
 
 export default async function DashboardCatalogoPage({

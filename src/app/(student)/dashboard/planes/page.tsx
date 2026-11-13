@@ -6,7 +6,7 @@ import { PlanesContent } from "@/components/dashboard/PlanesContent";
 import { logError } from "@/lib/log";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Planes",
+  title: "Planes",
 };
 
 export default async function PlanesPage() {

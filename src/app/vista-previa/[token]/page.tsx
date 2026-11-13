@@ -13,7 +13,7 @@ import {
  * vez bastaría para que el contenido sin publicar quedara indexado.
  */
 export const metadata: Metadata = {
-  title: "U.V.A. — Vista previa",
+  title: "Vista previa",
   robots: { index: false, follow: false, nocache: true },
 };
 

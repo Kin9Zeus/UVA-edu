@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { MisNotasContent } from "@/components/dashboard/MisNotasContent";
 
-export const metadata: Metadata = { title: "U.V.A. — Mis notas" };
+export const metadata: Metadata = { title: "Mis notas" };
 
 /**
  * Todas las notas privadas del estudiante (docs/notas-leccion.md §6.6).

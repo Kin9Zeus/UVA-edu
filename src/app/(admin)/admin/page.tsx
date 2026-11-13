@@ -7,7 +7,7 @@ import { CursosAhora, Embudo, LoUltimo } from "@/components/admin/inicio/Bloques
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Inicio",
+  title: "Inicio",
 };
 
 export default async function AdminDashboardPage() {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { DemoErrores } from "@/components/dev/DemoErrores";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Probar la pantalla de error",
+  title: "Probar la pantalla de error",
   robots: { index: false, follow: false },
 };
 

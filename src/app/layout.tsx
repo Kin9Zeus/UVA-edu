@@ -5,7 +5,8 @@ import "./globals.css";
 // las páginas (Lighthouse de la portada, 2026-10-20) y solo lo usan las
 // banderas del perfil y de los comentarios. Cada uno lo importa.
 import { siteUrl } from "@/lib/site-url";
-import { DESCRIPCION_SITIO } from "@/lib/seo/metadata";
+import { DESCRIPCION_SITIO, MARCA } from "@/lib/seo/metadata";
+import { NOMBRE_ORGANIZACION } from "@/lib/seo/organizacion";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
 import { Toaster } from "@/components/ui/toast";
@@ -38,7 +39,10 @@ export const metadata: Metadata = {
   // absoluta -- cae a "http://localhost:3000" incluso en producción, y las
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
-  title: "U.V.A. — Unidad Vectorial de Arquitectura",
+  // Plantilla de títulos: cada página da solo su nombre y aquí se agrega la
+  // marca al final («Catálogo de cursos | U.V.A.»). `default` es la página
+  // que no declara título.
+  title: { default: NOMBRE_ORGANIZACION, template: `%s | ${MARCA}` },
   description: DESCRIPCION_SITIO,
 };
 

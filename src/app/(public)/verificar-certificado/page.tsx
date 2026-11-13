@@ -5,7 +5,7 @@ import { normalizarCodigoCertificado } from "@/lib/certificados/codigo";
 
 /** Sin datos de nadie, pero `robots.ts` bloquea todo el prefijo: se mantiene coherente. */
 export const metadata: Metadata = {
-  title: "U.V.A. — Verificar certificado",
+  title: "Verificar certificado",
   description: "Escribe el código de un certificado U.V.A. para comprobar que es auténtico.",
   robots: { index: false, follow: false },
 };

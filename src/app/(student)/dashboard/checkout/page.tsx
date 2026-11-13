@@ -9,7 +9,7 @@ import { esUuid, slugificar } from "@/lib/slug";
 import { logError } from "@/lib/log";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 
-export const metadata: Metadata = { title: "U.V.A. — Confirmar suscripción" };
+export const metadata: Metadata = { title: "Confirmar suscripción" };
 
 /**
  * Paso de confirmación entre elegir plan y pagar.

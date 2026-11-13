@@ -29,7 +29,7 @@ import { AvisarPestanas } from "@/components/sesion/AvisarPestanas";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Confirmar",
+  title: "Confirmar",
 };
 
 /**

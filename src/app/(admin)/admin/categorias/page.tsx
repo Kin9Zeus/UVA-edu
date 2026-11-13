@@ -6,7 +6,7 @@ import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Categorías",
+  title: "Categorías",
 };
 
 export default async function AdminCategoriasPage() {

@@ -26,10 +26,10 @@ export async function generateMetadata({
   // `noindex` (SEO fase 14): la clase exige sesión; la página que se posiciona
   // es la ficha del curso.
   const robots = { index: false, follow: false };
-  if (!data) return { title: "U.V.A. — Clase", robots };
+  if (!data) return { title: "Clase", robots };
 
   return {
-    title: `U.V.A. — ${data.leccionTitulo}`,
+    title: `${data.leccionTitulo}`,
     robots,
     // P2-5 (AUDIT-2026-09-04.md): mismo motivo que la ficha de curso --
     // getLeccionPlayer también resuelve por slug o UUID.

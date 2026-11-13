@@ -18,7 +18,7 @@ import { DemoErrorCarga } from "@/components/dev/DemoErrorCarga";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Componentes base",
+  title: "Componentes base",
   robots: { index: false, follow: false },
 };
 

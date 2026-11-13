@@ -10,7 +10,7 @@ import { PerfilForm } from "@/components/dashboard/PerfilForm";
 import { getNivelAalActual } from "@/lib/auth/aal";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Mi perfil",
+  title: "Mi perfil",
 };
 
 export default async function PerfilPage() {

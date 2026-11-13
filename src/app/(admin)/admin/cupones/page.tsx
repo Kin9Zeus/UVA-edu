@@ -9,7 +9,7 @@ import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Cupones",
+  title: "Cupones",
 };
 
 export default async function AdminCuponesPage() {

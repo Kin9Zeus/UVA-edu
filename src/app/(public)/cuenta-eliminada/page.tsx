@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Cuenta eliminada",
+  title: "Cuenta eliminada",
   robots: { index: false, follow: false },
 };
 

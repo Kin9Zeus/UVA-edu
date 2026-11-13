@@ -14,7 +14,7 @@ const CUENTA_POR_ROL: Record<string, string> = {
 };
 
 export const metadata: Metadata = {
-  title: "No tienes permiso para ver esto — U.V.A.",
+  title: "No tienes permiso para ver esto",
 };
 
 export default async function AccesoDenegadoPage() {

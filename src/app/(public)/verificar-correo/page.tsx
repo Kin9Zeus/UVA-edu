@@ -13,7 +13,7 @@ import { IrAlLoginAlConfirmar } from "@/components/sesion/IrAlLoginAlConfirmar";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Verifica tu correo",
+  title: "Verifica tu correo",
 };
 
 export default async function VerificarCorreoPage() {

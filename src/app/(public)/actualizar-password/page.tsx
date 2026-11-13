@@ -7,7 +7,7 @@ import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Nueva contraseña",
+  title: "Nueva contraseña",
 };
 
 export default async function ActualizarPasswordPage({

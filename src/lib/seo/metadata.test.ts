@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { metadataPublica } from "@/lib/seo/metadata";
+import { LARGO_MAXIMO_TITULO, MARCA, metadataPublica, tituloCurso } from "@/lib/seo/metadata";
 
 /**
  * `siteUrl()` cae a http://localhost:3000 fuera de producción (ver el
@@ -11,14 +11,14 @@ import { metadataPublica } from "@/lib/seo/metadata";
 const ORIGEN = "http://localhost:3000";
 
 describe("metadataPublica", () => {
-  it("antepone el prefijo de marca al título", () => {
+  it("deja la marca a la plantilla del layout (no la repite en el título)", () => {
     const meta = metadataPublica({
       titulo: "Catálogo de cursos",
       descripcion: "Cursos de arquitectura y obra.",
       ruta: "/catalogo",
     });
 
-    expect(meta.title).toBe("U.V.A. — Catálogo de cursos");
+    expect(meta.title).toBe("Catálogo de cursos");
   });
 
   it("resuelve el canonical a una URL absoluta contra el origen del despliegue", () => {
@@ -49,13 +49,13 @@ describe("metadataPublica", () => {
     });
 
     expect(meta.openGraph).toMatchObject({
-      title: "U.V.A. — Soporte",
+      title: "Soporte | U.V.A.",
       description: "Dudas frecuentes sobre cuenta y certificados.",
       url: `${ORIGEN}/soporte`,
       locale: "es_CO",
     });
     expect(meta.twitter).toMatchObject({
-      title: "U.V.A. — Soporte",
+      title: "Soporte | U.V.A.",
       description: "Dudas frecuentes sobre cuenta y certificados.",
     });
   });
@@ -103,5 +103,21 @@ describe("metadataPublica", () => {
     });
 
     expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe("tituloCurso", () => {
+  it("agrega «Curso en línea» cuando cabe en 60 caracteres con la marca", () => {
+    expect(tituloCurso("Revit para arquitectura")).toBe("Revit para arquitectura — Curso en línea");
+  });
+
+  it("si no cabe, deja solo el nombre del curso sin cortarlo", () => {
+    const largo = "Gerencia de proyectos, costos y presupuestos de obra";
+    expect(tituloCurso(largo)).toBe(largo);
+  });
+
+  it("el título con tipo y marca nunca pasa de 60 cuando se agrega el tipo", () => {
+    const titulo = tituloCurso("Curso de SketchUp");
+    expect(`${titulo} | ${MARCA}`.length).toBeLessThanOrEqual(LARGO_MAXIMO_TITULO);
   });
 });

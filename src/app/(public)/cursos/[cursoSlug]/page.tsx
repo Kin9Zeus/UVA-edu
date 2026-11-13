@@ -11,7 +11,7 @@ import { esPortadaReal } from "@/lib/media";
 import { CursoFicha } from "@/components/curso/CursoFicha";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
-import { metadataPublica } from "@/lib/seo/metadata";
+import { metadataPublica, tituloCurso } from "@/lib/seo/metadata";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
@@ -30,10 +30,10 @@ export async function generateMetadata({
   // Sin canonical a propósito: esta rama devuelve un 404 (`notFound()` más
   // abajo), y declarar como canónica una URL que no existe es peor que no
   // declarar nada.
-  if (!curso) return { title: "U.V.A. — Curso" };
+  if (!curso) return { title: "Curso" };
 
   return metadataPublica({
-    titulo: curso.titulo,
+    titulo: tituloCurso(curso.titulo),
     descripcion: curso.descripcion,
     // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
     // slug como por UUID (fallback para enlaces viejos, ver esUuid() en

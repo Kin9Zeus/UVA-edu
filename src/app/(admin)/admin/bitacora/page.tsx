@@ -10,7 +10,7 @@ import { fechaDeFiltro, numeroDePagina, parametroUnico, textoDeBusqueda, type Pa
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Bitácora",
+  title: "Bitácora",
 };
 
 type Parametros = {
