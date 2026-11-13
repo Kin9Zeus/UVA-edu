@@ -1,6 +1,6 @@
 # Etapa 1. Diagnóstico de marca y rutas
 
-**Fase 14 · SEO y GEO · Preparado el 13 de noviembre de 2026 por Aleck Martínez**
+**Fase 14, SEO y GEO. Preparado el 13 de noviembre de 2026 por Aleck Martínez**
 **Alcance:** repositorio `Kin9Zeus/UVA-edu` (rama `master`, commit `11693df`) y lectura pública de `uvarq.com`. No se modificó ningún archivo de código.
 
 ## Lo que más importa (en orden)
@@ -80,14 +80,14 @@ Cada ruta con lo que hoy declara el código. «Indexable» significa que no hay 
 | `/cursos/[curso]/[clase]` | `U.V.A. — {clase}` | Ninguna | Sí | **No verificado**: no hay `noindex` ni `Disallow`; el código dice que la sesión se exige dentro de la página. Hay que comprobar con `curl` qué recibe un rastreador anónimo (ver `07-webmasters.md`). | Ninguno |
 | `/cursos/[curso]/examen` | `U.V.A. — Examen final` | Ninguna | No | Igual que la anterior | Ninguno |
 | `/login` | `U.V.A. — Iniciar sesión o crear cuenta` | «Entra a tu cuenta U.V.A. o créala con tu correo…» | Sí | Sí. Además está en el sitemap con prioridad 0,3. | Ninguno |
-| `/registro` | (redirige a `/login`) | — | — | — | — |
+| `/registro` | (redirige a `/login`) | n/a | n/a | n/a | n/a |
 | `/soporte` | `U.V.A. — Soporte` | «Respuestas a las dudas frecuentes sobre cuenta, acceso, certificados y pagos en U.V.A.…» | Sí | Sí | Ninguno (hay preguntas frecuentes sin marcado `FAQPage`) |
 | `/legal/[texto]` | `U.V.A. — {nombre del texto legal}` | Una por texto | Sí | Sí si es la versión vigente | Ninguno |
-| `/planes` | — | — | — | Responde 404 mientras `PRECIOS_HABILITADOS` esté apagado | — |
-| `/canjear` | `U.V.A. — Canjea tu invitación` | Ninguna | No | `noindex` en la metadata; no está en `robots.ts` | — |
-| `/verificar-certificado` y `/verificar-certificado/[código]` | `U.V.A. — Verificar certificado` | Sí | No | `noindex` y además `Disallow` en `robots.ts` | — |
-| `/cuenta-eliminada`, `/verificar-correo`, `/recuperar`, `/actualizar-password` | `U.V.A. — …` | Ninguna o mínima | No | Con `noindex` o bajo `Disallow` según la ruta | — |
-| Cualquier ruta sin metadata propia | `U.V.A. — Unidad Vectorial de Arquitectura` | «Plataforma de cursos de U.V.A.» | No | Sí | — |
+| `/planes` | n/a | n/a | n/a | Responde 404 mientras `PRECIOS_HABILITADOS` esté apagado | n/a |
+| `/canjear` | `U.V.A. — Canjea tu invitación` | Ninguna | No | `noindex` en la metadata; no está en `robots.ts` | n/a |
+| `/verificar-certificado` y `/verificar-certificado/[código]` | `U.V.A. — Verificar certificado` | Sí | No | `noindex` y además `Disallow` en `robots.ts` | n/a |
+| `/cuenta-eliminada`, `/verificar-correo`, `/recuperar`, `/actualizar-password` | `U.V.A. — …` | Ninguna o mínima | No | Con `noindex` o bajo `Disallow` según la ruta | n/a |
+| Cualquier ruta sin metadata propia | `U.V.A. — Unidad Vectorial de Arquitectura` | «Plataforma de cursos de U.V.A.» | No | Sí | n/a |
 
 ### Hallazgos de esta tabla
 

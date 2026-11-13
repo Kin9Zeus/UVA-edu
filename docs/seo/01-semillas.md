@@ -1,6 +1,6 @@
 # Etapa 2 (parte 1). Temas semilla
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 
 ## De dónde salen
 
@@ -16,7 +16,7 @@ Los 40 temas salen de lo que UVA enseña hoy, no de lo que me gustaría posicion
 
 ## Los 40 temas
 
-Columnas: tema semilla · variantes de Colombia y Latinoamérica · pregunta típica de quien lo busca · curso relacionado.
+Columnas: tema semilla; variantes de Colombia y Latinoamérica; pregunta típica de quien lo busca; curso relacionado.
 
 ### A. Presupuestos y costos (presupuestador, arquitecto independiente)
 

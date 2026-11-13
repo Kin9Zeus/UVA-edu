@@ -1,6 +1,6 @@
 # Etapa 6. Identidad de marca
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 **Entrega objetivo: 20 de noviembre.**
 
 ## 1. Borrador de la ficha oficial

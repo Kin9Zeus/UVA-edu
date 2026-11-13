@@ -1,6 +1,6 @@
 # Etapa 3. Mapa de contenidos
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 
 ## Cómo leer este mapa
 
@@ -56,7 +56,7 @@
 | 39 | diplomados de construcción | diplomado de arquitectura | Comparativa | `/catalogo` (existente) | Catálogo | Alta |
 | 40 | cursos de gestión de obra | escuela de gestión | Comparativa | `/catalogo/gestion` (existente, slug propuesto) | Escuela | Media |
 | 41 | cursos de visualización arquitectónica | render y visualización | Comparativa | `/catalogo/visualizacion` (existente, slug propuesto) | Escuela | Media |
-| 42 | verificar certificado de un curso | autenticidad de un certificado | Informativa | `/verificar-certificado` (existente, hoy `noindex` a propósito) | Herramienta | — |
+| 42 | verificar certificado de un curso | autenticidad de un certificado | Informativa | `/verificar-certificado` (existente, hoy `noindex` a propósito) | Herramienta | n/a |
 | 43 | plantilla de presupuesto de obra en Excel | formato de APU | Informativa | `/guias/plantilla-de-presupuesto-de-obra` (por crear; solo si hay plantilla real que ofrecer) | Guía + recurso | Baja |
 | 44 | quiénes son UVA / Unidad Vectorial de Arquitectura | qué es UVA arquitectura, UVA Pereira | Informativa (marca) | `/sobre-nosotros` (por crear) | Institucional | Alta |
 
