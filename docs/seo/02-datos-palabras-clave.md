@@ -1,6 +1,6 @@
 # Etapa 2 (parte 2). Datos de palabras clave
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 
 ## Estado
 
@@ -81,10 +81,10 @@ Puntaje = 0,30 × V  +  0,30 × C  +  0,20 × I  +  0,20 × F
 
 | Factor | Qué mide | Cómo se asigna |
 | --- | --- | --- |
-| **V** · Volumen | Cuánta gente lo busca | Se divide la lista en cinco tramos iguales (quintiles) por volumen mensual. El tramo más alto vale 5. Sin dato, no se puntúa: el término queda marcado «provisional». |
-| **C** · Cercanía a la oferta | Qué tan directo es el curso que lo atiende | 5 si el título de un curso publicado es ese tema; 3 si es un módulo o sesión de un curso; 1 si no hay curso. |
-| **I** · Intención | Cuánto se acerca a una decisión | Transaccional 5, comparativa 4, informativa 3. |
-| **F** · Facilidad | Qué tan alcanzable parece | 5 si en la búsqueda dominan páginas débiles para ese tema (PDF sueltos, listados genéricos, blogs de proveedores de software); 3 si hay mezcla; 1 si dominan universidades y plataformas grandes. Se asigna con la observación de `05-competencia.md`, no con la columna «Competition» de Keyword Planner, porque esa columna mide competencia de anuncios pagados y no dificultad para posicionarse sin pagar. |
+| **V**, Volumen | Cuánta gente lo busca | Se divide la lista en cinco tramos iguales (quintiles) por volumen mensual. El tramo más alto vale 5. Sin dato, no se puntúa: el término queda marcado «provisional». |
+| **C**, Cercanía a la oferta | Qué tan directo es el curso que lo atiende | 5 si el título de un curso publicado es ese tema; 3 si es un módulo o sesión de un curso; 1 si no hay curso. |
+| **I**, Intención | Cuánto se acerca a una decisión | Transaccional 5, comparativa 4, informativa 3. |
+| **F**, Facilidad | Qué tan alcanzable parece | 5 si en la búsqueda dominan páginas débiles para ese tema (PDF sueltos, listados genéricos, blogs de proveedores de software); 3 si hay mezcla; 1 si dominan universidades y plataformas grandes. Se asigna con la observación de `05-competencia.md`, no con la columna «Competition» de Keyword Planner, porque esa columna mide competencia de anuncios pagados y no dificultad para posicionarse sin pagar. |
 
 **Por qué estos pesos:** el volumen y la cercanía a la oferta valen lo mismo (30 % cada uno), porque de nada sirve un término muy buscado sin curso que lo atienda, ni un curso muy cercano que nadie busca. La intención y la facilidad pesan menos (20 %) porque son estimaciones más subjetivas.
 

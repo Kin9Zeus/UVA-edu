@@ -1,6 +1,6 @@
 # Etapa 8. Informe de cierre
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 
 ## Cómo leer el estado
 
@@ -12,11 +12,11 @@ Estados: **Entregado** (listo para pegar en Notion), **Entregado con límites** 
 
 | Tarea | Fecha objetivo | Estado | Documento |
 | --- | --- | --- | --- |
-| Diagnóstico de marca y rutas | — | **Entregado.** Falta tu decisión del nombre. | `00-diagnostico.md`, `00-anexo-variantes-marca.csv` |
+| Diagnóstico de marca y rutas | n/a | **Entregado.** Falta tu decisión del nombre. | `00-diagnostico.md`, `00-anexo-variantes-marca.csv` |
 | Investigación de palabras clave | 13 nov | **Entregado con límites.** Los 40 temas están listos; **los volúmenes son SIN DATO** y hay que sacarlos de Keyword Planner y Trends. Con esa fecha (hoy) no se alcanza a cerrar la parte de datos. | `01-semillas.md`, `02-datos-palabras-clave.md` |
 | Mapa de contenidos | 13 nov | **Entregado con límites.** 44 búsquedas con prioridad provisional (sin volumen). Los slugs de cursos y escuelas están sin confirmar contra el catálogo real. | `03-mapa-contenidos.md` |
-| Preguntas de control para GEO | — | **Entregado.** La línea base de respuestas de los asistentes **no está corrida** (se hace a mano, ver el documento). | `04-prompts-control.md`, `04-prompts-control.csv` |
-| Competencia | — | **Entregado con límites.** 20 búsquedas, con la advertencia de que no son posiciones de Google Colombia. | `05-competencia.md` |
+| Preguntas de control para GEO | n/a | **Entregado.** La línea base de respuestas de los asistentes **no está corrida** (se hace a mano, ver el documento). | `04-prompts-control.md`, `04-prompts-control.csv` |
+| Competencia | n/a | **Entregado con límites.** 20 búsquedas, con la advertencia de que no son posiciones de Google Colombia. | `05-competencia.md` |
 | Identidad de marca | 20 nov | **Pendiente de ti.** Borrador completo; faltan nombre, dirección y atención al público, año de fundación, razón social, cifras con fuente e instructores. | `06-identidad-marca.md` |
 | Search Console, Bing y analítica | 26 nov a 4 dic | **Guía lista; ejecución pendiente.** Depende de dos decisiones (host canónico y destino de la oferta comercial) y del acceso al DNS. | `07-webmasters.md` |
 
@@ -84,8 +84,8 @@ Ninguno de estos cambios está hecho. Son recomendaciones.
 ## Fuentes consultadas (13 de noviembre de 2026)
 
 - Google, [aviso sobre resultados enriquecidos retirados](https://developers.google.com/search/blog/2025/06/simplifying-search-results)
-- Google, [verificar propiedad por DNS](https://support.google.com/webmasters/answer/9008080) · [enviar sitemap](https://support.google.com/webmasters/answer/7451001) · [Inspección de URLs](https://support.google.com/webmasters/answer/9012289) · [migración con cambio de URLs](https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes)
-- Google Ads, [Keyword Planner](https://support.google.com/google-ads/answer/7337243) · Google Trends, [ayuda](https://support.google.com/trends/answer/4365533) · Analytics, [eventos clave](https://support.google.com/analytics/answer/9267568) · Business Profile, [elegibilidad](https://support.google.com/business/answer/3038177)
-- Bing, [importar desde Search Console](https://blogs.bing.com/webmaster/september-2019/Import-sites-from-Search-Console-to-Bing-Webmaster-Tools) · [IndexNow](https://www.indexnow.org/documentation)
+- Google, [verificar propiedad por DNS](https://support.google.com/webmasters/answer/9008080); [enviar sitemap](https://support.google.com/webmasters/answer/7451001); [Inspección de URLs](https://support.google.com/webmasters/answer/9012289); [migración con cambio de URLs](https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes)
+- Google Ads, [Keyword Planner](https://support.google.com/google-ads/answer/7337243); Google Trends, [ayuda](https://support.google.com/trends/answer/4365533); Analytics, [eventos clave](https://support.google.com/analytics/answer/9267568); Business Profile, [elegibilidad](https://support.google.com/business/answer/3038177)
+- Bing, [importar desde Search Console](https://blogs.bing.com/webmaster/september-2019/Import-sites-from-Search-Console-to-Bing-Webmaster-Tools); [IndexNow](https://www.indexnow.org/documentation)
 - Web actual: `https://www.uvarq.com/cursos`, `/cursos/revit-arquitectura`, `/robots.txt`, `/sitemap.xml`, y el repositorio `Kin9Zeus/UVAWebDL`.
 - Competidores: los enlaces de `05-competencia.md`.

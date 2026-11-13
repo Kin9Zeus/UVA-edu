@@ -1,6 +1,6 @@
 # Etapa 7. Search Console, Bing y analítica
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 **Fechas objetivo: Search Console y Bing, del 26 de noviembre al 4 de diciembre.**
 
 Todos los pasos de Google, Bing e IndexNow salen de documentación oficial consultada el 13 de noviembre de 2026, con enlace. Donde la documentación no cubría un paso, lo digo y no lo doy por verificado: las interfaces cambian.
@@ -228,7 +228,7 @@ Resolve-DnsName uvarq.com -Type TXT | Select-Object -ExpandProperty Strings
 ```
 Debe salir una línea `google-site-verification=…`. Repetir **después de cambiar nameservers**.
 
-### Redirecciones (HTTP→HTTPS, www↔sin www, URLs viejas)
+### Redirecciones (de HTTP a HTTPS, con www y sin www, y URLs viejas)
 
 ```bash
 curl -sI http://uvarq.com/            | head -5

@@ -1,6 +1,6 @@
 # Etapa 4. Preguntas de control para GEO
 
-**Fase 14 · SEO y GEO · 13 de noviembre de 2026 · Aleck Martínez**
+**Fase 14, SEO y GEO, 13 de noviembre de 2026, Aleck Martínez**
 
 ## Para qué sirven
 
@@ -51,7 +51,7 @@ Las preguntas 24 y 25 miden si el asistente reconoce a la organización y su ver
 
 ## Cómo correrlas
 
-1. Abre cada asistente **sin sesión iniciada** o en una ventana que no use memoria ni historial. Los asistentes que se pueden probar: ChatGPT, Gemini, Claude, Perplexity, Copilot, y las respuestas con IA de Google.
+1. Abre cada asistente **sin sesión iniciada** o en una ventana que no use memoria ni historial. Los seis asistentes de la base Monitoreo GEO son: ChatGPT, Gemini, Google AI Overviews / Modo IA, Perplexity, Copilot y Claude.
 2. Pega la pregunta exactamente como está. No añadas contexto.
 3. Haz **tres corridas por pregunta y asistente**, en momentos distintos del día, y quédate con lo que se repite.
 4. Registra la fecha de la corrida.
@@ -62,11 +62,11 @@ Las preguntas 24 y 25 miden si el asistente reconoce a la organización y su ver
 | Columna | Qué se escribe |
 | --- | --- |
 | **Prompt** | La pregunta (ya viene escrita). |
-| **Asistente** | El asistente probado (una fila por asistente). |
+| **Asistente** | Uno de los seis de la base: ChatGPT, Gemini, Google AI Overviews / Modo IA, Perplexity, Copilot o Claude (una fila por asistente). |
 | **Fecha** | Día de la corrida, formato `AAAA-MM-DD`. |
 | **Menciona a UVA** | `Sí` o `No`. |
 | **Cita una URL de UVA** | `Sí` si la respuesta enlaza una URL de nuestro dominio; `No` si solo nombra a UVA sin enlace. |
-| **Lugar en la respuesta** | Posición en que aparece UVA dentro de la lista o del texto (`1`, `2`, `3`…). `No aparece` si no está. |
+| **Lugar en la respuesta** | Una de las tres opciones de la base: `Primera recomendación`, `Entre otras opciones` o `No aparece`. |
 | **URL citada** | La URL exacta de UVA que citó, si la hay. |
 | **Competidores mencionados** | Los nombres que aparecen, separados por comas. |
 | **Notas** | Confusiones de nombre, información falsa sobre UVA, o cualquier cosa rara. |
