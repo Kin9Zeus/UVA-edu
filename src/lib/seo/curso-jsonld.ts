@@ -67,7 +67,7 @@ export function duracionIso8601(segundos: number): string | null {
  * del curso lo está: un `educationalLevel: "BASICO"` en mayúsculas de enum
  * es ruido de implementación filtrándose al dato público.
  */
-const NIVEL_LEGIBLE: Record<CursoPublico["nivel"], string> = {
+export const NIVEL_LEGIBLE: Record<CursoPublico["nivel"], string> = {
   BASICO: "Básico",
   INTERMEDIO: "Intermedio",
   AVANZADO: "Avanzado",

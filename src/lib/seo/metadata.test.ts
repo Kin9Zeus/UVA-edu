@@ -72,6 +72,19 @@ describe("metadataPublica", () => {
     expect(existsSync(join(process.cwd(), "public", "og-uva.png"))).toBe(true);
   });
 
+  it("con imagen null no declara imágenes: las pone el opengraph-image de la ruta", () => {
+    const meta = metadataPublica({
+      titulo: "Revit desde cero",
+      descripcion: "Curso de Revit.",
+      ruta: "/cursos/revit",
+      imagen: null,
+    });
+
+    // Una clave `images` aunque sea vacía tapa la imagen generada por Next.
+    expect(meta.openGraph && "images" in meta.openGraph).toBe(false);
+    expect(meta.twitter && "images" in meta.twitter).toBe(false);
+  });
+
   it("con imagen sube a 'summary_large_image' y la propaga a ambas tarjetas", () => {
     const meta = metadataPublica({
       titulo: "Planes",

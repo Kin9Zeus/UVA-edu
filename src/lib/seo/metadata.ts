@@ -66,8 +66,12 @@ type OpcionesMetadata = {
   descripcion: string;
   /** Ruta absoluta desde la raíz, con `/` inicial. La home es `"/"`. */
   ruta: string;
-  /** URL absoluta de la imagen social. Sin ella, la de marca. Ver el encabezado. */
-  imagen?: string;
+  /**
+   * URL absoluta de la imagen social. Sin ella, la de marca. `null`: no se
+   * declara porque la ruta tiene su propio `opengraph-image` (la ficha de
+   * curso) y Next pone esa URL, que lleva un sufijo que no se puede escribir a mano.
+   */
+  imagen?: string | null;
   /**
    * `false` para páginas que no deben aparecer en resultados de búsqueda.
    * Ojo: si la ruta además está en el `disallow` de robots.ts, Google no
@@ -86,7 +90,7 @@ export function metadataPublica({
   indexable = true,
 }: OpcionesMetadata): Metadata {
   const tituloCompleto = `${titulo} | ${MARCA}`;
-  const imagenes = [imagen ?? `${siteUrl()}${IMAGEN_MARCA}`];
+  const imagenes = imagen === null ? undefined : [imagen ?? `${siteUrl()}${IMAGEN_MARCA}`];
 
   return {
     title: titulo,
@@ -101,13 +105,13 @@ export function metadataPublica({
       title: tituloCompleto,
       description: descripcion,
       url: `${siteUrl()}${ruta}`,
-      images: imagenes,
+      ...(imagenes ? { images: imagenes } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title: tituloCompleto,
       description: descripcion,
-      images: imagenes,
+      ...(imagenes ? { images: imagenes } : {}),
     },
     ...(indexable ? {} : { robots: { index: false, follow: false } }),
   };
