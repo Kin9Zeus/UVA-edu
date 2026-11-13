@@ -5,6 +5,7 @@ import "./globals.css";
 // las páginas (Lighthouse de la portada, 2026-10-20) y solo lo usan las
 // banderas del perfil y de los comentarios. Cada uno lo importa.
 import { siteUrl } from "@/lib/site-url";
+import { DESCRIPCION_SITIO } from "@/lib/seo/metadata";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
 import { Toaster } from "@/components/ui/toast";
@@ -38,8 +39,7 @@ export const metadata: Metadata = {
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
   title: "U.V.A. — Unidad Vectorial de Arquitectura",
-  description:
-    "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de U.V.A., con acceso por invitación.",
+  description: DESCRIPCION_SITIO,
 };
 
 // Sin esto, el navegador móvil pinta de blanco por defecto la barra de

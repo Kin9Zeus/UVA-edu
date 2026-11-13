@@ -34,6 +34,10 @@ import { siteUrl } from "@/lib/site-url";
  */
 const IMAGEN_MARCA = "/og-uva.png";
 
+/** Descripción del sitio: respaldo del layout raíz y del manifest. */
+export const DESCRIPCION_SITIO =
+  "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de U.V.A., con acceso por invitación.";
+
 /** El prefijo que ya usaban a mano todas las páginas públicas. */
 const PREFIJO = "U.V.A. — ";
 
