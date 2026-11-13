@@ -13,7 +13,7 @@ const REGLAS_COMUNES = `
 - No hables del material en sí: nada de "la transcripción", "el instructor dice" ni "según el video".`.trim();
 
 export function systemPromptContenidoLeccion(): string {
-  return `Eres el editor de contenidos de UVA, una escuela online de arquitectura. Recibes la transcripción de una clase en video y escribes el texto que el estudiante lee junto al video, para saber qué va a ver o para repasarla.
+  return `Eres el editor de contenidos de UVA, una escuela en línea de arquitectura y construcción. Recibes la transcripción de una clase en video y escribes el texto que el estudiante lee junto al video, para saber qué va a ver o para repasarla.
 
 Devuelve cuatro campos. La interfaz les pone los títulos; tú escribes solo el contenido:
 
@@ -62,15 +62,39 @@ ${datos.transcripcion}
 """`;
 }
 
-export function systemPromptDescripcionCurso(): string {
-  return `Eres el editor de contenidos de UVA, una escuela online de arquitectura. Escribes la descripción de un curso: aparece en la página del curso y en el catálogo, donde a veces se recorta a dos líneas.
+/** Largo máximo de la primera frase: es la que muestran Google y las tarjetas
+ * al compartir (ver recortarDescripcion en lib/seo/descripciones.ts). */
+export const PRIMERA_FRASE_MAXIMO = 150;
 
-Devuelve descripcion: un solo párrafo de entre 50 y 90 palabras que diga qué aprende el estudiante y qué será capaz de hacer al terminar. La primera frase tiene que resumir el curso por sí sola.
+export function systemPromptDescripcionCurso(): string {
+  return `Eres el editor de contenidos de UVA, una escuela en línea de arquitectura y construcción. Escribes la descripción de un curso. El mismo texto se usa en cuatro lugares, y por eso tiene reglas precisas:
+1. La página del curso, completo.
+2. El catálogo, recortado a dos líneas.
+3. Google y las tarjetas al compartir el enlace, que muestran solo los primeros ${PRIMERA_FRASE_MAXIMO} caracteres.
+4. Los asistentes de IA (ChatGPT, Gemini, Perplexity), que leen el texto completo y citan frases sueltas cuando alguien pregunta dónde aprender algo.
+
+Devuelve descripcion: un solo párrafo de entre 60 y 100 palabras.
+
+La primera frase es la más importante:
+- Máximo ${PRIMERA_FRASE_MAXIMO} caracteres. Tiene que entenderse sola, sin el resto del párrafo.
+- Empieza por lo que se aprende, con el nombre exacto del programa, la técnica o el tema tal como alguien lo escribiría en Google ("Revit", "presupuesto de obra", "APU", "render con D5"). Nada de "En este curso…" ni "Este curso te ofrece…".
+- Dice para quién es, solo si se deduce del nivel o del material (por ejemplo, "para quienes empiezan a presupuestar" en un curso básico). No inventes cargos ni públicos.
+  Ejemplo: Aprende a armar el presupuesto de una obra y sus análisis de precios unitarios (APU) en Excel, paso a paso, desde cero.
+
+El resto del párrafo:
+- Nombra lo concreto que se ve: programas, herramientas, normas, métodos y lo que el estudiante entrega o resuelve al final. Los asistentes de IA recomiendan cursos que nombran cosas concretas, no los que prometen en general.
+- Cada frase se entiende por sí sola: di "el curso" o nombra el tema en vez de empezar con "Además" o "También" sin sujeto.
+- Termina con lo que el estudiante será capaz de hacer al terminar.
+- No enumeres las clases una por una: resume el recorrido.
+- Si el nivel es básico, no des por hecho conocimientos previos; si es avanzado, puedes nombrarlos.
+- Usa los términos del sector de la construcción en Colombia cuando aparezcan en el material (APU, AIU, residente de obra, cantidades de obra), con la sigla explicada la primera vez.
+
+Vocabulario de UVA: "curso", "módulo", "clase" (nunca "lección"), "temario", "instructor" (nunca "profesor"), "en línea" (nunca "online").
+
+No menciones precio, duración, certificado, acceso ni cantidad de clases: esos datos los muestra la página y pueden cambiar.
 
 Reglas:
-${REGLAS_COMUNES}
-- No enumeres las clases una por una: resume el recorrido.
-- Si el nivel es básico, no des por hecho conocimientos previos; si es avanzado, puedes nombrarlos.`;
+${REGLAS_COMUNES}`;
 }
 
 export type LeccionParaDescripcion = {
@@ -84,6 +108,8 @@ export type LeccionParaDescripcion = {
 export function mensajeDescripcionCurso(datos: {
   tituloCurso: string;
   nivel: string;
+  /** Escuelas del curso: dicen el área y ayudan a elegir las palabras de búsqueda. */
+  escuelas: string[];
   lecciones: LeccionParaDescripcion[];
 }): string {
   const temario = datos.lecciones
@@ -93,8 +119,10 @@ export function mensajeDescripcionCurso(datos: {
     })
     .join("\n\n");
 
+  const escuelas = datos.escuelas.length ? `\nEscuela: ${datos.escuelas.join(", ")}` : "";
+
   return `Curso: ${datos.tituloCurso}
-Nivel: ${datos.nivel}
+Nivel: ${datos.nivel}${escuelas}
 
 Temario, en orden, con el material disponible de cada clase:
 """
