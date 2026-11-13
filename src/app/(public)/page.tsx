@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/home/Header";
-import { Hero, TITULO_PORTADA, DESCRIPCION_PORTADA } from "@/components/home/Hero";
+import { Hero, TITULO_PORTADA } from "@/components/home/Hero";
+import { DESCRIPCION_META_PORTADA } from "@/lib/seo/descripciones";
 import { CategoriasPortada } from "@/components/home/CategoriasPortada";
 import { getCategoriasActivas } from "@/lib/categoria";
 import { CursoDestacado } from "@/components/home/CursoDestacado";
@@ -18,11 +19,12 @@ import { organizacionCompleta } from "@/lib/seo/organizacion";
 // P2-6 (AUDIT-2026-09-15.md): la home era la única página del sitio que no
 // exportaba `metadata` en absoluto — heredaba del layout raíz el título
 // genérico y la descripción "Plataforma de cursos UVA". El título y la
-// descripción salen del propio Hero, no de copy nueva: lo que promete la
-// página y lo que promete el resultado de búsqueda tienen que ser lo mismo.
+// descripción salen del propio Hero: lo que promete la página y lo que
+// promete el resultado de búsqueda tienen que ser lo mismo. La descripción
+// además dice qué es UVA (SEO fase 14, ver lib/seo/descripciones.ts).
 export const metadata: Metadata = metadataPublica({
   titulo: TITULO_PORTADA,
-  descripcion: DESCRIPCION_PORTADA,
+  descripcion: DESCRIPCION_META_PORTADA,
   ruta: "/",
 });
 

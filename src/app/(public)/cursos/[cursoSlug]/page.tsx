@@ -12,6 +12,7 @@ import { CursoFicha } from "@/components/curso/CursoFicha";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
 import { metadataPublica, tituloCurso } from "@/lib/seo/metadata";
+import { recortarDescripcion } from "@/lib/seo/descripciones";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
@@ -34,7 +35,9 @@ export async function generateMetadata({
 
   return metadataPublica({
     titulo: tituloCurso(curso.titulo),
-    descripcion: curso.descripcion,
+    // El párrafo completo pasa de 155 caracteres: se recorta en una palabra
+    // hasta que exista el campo SEO del admin (Fase 15).
+    descripcion: recortarDescripcion(curso.descripcion),
     // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
     // slug como por UUID (fallback para enlaces viejos, ver esUuid() en
     // lib/slug.ts) -- sin esto, /cursos/<uuid> y /cursos/<slug> son dos

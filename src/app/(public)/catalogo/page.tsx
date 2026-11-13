@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { getCategoriasActivas, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { DESCRIPCION_META_CATALOGO } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
-  descripcion:
-    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de UVA por escuela y nivel.",
+  descripcion: DESCRIPCION_META_CATALOGO,
   ruta: "/catalogo",
 });
 

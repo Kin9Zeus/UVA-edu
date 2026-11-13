@@ -4,6 +4,7 @@ import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos } from "@
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export async function generateMetadata({
@@ -32,9 +33,7 @@ export async function generateMetadata({
     // La descripción propia de la escuela (se edita en /admin/categorias) para
     // que cada escuela no compita con el catálogo con el mismo texto (SEO
     // fase 14, docs/seo/03-mapa-contenidos.md). La plantilla queda de respaldo.
-    descripcion:
-      categoria.descripcion?.trim() ||
-      `Cursos de ${categoria.nombre.toLowerCase()} en UVA: formación técnica para el oficio de la construcción.`,
+    descripcion: recortarDescripcion(categoria.descripcion?.trim() || descripcionEscuela(categoria.nombre)),
     ruta: `/catalogo/${categoria.slug}`,
   });
 }
