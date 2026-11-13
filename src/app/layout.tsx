@@ -38,7 +38,8 @@ export const metadata: Metadata = {
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
   title: "U.V.A. — Unidad Vectorial de Arquitectura",
-  description: "Plataforma de cursos de U.V.A.",
+  description:
+    "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de U.V.A., con acceso por invitación.",
 };
 
 // Sin esto, el navegador móvil pinta de blanco por defecto la barra de
