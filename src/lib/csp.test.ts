@@ -213,3 +213,17 @@ describe("construirCsp — Cloudflare Turnstile (fase 4)", () => {
     expect(directiva(csp(), "frame-ancestors")).toBe("frame-ancestors 'none'");
   });
 });
+
+describe("construirCsp — GA4 (lib/analitica.ts)", () => {
+  it("apagado no abre ningún origen de Google", () => {
+    expect(csp()).not.toContain("google");
+  });
+
+  it("encendido abre solo script, imágenes y conexiones de GA4", () => {
+    const politica = csp({ analitica: true });
+    expect(directiva(politica, "script-src")).toContain("https://*.googletagmanager.com");
+    expect(directiva(politica, "img-src")).toContain("https://*.google-analytics.com");
+    expect(directiva(politica, "connect-src")).toContain("https://*.analytics.google.com");
+    expect(directiva(politica, "frame-src")).not.toContain("google");
+  });
+});

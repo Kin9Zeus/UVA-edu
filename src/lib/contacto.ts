@@ -29,5 +29,17 @@ export function urlWhatsapp(mensaje?: string): string {
  */
 export const CORREO_SOPORTE = "soporte@uvarq.com";
 
+/**
+ * Perfiles oficiales en redes. Los enlaza el pie de página y los declara el
+ * `sameAs` de la organización (lib/seo/organizacion.ts): una sola lista para
+ * que no se contradigan.
+ */
+export const REDES = {
+  youtube: "https://www.youtube.com/@uvarq",
+  instagram: "https://www.instagram.com/uvarq",
+  spotify: "https://open.spotify.com/show/0JGnY0rLz1CJHhQ4gYeRva",
+  tiktok: "https://www.tiktok.com/@uvarq",
+} as const;
+
 /** Para reportar vulnerabilidades: lo publica /.well-known/security.txt. */
 export const CORREO_SEGURIDAD = "seguridad@uvarq.com";

@@ -23,10 +23,14 @@ export async function generateMetadata({
   const { cursoSlug, leccionSlug } = await params;
   const user = await getUsuarioActual();
   const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
-  if (!data) return { title: "U.V.A. — Clase" };
+  // `noindex` (SEO fase 14): la clase exige sesión; la página que se posiciona
+  // es la ficha del curso.
+  const robots = { index: false, follow: false };
+  if (!data) return { title: "U.V.A. — Clase", robots };
 
   return {
     title: `U.V.A. — ${data.leccionTitulo}`,
+    robots,
     // P2-5 (AUDIT-2026-09-04.md): mismo motivo que la ficha de curso --
     // getLeccionPlayer también resuelve por slug o UUID.
     alternates: {

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { metadataPublica } from "@/lib/seo/metadata";
 
@@ -58,18 +60,16 @@ describe("metadataPublica", () => {
     });
   });
 
-  it("sin imagen NO declara images y la tarjeta baja a 'summary'", () => {
+  it("sin imagen comparte la imagen de marca de public/", () => {
     const meta = metadataPublica({
       titulo: "Planes",
       descripcion: "Un plan, todo el catálogo.",
       ruta: "/planes",
     });
 
-    // Una tarjeta 'summary_large_image' sin imagen se renderiza rota; sin
-    // asset de marca todavía, 'summary' es la forma honesta.
-    expect(meta.twitter).toMatchObject({ card: "summary" });
-    expect(meta.openGraph?.images).toBeUndefined();
-    expect(meta.twitter && "images" in meta.twitter ? meta.twitter.images : undefined).toBeUndefined();
+    expect(meta.twitter).toMatchObject({ card: "summary_large_image" });
+    expect(meta.openGraph?.images).toEqual([`${ORIGEN}/og-uva.png`]);
+    expect(existsSync(join(process.cwd(), "public", "og-uva.png"))).toBe(true);
   });
 
   it("con imagen sube a 'summary_large_image' y la propaga a ambas tarjetas", () => {

@@ -11,6 +11,8 @@ import { Toaster } from "@/components/ui/toast";
 import { SaltarAlContenido } from "@/components/SaltarAlContenido";
 import { TemaProvider } from "@/components/tema/TemaProvider";
 import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
+import { ClicsWhatsapp } from "@/components/analitica/ClicsWhatsapp";
+import { GA_ID, scriptInicialGa } from "@/lib/analitica";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -70,6 +72,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
+        {/* GA4, solo si NEXT_PUBLIC_GA_ID tiene un id válido (lib/analitica.ts).
+            Los dos llevan el nonce de la CSP. */}
+        {GA_ID && (
+          <>
+            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: scriptInicialGa(GA_ID) }} />
+            <script nonce={nonce} async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+          </>
+        )}
       </head>
       <body className="min-h-full flex flex-col">
         <SaltarAlContenido />
@@ -77,6 +87,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Toaster>{children}</Toaster>
         </TemaProvider>
         <SincronizarPestanas />
+        {GA_ID && <ClicsWhatsapp />}
       </body>
     </html>
   );

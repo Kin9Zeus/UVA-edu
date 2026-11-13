@@ -9,7 +9,7 @@ import {
 import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
-import { urlWhatsapp } from "@/lib/contacto";
+import { REDES, urlWhatsapp } from "@/lib/contacto";
 import { LogoUva } from "@/components/home/LogoUva";
 import { LEGAL_HABILITADO } from "@/lib/features";
 import { NOMBRE_LEGAL, rutaLegal } from "@/lib/legal/slugs";
@@ -35,12 +35,12 @@ const socials = [
   {
     label: "Canal de U.V.A. en YouTube",
     Icon: YoutubeIcon,
-    href: "https://www.youtube.com/@uvarq",
+    href: REDES.youtube,
   },
   {
     label: "U.V.A. en Instagram",
     Icon: InstagramIcon,
-    href: "https://www.instagram.com/uvarq",
+    href: REDES.instagram,
   },
   {
     label: "Escríbenos por WhatsApp",
@@ -50,12 +50,12 @@ const socials = [
   {
     label: "U.V.A. en Spotify",
     Icon: SpotifyIcon,
-    href: "https://open.spotify.com/show/0JGnY0rLz1CJHhQ4gYeRva",
+    href: REDES.spotify,
   },
   {
     label: "U.V.A. en TikTok",
     Icon: TiktokIcon,
-    href: "https://www.tiktok.com/@uvarq",
+    href: REDES.tiktok,
   },
 ];
 

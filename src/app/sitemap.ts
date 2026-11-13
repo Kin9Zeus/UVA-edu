@@ -57,7 +57,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(PRECIOS_HABILITADOS
       ? [{ url: `${base}/planes`, changeFrequency: "monthly" as const, priority: 0.7 }]
       : []),
-    { url: `${base}/login`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/soporte`, changeFrequency: "monthly", priority: 0.3 },
   ];
 

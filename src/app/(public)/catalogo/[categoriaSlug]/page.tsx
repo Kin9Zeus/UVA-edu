@@ -27,7 +27,12 @@ export async function generateMetadata({
   // curso, que ya lo hacía.
   return metadataPublica({
     titulo: categoria.nombre,
-    descripcion: `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A.: formación técnica para el oficio de la construcción.`,
+    // La descripción propia de la escuela (se edita en /admin/categorias) para
+    // que cada escuela no compita con el catálogo con el mismo texto (SEO
+    // fase 14, docs/seo/03-mapa-contenidos.md). La plantilla queda de respaldo.
+    descripcion:
+      categoria.descripcion?.trim() ||
+      `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A.: formación técnica para el oficio de la construcción.`,
     ruta: `/catalogo/${categoria.slug}`,
   });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarEvento } from "@/lib/analitica";
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
@@ -62,6 +63,7 @@ export function RegistroForm({
 
   useEffect(() => {
     if (registroState?.needsConfirmation) {
+      registrarEvento("registro_completado", { metodo: "correo" });
       onCuentaCreada?.(registroState.email);
     }
   }, [registroState, onCuentaCreada]);

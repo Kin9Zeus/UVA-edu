@@ -28,16 +28,11 @@ import { siteUrl } from "@/lib/site-url";
  *
  * Sobre `og:image`
  * ----------------
- * `imagen` es opcional y hoy NADIE la pasa, porque no existe un asset de
- * marca: `public/` solo tiene los SVG de ejemplo de create-next-app y el
- * logo del header es un componente, no un archivo servible. Es el mismo
- * hueco que deja `logo` vacío en lib/seo/organizacion.ts, y tiene el mismo
- * remedio: cuando exista una imagen de 1200x630 en `public/`, se pasa aquí
- * una vez y todas las páginas la heredan.
- *
- * Mientras tanto NO se inventa una: una tarjeta social sin imagen se ve
- * sobria; una que apunta a un 404 se ve rota.
+ * `imagen` es opcional: la ficha de curso pasa su portada. Sin ella, la
+ * página comparte la imagen de marca de 1200x630 (`public/og-uva.png`,
+ * SEO fase 14), así ninguna tarjeta sale sin imagen.
  */
+const IMAGEN_MARCA = "/og-uva.png";
 
 /** El prefijo que ya usaban a mano todas las páginas públicas. */
 const PREFIJO = "U.V.A. — ";
@@ -48,7 +43,7 @@ type OpcionesMetadata = {
   descripcion: string;
   /** Ruta absoluta desde la raíz, con `/` inicial. La home es `"/"`. */
   ruta: string;
-  /** URL absoluta de la imagen social. Ver el encabezado. */
+  /** URL absoluta de la imagen social. Sin ella, la de marca. Ver el encabezado. */
   imagen?: string;
   /**
    * `false` para páginas que no deben aparecer en resultados de búsqueda.
@@ -68,7 +63,7 @@ export function metadataPublica({
   indexable = true,
 }: OpcionesMetadata): Metadata {
   const tituloCompleto = `${PREFIJO}${titulo}`;
-  const imagenes = imagen ? [imagen] : undefined;
+  const imagenes = [imagen ?? `${siteUrl()}${IMAGEN_MARCA}`];
 
   return {
     title: tituloCompleto,
@@ -86,7 +81,7 @@ export function metadataPublica({
       images: imagenes,
     },
     twitter: {
-      card: imagen ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: tituloCompleto,
       description: descripcion,
       images: imagenes,

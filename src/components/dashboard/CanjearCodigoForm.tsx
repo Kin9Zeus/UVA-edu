@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarEvento } from "@/lib/analitica";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ticket } from "lucide-react";
@@ -170,6 +171,7 @@ export function CanjearCodigoForm({
     }
 
     setCodigo("");
+    registrarEvento("canje_invitacion");
     router.refresh();
     // Otras pestañas con un curso bloqueado o "sin acceso" se refrescan solas.
     avisarPestanas({ tipo: "acceso-cambio" });
