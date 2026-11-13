@@ -9,7 +9,7 @@ import {
 import { esUuid } from "@/lib/slug";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Vista previa de la clase",
+  title: "Vista previa de la clase",
   robots: { index: false, follow: false, nocache: true },
 };
 

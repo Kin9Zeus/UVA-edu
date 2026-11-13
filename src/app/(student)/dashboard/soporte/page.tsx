@@ -4,7 +4,7 @@ import { SoporteCentro } from "@/components/soporte/SoporteCentro";
 import { esTemaSoporte } from "@/lib/soporte";
 import { destinoLegalDeTema } from "@/lib/legal/redireccion-soporte";
 
-export const metadata: Metadata = { title: "U.V.A. — Soporte" };
+export const metadata: Metadata = { title: "Soporte" };
 
 /**
  * Soporte dentro del panel: el mismo diseño de /soporte (SoporteCentro), sin

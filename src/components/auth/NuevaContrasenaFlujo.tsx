@@ -69,8 +69,8 @@ export function NuevaContrasenaFlujo({ correo }: { correo: string }) {
       titulo={guardada ? "Contraseña guardada" : "Crea tu nueva contraseña"}
       subtitulo={
         guardada
-          ? "Ya puedes entrar a U.V.A. con tu nueva contraseña."
-          : "Esta será tu nueva contraseña para iniciar sesión en U.V.A."
+          ? "Ya puedes entrar a UVA con tu nueva contraseña."
+          : "Esta será tu nueva contraseña para iniciar sesión en UVA."
       }
       paso={guardada ? 3 : 2}
       tituloRef={tituloRef}

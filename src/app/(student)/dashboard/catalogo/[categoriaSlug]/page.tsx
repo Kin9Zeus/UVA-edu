@@ -12,7 +12,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { categoriaSlug } = await params;
   const categoria = await resolverCategoria(categoriaSlug);
-  return { title: categoria ? `U.V.A. — ${categoria.nombre}` : "U.V.A. — Categoría" };
+  return { title: categoria ? categoria.nombre : "Categoría" };
 }
 
 export default async function DashboardCategoriaPage({

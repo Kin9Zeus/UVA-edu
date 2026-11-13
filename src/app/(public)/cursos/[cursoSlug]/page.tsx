@@ -7,11 +7,11 @@ import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
 import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
-import { esPortadaReal } from "@/lib/media";
 import { CursoFicha } from "@/components/curso/CursoFicha";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
-import { metadataPublica } from "@/lib/seo/metadata";
+import { metadataPublica, tituloCurso } from "@/lib/seo/metadata";
+import { recortarDescripcion } from "@/lib/seo/descripciones";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
@@ -30,22 +30,22 @@ export async function generateMetadata({
   // Sin canonical a propósito: esta rama devuelve un 404 (`notFound()` más
   // abajo), y declarar como canónica una URL que no existe es peor que no
   // declarar nada.
-  if (!curso) return { title: "U.V.A. — Curso" };
+  if (!curso) return { title: "Curso" };
 
   return metadataPublica({
-    titulo: curso.titulo,
-    descripcion: curso.descripcion,
+    titulo: tituloCurso(curso.titulo),
+    // El párrafo completo pasa de 155 caracteres: se recorta en una palabra
+    // hasta que exista el campo SEO del admin (Fase 15).
+    descripcion: recortarDescripcion(curso.descripcion),
     // P2-5 (AUDIT-2026-09-04.md): getCursoPublico() resuelve tanto por
     // slug como por UUID (fallback para enlaces viejos, ver esUuid() en
     // lib/slug.ts) -- sin esto, /cursos/<uuid> y /cursos/<slug> son dos
     // URLs que Google ve como contenido duplicado. La ruta apunta siempre a
     // la versión con slug, sin importar cuál usó quien pidió la página.
     ruta: `/cursos/${curso.slug}`,
-    // `imagenPortada` puede ser el placeholder (curso sin portada real, ver
-    // lib/media.ts): en ese caso no hay nada útil que compartir como
-    // og:image, y `metadataPublica` baja la tarjeta a `summary` en lugar de
-    // pedir una grande que llegaría vacía.
-    imagen: esPortadaReal(curso.imagenPortada) ? curso.imagenPortada : undefined,
+    // La tarjeta generada por ./opengraph-image.tsx (y ./twitter-image.tsx):
+    // título, escuela, nivel y duración, no la portada. Next pone su URL.
+    imagen: null,
   });
 }
 

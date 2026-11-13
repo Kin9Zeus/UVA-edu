@@ -7,7 +7,7 @@ import { siteUrl } from "@/lib/site-url";
 import { duracionCertificadoTexto } from "@/lib/certificados/duracion";
 import { CertificadosContent, type CertificadoItem } from "@/components/dashboard/CertificadosContent";
 
-export const metadata: Metadata = { title: "U.V.A. — Certificados" };
+export const metadata: Metadata = { title: "Certificados" };
 
 export default async function CertificadosPage() {
   const { user } = await getPerfilActual();

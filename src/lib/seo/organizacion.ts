@@ -1,7 +1,8 @@
 import { siteUrl } from "@/lib/site-url";
+import { CORREO_SOPORTE, REDES, WHATSAPP_VISIBLE } from "@/lib/contacto";
 
 /**
- * La identidad de U.V.A como entidad, en el vocabulario de schema.org.
+ * La identidad de UVA como entidad, en el vocabulario de schema.org.
  *
  * Por qué vive aparte del curso (P2-5, AUDIT-2026-09-15.md)
  * ---------------------------------------------------------
@@ -22,7 +23,7 @@ import { siteUrl } from "@/lib/site-url";
  * (ver el encabezado de lib/site-url.ts) y en local, en CI y en producción
  * son distintos. Un `@id` con el dominio equivocado es peor que ninguno.
  */
-export const NOMBRE_ORGANIZACION = "U.V.A. — Unidad Vectorial de Arquitectura";
+export const NOMBRE_ORGANIZACION = "UVA — Unidad Vectorial de Arquitectura";
 
 /** El `@id` estable de la organización. Úsalo para referenciarla desde otros nodos. */
 export function idOrganizacion(): string {
@@ -33,15 +34,13 @@ export function idOrganizacion(): string {
  * Referencia ligera, para incrustar dentro de otro nodo (`provider`,
  * `publisher`). Solo el `@id`: el nodo completo lo publica la home.
  *
- * Mientras P2-6 no publique ese nodo completo, se incluyen también `name` y
- * `url` — un `@id` que no resuelve a ningún nodo definido deja el `provider`
- * vacío para quien no siga la referencia. Cuando la home publique la
- * `Organization` entera, estos dos campos se vuelven redundantes pero no
- * dañinos: schema.org permite repetirlos y Google los reconcilia por `@id`.
+ * Se incluyen también `name` y `url`: quien lea una ficha de curso sin
+ * seguir la referencia ve igual a quién pertenece. schema.org permite
+ * repetirlos y Google los reconcilia por `@id`.
  */
 export function referenciaOrganizacion() {
   return {
-    "@type": "Organization",
+    "@type": "EducationalOrganization",
     "@id": idOrganizacion(),
     name: NOMBRE_ORGANIZACION,
     url: siteUrl(),
@@ -49,17 +48,27 @@ export function referenciaOrganizacion() {
 }
 
 /**
- * El nodo completo, para que P2-6 lo publique en la home.
+ * El nodo completo, que publica la home (SEO fase 14, docs/marca/03-sameas.md).
  *
- * Sin `logo` a propósito: `public/` no tiene hoy ningún asset de marca (solo
- * los SVG de ejemplo que trae create-next-app), y el logo del header es un
- * componente, no un archivo servible. `logo` es REQUERIDO para el rich
- * result de Organization, así que esto queda incompleto hasta que exista esa
- * imagen — declarar una URL que da 404 es peor que omitir el campo.
+ * - `logo`: `public/logo-uva.png`, cuadrado y sobre blanco (así lo muestra
+ *   Google). Va con el host de `siteUrl()`, igual que el `@id`.
+ * - `sameAs`: solo perfiles confirmados como oficiales. Spotify sigue
+ *   pendiente de confirmar (decisión 5 de docs/seo/08-informe.md), por eso
+ *   está en el pie de página pero no aquí.
+ * - Sin `address`: solo si la oficina atiende público (decisión 4).
  */
 export function organizacionCompleta() {
   return {
     "@context": "https://schema.org",
     ...referenciaOrganizacion(),
+    logo: `${siteUrl()}/logo-uva.png`,
+    sameAs: [REDES.youtube, REDES.instagram, REDES.tiktok],
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      email: CORREO_SOPORTE,
+      telephone: WHATSAPP_VISIBLE.replaceAll(" ", "-"),
+      availableLanguage: "es",
+    },
   };
 }

@@ -170,6 +170,19 @@ export async function generarContenidoLeccion(
   return contenidoLeccionComoDocumento(parseado.data);
 }
 
+/** Nombres de las escuelas del curso. El embed puede llegar como objeto o
+ * arreglo según cómo infiera el cliente la relación. */
+function nombresDeEscuelas(filas: unknown): string[] {
+  if (!Array.isArray(filas)) return [];
+  return filas
+    .flatMap((fila) => {
+      const categoria = (fila as { categoria?: unknown }).categoria;
+      return Array.isArray(categoria) ? categoria : [categoria];
+    })
+    .map((categoria) => (categoria as { nombre?: unknown } | null)?.nombre)
+    .filter((nombre): nombre is string => typeof nombre === "string" && nombre.length > 0);
+}
+
 /**
  * Propuesta de descripción del curso, a partir del temario y de lo que haya de
  * cada lección: su contenido escrito si lo tiene (ya resumido y revisado por
@@ -180,7 +193,7 @@ export async function generarDescripcionCurso(cursoId: string): Promise<string> 
 
   const { data: curso, error: errorCurso } = await admin
     .from("cursos")
-    .select("titulo, nivel")
+    .select("titulo, nivel, curso_categorias(categoria:categorias(nombre))")
     .eq("id", cursoId)
     .maybeSingle();
   // Un fallo no es "no encontramos el curso".
@@ -231,6 +244,7 @@ export async function generarDescripcionCurso(cursoId: string): Promise<string> 
     mensajeDescripcionCurso({
       tituloCurso: curso.titulo as string,
       nivel: NIVELES[curso.nivel as string] ?? (curso.nivel as string),
+      escuelas: nombresDeEscuelas(curso.curso_categorias),
       lecciones: ordenadas,
     }),
     systemPromptDescripcionCurso(),

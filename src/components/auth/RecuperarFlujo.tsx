@@ -74,7 +74,7 @@ export function RecuperarFlujo({ emailInicial }: { emailInicial: string }) {
       <PasoAcceso
         posicionNivel={POSICION_NIVEL.final}
         titulo="Contraseña guardada"
-        subtitulo="Ya puedes entrar a U.V.A. con tu nueva contraseña."
+        subtitulo="Ya puedes entrar a UVA con tu nueva contraseña."
         paso={3}
       >
         <div ref={guardadaRef} tabIndex={-1} className="focus:outline-none">

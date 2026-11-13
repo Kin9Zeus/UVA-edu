@@ -5,7 +5,7 @@ import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Configuración",
+  title: "Configuración",
 };
 
 function TituloTarjeta({ children }: { children: React.ReactNode }) {

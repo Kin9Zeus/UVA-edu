@@ -9,7 +9,7 @@ import { CursoDetalleView, type PestanaCurso } from "@/components/admin/cursos/C
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Detalle de curso",
+  title: "Detalle de curso",
 };
 
 /**

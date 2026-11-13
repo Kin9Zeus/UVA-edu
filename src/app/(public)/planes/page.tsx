@@ -15,7 +15,7 @@ export function generateMetadata(): Metadata {
   return metadataPublica({
     titulo: "Un plan, todo el gremio",
     descripcion:
-      "Un solo plan da acceso a todo el catálogo de U.V.A.: cursos, materiales descargables y certificado al terminar.",
+      "Un solo plan da acceso a todo el catálogo de UVA: cursos, materiales descargables y certificado al terminar.",
     ruta: "/planes",
   });
 }

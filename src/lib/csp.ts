@@ -34,6 +34,8 @@ export type OpcionesCsp = {
   supabaseUrl?: string;
   /** NEXT_PUBLIC_SENTRY_DSN, para connect-src y para report-uri. */
   sentryDsn?: string;
+  /** GA4 encendido (lib/analitica.ts): abre sus orígenes. Apagado, nada. */
+  analitica?: boolean;
 };
 
 /** Host de una URL, o null si no parsea. Nunca lanza: una variable mal puesta
@@ -79,8 +81,12 @@ export function generarNonce(): string {
 /** Cloudflare Turnstile: el script y el iframe del recuadro anti-bots (fase 4). */
 export const TURNSTILE = "https://challenges.cloudflare.com";
 
+/** GA4: de dónde sale el script y a dónde manda los datos (guía de CSP de Google). */
+const GA_SCRIPT = "https://*.googletagmanager.com";
+const GA_RED = ["https://*.google-analytics.com", GA_SCRIPT];
+
 export function construirCsp(opciones: OpcionesCsp): string {
-  const { nonce, desarrollo, supabaseUrl, sentryDsn } = opciones;
+  const { nonce, desarrollo, supabaseUrl, sentryDsn, analitica = false } = opciones;
 
   const supabase = host(supabaseUrl);
   const sentry = host(sentryDsn);
@@ -110,6 +116,9 @@ export function construirCsp(opciones: OpcionesCsp): string {
       // navegadores que no entienden 'strict-dynamic' (ellos ignoran el
       // nonce y miran la lista).
       TURNSTILE,
+      // GA4: el script lleva nonce; el dominio es el respaldo para CSP 2.
+      // Orígenes de la guía de CSP de Google para GA4.
+      analitica && GA_SCRIPT,
       desarrollo && "'unsafe-eval'",
     ],
 
@@ -140,6 +149,7 @@ export function construirCsp(opciones: OpcionesCsp): string {
       supabase && `https://${supabase}`,
       "https://image.mux.com",
       "https://img.litix.io",
+      ...(analitica ? GA_RED : []),
       desarrollo && "https://picsum.photos",
     ],
 
@@ -199,6 +209,7 @@ export function construirCsp(opciones: OpcionesCsp): string {
       "https://*.mux.com",
       "https://*.litix.io",
       sentry && `https://${sentry}`,
+      ...(analitica ? [...GA_RED, "https://*.analytics.google.com"] : []),
       desarrollo && "ws:",
     ],
 

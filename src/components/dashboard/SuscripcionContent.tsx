@@ -181,8 +181,7 @@ export function SuscripcionContent({
     tipo === "INVITACION"
       ? "por invitación"
       : tipo === "OTORGADO_ADMIN"
-        ? // Sin punto final: el de "U.V.A." cierra también la frase.
-          "otorgado por el equipo de U.V.A"
+        ? "otorgado por el equipo de UVA"
         : PRECIOS_HABILITADOS
           ? `con el plan ${nombrePlan}`
           : null;

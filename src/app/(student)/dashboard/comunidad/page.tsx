@@ -5,7 +5,7 @@ import { ComunidadPausada } from "@/components/dashboard/ComunidadPausada";
 import { ComunidadFeedContent } from "@/components/dashboard/comunidad/ComunidadFeedContent";
 import { parametroUnico, type ParametroUrl } from "@/lib/parametros-url";
 
-export const metadata: Metadata = { title: "U.V.A. — Comunidad" };
+export const metadata: Metadata = { title: "Comunidad" };
 
 function esCategoriaValida(valor: string | undefined): valor is CategoriaComunidad {
   return !!valor && (CATEGORIAS_COMUNIDAD as readonly string[]).includes(valor);

@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { metadataPublica } from "@/lib/seo/metadata";
+import { LARGO_MAXIMO_TITULO, MARCA, metadataPublica, tituloCurso } from "@/lib/seo/metadata";
 
 /**
  * `siteUrl()` cae a http://localhost:3000 fuera de producción (ver el
@@ -9,14 +11,14 @@ import { metadataPublica } from "@/lib/seo/metadata";
 const ORIGEN = "http://localhost:3000";
 
 describe("metadataPublica", () => {
-  it("antepone el prefijo de marca al título", () => {
+  it("deja la marca a la plantilla del layout (no la repite en el título)", () => {
     const meta = metadataPublica({
       titulo: "Catálogo de cursos",
       descripcion: "Cursos de arquitectura y obra.",
       ruta: "/catalogo",
     });
 
-    expect(meta.title).toBe("U.V.A. — Catálogo de cursos");
+    expect(meta.title).toBe("Catálogo de cursos");
   });
 
   it("resuelve el canonical a una URL absoluta contra el origen del despliegue", () => {
@@ -47,29 +49,40 @@ describe("metadataPublica", () => {
     });
 
     expect(meta.openGraph).toMatchObject({
-      title: "U.V.A. — Soporte",
+      title: "Soporte | UVA",
       description: "Dudas frecuentes sobre cuenta y certificados.",
       url: `${ORIGEN}/soporte`,
       locale: "es_CO",
     });
     expect(meta.twitter).toMatchObject({
-      title: "U.V.A. — Soporte",
+      title: "Soporte | UVA",
       description: "Dudas frecuentes sobre cuenta y certificados.",
     });
   });
 
-  it("sin imagen NO declara images y la tarjeta baja a 'summary'", () => {
+  it("sin imagen comparte la imagen de marca de public/", () => {
     const meta = metadataPublica({
       titulo: "Planes",
       descripcion: "Un plan, todo el catálogo.",
       ruta: "/planes",
     });
 
-    // Una tarjeta 'summary_large_image' sin imagen se renderiza rota; sin
-    // asset de marca todavía, 'summary' es la forma honesta.
-    expect(meta.twitter).toMatchObject({ card: "summary" });
-    expect(meta.openGraph?.images).toBeUndefined();
-    expect(meta.twitter && "images" in meta.twitter ? meta.twitter.images : undefined).toBeUndefined();
+    expect(meta.twitter).toMatchObject({ card: "summary_large_image" });
+    expect(meta.openGraph?.images).toEqual([`${ORIGEN}/og-uva.png`]);
+    expect(existsSync(join(process.cwd(), "public", "og-uva.png"))).toBe(true);
+  });
+
+  it("con imagen null no declara imágenes: las pone el opengraph-image de la ruta", () => {
+    const meta = metadataPublica({
+      titulo: "Revit desde cero",
+      descripcion: "Curso de Revit.",
+      ruta: "/cursos/revit",
+      imagen: null,
+    });
+
+    // Una clave `images` aunque sea vacía tapa la imagen generada por Next.
+    expect(meta.openGraph && "images" in meta.openGraph).toBe(false);
+    expect(meta.twitter && "images" in meta.twitter).toBe(false);
   });
 
   it("con imagen sube a 'summary_large_image' y la propaga a ambas tarjetas", () => {
@@ -103,5 +116,21 @@ describe("metadataPublica", () => {
     });
 
     expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe("tituloCurso", () => {
+  it("agrega «Curso en línea» cuando cabe en 60 caracteres con la marca", () => {
+    expect(tituloCurso("Revit para arquitectura")).toBe("Revit para arquitectura — Curso en línea");
+  });
+
+  it("si no cabe, deja solo el nombre del curso sin cortarlo", () => {
+    const largo = "Gerencia de proyectos, costos y presupuestos de obra";
+    expect(tituloCurso(largo)).toBe(largo);
+  });
+
+  it("el título con tipo y marca nunca pasa de 60 cuando se agrega el tipo", () => {
+    const titulo = tituloCurso("Curso de SketchUp");
+    expect(`${titulo} | ${MARCA}`.length).toBeLessThanOrEqual(LARGO_MAXIMO_TITULO);
   });
 });

@@ -159,7 +159,7 @@ export function PagosInicio({ pagos }: { pagos: PagosInicio | null }) {
             Pagos: el cobro está apagado
           </h2>
           <p className="text-uva-detalle text-uva-text-muted">
-            Hoy se entra solo con un código de invitación o con acceso dado por U.V.A., así que no entra plata. Cuando se encienda
+            Hoy se entra solo con un código de invitación o con acceso dado por UVA, así que no entra plata. Cuando se encienda
             el cobro, aquí ves lo que entra cada semana, quién paga y a quién se le acaba el plan.
           </p>
         </div>

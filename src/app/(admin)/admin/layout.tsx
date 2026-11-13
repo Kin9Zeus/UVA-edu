@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { MARCA } from "@/lib/seo/metadata";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
@@ -5,6 +7,11 @@ import { Header } from "@/components/admin/Header";
 import { AdminToastProvider } from "@/components/admin/Toast";
 import { AdminSearchProvider } from "@/components/admin/SearchContext";
 import { leerPreferenciaSidebar } from "@/lib/sidebar-preferencia-servidor";
+
+// Las páginas del panel dan solo su nombre: «Categorías — Admin | UVA».
+export const metadata: Metadata = {
+  title: { default: `Admin | ${MARCA}`, template: `%s — Admin | ${MARCA}` },
+};
 
 export default async function AdminLayout({
   children,

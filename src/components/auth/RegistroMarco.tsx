@@ -22,7 +22,7 @@ export function RegistroMarco({
     <div className="relative flex min-h-dvh flex-col bg-uva-bg min-[900px]:flex-row">
       <Link
         href="/"
-        aria-label="U.V.A., ir al inicio"
+        aria-label="UVA, ir al inicio"
         className="absolute top-5 left-10 z-[2] hidden min-h-11 items-center gap-2 text-uva-text hover:text-uva-text hover:no-underline min-[900px]:inline-flex min-[1920px]:top-7 min-[1920px]:left-14"
       >
         <LogoUva className="h-[31px] w-24 min-[1920px]:h-[43px] min-[1920px]:w-[132px]" />

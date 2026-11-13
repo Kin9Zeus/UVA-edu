@@ -37,7 +37,7 @@ const PERSONAS_POR_DEFECTO: Record<Modo, string> = { compartido: "20", lote: "10
 
 function invitacion(listo: Extract<Listo, { tipo: "codigo" }>) {
   return (
-    `Te invito a U.V.A, la plataforma de cursos de arquitectura. Entra a ${listo.sitio}/canjear, ` +
+    `Te invito a UVA, la plataforma de cursos de arquitectura. Entra a ${listo.sitio}/canjear, ` +
     `inicia sesión o crea tu cuenta y escribe este código: ${listo.codigo}\n` +
     `Te da ${listo.dias} días de acceso. Puedes canjearlo hasta el ${formatFecha(listo.vence)}.`
   );

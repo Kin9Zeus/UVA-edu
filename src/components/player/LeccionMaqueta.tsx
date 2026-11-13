@@ -323,8 +323,8 @@ export function LeccionMaqueta({
       <EncabezadoCurso
         inicio={
           sesion
-            ? { href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }
-            : { href: "/", etiqueta: "U.V.A., ir al inicio" }
+            ? { href: "/dashboard", etiqueta: "UVA, ir al inicio del panel" }
+            : { href: "/", etiqueta: "UVA, ir al inicio" }
         }
         volver={{ href: `/cursos/${data.cursoSlug}`, texto: data.cursoTitulo }}
         // Solo en celular girado (táctil): un PC con zoom al 200 % también es

@@ -8,7 +8,7 @@ import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Nuevo curso",
+  title: "Nuevo curso",
 };
 
 export default async function AdminCrearCursoPage() {

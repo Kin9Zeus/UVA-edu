@@ -291,7 +291,7 @@ test.fixme("se cae la red al enviar: el examen no se queda congelado y se puede 
   // Esperado: un aviso de que no se pudo enviar y el botón otra vez activo.
   await expect(page.getByRole("button", { name: "Sí, enviar examen" })).toBeEnabled({ timeout: 15_000 });
   // Next monta su propio anunciador de rutas con role="alert", que repite el título de la página.
-  await expect(page.getByRole("alert").filter({ hasNotText: "U.V.A." })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasNotText: "UVA" })).toBeVisible();
 
   await page.unroute("**/*");
   await page.getByRole("button", { name: "Sí, enviar examen" }).click();

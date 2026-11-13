@@ -8,7 +8,7 @@ import { EncabezadoPagina } from "@/components/admin/EncabezadoPagina";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Códigos de invitación",
+  title: "Códigos de invitación",
 };
 
 export default async function AdminCodigosPage() {

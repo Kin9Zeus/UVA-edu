@@ -64,7 +64,7 @@ function opcionesOrigen(conCobro: boolean): Opciones {
   return {
     todos: "Cualquier origen",
     INVITACION: "Por invitación",
-    MANUAL: "Dado por U.V.A.",
+    MANUAL: "Dado por UVA",
     ...(conCobro ? { PAGO: "Pagado" } : {}),
   };
 }

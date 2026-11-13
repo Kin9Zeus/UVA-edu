@@ -1,7 +1,7 @@
 import { Boton, BotonSecundario, Ficha, Fila, Fuerte, MarcoCorreo, Recuadro, Separador, Titulo } from "./marco/marco";
 import { BASE, CORREO_SOPORTE, LETRA } from "./marco/paleta";
 
-export const ASUNTO_PASSWORD_ACTUALIZADA = "Tu contraseña de U.V.A. cambió";
+export const ASUNTO_PASSWORD_ACTUALIZADA = "Tu contraseña de UVA cambió";
 
 type ContrasenaActualizadaEmailProps = {
   correo: string;

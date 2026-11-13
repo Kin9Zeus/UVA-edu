@@ -67,7 +67,7 @@ export function duracionIso8601(segundos: number): string | null {
  * del curso lo está: un `educationalLevel: "BASICO"` en mayúsculas de enum
  * es ruido de implementación filtrándose al dato público.
  */
-const NIVEL_LEGIBLE: Record<CursoPublico["nivel"], string> = {
+export const NIVEL_LEGIBLE: Record<CursoPublico["nivel"], string> = {
   BASICO: "Básico",
   INTERMEDIO: "Intermedio",
   AVANZADO: "Avanzado",
@@ -115,10 +115,11 @@ export function construirCursoJsonLd(
     }));
   }
 
-  // Sin `hasCourseInstance` el curso solo califica para listados; con él
-  // entra al rich result de Course Info, que es el que muestra modalidad y
-  // duración bajo el resultado. `courseMode: "online"` es literal: no hay
-  // presencialidad en la plataforma.
+  // `hasCourseInstance` describe modalidad y duración. Google retiró en 2025
+  // el resultado enriquecido de cursos, así que no da un formato especial en
+  // el buscador: se declara porque es dato veraz que otros lectores
+  // (asistentes de IA, Bing) sí usan. `courseMode: "online"` es literal: no
+  // hay presencialidad en la plataforma.
   jsonLd.hasCourseInstance = {
     "@type": "CourseInstance",
     courseMode: "online",

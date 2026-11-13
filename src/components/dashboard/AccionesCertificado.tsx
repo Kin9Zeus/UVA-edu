@@ -57,7 +57,7 @@ export function AccionesCertificado({
     try {
       await navigator.share({
         title: `Certificado: ${cursoTitulo}`,
-        text: `Mi certificado de ${cursoTitulo} en U.V.A.`,
+        text: `Mi certificado de ${cursoTitulo} en UVA`,
         url: urlVerificacion,
       });
     } catch (error) {

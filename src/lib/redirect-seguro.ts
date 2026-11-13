@@ -13,7 +13,7 @@
  * (next/dist/client/components/router-reducer/reducers/server-action-reducer.js).
  *
  * Así, `https://<uva>/login?redirect=//phishing.com` era un enlace legítimo
- * del dominio de U.V.A. que, tras un login REAL, dejaba al usuario en una
+ * del dominio de UVA que, tras un login REAL, dejaba al usuario en una
  * página ajena lista para pedirle la contraseña "otra vez". `/auth/callback`
  * ni siquiera tenía el `startsWith`: redirigía a `next` tal cual llegara.
  *

@@ -132,7 +132,7 @@ export function ErrorBlock({
         <div className="mx-auto max-w-uva px-uva-margen py-2.5">
           <Link
             href="/"
-            aria-label="U.V.A., ir al inicio"
+            aria-label="UVA, ir al inicio"
             className={cn("inline-flex min-h-11 items-center rounded-uva-xs text-uva-text", FOCO)}
           >
             <LogoUva className="h-7 w-[86px]" />

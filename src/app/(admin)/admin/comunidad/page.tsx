@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Comunidad",
+  title: "Comunidad",
 };
 
 export default async function AdminComunidadPage() {

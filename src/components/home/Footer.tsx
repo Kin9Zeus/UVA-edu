@@ -9,7 +9,7 @@ import {
 import { getCategoriasActivas } from "@/lib/categoria";
 import { VerificarCertificadoForm } from "@/components/home/VerificarCertificadoForm";
 import { TEMAS_SOPORTE } from "@/lib/soporte";
-import { urlWhatsapp } from "@/lib/contacto";
+import { REDES, urlWhatsapp } from "@/lib/contacto";
 import { LogoUva } from "@/components/home/LogoUva";
 import { LEGAL_HABILITADO } from "@/lib/features";
 import { NOMBRE_LEGAL, rutaLegal } from "@/lib/legal/slugs";
@@ -26,21 +26,21 @@ const MOSTRAR_COLUMNA_COMUNIDAD = false;
 
 const columns = [
   {
-    heading: "U.V.A. y comunidad",
+    heading: "UVA y comunidad",
     links: ["Sobre nosotros", "Blog del gremio", "Casos de éxito", "Empleo"],
   },
 ];
 
 const socials = [
   {
-    label: "Canal de U.V.A. en YouTube",
+    label: "Canal de UVA en YouTube",
     Icon: YoutubeIcon,
-    href: "https://www.youtube.com/@uvarq",
+    href: REDES.youtube,
   },
   {
-    label: "U.V.A. en Instagram",
+    label: "UVA en Instagram",
     Icon: InstagramIcon,
-    href: "https://www.instagram.com/uvarq",
+    href: REDES.instagram,
   },
   {
     label: "Escríbenos por WhatsApp",
@@ -48,14 +48,14 @@ const socials = [
     href: urlWhatsapp(),
   },
   {
-    label: "U.V.A. en Spotify",
+    label: "UVA en Spotify",
     Icon: SpotifyIcon,
-    href: "https://open.spotify.com/show/0JGnY0rLz1CJHhQ4gYeRva",
+    href: REDES.spotify,
   },
   {
-    label: "U.V.A. en TikTok",
+    label: "UVA en TikTok",
     Icon: TiktokIcon,
-    href: "https://www.tiktok.com/@uvarq",
+    href: REDES.tiktok,
   },
 ];
 
@@ -101,7 +101,7 @@ export async function Footer({
             más ancha que un celular de 375 px y ensanchaba toda la página. */}
         <div className="mb-9 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-12">
           <div className="flex flex-col gap-3 lg:col-span-3">
-            <LogoUva etiqueta="U.V.A." className="h-[34px] w-[105px] text-uva-text" />
+            <LogoUva etiqueta="UVA" className="h-[34px] w-[105px] text-uva-text" />
             <p className="max-w-[240px] text-uva-cuerpo text-uva-text-muted">
               Formación en línea para el gremio de la construcción en LATAM.
             </p>
@@ -158,7 +158,7 @@ export async function Footer({
           <div className="lg:col-span-4">
             <h2 className={headingClass}>Verificar certificado</h2>
             <p className="mb-2.5 text-uva-cuerpo text-uva-text-muted">
-              ¿Tienes el código de un certificado U.V.A.? Confirma su validez.
+              ¿Tienes el código de un certificado UVA? Confirma su validez.
             </p>
             <VerificarCertificadoForm />
           </div>
@@ -179,8 +179,8 @@ export async function Footer({
         )}
 
         <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
-          <p className="text-uva-detalle text-uva-text-muted">© 2026 U.V.A. Hecho en obra, para LATAM.</p>
-          <ul aria-label="U.V.A. en redes" className="flex flex-wrap gap-2">
+          <p className="text-uva-detalle text-uva-text-muted">© 2026 UVA. Hecho en obra, para LATAM.</p>
+          <ul aria-label="UVA en redes" className="flex flex-wrap gap-2">
             {socials.map(({ label, Icon, href }) => (
               <li key={label}>
                 <a

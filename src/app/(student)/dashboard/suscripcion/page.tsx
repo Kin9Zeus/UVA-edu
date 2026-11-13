@@ -6,7 +6,7 @@ import { logError } from "@/lib/log";
 import { SuscripcionContent } from "@/components/dashboard/SuscripcionContent";
 import { EstadoPagoBanner, type EstadoIntento } from "@/components/dashboard/EstadoPagoBanner";
 
-export const metadata: Metadata = { title: "U.V.A. — Suscripción" };
+export const metadata: Metadata = { title: "Suscripción" };
 
 export default async function SuscripcionPage({
   searchParams,

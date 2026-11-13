@@ -12,7 +12,7 @@ import { siteUrl } from "@/lib/site-url";
  * `catalogo/[categoriaSlug]`, `planes`, `soporte` y
  * `verificar-certificado/[codigo]` exportaban SOLO un título. Todas
  * heredaban del layout raíz la misma descripción —"Plataforma de cursos
- * U.V.A"— y ninguna declaraba canonical ni tarjeta social. La única página
+ * UVA"— y ninguna declaraba canonical ni tarjeta social. La única página
  * con metadata completa era la ficha de curso, y estaba escrita a mano allí.
  *
  * Repetir ese bloque en seis archivos es la forma segura de que dentro de un
@@ -28,28 +28,50 @@ import { siteUrl } from "@/lib/site-url";
  *
  * Sobre `og:image`
  * ----------------
- * `imagen` es opcional y hoy NADIE la pasa, porque no existe un asset de
- * marca: `public/` solo tiene los SVG de ejemplo de create-next-app y el
- * logo del header es un componente, no un archivo servible. Es el mismo
- * hueco que deja `logo` vacío en lib/seo/organizacion.ts, y tiene el mismo
- * remedio: cuando exista una imagen de 1200x630 en `public/`, se pasa aquí
- * una vez y todas las páginas la heredan.
- *
- * Mientras tanto NO se inventa una: una tarjeta social sin imagen se ve
- * sobria; una que apunta a un 404 se ve rota.
+ * `imagen` es opcional: la ficha de curso pasa su portada. Sin ella, la
+ * página comparte la imagen de marca de 1200x630 (`public/og-uva.png`,
+ * SEO fase 14), así ninguna tarjeta sale sin imagen.
  */
+const IMAGEN_MARCA = "/og-uva.png";
 
-/** El prefijo que ya usaban a mano todas las páginas públicas. */
-const PREFIJO = "U.V.A. — ";
+/** Descripción del sitio: respaldo del layout raíz y del manifest. */
+export const DESCRIPCION_SITIO =
+  "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de UVA, con acceso por invitación.";
+
+/**
+ * Nombre corto de la marca en los títulos («Catálogo de cursos | UVA»).
+ * Lo pone la plantilla `title.template` del layout raíz a todas las páginas;
+ * aquí solo se repite para Open Graph y Twitter, que no heredan la
+ * plantilla. Cuando Aleck decida el nombre oficial (decisión 1 de
+ * docs/seo/08-informe.md), se cambia solo esta constante.
+ */
+export const MARCA = "UVA";
+
+/** Largo máximo de un título en resultados de búsqueda (tarea de metadatos, Notion). */
+export const LARGO_MAXIMO_TITULO = 60;
+
+/**
+ * Título de la ficha de curso: «[Curso] — Curso en línea». Si con la marca
+ * pasa de 60 caracteres, queda solo el nombre del curso: no se corta, Google
+ * ya recorta lo que no cabe y un nombre partido se lee peor.
+ */
+export function tituloCurso(nombre: string): string {
+  const conTipo = `${nombre} — Curso en línea`;
+  return `${conTipo} | ${MARCA}`.length <= LARGO_MAXIMO_TITULO ? conTipo : nombre;
+}
 
 type OpcionesMetadata = {
-  /** Sin el prefijo: la función lo antepone. */
+  /** Sin la marca: la agrega la plantilla del layout raíz. */
   titulo: string;
   descripcion: string;
   /** Ruta absoluta desde la raíz, con `/` inicial. La home es `"/"`. */
   ruta: string;
-  /** URL absoluta de la imagen social. Ver el encabezado. */
-  imagen?: string;
+  /**
+   * URL absoluta de la imagen social. Sin ella, la de marca. `null`: no se
+   * declara porque la ruta tiene su propio `opengraph-image` (la ficha de
+   * curso) y Next pone esa URL, que lleva un sufijo que no se puede escribir a mano.
+   */
+  imagen?: string | null;
   /**
    * `false` para páginas que no deben aparecer en resultados de búsqueda.
    * Ojo: si la ruta además está en el `disallow` de robots.ts, Google no
@@ -67,11 +89,11 @@ export function metadataPublica({
   imagen,
   indexable = true,
 }: OpcionesMetadata): Metadata {
-  const tituloCompleto = `${PREFIJO}${titulo}`;
-  const imagenes = imagen ? [imagen] : undefined;
+  const tituloCompleto = `${titulo} | ${MARCA}`;
+  const imagenes = imagen === null ? undefined : [imagen ?? `${siteUrl()}${IMAGEN_MARCA}`];
 
   return {
-    title: tituloCompleto,
+    title: titulo,
     description: descripcion,
     alternates: {
       canonical: `${siteUrl()}${ruta}`,
@@ -79,17 +101,17 @@ export function metadataPublica({
     openGraph: {
       type: "website",
       locale: "es_CO",
-      siteName: PREFIJO.replace(" — ", ""),
+      siteName: MARCA,
       title: tituloCompleto,
       description: descripcion,
       url: `${siteUrl()}${ruta}`,
-      images: imagenes,
+      ...(imagenes ? { images: imagenes } : {}),
     },
     twitter: {
-      card: imagen ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: tituloCompleto,
       description: descripcion,
-      images: imagenes,
+      ...(imagenes ? { images: imagenes } : {}),
     },
     ...(indexable ? {} : { robots: { index: false, follow: false } }),
   };

@@ -6,12 +6,12 @@ import { SoporteCentro } from "@/components/soporte/SoporteCentro";
 import { getPerfilActual } from "@/lib/perfil";
 import { esTemaSoporte } from "@/lib/soporte";
 import { metadataPublica } from "@/lib/seo/metadata";
+import { DESCRIPCION_META_SOPORTE } from "@/lib/seo/descripciones";
 import { destinoLegalDeTema } from "@/lib/legal/redireccion-soporte";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Soporte",
-  descripcion:
-    "Respuestas a las dudas frecuentes sobre cuenta, acceso, certificados y pagos en U.V.A., y cómo escribirnos.",
+  descripcion: DESCRIPCION_META_SOPORTE,
   ruta: "/soporte",
 });
 

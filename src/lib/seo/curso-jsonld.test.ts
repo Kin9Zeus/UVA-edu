@@ -76,7 +76,7 @@ describe("construirCursoJsonLd", () => {
     expect(jsonLd.description).toBe(
       "Iluminación, materiales y postproducción para arquitectura.",
     );
-    expect(jsonLd.provider).toMatchObject({ "@type": "Organization" });
+    expect(jsonLd.provider).toMatchObject({ "@type": "EducationalOrganization" });
   });
 
   it("la url apunta SIEMPRE al slug, nunca al uuid con el que se pudo llegar", () => {

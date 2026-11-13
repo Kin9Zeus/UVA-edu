@@ -12,8 +12,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { postSlug } = await params;
   const post = await getComunidadPost(postSlug);
-  if (!post || post.eliminado) return { title: "U.V.A. — Comunidad" };
-  return { title: `U.V.A. — ${post.titulo}` };
+  if (!post || post.eliminado) return { title: "Comunidad" };
+  return { title: `${post.titulo}` };
 }
 
 export default async function ComunidadPostPage({ params }: { params: Promise<{ postSlug: string }> }) {

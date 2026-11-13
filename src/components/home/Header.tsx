@@ -39,7 +39,7 @@ export function Header({ ocultarBuscador = false }: { ocultarBuscador?: boolean 
     >
       <Link
         href="/"
-        aria-label="U.V.A., ir al inicio"
+        aria-label="UVA, ir al inicio"
         className="mr-auto inline-flex min-h-11 shrink-0 items-center text-uva-text no-underline hover:no-underline sm:mr-0"
       >
         <LogoUva className="h-[25px] w-[77px] lg:h-[34px] lg:w-[105px]" />

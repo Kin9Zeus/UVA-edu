@@ -42,7 +42,7 @@ const ACCESO_LABEL: Record<string, string> = {
 
 const ORIGEN_LABEL: Record<string, string> = {
   INVITACION: "Por invitación",
-  MANUAL: "Dado por U.V.A.",
+  MANUAL: "Dado por UVA",
   PAGO: "Pagado",
 };
 

@@ -42,7 +42,7 @@ const correos = {
   vencimiento: () =>
     VencimientoProximoEmail({
       nombre: "Laura Mejía",
-      planNombre: "Acceso U.V.A.",
+      planNombre: "Acceso UVA",
       diasRestantes: 3,
       fechaHoy: "19 oct 2026",
       fechaVencimiento: "22 oct 2026",
@@ -74,7 +74,7 @@ describe("las nueve plantillas", () => {
       it("llevan el logo PNG alojado en el sitio, con texto alternativo", async () => {
         const html = await render(crear());
         expect(html).toContain(`src="${siteUrl()}/correo/logo-sobre-oscuro.png"`);
-        expect(html).toContain('alt="U.V.A."');
+        expect(html).toContain('alt="UVA"');
       });
 
       it("son oscuros siempre: sin versión clara ni logo alternativo", async () => {
@@ -194,27 +194,27 @@ describe("contenido de cada correo", () => {
 
 describe("asuntos", () => {
   it("son los del rediseño", () => {
-    expect(ASUNTO_CONFIRMAR_CUENTA).toBe("Confirma tu correo para activar tu carné U.V.A.");
-    expect(ASUNTO_RECUPERAR_PASSWORD).toBe("Crea una contraseña nueva para U.V.A.");
-    expect(ASUNTO_PASSWORD_ACTUALIZADA).toBe("Tu contraseña de U.V.A. cambió");
-    expect(ASUNTO_BIENVENIDA).toBe("Tu carné U.V.A. está activo");
+    expect(ASUNTO_CONFIRMAR_CUENTA).toBe("Confirma tu correo para activar tu carné UVA");
+    expect(ASUNTO_RECUPERAR_PASSWORD).toBe("Crea una contraseña nueva para UVA");
+    expect(ASUNTO_PASSWORD_ACTUALIZADA).toBe("Tu contraseña de UVA cambió");
+    expect(ASUNTO_BIENVENIDA).toBe("Tu carné UVA está activo");
     expect(asuntoComunidadModerada("publicación")).toBe("Retiramos tu publicación de la Comunidad");
     expect(asuntoCertificadoEmitido("Revit")).toBe("Tu certificado de Revit está listo");
     expect(asuntoReciboPago("19 nov 2026")).toBe("Recibimos tu pago: acceso activo hasta el 19 nov 2026");
   });
 
   it("el de vencimiento dice hoy, mañana o en N días", () => {
-    expect(asuntoVencimientoProximo(0)).toBe("Tu acceso a U.V.A. termina hoy");
-    expect(asuntoVencimientoProximo(1)).toBe("Tu acceso a U.V.A. termina mañana");
-    expect(asuntoVencimientoProximo(3)).toBe("Tu acceso a U.V.A. termina en 3 días");
+    expect(asuntoVencimientoProximo(0)).toBe("Tu acceso a UVA termina hoy");
+    expect(asuntoVencimientoProximo(1)).toBe("Tu acceso a UVA termina mañana");
+    expect(asuntoVencimientoProximo(3)).toBe("Tu acceso a UVA termina en 3 días");
   });
 
   it("confirmar acción tiene uno por tipo de Supabase", () => {
-    expect(asuntoConfirmarAccion("invite")).toBe("Te invitaron a U.V.A.");
-    expect(asuntoConfirmarAccion("magiclink")).toBe("Tu enlace para entrar a U.V.A.");
-    expect(asuntoConfirmarAccion("email_change")).toBe("Confirma el cambio de correo en U.V.A.");
-    expect(asuntoConfirmarAccion("reauthentication")).toBe("Confirma que eres tú en U.V.A.");
-    expect(asuntoConfirmarAccion("desconocido")).toBe("Confirma tu acción en U.V.A.");
+    expect(asuntoConfirmarAccion("invite")).toBe("Te invitaron a UVA");
+    expect(asuntoConfirmarAccion("magiclink")).toBe("Tu enlace para entrar a UVA");
+    expect(asuntoConfirmarAccion("email_change")).toBe("Confirma el cambio de correo en UVA");
+    expect(asuntoConfirmarAccion("reauthentication")).toBe("Confirma que eres tú en UVA");
+    expect(asuntoConfirmarAccion("desconocido")).toBe("Confirma tu acción en UVA");
   });
 });
 

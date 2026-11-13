@@ -5,7 +5,7 @@
  * descarga. Medidas en unidades del diseño (1123 × 794, A4 apaisado).
  */
 
-/** Logo U.V.A. de trazo, viewBox 0 0 128 48, trazo 3.2. */
+/** Logo UVA de trazo, viewBox 0 0 128 48, trazo 3.2. */
 export const LOGO_CERTIFICADO =
   "M2.4 5.6H12.6M41.6 5.6H31.8M3.8 4V26A18.6 17.4 0 0 0 41 26V4M2.2 23.6H42.6M50.2 4V43.4M50.2 42.4L88.6 4.6M64.2 42.6L89.6 17.2M86.6 42L122.8 5.2M124.2 4V43.6M85.6 42.4H125.8M86.6 30.4H125.8";
 
@@ -27,7 +27,7 @@ export const FIRMAS_CERTIFICADO = [
 export const TEXTOS_CERTIFICADO = {
   institucion: "Unidad Vectorial de Arquitectura",
   tipo: "Certificado de aprobación",
-  antesDelNombre: "U.V.A. certifica que",
+  antesDelNombre: "UVA certifica que",
   antesDelCurso: "llegó a la cota más alta del curso",
 } as const;
 

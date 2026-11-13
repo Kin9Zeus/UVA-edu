@@ -116,7 +116,7 @@ async function completarReseñas(
   return filas.map((fila) => ({
     id: fila.id,
     autorId: fila.id_usuario,
-    autorNombre: nombrePorAutorId.get(fila.id_usuario) ?? "Estudiante U.V.A.",
+    autorNombre: nombrePorAutorId.get(fila.id_usuario) ?? "Estudiante UVA",
     autorFotoUrl: fotoPorAutorId.get(fila.id_usuario) ?? null,
     puntuacion: fila.puntuacion,
     comentario: fila.comentario,

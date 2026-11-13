@@ -61,7 +61,7 @@ export function AccesoInvitacion({ hrefCodigo }: { hrefCodigo: string }) {
             <Button
               render={
                 <a
-                  href={urlWhatsapp("Hola, quiero una invitación para entrar a U.V.A.")}
+                  href={urlWhatsapp("Hola, quiero una invitación para entrar a UVA")}
                   target="_blank"
                   rel="noopener noreferrer"
                 />

@@ -6,7 +6,7 @@ import { resolverPantallaSegundoFactor } from "@/lib/auth/pantallaSegundoFactor"
 // Pantalla privada: no tiene nada que hacer en un buscador (`robots.ts` también
 // la deja fuera).
 export const metadata: Metadata = {
-  title: "U.V.A. — Escribe tu código",
+  title: "Escribe tu código",
   robots: { index: false, follow: false },
 };
 

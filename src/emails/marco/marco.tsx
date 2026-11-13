@@ -5,7 +5,7 @@ import { ESTILOS_CORREO } from "./estilos";
 import { BASE, CORREO_SOPORTE, FIJOS, LETRA, LETRA_CODIGO } from "./paleta";
 
 /*
- * Marco común de los correos de U.V.A. (rediseño "carné"): cabecera con logo,
+ * Marco común de los correos de UVA (rediseño "carné"): cabecera con logo,
  * banda amarilla, cuerpo, rótulo de plano y pie de ayuda.
  *
  * Todo es tabla con estilos en línea: es lo único que Gmail y Outlook
@@ -57,7 +57,7 @@ function Logo({ ancho, gruesa = false }: { ancho: number; gruesa?: boolean }) {
       src={src}
       width={ancho}
       height={alto}
-      alt="U.V.A."
+      alt="UVA"
       style={{ display: "block", border: 0, outline: "none", width: ancho, height: alto }}
     />
   );
@@ -429,7 +429,7 @@ export function Carne({
                 Rol
               </p>
               <p className="c-tinta" style={dato}>
-                Estudiante U.V.A.
+                Estudiante UVA
               </p>
             </td>
           </tr>

@@ -29,7 +29,7 @@ import { AvisarPestanas } from "@/components/sesion/AvisarPestanas";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Confirmar",
+  title: "Confirmar",
 };
 
 /**
@@ -81,7 +81,7 @@ export default async function ConfirmarEnlacePage({
       <PantallaCorreo
         carne={{ nombre: confirmado.nombre || null, correo: confirmado.correo, sello: "confirmado" }}
         titulo="¡Correo confirmado!"
-        subtitulo="Te damos la bienvenida a U.V.A. Tu carné ya está activo."
+        subtitulo="Te damos la bienvenida a UVA. Tu carné ya está activo."
       >
         <AvisoAcceso icono="ok">
           Confirmamos <strong className="[overflow-wrap:anywhere]">{confirmado.correo}</strong>. Tu

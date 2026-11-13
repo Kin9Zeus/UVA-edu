@@ -28,7 +28,7 @@ export function ComunidadModeradaEmail({ nombre, tipoContenido, tituloPost, moti
       seccion="Comunidad"
       nombre={esRespuesta ? "Respuesta retirada" : "Publicación retirada"}
       hoja="05"
-      motivo="Recibes este correo porque publicaste en la Comunidad de U.V.A."
+      motivo="Recibes este correo porque publicaste en la Comunidad de UVA."
     >
       <Titulo>{esRespuesta ? "Retiramos tu respuesta" : "Retiramos tu publicación"}</Titulo>
       <Parrafo>
@@ -39,7 +39,7 @@ export function ComunidadModeradaEmail({ nombre, tipoContenido, tituloPost, moti
         ) : (
           "Hola. "
         )}
-        Un administrador retiró tu {tipoContenido} de la Comunidad de U.V.A. por este motivo:
+        Un administrador retiró tu {tipoContenido} de la Comunidad de UVA por este motivo:
       </Parrafo>
       <Cita titulo="Motivo del administrador">“{motivo}”</Cita>
       <Ficha

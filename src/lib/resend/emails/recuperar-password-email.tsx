@@ -1,7 +1,7 @@
 import { Boton, EnlaceRespaldo, Fuerte, MarcoCorreo, Nota, Parrafo, Recuadro, Titulo } from "@/emails/marco/marco";
 import { primerNombre } from "@/emails/marco/nombres";
 
-export const ASUNTO_RECUPERAR_PASSWORD = "Crea una contraseña nueva para U.V.A.";
+export const ASUNTO_RECUPERAR_PASSWORD = "Crea una contraseña nueva para UVA";
 
 type RecuperarPasswordEmailProps = {
   actionLink: string;

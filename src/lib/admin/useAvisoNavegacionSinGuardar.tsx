@@ -21,7 +21,7 @@ import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
  *
  * El diálogo es el propio de la app (`ConfirmDialog`), no `window.confirm()`
  * — un confirm nativo se ve como "localhost:3000 dice…" en vez de un modal
- * de U.V.A, la misma inconsistencia que ContenidoTab.tsx ya había resuelto
+ * de UVA, la misma inconsistencia que ContenidoTab.tsx ya había resuelto
  * para su propio caso. El componente que llama a este hook debe renderizar
  * el elemento devuelto en algún punto de su árbol.
  */

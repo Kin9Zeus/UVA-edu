@@ -29,11 +29,11 @@ export const NOMBRE_LEGAL: Record<SlugLegal, string> = {
 
 /** Para el `<meta description>`: una frase que diga qué es, sin prometer nada. */
 export const DESCRIPCION_LEGAL: Record<SlugLegal, string> = {
-  terminos: "Las condiciones de uso de la plataforma de cursos de U.V.A.: cuenta, acceso, certificados y propiedad intelectual.",
-  "datos-personales": "Cómo U.V.A. trata tus datos personales: qué datos, para qué, con quién y cómo ejercer tus derechos.",
-  privacidad: "Resumen del tratamiento de tus datos personales en U.V.A. y la autorización que nos otorgas al registrarte.",
-  cookies: "Qué cookies usa U.V.A., para qué sirven y cómo elegir cuáles aceptar.",
-  comunidad: "Las normas de convivencia y de uso aceptable de la comunidad y la plataforma de U.V.A.",
+  terminos: "Las condiciones de uso de la plataforma de cursos de UVA: cuenta, acceso, certificados y propiedad intelectual.",
+  "datos-personales": "Cómo UVA trata tus datos personales: qué datos, para qué, con quién y cómo ejercer tus derechos.",
+  privacidad: "Resumen del tratamiento de tus datos personales en UVA y la autorización que nos otorgas al registrarte.",
+  cookies: "Qué cookies usa UVA, para qué sirven y cómo elegir cuáles aceptar.",
+  comunidad: "Las normas de convivencia y de uso aceptable de la comunidad y la plataforma de UVA.",
 };
 
 export function rutaLegal(slug: SlugLegal): string {

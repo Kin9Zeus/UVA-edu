@@ -29,7 +29,7 @@ import { DIAS_SIN_AVANZAR } from "@/lib/admin/avance";
 import type { EstudianteDeCurso, ModuloDetalle } from "@/lib/admin/cursoDetalle";
 
 /* "Acceso general" es lo que da acceso a todo el catálogo (código de
-   invitación, cortesía de U.V.A. o plan pagado); "Cortesía" es solo este
+   invitación, cortesía de UVA o plan pagado); "Cortesía" es solo este
    curso. Antes decía "Membresía", que no es como se llama en Usuarios. */
 const ACCESO_ITEMS = { todos: "Todo acceso", MEMBRESIA: "Acceso general", CORTESIA: "Cortesía de este curso" };
 

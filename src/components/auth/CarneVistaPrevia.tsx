@@ -60,7 +60,7 @@ export function CarneVistaPrevia({
         <div className="col-span-2 flex items-center justify-between gap-3 text-uva-detalle font-semibold text-uva-text-muted">
           <Link
             href="/"
-            aria-label="U.V.A., ir al inicio"
+            aria-label="UVA, ir al inicio"
             className="inline-flex min-h-11 items-center text-uva-text hover:text-uva-text"
           >
             <LogoUva className="h-[31px] w-24" />
@@ -195,7 +195,7 @@ export function CarneVistaPrevia({
             <div>
               <dt className="text-xs font-semibold text-uva-text-muted">Rol</dt>
               <dd className="mt-[3px] text-[15px] font-semibold text-uva-text">
-                Estudiante U.V.A.
+                Estudiante UVA
               </dd>
             </div>
             {reglas && (

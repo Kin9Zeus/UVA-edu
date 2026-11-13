@@ -155,7 +155,7 @@ async function main() {
       subject: asuntoVencimientoProximo(dias),
       react: VencimientoProximoEmail({
         nombre: perfil.nombre ?? "",
-        planNombre: plan?.nombre ?? "Acceso U.V.A",
+        planNombre: plan?.nombre ?? "Acceso UVA",
         diasRestantes: dias,
         fechaHoy: formatFecha(new Date().toISOString()),
         fechaVencimiento: formatFecha(suscripcion.fecha_renovacion!),

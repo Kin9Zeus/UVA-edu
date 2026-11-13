@@ -7,7 +7,7 @@ import { CursosAhora, Embudo, LoUltimo } from "@/components/admin/inicio/Bloques
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Inicio",
+  title: "Inicio",
 };
 
 export default async function AdminDashboardPage() {
@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <EncabezadoPagina titulo="Inicio" descripcion="Cómo va U.V.A. y qué necesita tu atención." />
+      <EncabezadoPagina titulo="Inicio" descripcion="Cómo va UVA y qué necesita tu atención." />
 
       {/* En celular, Para atender va primero (cerrado); desde xl, a la derecha
           de la gráfica y Pagos para que las dos columnas terminen parejas. */}

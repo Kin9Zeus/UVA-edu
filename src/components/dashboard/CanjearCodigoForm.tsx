@@ -1,5 +1,6 @@
 "use client";
 
+import { registrarEvento } from "@/lib/analitica";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ticket } from "lucide-react";
@@ -170,6 +171,7 @@ export function CanjearCodigoForm({
     }
 
     setCodigo("");
+    registrarEvento("canje_invitacion");
     router.refresh();
     // Otras pestañas con un curso bloqueado o "sin acceso" se refrescan solas.
     avisarPestanas({ tipo: "acceso-cambio" });
@@ -190,7 +192,7 @@ export function CanjearCodigoForm({
       )}
       {ofrecerInvitacion && (
         <a
-          href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a U.V.A.")}
+          href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a UVA")}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-1 block min-h-11 py-2.5 font-bold underline underline-offset-4"

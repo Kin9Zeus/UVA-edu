@@ -4,7 +4,7 @@ import { RecuperarFlujo } from "@/components/auth/RecuperarFlujo";
 import { connection } from "next/server";
 
 export const metadata: Metadata = {
-  title: "U.V.A. — Recuperar contraseña",
+  title: "Recuperar contraseña",
 };
 
 export default async function RecuperarPage({

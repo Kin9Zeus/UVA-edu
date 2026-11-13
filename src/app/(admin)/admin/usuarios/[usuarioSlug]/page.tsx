@@ -11,7 +11,7 @@ import { contarDispositivosSegundoFactor } from "@/lib/admin/segundoFactor";
 import { exigirAdministradorEnPagina } from "@/lib/admin/guardiaPagina";
 
 export const metadata: Metadata = {
-  title: "U.V.A. Admin — Detalle de usuario",
+  title: "Detalle de usuario",
 };
 
 /**

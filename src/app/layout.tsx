@@ -5,12 +5,16 @@ import "./globals.css";
 // las páginas (Lighthouse de la portada, 2026-10-20) y solo lo usan las
 // banderas del perfil y de los comentarios. Cada uno lo importa.
 import { siteUrl } from "@/lib/site-url";
+import { DESCRIPCION_SITIO, MARCA } from "@/lib/seo/metadata";
+import { NOMBRE_ORGANIZACION } from "@/lib/seo/organizacion";
 import { headers } from "next/headers";
 import { COLOR_BARRA_NAVEGADOR, SCRIPT_TEMA_INICIAL } from "@/lib/tema";
 import { Toaster } from "@/components/ui/toast";
 import { SaltarAlContenido } from "@/components/SaltarAlContenido";
 import { TemaProvider } from "@/components/tema/TemaProvider";
 import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
+import { ClicsWhatsapp } from "@/components/analitica/ClicsWhatsapp";
+import { GA_ID, scriptInicialGa } from "@/lib/analitica";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -35,8 +39,11 @@ export const metadata: Metadata = {
   // absoluta -- cae a "http://localhost:3000" incluso en producción, y las
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
-  title: "U.V.A. — Unidad Vectorial de Arquitectura",
-  description: "Plataforma de cursos de U.V.A.",
+  // Plantilla de títulos: cada página da solo su nombre y aquí se agrega la
+  // marca al final («Catálogo de cursos | UVA»). `default` es la página
+  // que no declara título.
+  title: { default: NOMBRE_ORGANIZACION, template: `%s | ${MARCA}` },
+  description: DESCRIPCION_SITIO,
 };
 
 // Sin esto, el navegador móvil pinta de blanco por defecto la barra de
@@ -70,6 +77,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
+        {/* GA4, solo si NEXT_PUBLIC_GA_ID tiene un id válido (lib/analitica.ts).
+            Los dos llevan el nonce de la CSP. */}
+        {GA_ID && (
+          <>
+            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: scriptInicialGa(GA_ID) }} />
+            <script nonce={nonce} async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+          </>
+        )}
       </head>
       <body className="min-h-full flex flex-col">
         <SaltarAlContenido />
@@ -77,6 +92,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Toaster>{children}</Toaster>
         </TemaProvider>
         <SincronizarPestanas />
+        {GA_ID && <ClicsWhatsapp />}
       </body>
     </html>
   );

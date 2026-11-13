@@ -9,7 +9,7 @@ import {
 /** De dónde salió el acceso, dicho como el estudiante lo vivió. */
 const ORIGEN_TIPO: Record<TipoAccesoGratuito, string> = {
   INVITACION: "Lo obtuviste con un código de invitación.",
-  OTORGADO_ADMIN: "Te lo dio el equipo de U.V.A.",
+  OTORGADO_ADMIN: "Te lo dio el equipo de UVA",
 };
 
 /** "12 de marzo de 2027": la frase principal se lee completa, sin abreviar. */

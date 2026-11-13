@@ -29,7 +29,7 @@ export function Embudo({ embudo, accesoHoy }: Pick<DatosInicio, "embudo" | "acce
     {
       clave: "uva",
       valor: accesoHoy.uva,
-      texto: accesoHoy.uva === 1 ? "dado por U.V.A." : "dados por U.V.A.",
+      texto: accesoHoy.uva === 1 ? "dado por UVA" : "dados por UVA",
       color: "bg-uva-serie-3",
     },
     {

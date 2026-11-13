@@ -245,7 +245,7 @@ function PasosAnadir({ onListo }: { onListo: () => void }) {
         <div className="max-w-full overflow-hidden rounded-uva-md border border-uva-divider">
           <Image
             src={inicio.qr}
-            alt="Código QR para añadir U.V.A. al nuevo dispositivo"
+            alt="Código QR para añadir UVA al nuevo dispositivo"
             width={inicio.ladoQr}
             height={inicio.ladoQr}
             unoptimized

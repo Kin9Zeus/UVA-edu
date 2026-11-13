@@ -3,11 +3,12 @@ import { AuthFlow } from "@/components/auth/AuthFlow";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { metadataPublica } from "@/lib/seo/metadata";
 
-// P2-6 (AUDIT-2026-09-15.md): de las páginas de auth, esta es la ÚNICA que
-// `robots.ts` deja indexable — `/recuperar`, `/actualizar-password` y
-// `/verificar-correo` están en el `disallow`. Aun así declaraba solo el
-// título y heredaba del layout raíz la descripción genérica "Plataforma de
-// cursos U.V.A", que es exactamente el estado que P2-6 vino a cerrar.
+// P2-6 (AUDIT-2026-09-15.md): declaraba solo el título y heredaba del layout
+// raíz la descripción genérica "Plataforma de cursos UVA".
+//
+// `noindex` (SEO fase 14, docs/seo/00-diagnostico.md): nadie busca una
+// pantalla de acceso, así que tampoco está en el sitemap. No va en el
+// `disallow` de robots.ts para que Google pueda leer este `noindex`.
 //
 // El canonical importa aquí más que en el resto del sitio: la página recibe
 // `?redirect=`, `?email=` y `?error=`, así que la misma pantalla existe en
@@ -17,8 +18,9 @@ import { metadataPublica } from "@/lib/seo/metadata";
 export const metadata: Metadata = metadataPublica({
   titulo: "Iniciar sesión o crear cuenta",
   descripcion:
-    "Entra a tu cuenta U.V.A. o créala con tu correo para acceder a los cursos del oficio de la construcción.",
+    "Entra a tu cuenta UVA o créala con tu correo para acceder a los cursos del oficio de la construcción.",
   ruta: "/login",
+  indexable: false,
 });
 
 export default async function LoginPage({
