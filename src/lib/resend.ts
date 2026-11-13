@@ -19,7 +19,7 @@ export type EnviarCorreoResultado =
  * Resend devuelve sus errores en inglés. Al llamador (y de ahí al usuario) le
  * damos un texto propio; el mensaje original queda registrado para diagnóstico.
  */
-const MENSAJE_FALLO_ENVIO = "No pudimos enviar el correo. Inténtalo de nuevo más tarde.";
+const MENSAJE_FALLO_ENVIO = "No pudimos enviar el correo. Intenta de nuevo.";
 
 function falloEnvio(causa: unknown): EnviarCorreoResultado {
   logError("correo", "Resend no pudo enviar el correo", causa);
