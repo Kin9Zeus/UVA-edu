@@ -34,7 +34,7 @@ export async function generateMetadata({
     // fase 14, docs/seo/03-mapa-contenidos.md). La plantilla queda de respaldo.
     descripcion:
       categoria.descripcion?.trim() ||
-      `Cursos de ${categoria.nombre.toLowerCase()} en U.V.A.: formación técnica para el oficio de la construcción.`,
+      `Cursos de ${categoria.nombre.toLowerCase()} en UVA: formación técnica para el oficio de la construcción.`,
     ruta: `/catalogo/${categoria.slug}`,
   });
 }

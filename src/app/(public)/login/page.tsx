@@ -4,7 +4,7 @@ import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { metadataPublica } from "@/lib/seo/metadata";
 
 // P2-6 (AUDIT-2026-09-15.md): declaraba solo el título y heredaba del layout
-// raíz la descripción genérica "Plataforma de cursos U.V.A".
+// raíz la descripción genérica "Plataforma de cursos UVA".
 //
 // `noindex` (SEO fase 14, docs/seo/00-diagnostico.md): nadie busca una
 // pantalla de acceso, así que tampoco está en el sitemap. No va en el
@@ -18,7 +18,7 @@ import { metadataPublica } from "@/lib/seo/metadata";
 export const metadata: Metadata = metadataPublica({
   titulo: "Iniciar sesión o crear cuenta",
   descripcion:
-    "Entra a tu cuenta U.V.A. o créala con tu correo para acceder a los cursos del oficio de la construcción.",
+    "Entra a tu cuenta UVA o créala con tu correo para acceder a los cursos del oficio de la construcción.",
   ruta: "/login",
   indexable: false,
 });

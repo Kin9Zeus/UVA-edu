@@ -247,7 +247,7 @@ async function enviarRecibo(referencia: string): Promise<void> {
 
     const resultado = await enviarCorreoReciboPago(perfil.correo, {
       nombre: perfil.nombre ?? "",
-      planNombre: plan?.nombre ?? "Acceso U.V.A",
+      planNombre: plan?.nombre ?? "Acceso UVA",
       montoFormateado: formatearPrecio(Number(intento.monto_centavos), intento.moneda),
       fechaPago: formatFecha(pago?.fecha_pago ?? pago?.creado_en ?? new Date().toISOString()),
       vigenteHasta: suscripcion?.fecha_renovacion

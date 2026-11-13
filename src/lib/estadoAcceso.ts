@@ -42,7 +42,7 @@ export type TipoAccesoGratuito = "INVITACION" | "OTORGADO_ADMIN";
  * porque la usan tres pantallas distintas (perfil del estudiante, listado
  * de usuarios y ficha de usuario del admin) y el requisito es que las tres
  * digan lo mismo. Tenerla escrita tres veces ya las había separado:
- * el estudiante leía "Invitación gratuita a U.V.A." y el admin
+ * el estudiante leía "Invitación gratuita a UVA" y el admin
  * "Invitación gratuita".
  */
 export const ETIQUETA_TIPO_ACCESO: Record<TipoAccesoGratuito, string> = {
@@ -234,7 +234,7 @@ export function leyendaAcceso(
     ? ""
     : acceso.tipo === "INVITACION"
       ? " por invitación"
-      : " otorgado por el equipo de U.V.A.";
+      : " otorgado por el equipo de UVA";
   return suscripcion.fechaRenovacion
     ? `Tienes acceso${origen} hasta el ${formatFecha(suscripcion.fechaRenovacion)}.`
     : `Tienes acceso${origen}, sin fecha de cierre.`;

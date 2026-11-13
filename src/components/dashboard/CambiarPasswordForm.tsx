@@ -55,7 +55,7 @@ export function CambiarPasswordForm({ tienePassword }: { tienePassword: boolean 
       <section aria-labelledby="perfil-clave-titulo" className={CLASE_BLOQUE_PERFIL}>
         {titulo}
         <p className="max-w-[68ch] text-uva-cuerpo text-uva-text-muted">
-          Entras con tu cuenta de Google, por eso no tienes una contraseña en U.V.A. Google
+          Entras con tu cuenta de Google, por eso no tienes una contraseña en UVA. Google
           protege tu acceso. Si prefieres entrar también con correo y contraseña, usa «¿Olvidaste
           tu contraseña?» en la pantalla de inicio de sesión y te enviamos un enlace para crearla.
         </p>

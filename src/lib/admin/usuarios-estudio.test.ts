@@ -59,7 +59,7 @@ describe("textoAcceso", () => {
       lineas: [{ texto: "Se le acaba en 3 días", alerta: true }, { texto: "30 días gratis" }],
     });
     expect(textoAcceso(acceso({ origen: "MANUAL", proveedor: "manual", fin: "2027-01-01T15:00:00Z" }), "ESTUDIANTE", HOY, false).etiqueta).toBe(
-      "Dado por U.V.A.",
+      "Dado por UVA",
     );
   });
 

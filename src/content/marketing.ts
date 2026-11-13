@@ -25,7 +25,7 @@ export type Cifra = { valor: string; etiqueta: string };
 
 /**
  * Cifras verificables que no salen de la base, por ejemplo la trayectoria
- * de U.V.A. en redes o en los diplomados en vivo. Cada una necesita una
+ * de UVA en redes o en los diplomados en vivo. Cada una necesita una
  * fuente que se pueda comprobar; anotarla en un comentario al lado.
  * Vacío hasta que Aleck las entregue (Notion: "Front: cifras públicas
  * reales de la plataforma").

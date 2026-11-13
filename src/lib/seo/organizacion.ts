@@ -2,7 +2,7 @@ import { siteUrl } from "@/lib/site-url";
 import { CORREO_SOPORTE, REDES, WHATSAPP_VISIBLE } from "@/lib/contacto";
 
 /**
- * La identidad de U.V.A como entidad, en el vocabulario de schema.org.
+ * La identidad de UVA como entidad, en el vocabulario de schema.org.
  *
  * Por qué vive aparte del curso (P2-5, AUDIT-2026-09-15.md)
  * ---------------------------------------------------------
@@ -23,7 +23,7 @@ import { CORREO_SOPORTE, REDES, WHATSAPP_VISIBLE } from "@/lib/contacto";
  * (ver el encabezado de lib/site-url.ts) y en local, en CI y en producción
  * son distintos. Un `@id` con el dominio equivocado es peor que ninguno.
  */
-export const NOMBRE_ORGANIZACION = "U.V.A. — Unidad Vectorial de Arquitectura";
+export const NOMBRE_ORGANIZACION = "UVA — Unidad Vectorial de Arquitectura";
 
 /** El `@id` estable de la organización. Úsalo para referenciarla desde otros nodos. */
 export function idOrganizacion(): string {

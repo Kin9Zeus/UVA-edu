@@ -26,7 +26,7 @@ function Repartos({ semana, conCobro }: { semana: SemanaEstudio; conCobro: boole
         <div className="mt-2 border-t border-uva-divider pt-2">
           <p className="m-0 mb-0.5 text-uva-etiqueta font-bold text-uva-muted-2">Cómo tienen acceso</p>
           <Fila texto="Con plan pagado" valor={semana.pagan} />
-          <Fila texto="Gratis (código o dado por U.V.A.)" valor={semana.total - semana.pagan} />
+          <Fila texto="Gratis (código o dado por UVA)" valor={semana.total - semana.pagan} />
         </div>
       )}
       <div className="mt-2 border-t border-uva-divider pt-2">

@@ -192,7 +192,7 @@ export function CanjearCodigoForm({
       )}
       {ofrecerInvitacion && (
         <a
-          href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a U.V.A.")}
+          href={urlWhatsapp("Hola, necesito una invitación nueva para entrar a UVA")}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-1 block min-h-11 py-2.5 font-bold underline underline-offset-4"

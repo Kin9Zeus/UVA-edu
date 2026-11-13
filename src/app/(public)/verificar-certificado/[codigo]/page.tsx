@@ -26,7 +26,7 @@ import { verificarCertificado } from "@/lib/certificados/verificar";
 export const metadata: Metadata = {
   title: "Verificar certificado",
   description:
-    "Comprueba la autenticidad de un certificado emitido por U.V.A. a partir de su código.",
+    "Comprueba la autenticidad de un certificado emitido por UVA a partir de su código.",
   robots: { index: false, follow: false },
 };
 

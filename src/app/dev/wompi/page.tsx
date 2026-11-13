@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Simulador de pago" };
  *
  * Vive en `/dev/` y NO dentro de (public) ni (student) a propósito: no debe
  * heredar el header, el sidebar ni la navegación del producto. No es una
- * pantalla de U.V.A, es un sustituto de una pantalla ajena.
+ * pantalla de UVA, es un sustituto de una pantalla ajena.
  *
  * `notFound()` sin el simulador activo: en producción esta ruta no existe.
  */

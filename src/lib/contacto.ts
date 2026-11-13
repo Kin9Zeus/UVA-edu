@@ -1,4 +1,4 @@
-/** Número de WhatsApp de U.V.A. — único canal de contacto público hoy. */
+/** Número de WhatsApp de UVA — único canal de contacto público hoy. */
 const WHATSAPP_TELEFONO = "%2B573234260022";
 
 /** El mismo número, como se muestra (tarjeta de contacto de /soporte). */
@@ -25,7 +25,7 @@ export function urlWhatsapp(mensaje?: string): string {
  * equipo (docs/ops/correos.md).
  *
  * Antes las plantillas citaban un buzón en el dominio uva.edu, que es de la
- * Universidad de Virginia, no de U.V.A. `contacto.test.ts` falla si vuelve.
+ * Universidad de Virginia, no de UVA. `contacto.test.ts` falla si vuelve.
  */
 export const CORREO_SOPORTE = "soporte@uvarq.com";
 

@@ -53,7 +53,7 @@ export function Header({
       {mostrarLogo && (
         <Link
           href="/dashboard"
-          aria-label="U.V.A., ir al inicio del panel"
+          aria-label="UVA, ir al inicio del panel"
           className={cn(
             "mr-auto inline-flex min-h-11 shrink-0 items-center text-uva-text no-underline hover:no-underline md:mr-0",
             mostrarLogo === "solo-mobile" && "md:hidden",

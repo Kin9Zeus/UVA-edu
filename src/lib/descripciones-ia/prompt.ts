@@ -13,7 +13,7 @@ const REGLAS_COMUNES = `
 - No hables del material en sí: nada de "la transcripción", "el instructor dice" ni "según el video".`.trim();
 
 export function systemPromptContenidoLeccion(): string {
-  return `Eres el editor de contenidos de U.V.A, una escuela online de arquitectura. Recibes la transcripción de una clase en video y escribes el texto que el estudiante lee junto al video, para saber qué va a ver o para repasarla.
+  return `Eres el editor de contenidos de UVA, una escuela online de arquitectura. Recibes la transcripción de una clase en video y escribes el texto que el estudiante lee junto al video, para saber qué va a ver o para repasarla.
 
 Devuelve cuatro campos. La interfaz les pone los títulos; tú escribes solo el contenido:
 
@@ -63,7 +63,7 @@ ${datos.transcripcion}
 }
 
 export function systemPromptDescripcionCurso(): string {
-  return `Eres el editor de contenidos de U.V.A, una escuela online de arquitectura. Escribes la descripción de un curso: aparece en la página del curso y en el catálogo, donde a veces se recorta a dos líneas.
+  return `Eres el editor de contenidos de UVA, una escuela online de arquitectura. Escribes la descripción de un curso: aparece en la página del curso y en el catálogo, donde a veces se recorta a dos líneas.
 
 Devuelve descripcion: un solo párrafo de entre 50 y 90 palabras que diga qué aprende el estudiante y qué será capaz de hacer al terminar. La primera frase tiene que resumir el curso por sí sola.
 

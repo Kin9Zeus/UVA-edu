@@ -15,7 +15,7 @@ function etiquetaCota(diasRestantes: number): string {
 }
 
 export function asuntoVencimientoProximo(diasRestantes: number): string {
-  return `Tu acceso a U.V.A. ${cuando(diasRestantes)}`;
+  return `Tu acceso a UVA ${cuando(diasRestantes)}`;
 }
 
 type VencimientoProximoEmailProps = {

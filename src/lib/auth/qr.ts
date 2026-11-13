@@ -18,7 +18,7 @@ import QRCode from "qrcode";
  *    y el de un Android con Google Authenticator no.
  *
  * 3. DECÍA «supabase». La app de autenticación mostraba esa palabra como
- *    emisor, en vez de «U.V.A.».
+ *    emisor, en vez de «UVA».
  *
  * La dirección corta lleva solo lo esencial (emisor, cuenta y secreto): las
  * apps de autenticación asumen SHA1, 6 dígitos y 30 segundos cuando no se
@@ -28,7 +28,7 @@ import QRCode from "qrcode";
  */
 
 /** Emisor que se ve en la app de autenticación. */
-const EMISOR = "U.V.A.";
+const EMISOR = "UVA";
 
 /** Margen blanco, en módulos: lo que pide la norma del QR para encontrar el código. */
 const MODULOS_MARGEN = 4;

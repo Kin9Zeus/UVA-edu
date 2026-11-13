@@ -24,15 +24,15 @@ export type TemaSoporte =
 // cambio de plan quedan fuera, porque describirían algo que hoy no existe.
 export const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[] = [
   {
-    pregunta: "¿Qué es U.V.A.?",
+    pregunta: "¿Qué es UVA?",
     respuesta:
-      "U.V.A. es una plataforma de cursos en línea enfocada en arquitectura, diseño y construcción. Incluye clases en video, materiales descargables, exámenes finales por curso y certificado de finalización.",
+      "UVA es una plataforma de cursos en línea enfocada en arquitectura, diseño y construcción. Incluye clases en video, materiales descargables, exámenes finales por curso y certificado de finalización.",
   },
   {
     pregunta: "¿Cómo accedo a los cursos?",
     respuesta: PRECIOS_HABILITADOS
-      ? "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A."
-      : "Por ahora el acceso es por invitación y sin costo: canjea tu código de invitación y tienes todo el catálogo por los días que traiga asignados. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de U.V.A.",
+      ? "Con una suscripción activa (mensual o anual) tienes acceso a todo el catálogo mientras esté vigente. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de UVA."
+      : "Por ahora el acceso es por invitación y sin costo: canjea tu código de invitación y tienes todo el catálogo por los días que traiga asignados. Algunos cursos también pueden otorgarse de forma individual, como cortesía del equipo de UVA.",
   },
   {
     pregunta: PRECIOS_HABILITADOS
@@ -46,7 +46,7 @@ export const PREGUNTAS_CENTRO_AYUDA: { pregunta: string; respuesta: ReactNode }[
         acceso a{" "}
         <span className="font-medium text-uva-text">todo el catálogo</span>{" "}
         mientras esté vigente. Un curso de cortesía es distinto: el equipo de
-        U.V.A. te da acceso a{" "}
+        UVA te da acceso a{" "}
         <span className="font-medium text-uva-text">un curso puntual</span>, sin
         que necesites suscripción ni código — aparece directo en tu catálogo.
         Puedes tener un curso de cortesía aunque no tengas (o nunca hayas
@@ -176,13 +176,13 @@ export const TEMAS_SOPORTE: {
     id: "terminos",
     titulo: "Términos y condiciones",
     contenido:
-      "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de U.V.A.",
+      "Contenido en preparación. Pronto encontrarás aquí los Términos y condiciones de UVA.",
   },
   {
     id: "privacidad",
     titulo: "Privacidad",
     contenido:
-      "Contenido en preparación. Pronto encontrarás aquí la Política de privacidad de U.V.A.",
+      "Contenido en preparación. Pronto encontrarás aquí la Política de privacidad de UVA.",
   },
 ];
 

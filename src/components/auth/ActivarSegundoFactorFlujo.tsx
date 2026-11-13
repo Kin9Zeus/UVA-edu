@@ -57,7 +57,7 @@ export function ActivarSegundoFactorFlujo({ destino }: { destino: string }) {
           <div className="max-w-full overflow-hidden rounded-uva-md border border-uva-divider">
             <Image
               src={inicio.qr}
-              alt="Código QR para añadir U.V.A. a tu app de autenticación"
+              alt="Código QR para añadir UVA a tu app de autenticación"
               width={inicio.ladoQr}
               height={inicio.ladoQr}
               unoptimized

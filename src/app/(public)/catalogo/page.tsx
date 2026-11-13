@@ -7,7 +7,7 @@ import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
   descripcion:
-    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de U.V.A. por escuela y nivel.",
+    "Cursos de arquitectura, obra, presupuesto y BIM. Explora el catálogo completo de UVA por escuela y nivel.",
   ruta: "/catalogo",
 });
 

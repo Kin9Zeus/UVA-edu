@@ -17,7 +17,7 @@ import { organizacionCompleta } from "@/lib/seo/organizacion";
 
 // P2-6 (AUDIT-2026-09-15.md): la home era la única página del sitio que no
 // exportaba `metadata` en absoluto — heredaba del layout raíz el título
-// genérico y la descripción "Plataforma de cursos U.V.A". El título y la
+// genérico y la descripción "Plataforma de cursos UVA". El título y la
 // descripción salen del propio Hero, no de copy nueva: lo que promete la
 // página y lo que promete el resultado de búsqueda tienen que ser lo mismo.
 export const metadata: Metadata = metadataPublica({

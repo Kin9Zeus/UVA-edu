@@ -1,6 +1,6 @@
 /**
  * Curvas de nivel del certificado (diseño «Finalista 2» del artifact
- * «U.V.A. — Direcciones visuales»). Coordenadas del lienzo de diseño
+ * «UVA — Direcciones visuales»). Coordenadas del lienzo de diseño
  * 1123×794 (px a 96 dpi), con y hacia abajo como en SVG. Generado a partir
  * del artboard; no se edita a mano.
  */

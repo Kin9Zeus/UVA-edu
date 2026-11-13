@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Vidas del examen: una fila de racimos de uva (referencia al nombre U.V.A.),
+ * Vidas del examen: una fila de racimos de uva (referencia al nombre UVA),
  * como el diseño "examen". Las que quedan van rellenas de magenta; las
  * perdidas, solo el contorno.
  *

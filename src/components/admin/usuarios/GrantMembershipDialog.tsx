@@ -113,7 +113,7 @@ export function GrantMembershipDialog({
               Le das: <span className="font-semibold text-uva-text">{planElegido.nombre}</span>, {dias(planElegido)}
             </p>
             <p className="m-0 text-uva-text-muted">
-              Empieza hoy y no se le cobra nada. Lo verá en su perfil como &ldquo;Acceso otorgado por U.V.A.&rdquo;.
+              Empieza hoy y no se le cobra nada. Lo verá en su perfil como &ldquo;Acceso otorgado por UVA&rdquo;.
             </p>
           </div>
         )}

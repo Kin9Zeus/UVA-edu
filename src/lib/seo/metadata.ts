@@ -12,7 +12,7 @@ import { siteUrl } from "@/lib/site-url";
  * `catalogo/[categoriaSlug]`, `planes`, `soporte` y
  * `verificar-certificado/[codigo]` exportaban SOLO un título. Todas
  * heredaban del layout raíz la misma descripción —"Plataforma de cursos
- * U.V.A"— y ninguna declaraba canonical ni tarjeta social. La única página
+ * UVA"— y ninguna declaraba canonical ni tarjeta social. La única página
  * con metadata completa era la ficha de curso, y estaba escrita a mano allí.
  *
  * Repetir ese bloque en seis archivos es la forma segura de que dentro de un
@@ -36,16 +36,16 @@ const IMAGEN_MARCA = "/og-uva.png";
 
 /** Descripción del sitio: respaldo del layout raíz y del manifest. */
 export const DESCRIPCION_SITIO =
-  "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de U.V.A., con acceso por invitación.";
+  "Cursos en línea de arquitectura, obra, presupuesto y BIM para el sector de la construcción. Formación técnica de UVA, con acceso por invitación.";
 
 /**
- * Nombre corto de la marca en los títulos («Catálogo de cursos | U.V.A.»).
+ * Nombre corto de la marca en los títulos («Catálogo de cursos | UVA»).
  * Lo pone la plantilla `title.template` del layout raíz a todas las páginas;
  * aquí solo se repite para Open Graph y Twitter, que no heredan la
  * plantilla. Cuando Aleck decida el nombre oficial (decisión 1 de
  * docs/seo/08-informe.md), se cambia solo esta constante.
  */
-export const MARCA = "U.V.A.";
+export const MARCA = "UVA";
 
 /** Largo máximo de un título en resultados de búsqueda (tarea de metadatos, Notion). */
 export const LARGO_MAXIMO_TITULO = 60;

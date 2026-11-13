@@ -51,7 +51,7 @@ export type TextoAcceso = {
 /** De dónde salió el acceso, en pasado: para un acceso que ya terminó. */
 export function deDondeEra(acceso: AccesoListado): string {
   if (acceso.origen === "PAGO") return `Pagó el plan ${acceso.plan ?? ""}`.trim();
-  if (acceso.origen === "MANUAL") return "Se lo dio U.V.A.";
+  if (acceso.origen === "MANUAL") return "Se lo dio UVA";
   return "Entró por invitación";
 }
 
@@ -106,7 +106,7 @@ export function textoAcceso(
   }
   const dias = diasDeAcceso(acceso);
   return {
-    etiqueta: acceso.origen === "MANUAL" ? "Dado por U.V.A." : "Por invitación",
+    etiqueta: acceso.origen === "MANUAL" ? "Dado por UVA" : "Por invitación",
     tono: "success",
     lineas: [fin, ...(dias ? [{ texto: `${dias} días gratis` }] : [])],
   };

@@ -11,7 +11,7 @@ import { destinoLegalDeTema } from "@/lib/legal/redireccion-soporte";
 export const metadata: Metadata = metadataPublica({
   titulo: "Soporte",
   descripcion:
-    "Respuestas a las dudas frecuentes sobre cuenta, acceso, certificados y pagos en U.V.A., y cómo escribirnos.",
+    "Respuestas a las dudas frecuentes sobre cuenta, acceso, certificados y pagos en UVA, y cómo escribirnos.",
   ruta: "/soporte",
 });
 

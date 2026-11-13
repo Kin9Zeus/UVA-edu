@@ -25,7 +25,7 @@ export function VerificarSegundoFactorFlujo({ destino }: { destino: string }) {
     <PasoAcceso
       posicionNivel={POSICION_NIVEL.centro}
       titulo="Escribe tu código"
-      subtitulo="Abre tu app de autenticación y escribe el código de 6 dígitos de U.V.A. Cambia cada 30 segundos."
+      subtitulo="Abre tu app de autenticación y escribe el código de 6 dígitos de UVA. Cambia cada 30 segundos."
       paso={1}
       pasos={PASOS}
       etiquetaPasos="Pasos para entrar al panel"

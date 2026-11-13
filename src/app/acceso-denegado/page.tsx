@@ -38,7 +38,7 @@ export default async function AccesoDenegadoPage() {
         codigo="403"
         indicador="raya"
         titulo="No tienes permiso para ver esto"
-        texto="Esta sección está reservada para el equipo administrativo de U.V.A. Inicia sesión con una cuenta de administrador para entrar."
+        texto="Esta sección está reservada para el equipo administrativo de UVA. Inicia sesión con una cuenta de administrador para entrar."
         accionPrimaria={{ label: "Iniciar sesión", href: "/login" }}
         accionSecundaria={{ label: "Volver al inicio", href: "/" }}
         cajetin={{ celdas: [{ etiqueta: "Error", valor: "403" }, { etiqueta: "Sesión", valor: "Sin iniciar" }] }}
@@ -57,7 +57,7 @@ export default async function AccesoDenegadoPage() {
       codigo="403"
       indicador="raya"
       titulo="No tienes permiso para ver esto"
-      texto={`Esta sección está reservada para el equipo administrativo de U.V.A. ${cuenta} no tiene acceso a esta ruta.`}
+      texto={`Esta sección está reservada para el equipo administrativo de UVA ${cuenta} no tiene acceso a esta ruta.`}
       accionPrimaria={{ label: "Volver al inicio", href: "/" }}
       accionSecundaria={{ label: "Ver mis cursos", href: "/dashboard" }}
       cajetin={{ celdas: [{ etiqueta: "Error", valor: "403" }, ...(rol ? [{ etiqueta: "Rol", valor: rol }] : [])] }}

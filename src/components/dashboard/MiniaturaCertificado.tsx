@@ -11,7 +11,7 @@ import { siteUrl } from "@/lib/site-url";
 
 /**
  * Miniatura del certificado con el mismo diseño y los mismos textos del PDF
- * (lib/certificados/pdf.ts, «curvas de nivel»): logo e institución, "U.V.A.
+ * (lib/certificados/pdf.ts, «curvas de nivel»): logo e institución, "UVA
  * certifica que", nombre, curso, fecha e intensidad, firmas, código, la
  * dirección de verificación y un QR real. Lo que se ve en "Mis certificados"
  * y en la verificación es lo que se descarga.

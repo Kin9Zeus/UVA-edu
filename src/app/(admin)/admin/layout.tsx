@@ -8,7 +8,7 @@ import { AdminToastProvider } from "@/components/admin/Toast";
 import { AdminSearchProvider } from "@/components/admin/SearchContext";
 import { leerPreferenciaSidebar } from "@/lib/sidebar-preferencia-servidor";
 
-// Las páginas del panel dan solo su nombre: «Categorías — Admin | U.V.A.».
+// Las páginas del panel dan solo su nombre: «Categorías — Admin | UVA».
 export const metadata: Metadata = {
   title: { default: `Admin | ${MARCA}`, template: `%s — Admin | ${MARCA}` },
 };

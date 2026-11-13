@@ -219,7 +219,7 @@ export function Sidebar({
       >
         <Link
           href="/dashboard"
-          aria-label="U.V.A., ir al inicio del panel"
+          aria-label="UVA, ir al inicio del panel"
           className={cn(
             "min-h-11 items-center text-uva-text no-underline hover:no-underline",
             { compacto: "hidden", completo: "inline-flex", auto: "hidden xl:inline-flex" }[modo],

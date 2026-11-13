@@ -81,7 +81,7 @@ describe("iniciarActivacion", () => {
     expect(servidorFalso.llamadasA("auth.mfa:enroll")[0].argumentos[0]).toEqual({ factorType: "totp" });
   });
 
-  it("genera el QR con SU dirección corta (emisor U.V.A. y el correo de quien activa), no con el qr_code de Supabase", async () => {
+  it("genera el QR con SU dirección corta (emisor UVA y el correo de quien activa), no con el qr_code de Supabase", async () => {
     servidorFalso.responder("auth.mfa:listFactors", SIN_FACTORES);
     servidorFalso.conUsuario({ ...ADMIN, email: "ana@uva.co" });
 

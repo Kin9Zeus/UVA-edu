@@ -17,24 +17,24 @@ const modulosDe = (uri: string) => QRCode.create(uri, { errorCorrectionLevel: "L
 describe("uriSegundoFactor", () => {
   it("lleva emisor, cuenta (el correo, codificado) y secreto", () => {
     expect(uriSegundoFactor({ secreto: SECRETO, correo: CORREO })).toBe(
-      `otpauth://totp/U.V.A.:juanlarrotasilva%40hotmail.com?secret=${SECRETO}&issuer=U.V.A.`,
+      `otpauth://totp/UVA:juanlarrotasilva%40hotmail.com?secret=${SECRETO}&issuer=UVA`,
     );
   });
 
-  it("no menciona a Supabase: la app de autenticación debe decir U.V.A.", () => {
+  it("no menciona a Supabase: la app de autenticación debe decir UVA", () => {
     expect(uriSegundoFactor({ secreto: SECRETO, correo: CORREO }).toLowerCase()).not.toContain("supabase");
   });
 
   it("un correo con caracteres especiales se codifica y no rompe la dirección", () => {
     const uri = uriSegundoFactor({ secreto: SECRETO, correo: "ana+uva@correo.co" });
 
-    expect(uri).toContain("U.V.A.:ana%2Buva%40correo.co?");
+    expect(uri).toContain("UVA:ana%2Buva%40correo.co?");
     expect(new URL(uri).searchParams.get("secret")).toBe(SECRETO);
   });
 
   it("sin correo la cuenta es solo el emisor", () => {
     expect(uriSegundoFactor({ secreto: SECRETO, correo: undefined })).toBe(
-      `otpauth://totp/U.V.A.?secret=${SECRETO}&issuer=U.V.A.`,
+      `otpauth://totp/UVA?secret=${SECRETO}&issuer=UVA`,
     );
   });
 

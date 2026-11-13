@@ -49,13 +49,13 @@ describe("metadataPublica", () => {
     });
 
     expect(meta.openGraph).toMatchObject({
-      title: "Soporte | U.V.A.",
+      title: "Soporte | UVA",
       description: "Dudas frecuentes sobre cuenta y certificados.",
       url: `${ORIGEN}/soporte`,
       locale: "es_CO",
     });
     expect(meta.twitter).toMatchObject({
-      title: "Soporte | U.V.A.",
+      title: "Soporte | UVA",
       description: "Dudas frecuentes sobre cuenta y certificados.",
     });
   });

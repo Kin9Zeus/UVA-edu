@@ -12,8 +12,8 @@ import {
 } from "@/lib/certificados/diseno";
 
 /**
- * Certificado U.V.A. — diseño «Finalista 2» (curvas de nivel) del artifact
- * «U.V.A. — Direcciones visuales», dirección visual Maqueta. El mismo para
+ * Certificado UVA — diseño «Finalista 2» (curvas de nivel) del artifact
+ * «UVA — Direcciones visuales», dirección visual Maqueta. El mismo para
  * todos los cursos.
  *
  * Todo es vectorial: las curvas de nivel (curvas.ts), el logo de trazo, las

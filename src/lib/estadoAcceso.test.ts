@@ -179,7 +179,7 @@ describe("leyendaAccesoGratuito", () => {
       ahora,
     );
     expect(frase).toBe(
-      `Tienes acceso otorgado por el equipo de U.V.A. hasta el ${formatFecha(fechaFutura)}.`,
+      `Tienes acceso otorgado por el equipo de UVA hasta el ${formatFecha(fechaFutura)}.`,
     );
     expect(frase).not.toContain("invitación");
   });

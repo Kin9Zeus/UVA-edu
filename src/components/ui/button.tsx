@@ -43,7 +43,7 @@ const buttonVariants = cva(
         "destructive-solid":
           "border-uva-btn-peligro bg-uva-btn-peligro text-uva-on-accent hover:border-uva-btn-peligro-hover hover:bg-uva-btn-peligro-hover active:bg-uva-btn-peligro-hover",
         link: "border-transparent text-uva-accent-ink underline-offset-4 hover:underline active:opacity-70",
-        /* U.V.A — variantes del sitio público (auth.css / home.css migrados).
+        /* UVA — variantes del sitio público (auth.css / home.css migrados).
            El original no define `transition` en .btn, así que se cancela la
            transition-all heredada de la base para no animar lo que antes
            cambiaba de forma instantánea. */
@@ -68,7 +68,7 @@ const buttonVariants = cva(
         "icon-xs": `p-1 [&_svg:not([class*='size-'])]:size-3 ${TACTIL_CUADRADO}`,
         "icon-sm": `p-1.5 [&_svg:not([class*='size-'])]:size-3.5 ${TACTIL_CUADRADO}`,
         "icon-lg": `p-3 ${TACTIL_CUADRADO}`,
-        /* U.V.A — dimensiones compartidas de .btn (auth.css); primary ajusta alto/tipografía por className */
+        /* UVA — dimensiones compartidas de .btn (auth.css); primary ajusta alto/tipografía por className */
         uva: "min-h-11 gap-2.5 px-5 py-2 text-sm font-semibold",
         /* El tamaño exacto vive por completo en la className de cada uso (p.ej. botones ícono) */
         auto: "",

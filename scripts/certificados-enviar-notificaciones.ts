@@ -132,7 +132,7 @@ async function main() {
     const { error: errorEnvio } = await resend.emails.send(await conTextoPlano({
       // Mismo remitente que src/lib/resend.ts: uvarq.com está verificado
       // en Resend (SPF/DKIM/DMARC OK).
-      from: "U.V.A <noreply@uvarq.com>",
+      from: "UVA <noreply@uvarq.com>",
       to: perfil.correo,
       subject: asuntoCertificadoEmitido(fila.nombre_curso),
       react: CertificadoEmitidoEmail({

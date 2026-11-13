@@ -94,7 +94,7 @@ export default async function ExamenPage({
     return (
       <div className="flex min-h-dvh flex-col bg-uva-bg">
         <EncabezadoCurso
-          inicio={{ href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }}
+          inicio={{ href: "/dashboard", etiqueta: "UVA, ir al inicio del panel" }}
           titulo="Examen final"
           logoEnCelular
         >
@@ -133,7 +133,7 @@ export default async function ExamenPage({
   return (
     <div className="flex min-h-dvh flex-col bg-uva-bg">
       <EncabezadoCurso
-        inicio={{ href: "/dashboard", etiqueta: "U.V.A., ir al inicio del panel" }}
+        inicio={{ href: "/dashboard", etiqueta: "UVA, ir al inicio del panel" }}
         volver={{ href: `/cursos/${cursoSlug}`, texto: curso.titulo }}
         logoEnCelular
       >

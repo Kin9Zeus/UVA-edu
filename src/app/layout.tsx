@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   // tarjetas de vista previa al compartir un link salen rotas.
   metadataBase: new URL(siteUrl()),
   // Plantilla de títulos: cada página da solo su nombre y aquí se agrega la
-  // marca al final («Catálogo de cursos | U.V.A.»). `default` es la página
+  // marca al final («Catálogo de cursos | UVA»). `default` es la página
   // que no declara título.
   title: { default: NOMBRE_ORGANIZACION, template: `%s | ${MARCA}` },
   description: DESCRIPCION_SITIO,

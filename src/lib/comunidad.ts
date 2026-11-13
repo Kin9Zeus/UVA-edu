@@ -442,7 +442,7 @@ export async function getComunidadPost(identificador: string): Promise<Comunidad
       eliminadoPorAdmin: post.eliminado_por_admin,
       tiempo: tiempoDePost(post.creado_en, post.categoria),
       autorId: post.id_usuario,
-      autorNombre: autor?.nombre ?? "Estudiante U.V.A.",
+      autorNombre: autor?.nombre ?? "Estudiante UVA",
       autorFotoUrl: autor?.foto_url ?? null,
       totalRespuestas: 0,
       totalReacciones: 0,

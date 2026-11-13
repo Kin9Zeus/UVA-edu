@@ -22,7 +22,7 @@ export function AccesoMarco({ children }: { children: ReactNode }) {
       <header className="px-3 pt-3 bajo:pt-1 apaisado:shrink-0 apaisado:pt-1.5 apaisado:pr-0 min-[900px]:absolute min-[900px]:top-5 min-[900px]:left-10 min-[900px]:z-[2] min-[900px]:p-0 min-[1920px]:top-7 min-[1920px]:left-14">
         <Link
           href="/"
-          aria-label="U.V.A., ir al inicio"
+          aria-label="UVA, ir al inicio"
           className="inline-flex min-h-11 items-center gap-2 text-uva-text hover:text-uva-text hover:no-underline"
         >
           <LogoUva className="h-[31px] w-24 muy-bajo:h-[26px] muy-bajo:w-20 min-[1920px]:h-[43px] min-[1920px]:w-[132px]" />

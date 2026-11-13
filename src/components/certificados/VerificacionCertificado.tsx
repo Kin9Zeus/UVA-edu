@@ -29,7 +29,7 @@ const FOCO =
  * buscar (sin código), válido, no encontrado, demasiados intentos y error.
  *
  * Cabecera propia y mínima, sin el header del sitio: quien llega suele venir
- * del QR del certificado, no de navegar U.V.A.
+ * del QR del certificado, no de navegar UVA.
  */
 export function VerificacionCertificado({
   resultado,
@@ -44,7 +44,7 @@ export function VerificacionCertificado({
         <div className="mx-auto flex max-w-uva items-center gap-4 px-4 py-2.5 md:px-10 md:py-3.5">
           <Link
             href="/"
-            aria-label="U.V.A., ir al inicio"
+            aria-label="UVA, ir al inicio"
             className={cn(
               "inline-flex min-h-11 items-center rounded-uva-xs text-uva-text",
               FOCO,
@@ -66,7 +66,7 @@ export function VerificacionCertificado({
               "ml-auto hidden w-auto px-4 text-uva-detalle sm:inline-flex",
             )}
           >
-            Ir a U.V.A.
+            Ir a UVA
           </Link>
         </div>
       </header>
@@ -83,7 +83,7 @@ export function VerificacionCertificado({
               false) ya había cargado, y el salto movía toda la tarjeta (CLS 0,19). */}
           <div className="flex flex-col items-start gap-3 border-b border-dashed border-uva-line-strong pb-4.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="m-0 text-uva-detalle font-bold text-uva-text-muted">
-              Verificación de certificado U.V.A.
+              Verificación de certificado UVA
             </p>
             {codigo && (
               <p className="m-0 inline-flex min-h-8 max-w-full items-center rounded-uva-sm border border-uva-divider bg-uva-surface-2 px-3 font-codigo text-uva-detalle font-medium tracking-[0.04em] break-all">
@@ -157,7 +157,7 @@ function Contenido({
             titulo="Verifica un certificado"
           >
             Escribe el código que aparece en el certificado para confirmar que
-            lo emitió U.V.A.
+            lo emitió UVA
           </Estado>
           <VerificarCertificadoForm
             variante="pagina"
@@ -278,7 +278,7 @@ function Valido({
         icono={<ShieldCheck />}
         titulo="Certificado válido"
       >
-        Este código corresponde a un certificado real emitido por U.V.A.
+        Este código corresponde a un certificado real emitido por UVA
       </Estado>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,470px)_minmax(0,1fr)]">

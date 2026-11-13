@@ -1,5 +1,5 @@
 /**
- * Logo U.V.A. de trazo (dirección visual «Maqueta»). Toma el color del texto
+ * Logo UVA de trazo (dirección visual «Maqueta»). Toma el color del texto
  * (`currentColor`), así sirve igual en claro y en oscuro. Decorativo por
  * defecto: el enlace o el contexto que lo envuelve pone el nombre accesible.
  */

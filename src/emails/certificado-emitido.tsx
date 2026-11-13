@@ -30,7 +30,7 @@ export function CertificadoEmitidoEmail({ nombre, cursoTitulo, codigoVerificacio
       seccion="Certificados"
       nombre="Certificado listo"
       hoja="06"
-      motivo="Recibes este correo porque terminaste un curso en U.V.A."
+      motivo="Recibes este correo porque terminaste un curso en UVA."
     >
       <Titulo>{corto ? `¡Felicitaciones, ${corto}!` : "¡Felicitaciones!"}</Titulo>
       <Parrafo>

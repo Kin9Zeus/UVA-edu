@@ -15,7 +15,7 @@ import { NOMBRE_ORGANIZACION } from "@/lib/seo/organizacion";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: NOMBRE_ORGANIZACION,
-    short_name: "U.V.A.",
+    short_name: "UVA",
     description: DESCRIPCION_SITIO,
     lang: "es",
     start_url: "/",

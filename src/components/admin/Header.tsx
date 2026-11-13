@@ -47,7 +47,7 @@ export function Header({ nombre, fotoUrl = null }: { nombre: string; fotoUrl?: s
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-1 border-b border-uva-divider bg-uva-bg/90 pr-2.5 pl-4 backdrop-blur md:gap-4 md:px-8">
       <Link
         href="/admin"
-        aria-label="U.V.A. Admin, ir al inicio del panel"
+        aria-label="UVA Admin, ir al inicio del panel"
         className="mr-auto inline-flex min-h-11 shrink-0 items-center gap-2 text-uva-text no-underline hover:no-underline md:hidden"
       >
         <LogoUva className="h-[25px] w-[77px]" />
