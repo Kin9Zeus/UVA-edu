@@ -52,7 +52,8 @@
     "audit:overflow": "tsx scripts/audit/overflow-detector.ts",
     "audit:latencia": "tsx scripts/audit/latencia.ts",
     "audit:cwv": "tsx scripts/audit/cwv.ts",
-    "audit:contraste": "tsx scripts/audit/contraste.ts"
+    "audit:contraste": "tsx scripts/audit/contraste.ts",
+    "audit:produccion": "tsx scripts/auditoria-produccion.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
