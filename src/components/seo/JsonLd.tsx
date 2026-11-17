@@ -41,7 +41,11 @@
  * barra. Es la mitigación estándar y la razón por la que esto no se deja al
  * `JSON.stringify` pelado.
  */
-export function JsonLd({ data }: { data: Record<string, unknown> }) {
+export function JsonLd({ data }: { data: Record<string, unknown> | null }) {
+  // Los generadores devuelven `null` cuando no hay nada veraz que publicar
+  // (una lista sin cursos, una ruta de un solo elemento): no se imprime nada.
+  if (!data) return null;
+
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
 
   return (

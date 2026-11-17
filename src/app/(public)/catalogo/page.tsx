@@ -4,6 +4,9 @@ import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { DESCRIPCION_META_CATALOGO } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
+import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
 
 export const metadata: Metadata = metadataPublica({
   titulo: "Catálogo de cursos",
@@ -29,8 +32,16 @@ export default async function CatalogoPage({
     pagina: filtros.pagina,
   });
 
+  // Datos estructurados (SEO/GEO fase 14): la ruta que pinta CatalogoCursos
+  // (Inicio / Catálogo) y la lista de cursos solo sin filtros, que es la
+  // versión que declara el canonical.
+  const migas = construirMigasJsonLd(MIGAS_CATALOGO);
+  const lista = debePublicarLista(filtros) ? construirListaCursosJsonLd(resultado) : null;
+
   return (
     <main id="contenido" tabIndex={-1}>
+      <JsonLd data={migas} />
+      <JsonLd data={lista} />
       <CatalogoCursos contexto="publico" categorias={categorias} resultado={resultado} filtros={filtros} niveles={niveles} />
     </main>
   );

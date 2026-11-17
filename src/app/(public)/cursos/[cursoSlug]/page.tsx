@@ -10,6 +10,7 @@ import { getSituacionExamen } from "@/lib/examen";
 import { CursoFicha } from "@/components/curso/CursoFicha";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { construirCursoJsonLd } from "@/lib/seo/curso-jsonld";
+import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
 import { metadataPublica, tituloCurso } from "@/lib/seo/metadata";
 import { recortarDescripcion } from "@/lib/seo/descripciones";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -95,10 +96,21 @@ export default async function CursoDetallePage({
   // la que nadie mira al hacer un cambio.
   const jsonLd = construirCursoJsonLd(curso, calificaciones);
 
+  // Migas (SEO/GEO fase 14): la misma escuela que pinta CursoFicha
+  // (`curso.categorias[0]`), con "Inicio" al principio. Sin escuela, la ruta
+  // salta de Catálogo al curso.
+  const escuela = curso.categorias[0];
+  const migas = construirMigasJsonLd([
+    ...MIGAS_CATALOGO,
+    ...(escuela ? [{ nombre: escuela.nombre, ruta: `/catalogo/${escuela.slug}` }] : []),
+    { nombre: curso.titulo, ruta: `/cursos/${curso.slug}` },
+  ]);
+
   if (!user) {
     return (
       <>
         <JsonLd data={jsonLd} />
+        <JsonLd data={migas} />
         <SiteHeader {...perfilActual} />
         <main id="contenido" tabIndex={-1}>
           {/* Sin sesión: sin examen (no es contenido público) y con reseñas
@@ -120,6 +132,7 @@ export default async function CursoDetallePage({
   return (
     <div className="flex min-h-dvh">
       <JsonLd data={jsonLd} />
+      <JsonLd data={migas} />
       <Sidebar
         certificadosCount={certificadosCount}
         diasGracia={diasGracia}

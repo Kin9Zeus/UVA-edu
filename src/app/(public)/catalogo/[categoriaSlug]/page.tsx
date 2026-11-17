@@ -7,6 +7,9 @@ import { slugActual } from "@/lib/slugs-anteriores";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
+import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
 
 export async function generateMetadata({
   params,
@@ -75,8 +78,19 @@ export default async function CategoriaPage({
     pagina: filtros.pagina,
   });
 
+  // Datos estructurados (SEO/GEO fase 14): la misma ruta que pinta
+  // CatalogoCursos (Inicio / Catálogo / Escuela) y la lista de cursos solo en
+  // la primera página sin filtros, que es la que declara el canonical.
+  const migas = construirMigasJsonLd([
+    ...MIGAS_CATALOGO,
+    { nombre: categoria.nombre, ruta: `/catalogo/${categoria.slug}` },
+  ]);
+  const lista = debePublicarLista(filtros) ? construirListaCursosJsonLd(resultado) : null;
+
   return (
     <main id="contenido" tabIndex={-1}>
+      <JsonLd data={migas} />
+      <JsonLd data={lista} />
       <CatalogoCursos
         contexto="publico"
         categorias={[]}
