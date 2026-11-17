@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
@@ -16,6 +16,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { BottomTabBar } from "@/components/dashboard/BottomTabBar";
 import { esUuid } from "@/lib/slug";
+import { slugActual } from "@/lib/slugs-anteriores";
 import { leerPreferenciaSidebar } from "@/lib/sidebar-preferencia-servidor";
 
 export async function generateMetadata({
@@ -60,6 +61,9 @@ export default async function CursoDetallePage({
   const curso = await getCursoPublico(cursoSlug, user?.id ?? null);
 
   if (!curso) {
+    // Slug viejo (el curso cambió de título): 308 a la URL actual.
+    const actual = await slugActual("cursos", cursoSlug);
+    if (actual) permanentRedirect(`/cursos/${actual}`);
     notFound();
   }
 
@@ -68,11 +72,11 @@ export default async function CursoDetallePage({
   // generateMetadata solo lo arreglaba para los buscadores, y quien copiaba
   // la URL de la barra seguía compartiendo el UUID.
   //
-  // `redirect` (307) y no `permanentRedirect` (308): el slug se regenera al
-  // cambiar el título (actualizarInfoCurso) y un 308 lo guarda el navegador,
-  // que seguiría mandando el UUID a un slug que ya no existe.
+  // 308 (permanente): antes era 307 porque el navegador guarda el 308 y, si
+  // el título cambiaba, seguía mandando el UUID a un slug muerto. Con el
+  // historial de slugs (lib/slugs-anteriores.ts) ese slug viejo redirige.
   if (esUuid(cursoSlug)) {
-    redirect(`/cursos/${curso.slug}`);
+    permanentRedirect(`/cursos/${curso.slug}`);
   }
 
   // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es

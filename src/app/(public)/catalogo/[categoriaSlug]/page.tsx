@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
 import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
+import { slugActual } from "@/lib/slugs-anteriores";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
@@ -53,13 +54,18 @@ export default async function CategoriaPage({
   const [categoria, niveles] = await Promise.all([resolverCategoria(categoriaSlug), getNivelesConCursos()]);
 
   if (!categoria) {
+    // Slug viejo (la escuela cambió de nombre): 308 conservando los filtros.
+    const actual = await slugActual("categorias", categoriaSlug);
+    if (actual) {
+      permanentRedirect(hrefCatalogo(`/catalogo/${actual}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
+    }
     notFound();
   }
 
   // Enlace viejo con UUID: misma página con slug, conservando los filtros.
-  // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  // 308: ver /cursos/[cursoSlug]/page.tsx.
   if (esUuid(categoriaSlug)) {
-    redirect(hrefCatalogo(`/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
+    permanentRedirect(hrefCatalogo(`/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
   }
 
   const resultado = await buscarCatalogoPublico({

@@ -575,8 +575,9 @@ model Categorias {
   creado_en        DateTime @default(now()) @db.Timestamptz
   actualizado_en   DateTime @updatedAt @db.Timestamptz
 
-  cursos        CursoCategorias[]
-  admin_creador Perfiles?         @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
+  cursos           CursoCategorias[]
+  admin_creador    Perfiles?                   @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])
+  slugs_anteriores CategoriasSlugsAnteriores[]
 
   @@index([id_admin_creador])
   @@map("categorias")
@@ -716,10 +717,38 @@ model Cursos {
   transcripciones     TranscripcionesVideo[]
   trabajos_generacion TrabajosGeneracionExamen[]
   calificaciones      CursoCalificaciones[]
+  slugs_anteriores    CursosSlugsAnteriores[]
 
   @@index([id_instructor])
   @@index([id_admin_creador])
   @@map("cursos")
+}
+
+/// Slugs que tuvo un curso antes de cambiar su título (SEO fase 14, tarea
+/// de migración al dominio). Una URL vieja responde 308 a la actual en vez
+/// de 404. Las filas las escribe solo el trigger de
+/// supabase/sql/137_slugs_anteriores.sql, que también fija sus políticas.
+model CursosSlugsAnteriores {
+  slug      String   @id
+  id_curso  String   @db.Uuid
+  creado_en DateTime @default(now()) @db.Timestamptz
+
+  curso Cursos @relation(fields: [id_curso], references: [id], onDelete: Cascade)
+
+  @@index([id_curso])
+  @@map("cursos_slugs_anteriores")
+}
+
+/// Igual que `CursosSlugsAnteriores`, para las escuelas.
+model CategoriasSlugsAnteriores {
+  slug         String   @id
+  id_categoria String   @db.Uuid
+  creado_en    DateTime @default(now()) @db.Timestamptz
+
+  categoria Categorias @relation(fields: [id_categoria], references: [id], onDelete: Cascade)
+
+  @@index([id_categoria])
+  @@map("categorias_slugs_anteriores")
 }
 
 /// Tabla puente curso↔profesor (muchos-a-muchos): un curso puede dictarlo más

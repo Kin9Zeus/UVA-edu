@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { preconnect } from "react-dom";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
@@ -10,6 +10,7 @@ import { getComentariosDeLeccion } from "@/lib/comentarios";
 import { getNotasDeLeccion } from "@/lib/notas";
 import { parsearSegundoEnUrl } from "@/lib/notas-validacion";
 import { esUuid } from "@/lib/slug";
+import { slugActual } from "@/lib/slugs-anteriores";
 import { LeccionMaqueta } from "@/components/player/LeccionMaqueta";
 import { COOKIE_PANEL_OCULTO } from "@/components/player/panelLateral";
 import { RichTextRenderer } from "@/components/editor/RichTextRenderer";
@@ -66,6 +67,12 @@ export default async function LeccionPlayerPage({
   const data = await getLeccionPlayer(cursoSlug, leccionSlug, user?.id ?? null);
 
   if (!data) {
+    // Slug viejo del curso: misma clase bajo la URL actual. Va antes del
+    // login para que quien vuelva de iniciar sesión no caiga en el slug viejo.
+    const actual = await slugActual("cursos", cursoSlug);
+    if (actual) {
+      permanentRedirect(`/cursos/${actual}/${leccionSlug}${segundoEnUrl !== null ? `?t=${segundoEnUrl}` : ""}`);
+    }
     if (!user) {
       redirect(`/login?redirect=/cursos/${cursoSlug}/${leccionSlug}`);
     }
@@ -90,9 +97,9 @@ export default async function LeccionPlayerPage({
   }
 
   // Enlace viejo con el UUID del curso o de la clase: misma URL con slugs.
-  // Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  // 308: ver /cursos/[cursoSlug]/page.tsx.
   if (esUuid(cursoSlug) || esUuid(leccionSlug)) {
-    redirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}${segundoEnUrl !== null ? `?t=${segundoEnUrl}` : ""}`);
+    permanentRedirect(`/cursos/${data.cursoSlug}/${data.leccionSlug}${segundoEnUrl !== null ? `?t=${segundoEnUrl}` : ""}`);
   }
 
   // Mux sirve el póster (image.mux.com) y el video (stream.mux.com): abrir las
