@@ -10,15 +10,12 @@ import { verificarCertificado } from "@/lib/certificados/verificar";
  *
  * Cada URL contiene el código de un certificado concreto, es decir el
  * resultado de una persona identificable. Indexarla convertiría el buscador
- * en un directorio de quién se graduó de qué. `robots.ts` ya la tiene en su
- * `disallow`, y esto lo dice también en la propia página.
+ * en un directorio de quién se graduó de qué. Lo impide el `noindex`.
  *
- * Las dos capas no sobran, hacen cosas distintas: `Disallow` impide que
- * Google la RASTREE, pero una URL enlazada desde fuera puede acabar indexada
- * igual, sin contenido. El `noindex` es lo que lo impide de verdad — y sí,
- * Google solo lo ve si puede rastrear la página, así que hoy manda el
- * robots.txt; esto es lo que protege el día que alguien lo afloje sin
- * acordarse de por qué estaba.
+ * A propósito NO está en el `disallow` de robots.ts (SEO fase 14): una URL
+ * bloqueada que alguien enlace desde LinkedIn puede quedar indexada sin
+ * contenido, porque Google no puede leer el `noindex`. Rastreable + `noindex`
+ * es lo que la saca del índice de verdad.
  *
  * Sin `canonical`: una canónica por código no tiene sentido en una página
  * que no se indexa.

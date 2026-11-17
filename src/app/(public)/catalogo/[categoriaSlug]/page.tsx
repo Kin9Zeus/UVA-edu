@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
-import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
+import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos, type CategoriaInfo } from "@/lib/categoria";
+import { CatalogoCursos, EsqueletoCatalogo } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { slugActual } from "@/lib/slugs-anteriores";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
-import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { filtrosDeUrl, hrefCatalogo, type FiltrosCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 
 export async function generateMetadata({
   params,
@@ -51,7 +52,11 @@ export default async function CategoriaPage({
   const filtros = filtrosDeUrl(await searchParams);
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
   // cambio de rutas siguen resolviendo.
-  const [categoria, niveles] = await Promise.all([resolverCategoria(categoriaSlug), getNivelesConCursos()]);
+  // Primero se comprueba que la escuela existe y DESPUÉS se muestra el
+  // esqueleto: con el esqueleto ya enviado el estado queda en 200 y un 404 o
+  // una redirección solo pueden ir dentro del HTML (SEO fase 14, tarea de
+  // robots.txt, paso 3). resolverCategoria suele salir de caché.
+  const categoria = await resolverCategoria(categoriaSlug);
 
   if (!categoria) {
     // Slug viejo (la escuela cambió de nombre): 308 conservando los filtros.
@@ -68,6 +73,17 @@ export default async function CategoriaPage({
     permanentRedirect(hrefCatalogo(`/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
   }
 
+  return (
+    <main id="contenido" tabIndex={-1}>
+      <Suspense fallback={<EsqueletoCatalogo />}>
+        <CursosDeEscuela categoria={categoria} filtros={filtros} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function CursosDeEscuela({ categoria, filtros }: { categoria: CategoriaInfo; filtros: FiltrosCatalogo }) {
+  const niveles = await getNivelesConCursos();
   const resultado = await buscarCatalogoPublico({
     query: filtros.q,
     categoriaId: categoria.id,
@@ -76,15 +92,13 @@ export default async function CategoriaPage({
   });
 
   return (
-    <main id="contenido" tabIndex={-1}>
-      <CatalogoCursos
-        contexto="publico"
-        categorias={[]}
-        resultado={resultado}
-        filtros={filtros}
-        niveles={niveles}
-        categoriaFija={categoria}
-      />
-    </main>
+    <CatalogoCursos
+      contexto="publico"
+      categorias={[]}
+      resultado={resultado}
+      filtros={filtros}
+      niveles={niveles}
+      categoriaFija={categoria}
+    />
   );
 }

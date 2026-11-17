@@ -15,6 +15,7 @@ const CUENTA_POR_ROL: Record<string, string> = {
 
 export const metadata: Metadata = {
   title: "No tienes permiso para ver esto",
+  robots: { index: false, follow: false },
 };
 
 export default async function AccesoDenegadoPage() {
