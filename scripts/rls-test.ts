@@ -1979,8 +1979,8 @@ async function main() {
     );
     const { data: comunidadAal1, error: errComunidadAal1 } = await clienteAdmin.rpc("comunidad_tiene_acceso");
     registrar(
-      "administrador aal1 sin suscripción NO tiene el atajo de admin a Comunidad (131)",
-      !errComunidadAal1 && comunidadAal1 === false,
+      "administrador aal1 sin suscripción entra a Comunidad como estudiante con suscripción (138)",
+      !errComunidadAal1 && comunidadAal1 === true,
       errComunidadAal1 ? errComunidadAal1.message : `comunidad_tiene_acceso=${comunidadAal1}`,
     );
     await esperarSinPermiso(
