@@ -53,6 +53,7 @@
     "audit:latencia": "tsx scripts/audit/latencia.ts",
     "audit:cwv": "tsx scripts/audit/cwv.ts",
     "audit:contraste": "tsx scripts/audit/contraste.ts",
+    "audit:html-rastreadores": "tsx scripts/audit/html-rastreadores.ts",
     "audit:produccion": "tsx scripts/auditoria-produccion.ts"
   },
   "dependencies": {
