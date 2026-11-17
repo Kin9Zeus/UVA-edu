@@ -22,18 +22,18 @@ nombres estándar de AWS): la app nunca la usa por accidente.
 
 | Llave trampa | Dónde está | Creada | El aviso va a |
 | --- | --- | --- | --- |
-| Llave AWS señuelo (par ID + secreta) | Variables de Railway, servicio de la app, sin sellar, como `AWS_ACCESS_KEY_ID_BACKUP` y `AWS_SECRET_ACCESS_KEY_BACKUP` | Fase E (octubre 2026) | Aleck |
-| La misma llave, copia local | `.env.local` y `.env.produccion.local` de quien corre scripts, con los mismos nombres | Fase E | Aleck |
+| Llave AWS señuelo (par ID + secreta) | Variables de Railway, servicio de la app, sin sellar, como `AWS_ACCESS_KEY_ID_BACKUP` y `AWS_SECRET_ACCESS_KEY_BACKUP` | Fase E (octubre 2026) | Buzón de seguridad compartido (el segundo Gmail del equipo, solo para esto) |
+| La misma llave, copia local | `.env.local` y `.env.produccion.local` de quien corre scripts, con los mismos nombres | Fase E | Buzón de seguridad compartido |
 
-**Pendiente:** confirmar que el aviso llega. Nunca se probó (Cerebro,
-"Hallazgos abiertos"). Prueba segura: desde un computador cualquiera, con
+**Probada** (confirmado por Miguel, 2026-11-10): al usar la llave llegó el aviso
+de Canarytokens al buzón del equipo, con el recordatorio «Alerta UVA - Railway
+producción». Para repetir la prueba (cada trimestre, o si cambia el buzón): desde un computador cualquiera, con
 la AWS CLI, `aws sts get-caller-identity` usando esa llave (en las
 variables estándar `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` de esa
-terminal, no del proyecto). Debe fallar, y a los pocos minutos Aleck recibe
-el aviso. Anotar aquí la fecha.
+terminal, no del proyecto). Debe fallar, y a los pocos minutos llega el
+aviso al buzón de seguridad compartido. Anotar aquí la fecha.
 
-Mejora sugerida: que el aviso llegue también al canal del equipo
-(`canal-alertas.md`), no solo a una persona.
+El aviso llega al buzón de seguridad compartido (los tres lo leen), no a una sola persona.
 
 Cada mes: abrir la página de cada una (el enlace llega en el correo de
 creación) y confirmar que **sigue activa y sin disparos**. Un disparo es un

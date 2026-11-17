@@ -8,6 +8,9 @@ import { slugActual } from "@/lib/slugs-anteriores";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, hrefCatalogo, type FiltrosCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
+import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
 
 export async function generateMetadata({
   params,
@@ -75,6 +78,9 @@ export default async function CategoriaPage({
 
   return (
     <main id="contenido" tabIndex={-1}>
+      {/* Datos estructurados (SEO/GEO fase 14): la misma ruta que pinta
+          CatalogoCursos (Inicio / Catálogo / Escuela). */}
+      <JsonLd data={construirMigasJsonLd([...MIGAS_CATALOGO, { nombre: categoria.nombre, ruta: `/catalogo/${categoria.slug}` }])} />
       <Suspense fallback={<EsqueletoCatalogo />}>
         <CursosDeEscuela categoria={categoria} filtros={filtros} />
       </Suspense>
@@ -91,14 +97,21 @@ async function CursosDeEscuela({ categoria, filtros }: { categoria: CategoriaInf
     pagina: filtros.pagina,
   });
 
+  // La lista de cursos solo en la primera página sin filtros, que es la que
+  // declara el canonical.
+  const lista = debePublicarLista(filtros) ? construirListaCursosJsonLd(resultado) : null;
+
   return (
-    <CatalogoCursos
-      contexto="publico"
-      categorias={[]}
-      resultado={resultado}
-      filtros={filtros}
-      niveles={niveles}
-      categoriaFija={categoria}
-    />
+    <>
+      <JsonLd data={lista} />
+      <CatalogoCursos
+        contexto="publico"
+        categorias={[]}
+        resultado={resultado}
+        filtros={filtros}
+        niveles={niveles}
+        categoriaFija={categoria}
+      />
+    </>
   );
 }

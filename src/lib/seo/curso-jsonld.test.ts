@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { construirCursoJsonLd, duracionIso8601 } from "@/lib/seo/curso-jsonld";
+import { construirCursoJsonLd, construirPersona, duracionIso8601 } from "@/lib/seo/curso-jsonld";
+import { camposVacios } from "@/lib/seo/jsonld-util";
+import { idOrganizacion } from "@/lib/seo/organizacion";
 import { SIN_INSTRUCTOR } from "@/lib/instructores";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
 import type { CursoPublico } from "@/lib/curso";
@@ -176,5 +178,58 @@ describe("construirCursoJsonLd", () => {
     const jsonLd = construirCursoJsonLd(cursoBase(), CON_RESENAS);
 
     expect(jsonLd).not.toHaveProperty("offers");
+  });
+
+  it("el provider reutiliza el @id de la organización de la portada", () => {
+    const jsonLd = construirCursoJsonLd(cursoBase(), SIN_RESENAS);
+
+    expect(jsonLd.provider).toMatchObject({ "@id": idOrganizacion() });
+  });
+
+  it("no emite campos vacíos, ni con descripción en blanco ni sin categorías", () => {
+    const completo = construirCursoJsonLd(cursoBase(), CON_RESENAS);
+    const minimo = construirCursoJsonLd(
+      cursoBase({ descripcion: "  ", categorias: [], instructores: [], duracionTotalSegundos: 0 }),
+      SIN_RESENAS,
+    );
+
+    expect(camposVacios(completo)).toEqual([]);
+    expect(camposVacios(minimo)).toEqual([]);
+    expect(minimo).not.toHaveProperty("description");
+    expect(minimo).not.toHaveProperty("about");
+  });
+});
+
+describe("construirPersona", () => {
+  it("declara el tipo y el nombre, que es obligatorio", () => {
+    expect(
+      construirPersona({ id: "i-1", nombre: "Ana Restrepo", especialidad: "Arquitecta", fotoUrl: null }),
+    ).toEqual({ "@type": "Person", name: "Ana Restrepo", jobTitle: "Arquitecta" });
+  });
+
+  it("no emite jobTitle vacío cuando no hay especialidad", () => {
+    expect(
+      construirPersona({ id: "i-1", nombre: "Ana Restrepo", especialidad: "", fotoUrl: null }),
+    ).toEqual({ "@type": "Person", name: "Ana Restrepo" });
+  });
+
+  it("el curso descarta un instructor sin nombre: name es obligatorio en Person", () => {
+    const jsonLd = construirCursoJsonLd(
+      cursoBase({
+        instructores: [
+          { id: "i-1", nombre: "  ", especialidad: "Arquitecta", fotoUrl: null },
+          { id: "i-2", nombre: "Ana Restrepo", especialidad: null, fotoUrl: null },
+        ],
+      }),
+      SIN_RESENAS,
+    );
+
+    expect(jsonLd.instructor).toEqual([{ "@type": "Person", name: "Ana Restrepo" }]);
+  });
+
+  it("no publica la foto: puede ser una URL firmada que vence", () => {
+    expect(
+      construirPersona({ id: "i-1", nombre: "Ana", especialidad: null, fotoUrl: "https://cdn.test/a.jpg" }),
+    ).not.toHaveProperty("image");
   });
 });

@@ -127,12 +127,36 @@ reporta la comunidad es 0.45.0, la última anterior al cambio.
 
 ## 10.3 — Alertas (hechas y probadas el 2026-11-06)
 
+### 10.3.1 Dónde llega cada alerta
+
+Dos buzones de Gmail compartidos, a los que tienen acceso Aleck, Andrés y
+Miguel (confirmado por el equipo el 2026-11-10):
+
+| Buzón | Qué llega |
+| --- | --- |
+| Buzón general de la plataforma | Better Stack (alertas y monitor de caída), Sentry y Cloudflare |
+| Buzón de seguridad | **Solo** los avisos de las llaves señuelo (`revision-mensual.md`, sección 1) |
+
+Que el segundo reciba únicamente las señuelo es a propósito: si ese buzón
+suena, es un intruso, no ruido. Cualquier correo ahí es un incidente. Las direcciones están en Bitwarden; no se escriben
+aquí porque este repositorio es público.
+
+Reglas para que esto funcione:
+- Los tres tienen el buzón en el celular con notificación activa.
+- Un filtro de Gmail marca como importante lo que venga de Better Stack,
+  Sentry y Cloudflare, para que no caiga en spam.
+- Los buzones tienen 2FA (mejor llave de acceso que SMS) y sus códigos de
+  recuperación están en Bitwarden: restablecen la contraseña de todos los
+  servicios de arriba.
+- Quien ve una alerta primero la responde en el grupo del equipo, para que
+  los otros dos no asuman que ya la atendió otro.
+
 | Alerta | Dónde | Condición | A quién | Probada |
 | --- | --- | --- | --- | --- |
-| Seguridad — fuerza bruta (login fallido) | Better Stack, fuente `uva-produccion` | `evento:login_fallido`, más de **30** en los últimos **10 min** | Equipo de Better Stack, correo | Sí, con umbral 0: llegó el correo del incidente |
-| Seguridad — ráfaga de abuso (límite de uso) | Better Stack | `evento:limite_de_uso`, más de **20** en **10 min** | Equipo de Better Stack, correo | No (habría que llegar a un límite de verdad); mismo mecanismo que la anterior |
-| Seguridad — puerta trasera (origen rechazado) | Better Stack | `evento:origen_rechazado`, más de **100** en **10 min** (los robots que tocan `*.up.railway.app` dan 403 sueltos; 100 es alguien insistiendo) | Equipo de Better Stack, correo | Sí (Miguel, al encender el cierre de origen); revisada el 2026-11-09 |
-| Seguridad — eventos graves (area:seguridad) | Sentry, `uva-edu`, entorno `production` | "An event or issue activity is captured" + tag `area` equals `seguridad`; un aviso cada **10 min** por issue | Miembro Sebastian (cuenta de Sentry del equipo) | Sí: un código de 2FA equivocado en `/seguridad/verificar` llegó a Sentry y mandó el correo |
+| Seguridad — fuerza bruta (login fallido) | Better Stack, fuente `uva-produccion` | `evento:login_fallido`, más de **30** en los últimos **10 min** | Buzón compartido del equipo (ver 10.3.1) | Sí, con umbral 0: llegó el correo del incidente |
+| Seguridad — ráfaga de abuso (límite de uso) | Better Stack | `evento:limite_de_uso`, más de **20** en **10 min** | Buzón compartido del equipo (ver 10.3.1) | No (habría que llegar a un límite de verdad); mismo mecanismo que la anterior |
+| Seguridad — puerta trasera (origen rechazado) | Better Stack | `evento:origen_rechazado`, más de **100** en **10 min** (los robots que tocan `*.up.railway.app` dan 403 sueltos; 100 es alguien insistiendo) | Buzón compartido del equipo (ver 10.3.1) | Sí (Miguel, al encender el cierre de origen); revisada el 2026-11-09 |
+| Seguridad — eventos graves (area:seguridad) | Sentry, `uva-edu`, entorno `production` | "An event or issue activity is captured" + tag `area` equals `seguridad`; un aviso cada **10 min** por issue | Buzón compartido del equipo (cuenta de Sentry del equipo, miembro Sebastian) | Sí: un código de 2FA equivocado en `/seguridad/verificar` llegó a Sentry y mandó el correo |
 
 En las dos de Better Stack: "If data is missing" = **Don't start an incident** (sin
 intentos fallidos no hay datos, y eso no es un incidente).
@@ -143,7 +167,7 @@ vacío, la app lo rechaza antes de preguntarle a Supabase y no se registra
 nada). Cinco contraseñas equivocadas, en cambio, bloquean la cuenta 15 min.
 
 Pendientes:
-- Invitar a Aleck al equipo de Better Stack (hoy solo recibe Miguel).
+- Las alertas de Better Stack llegan al buzón general compartido (confirmado por Miguel, 2026-11-10). Falta confirmar que los tres las ven en el celular.
 - Fuerza bruta por IP y administrador de madrugada (`accion_admin` entre
   0:00 y 6:00): cuando las de arriba lleven unos días y se vea el ruido real.
 

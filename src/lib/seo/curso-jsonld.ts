@@ -1,7 +1,8 @@
 import type { CursoPublico } from "@/lib/curso";
 import type { CalificacionesCurso } from "@/lib/curso-calificaciones";
 import { esPortadaReal } from "@/lib/media";
-import { SIN_INSTRUCTOR } from "@/lib/instructores";
+import { SIN_INSTRUCTOR, type InstructorPublico } from "@/lib/instructores";
+import { sinVacios } from "@/lib/seo/jsonld-util";
 import { referenciaOrganizacion } from "@/lib/seo/organizacion";
 import { siteUrl } from "@/lib/site-url";
 
@@ -73,6 +74,23 @@ export const NIVEL_LEGIBLE: Record<CursoPublico["nivel"], string> = {
   AVANZADO: "Avanzado",
 };
 
+/**
+ * El instructor como `Person`. Solo nombre y especialidad: son los dos campos
+ * que proyecta la vista pública `curso_instructores_publico`.
+ *
+ * Sin `@id`, `url` ni `sameAs` todavía: un `@id` de persona debe apuntar a su
+ * página, y las páginas de instructor llegan con la tarea «Sobre UVA y páginas
+ * de instructores». Tampoco `image`: `fotoUrl` puede ser una URL firmada que
+ * vence, y un dato estructurado con una imagen rota es peor que sin imagen.
+ */
+export function construirPersona(instructor: InstructorPublico): Record<string, unknown> {
+  return sinVacios({
+    "@type": "Person",
+    name: instructor.nombre,
+    jobTitle: instructor.especialidad,
+  });
+}
+
 export function construirCursoJsonLd(
   curso: CursoPublico,
   calificaciones: CalificacionesCurso,
@@ -83,7 +101,9 @@ export function construirCursoJsonLd(
   // el visitante, se estaría declarando la variante duplicada como canónica.
   const url = `${siteUrl()}/cursos/${curso.slug}`;
 
-  const instructores = curso.instructores.filter((i) => i.nombre !== SIN_INSTRUCTOR);
+  // Sin nombre no hay `Person` válida (`name` es obligatorio): se descarta
+  // igual que el marcador de "Sin instructor".
+  const instructores = curso.instructores.filter((i) => i.nombre.trim() !== "" && i.nombre !== SIN_INSTRUCTOR);
   const duracion = duracionIso8601(curso.duracionTotalSegundos);
 
   const jsonLd: Record<string, unknown> = {
@@ -108,11 +128,7 @@ export function construirCursoJsonLd(
   }
 
   if (instructores.length > 0) {
-    jsonLd.instructor = instructores.map((i) => ({
-      "@type": "Person",
-      name: i.nombre,
-      ...(i.especialidad ? { jobTitle: i.especialidad } : {}),
-    }));
+    jsonLd.instructor = instructores.map(construirPersona);
   }
 
   // `hasCourseInstance` describe modalidad y duración. Google retiró en 2025
@@ -144,5 +160,7 @@ export function construirCursoJsonLd(
     };
   }
 
-  return jsonLd;
+  // Red de seguridad: una descripción en blanco o una categoría sin nombre no
+  // salen como campo vacío (ver lib/seo/jsonld-util.ts).
+  return sinVacios(jsonLd);
 }
