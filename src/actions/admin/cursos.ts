@@ -17,6 +17,7 @@ import {
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
+import { slugsOcupados } from "@/lib/admin/slugsOcupados";
 import { registrarSiFalla } from "@/lib/supabase/registrar";
 import { revalidarCursoAdmin, revalidarCursoPublico } from "@/lib/admin/revalidarCurso";
 import { IMAGEN_PORTADA_PLACEHOLDER } from "@/lib/media";
@@ -64,14 +65,9 @@ async function generarSlugCurso(
   exceptoId?: string,
 ): Promise<string> {
   const base = slugificar(titulo);
-
-  let consulta = supabase.from("cursos").select("slug").like("slug", `${base}%`);
-  if (exceptoId) consulta = consulta.neq("id", exceptoId);
-  const { data } = await consulta;
-
   return slugDisponible(base, [
     ...SLUGS_RESERVADOS_CURSO,
-    ...(data ?? []).map((fila) => fila.slug as string),
+    ...(await slugsOcupados(supabase, "cursos", base, exceptoId)),
   ]);
 }
 

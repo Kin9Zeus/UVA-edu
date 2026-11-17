@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ErrorEvent } from "@sentry/nextjs";
-import { limpiarEventoSentry, limpiarMigajaSentry, limpiarUrl, opcionesPrivacidadSentry } from "@/lib/sentry-privacidad";
+import {
+  limpiarEventoSentry,
+  limpiarMigajaSentry,
+  limpiarSpanSentry,
+  limpiarUrl,
+  opcionesPrivacidadSentry,
+} from "@/lib/sentry-privacidad";
 
 describe("limpiarUrl", () => {
   it("redacta los códigos de los enlaces de confirmación y recuperación", () => {
@@ -106,8 +112,43 @@ describe("limpiarMigajaSentry", () => {
   });
 });
 
+describe("limpiarSpanSentry", () => {
+  it("limpia el nombre y los atributos de una traza y borra los de la persona", () => {
+    const span = limpiarSpanSentry({
+      trace_id: "t",
+      span_id: "s",
+      name: "GET /auth/confirm?token_hash=xyz&type=recovery",
+      start_timestamp: 0,
+      status: "ok",
+      is_segment: true,
+      attributes: {
+        "url.full": "https://uva.co/auth/callback?code=abc&next=%2F",
+        "http.query": "email=ana@uva.co",
+        "db.query.text": "select * from x where correo = 'ana@uva.co'",
+        "user.email": "ana@uva.co",
+        "client.address": "1.2.3.4",
+        "http.response.status_code": 200,
+      },
+    });
+    expect(span.name).toBe("GET /auth/confirm?token_hash=[filtrado]&type=recovery");
+    expect(span.attributes).toEqual({
+      "url.full": "https://uva.co/auth/callback?code=[filtrado]&next=%2F",
+      "http.query": "email=[filtrado]",
+      "db.query.text": "select * from x where correo = '[correo]'",
+      "http.response.status_code": 200,
+    });
+  });
+});
+
 describe("opcionesPrivacidadSentry", () => {
-  it("deja sendDefaultPii apagado de forma explícita", () => {
-    expect(opcionesPrivacidadSentry.sendDefaultPii).toBe(false);
+  // Sentry 11: sin `dataCollection` explícito, el SDK recoge usuario, cookies y cuerpos.
+  it("cierra de forma explícita lo que Sentry 11 recoge por defecto", () => {
+    const { dataCollection } = opcionesPrivacidadSentry;
+    expect(dataCollection.userInfo).toBe(false);
+    expect(dataCollection.cookies).toBe(false);
+    expect(dataCollection.httpBodies).toEqual([]);
+    expect(dataCollection.databaseQueryData).toBe(false);
+    expect(dataCollection.urlQueryParams.deny).toEqual(expect.arrayContaining(["code", "token", "email"]));
+    expect(opcionesPrivacidadSentry.beforeSendSpan).toBe(limpiarSpanSentry);
   });
 });

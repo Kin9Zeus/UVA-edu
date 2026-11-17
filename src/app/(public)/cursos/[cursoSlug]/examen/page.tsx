@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { getPerfilActual, resumenCuenta } from "@/lib/perfil";
 import { esUuid } from "@/lib/slug";
+import { slugActual } from "@/lib/slugs-anteriores";
 import { getConteoPreguntasExamen, getResultadoIntento, getSituacionExamen, getIntentoEnCurso } from "@/lib/examen";
 import { EncabezadoCurso } from "@/components/curso/EncabezadoCurso";
 import { MenuCuenta } from "@/components/dashboard/MenuCuenta";
@@ -61,12 +62,17 @@ export default async function ExamenPage({
   // Un fallo aquí no es "el curso no existe" (AUDIT-2026-09-22.md,
   // seguimiento de P2-3): sin esto, respondía 404 durante cualquier caída.
   lanzarSiFalla(error, "ExamenPage:cursos");
-  if (!curso) notFound();
+  if (!curso) {
+    // Slug viejo del curso: el mismo examen bajo la URL actual.
+    const actual = await slugActual("cursos", cursoSlug);
+    if (actual) permanentRedirect(`/cursos/${actual}/examen${tiempo ? `?tiempo=${encodeURIComponent(tiempo)}` : ""}`);
+    notFound();
+  }
 
   // Enlace viejo con UUID: misma pantalla con slug, conservando ?tiempo= (lo
-  // pone ExamenRendir al cortar por tiempo). Motivo del 307 en /cursos/[cursoSlug]/page.tsx.
+  // pone ExamenRendir al cortar por tiempo). 308: ver /cursos/[cursoSlug]/page.tsx.
   if (esUuid(cursoSlug)) {
-    redirect(`/cursos/${curso.slug}/examen${tiempo ? `?tiempo=${encodeURIComponent(tiempo)}` : ""}`);
+    permanentRedirect(`/cursos/${curso.slug}/examen${tiempo ? `?tiempo=${encodeURIComponent(tiempo)}` : ""}`);
   }
 
   // `estricto`: esta pantalla ES la situación del examen. Sin él, un fallo de

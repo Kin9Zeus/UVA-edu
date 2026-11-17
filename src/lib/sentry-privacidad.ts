@@ -1,4 +1,8 @@
-import type { Breadcrumb, Event } from "@sentry/nextjs";
+import type { Breadcrumb, Event, init } from "@sentry/nextjs";
+
+type OpcionesSentry = NonNullable<Parameters<typeof init>[0]>;
+/** `@sentry/nextjs` no exporta `StreamedSpanJSON`: se toma de la firma de `beforeSendSpan`. */
+type SpanSentry = Parameters<NonNullable<OpcionesSentry["beforeSendSpan"]>>[0];
 
 /**
  * Lo que nunca debe llegar a Sentry — FASE 7 (datos, tarea 2) del plan de
@@ -6,9 +10,11 @@ import type { Breadcrumb, Event } from "@sentry/nextjs";
  * formularios. Lo usan el servidor (instrumentation.ts), el navegador
  * (sentry-cliente.ts) y los crons que inician Sentry por su cuenta.
  *
- * Con `sendDefaultPii: false` (explícito en cada `init`) el SDK ya deja fuera
- * la IP, el usuario, los cuerpos de las peticiones y las cookies y encabezados
- * con nombres sensibles. Esto cubre lo que queda:
+ * Con `dataCollection` (explícito en cada `init`) el SDK deja fuera la IP, el
+ * usuario, los cuerpos de las peticiones y las cookies y encabezados con
+ * nombres sensibles. Ojo: desde Sentry 11, dejar `dataCollection` sin poner
+ * RECOGE todo eso; `sendDefaultPii` ya no existe y se ignora sin avisar.
+ * Esto cubre lo que queda:
  *
  * - Correos dentro de texto libre: el mensaje de un error de Supabase o de
  *   Resend, una migaja de consola, una URL. `logError` (lib/log.ts) ya
@@ -18,7 +24,9 @@ import type { Breadcrumb, Event } from "@sentry/nextjs";
  *   recuperación llevan `code` o `token_hash`; con eso alguien podría usar el
  *   enlace mientras siga vigente.
  * - Por si acaso, cookies, cuerpo y usuario del evento, aunque el SDK ya no
- *   los mande: si alguien activa `sendDefaultPii` un día, esto sigue en pie.
+ *   los mande: si alguien abre `dataCollection` un día, esto sigue en pie.
+ * - Las trazas: desde Sentry 11 se envían como spans sueltos y
+ *   `beforeSendTransaction` ya no corre; las limpia `beforeSendSpan`.
  */
 
 const CORREO = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -76,7 +84,7 @@ function limpiarValor(valor: unknown, profundidad = 0): unknown {
   );
 }
 
-/** Para `beforeSend` y `beforeSendTransaction`. Modifica y devuelve el mismo evento. */
+/** Para `beforeSend`. Modifica y devuelve el mismo evento. */
 export function limpiarEventoSentry<T extends Event>(evento: T): T {
   delete evento.user;
 
@@ -124,10 +132,45 @@ export function limpiarMigajaSentry(migaja: Breadcrumb): Breadcrumb {
   return migaja;
 }
 
+/** Atributos de span que identifican a la persona: se borran (el SDK no debería ponerlos con `userInfo: false`). */
+const ATRIBUTO_PERSONAL = /^(user\.|client\.address|http\.client_ip)/;
+/** Atributos de span que llevan una URL o un query string. */
+const ATRIBUTO_URL = /(url|query|target|referer|route)/i;
+
+/** Para `beforeSendSpan`: el nombre y los atributos de una traza llevan URLs (con `code`, `token_hash`) y texto libre. */
+export function limpiarSpanSentry(span: SpanSentry): SpanSentry {
+  span.name = limpiarUrl(span.name);
+  for (const [llave, valor] of Object.entries(span.attributes)) {
+    if (ATRIBUTO_PERSONAL.test(llave)) delete span.attributes[llave];
+    else if (typeof valor === "string") span.attributes[llave] = ATRIBUTO_URL.test(llave) ? limpiarUrl(valor) : sinCorreos(valor);
+    else span.attributes[llave] = limpiarValor(valor);
+  }
+  return span;
+}
+
+/** Nombres (o pedazos) de encabezados y parámetros que el SDK no debe recoger. */
+const NO_RECOGER = ["forwarded", "-ip", "remote-", "via", "-user", "cookie", "authorization", "x-origen-uva"];
+const PARAMETROS_NO_RECOGER = [...NO_RECOGER, "code", "token", "email", "correo", "password", "key", "secret"];
+
 /** Las opciones de privacidad que comparten todos los `Sentry.init` del proyecto. */
 export const opcionesPrivacidadSentry = {
-  sendDefaultPii: false,
+  // Línea base de la v10 con `sendDefaultPii: false` (guía de migración a Sentry 11), más lo nuestro.
+  dataCollection: {
+    userInfo: false,
+    cookies: false,
+    httpHeaders: { request: { deny: NO_RECOGER }, response: { deny: NO_RECOGER } },
+    httpBodies: [],
+    urlQueryParams: { deny: PARAMETROS_NO_RECOGER },
+    genAI: { inputs: false, outputs: false },
+    mcp: { inputs: false, outputs: false },
+    databaseQueryData: false,
+    queues: false,
+    graphQL: { document: false, variables: false },
+  },
+  // Sentry 11 pone una traza falsa a cada `captureMessage`: cambia cómo se agrupan
+  // los avisos de seguridad y de la bitácora y marca la sesión como fallida.
+  attachStacktrace: false,
   beforeSend: limpiarEventoSentry,
-  beforeSendTransaction: limpiarEventoSentry,
+  beforeSendSpan: limpiarSpanSentry,
   beforeBreadcrumb: limpiarMigajaSentry,
-} as const;
+} satisfies OpcionesSentry;

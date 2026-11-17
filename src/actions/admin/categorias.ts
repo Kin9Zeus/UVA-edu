@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import { slugificar, slugDisponible } from "@/lib/slug";
+import { slugsOcupados } from "@/lib/admin/slugsOcupados";
 import { planificarReasignacion } from "@/lib/admin/reasignarCategoria";
 
 export type AdminActionResult = { error?: string; success?: boolean };
@@ -21,12 +22,7 @@ async function generarSlug(
   exceptoId?: string,
 ): Promise<string> {
   const base = slugificar(nombre);
-
-  let consulta = supabase.from("categorias").select("slug").like("slug", `${base}%`);
-  if (exceptoId) consulta = consulta.neq("id", exceptoId);
-  const { data } = await consulta;
-
-  return slugDisponible(base, (data ?? []).map((fila) => fila.slug as string));
+  return slugDisponible(base, await slugsOcupados(supabase, "categorias", base, exceptoId));
 }
 
 export async function crearCategoria(input: {
@@ -80,10 +76,9 @@ export async function actualizarCategoria(
 
   // El slug se regenera al renombrar, como pide el spec ("generado
   // automáticamente desde el nombre"): así corregir un nombre mal escrito
-  // también corrige la URL. El costo es que un enlace externo al slug viejo
-  // deja de resolver — los enlaces internos no se ven afectados porque
-  // todos se arman con los datos actuales, y las rutas del catálogo siguen
-  // aceptando el UUID.
+  // también corrige la URL. El slug viejo lo guarda un trigger
+  // (supabase/sql/137_slugs_anteriores.sql) y la escuela redirige desde él,
+  // así que los enlaces externos siguen funcionando.
   const { error } = await admin.supabase
     .from("categorias")
     .update({
