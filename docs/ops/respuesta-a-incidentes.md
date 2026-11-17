@@ -80,8 +80,11 @@ seguridad de Next.js y las notas de Supabase.
 | Media o baja | En la siguiente tanda de actualizaciones |
 
 Next.js va primero: es la vía más común en un despliegue como el nuestro.
-El CI ya falla si aparece una vulnerabilidad alta en las dependencias de
-producción (`npm audit --omit=dev --audit-level=high`).
+El CI ya falla si aparece una vulnerabilidad alta o crítica en las
+dependencias de producción (`npm run audit:produccion`). Si un aviso no tiene
+parche y no afecta a lo que corre en producción, se puede aceptar con una
+excepción en `src/lib/seguridad/auditoria-dependencias.ts`: con motivo y fecha
+de revisión, nunca sin ellos. Al vencer la fecha el CI vuelve a fallar.
 
 ## Después: el informe
 
