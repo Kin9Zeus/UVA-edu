@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
-import { GA_ID } from "@/lib/analitica";
+import { CLARITY_ID, GA_ID } from "@/lib/analitica";
 import { construirCsp, generarNonce } from "@/lib/csp";
 import { CABECERA_ORIGEN, RUTA_SIN_SESION, decidirOrigen } from "@/lib/origen";
 import { resolverIp, saltosConfiables } from "@/lib/clientIp";
@@ -39,6 +39,7 @@ export async function proxy(request: NextRequest) {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     analitica: GA_ID !== null,
+    clarity: CLARITY_ID !== null,
   });
 
   // En la PETICIÓN va `Content-Security-Policy` a secas: es el nombre exacto

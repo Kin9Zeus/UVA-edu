@@ -77,6 +77,10 @@ export type LeccionPlayer = {
   situacionExamen: "DISPONIBLE" | "EN_CURSO" | "EN_ESPERA" | "APROBADO" | null;
   /** Segundo en el que quedó el estudiante (tabla progreso). */
   segundoActual: number;
+  /** Ya había avance (alguna fila en `progreso`) en alguna clase del curso
+   * antes de esta visita. Falso = esta es la primera clase que abre: el
+   * evento `inicio_curso` de la analítica. */
+  cursoIniciado: boolean;
   /** Con sesión iniciada: puede comentar (RLS exige `auth.uid()`, un
    * visitante anónimo en la vista previa nunca puede, aunque sí lea). */
   puedeComentar: boolean;
@@ -302,6 +306,7 @@ async function cargarLeccionPlayer(
     examenDisponible: situacionExamen.situacion !== "SIN_EXAMEN",
     situacionExamen: situacionExamen.situacion === "SIN_EXAMEN" ? null : situacionExamen.situacion,
     segundoActual: progresoPorLeccion.get(actual.id)?.segundo_actual ?? 0,
+    cursoIniciado: progresoPorLeccion.size > 0,
     puedeComentar: !!usuarioId,
   };
 }

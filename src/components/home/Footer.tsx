@@ -14,6 +14,8 @@ import { LogoUva } from "@/components/home/LogoUva";
 import { LEGAL_HABILITADO } from "@/lib/features";
 import { NOMBRE_LEGAL, rutaLegal } from "@/lib/legal/slugs";
 import { getSlugsConTextoVigente } from "@/lib/legal/textos";
+import { ANALITICA_ACTIVA } from "@/lib/analitica";
+import { BotonConfigurarCookies } from "@/components/analitica/BotonConfigurarCookies";
 
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
@@ -186,7 +188,13 @@ export async function Footer({
         )}
 
         <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
-          <p className="text-uva-detalle text-uva-text-muted">© {new Date().getFullYear()} UVA. Hecho en obra, para LATAM.</p>
+          <div className="flex flex-col items-start gap-1">
+            <p className="text-uva-detalle text-uva-text-muted">© {new Date().getFullYear()} UVA. Hecho en obra, para LATAM.</p>
+            {/* Retirar el consentimiento debe ser tan fácil como darlo. */}
+            {ANALITICA_ACTIVA && (
+              <BotonConfigurarCookies className="min-h-11 cursor-pointer text-uva-detalle text-uva-text-muted underline underline-offset-2 hover:text-uva-accent-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent" />
+            )}
+          </div>
           <ul aria-label="UVA en redes" className="flex flex-wrap gap-2">
             {socials.map(({ label, Icon, href }) => (
               <li key={label}>
