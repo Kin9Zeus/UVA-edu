@@ -52,7 +52,7 @@ otro lugar donde guardar el secreto.
 - Monitor en **Better Stack** (Uptime): `https://beta.uvarq.com/api/health`,
   que pasa por Cloudflare (`cf-ray` en la respuesta). Cada 3 minutos,
   confirmación y recuperación de 3 minutos, verificación de SSL, aviso por
-  correo al responsable de turno (hoy Miguel). "Send test alert" probado.
+  correo al buzón compartido del equipo (Aleck, Andrés y Miguel lo leen). "Send test alert" probado.
 - **Sin monitor de origen** (`*.up.railway.app`) por decisión del equipo: los
   estudiantes no usan esa dirección y puede borrarse al terminar el paso a
   Cloudflare. Para diagnosticar a mano: si `beta.uvarq.com` cae, abrir la

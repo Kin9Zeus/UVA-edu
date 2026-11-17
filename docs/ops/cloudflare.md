@@ -14,16 +14,72 @@ la bóveda, en la regla de Cloudflare y en Railway (sellada).
 
 ## 0. Antes de empezar (decide Aleck)
 
+> El plan completo por etapas (DNS, `beta.uvarq.com` con puerta de acceso y
+> lanzamiento en `www.uvarq.com`) está en `docs/ops/etapas-dominio-uvarq.md`.
+> Este documento es la referencia de los ajustes de Cloudflare.
+
 - **Dominio.** `uvarq.com` está en GoDaddy y `www.uvarq.com` es el sitio
   corporativo. Pasar los nameservers a Cloudflare mueve **todo** el
   dominio, incluido ese sitio. Cloudflare copia los registros DNS
   existentes al agregarlo: revisar uno por uno antes de cambiar los
-  nameservers. La plataforma puede ir en un subdominio, por ejemplo
-  `app.uvarq.com`. Abajo se escribe `DOMINIO` por el que se elija.
+  nameservers. **Decidido: el dominio final de la plataforma es
+  `www.uvarq.com`**, que hoy es la landing. Abajo `DOMINIO` es
+  `www.uvarq.com` el día del cambio. Para protegerla antes (y probar todo
+  sin tocar la landing) se usa un subdominio temporal, por ejemplo
+  `beta.uvarq.com`; al cambiar la landing se repiten los pasos de la
+  sección 4 con `www.uvarq.com`. En ese cambio `www` pasa de nube gris
+  (landing, etapa 1) a naranja: agregarlo primero en gris, esperar el
+  certificado de Railway y recién entonces ponerlo en naranja.
+- **Mover `uvarq.com` sin tumbar lo que ya corre:** ver la sección 0.1. Es
+  obligatorio seguirla: el dominio tiene el sitio corporativo y el correo
+  de la plataforma (Resend).
 - **Plan de Cloudflare.** Todo lo de abajo funciona en el plan gratuito,
   con dos límites que cambian el plan original (sección 3).
 - Hacerlo en un horario tranquilo, con alguien que pueda probar en el
   celular.
+
+### 0.1 Mover `uvarq.com` de GoDaddy a Cloudflare sin romper nada
+
+> El paso a paso completo, con el plan de rescate, está en
+> `docs/ops/migracion-dns-cloudflare.md` (etapa 1). Esta sección queda como
+> resumen.
+
+Estado de GoDaddy revisado el 2026-11-05 (14 registros, DNSSEC apagado,
+nameservers `ns45/ns46.domaincontrol.com`). Los valores largos (llave DKIM)
+se copian desde el panel de GoDaddy, no de este documento.
+
+| Registro en GoDaddy | En Cloudflare |
+| --- | --- |
+| A `@` (2 IPs del reenvío de GoDaddy) | **No copiar.** Reemplazar por A `@` → `192.0.2.1` **con proxy** + Redirect Rule (abajo) |
+| CNAME `www` → `qde39z6f.up.railway.app` (sitio corporativo) | Copiar, **nube gris** (solo DNS). Con proxy, Railway no puede renovar su certificado |
+| MX `send` → `feedback-smtp.sa-east-1.amazonses.com`, prioridad 10 | Copiar igual (Resend) |
+| TXT `resend._domainkey` (DKIM) | Copiar **exacto** (Resend). Un carácter distinto y los correos dejan de llegar |
+| TXT `send` → `v=spf1 include:amazonses.com ~all` | Copiar |
+| TXT `send` → `v=spf1 include:dc-fd741b8612._spfm.send.uvarq.com ~all` | Copiar |
+| TXT `dc-fd741b8612._spfm.send` → `v=spf1 include:amazonses.com ~all` | Copiar (el SPF anterior lo referencia) |
+| TXT `_dmarc` → `v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:dmarc_rua@onsecureserver.net;` | Copiar |
+| TXT `@` `google-site-verification=…` | Copiar |
+| NS, SOA, CNAME `_domainconnect` | No copiar (propios de GoDaddy) |
+
+**Redirect Rule (Rules → Redirect Rules):** si `http.host eq "uvarq.com"`,
+redirección dinámica a `https://www.uvarq.com${http.request.uri.path}`,
+301, conservando la cadena de consulta. Reemplaza el "Reenvío" de GoDaddy
+(que no es un registro DNS y no se migra solo). Crearla **antes** de
+cambiar los nameservers.
+
+Orden:
+1. 24 h antes: bajar el TTL de los registros en GoDaddy a 10 minutos.
+2. Aleck da el visto bueno (el sitio corporativo es suyo).
+3. Agregar `uvarq.com` en Cloudflare (plan gratuito) y dejar los registros
+   como en la tabla. Todos en nube gris salvo el A `@` de la redirección.
+4. Comparar uno por uno con GoDaddy. Crear la Redirect Rule.
+5. En horario tranquilo: GoDaddy → Servidores de nombres → los de
+   Cloudflare. Esperar "Active".
+6. Probar: `uvarq.com` redirige a `www`; `www.uvarq.com` abre; en Resend el
+   dominio sigue "Verified"; llega un correo real de recuperar contraseña.
+7. Si algo falla: volver a poner `ns45.domaincontrol.com` y
+   `ns46.domaincontrol.com` en GoDaddy. Lo revierte en minutos.
+8. Activar la verificación en 2 pasos en GoDaddy y en Cloudflare.
 
 ## 1. Orden para encenderlo sin tumbar la app
 

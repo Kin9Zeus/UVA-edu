@@ -18,16 +18,21 @@ import { getSlugsConTextoVigente } from "@/lib/legal/textos";
 // La columna "Escuelas" sale de la tabla `categorias`; esta es contenido
 // editorial del sitio, sin fuente en base de datos.
 //
-// Oculta mientras sus páginas no existan: los cuatro enlaces apuntaban a `#`
-// y un enlace que no lleva a ningún lado incumple "cada llamado a la acción
-// lleva a donde dice". Se conserva el contenido para reactivarla (poner
-// `MOSTRAR_COLUMNA_COMUNIDAD` en true) cuando cada enlace tenga destino real.
+// Oculta mientras sus páginas no existan: un enlace que no lleva a ningún lado
+// incumple "cada llamado a la acción lleva a donde dice". Cada enlace queda sin
+// `href` a propósito: para reactivarla hay que darle su ruta real a cada uno y
+// poner `MOSTRAR_COLUMNA_COMUNIDAD` en true. Sin `href` no se pinta el enlace.
 const MOSTRAR_COLUMNA_COMUNIDAD = false;
 
 const columns = [
   {
     heading: "UVA y comunidad",
-    links: ["Sobre nosotros", "Blog del gremio", "Casos de éxito", "Empleo"],
+    links: [
+      { texto: "Sobre nosotros", href: undefined as string | undefined },
+      { texto: "Blog del gremio", href: undefined as string | undefined },
+      { texto: "Casos de éxito", href: undefined as string | undefined },
+      { texto: "Empleo", href: undefined as string | undefined },
+    ],
   },
 ];
 
@@ -129,13 +134,15 @@ export async function Footer({
               <div key={column.heading}>
                 <h2 className={headingClass}>{column.heading}</h2>
                 <ul>
-                  {column.links.map((link) => (
-                    <li key={link}>
-                      <a href="#" className={linkClass}>
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {column.links.map(({ texto, href }) =>
+                    href ? (
+                      <li key={texto}>
+                        <a href={href} className={linkClass}>
+                          {texto}
+                        </a>
+                      </li>
+                    ) : null,
+                  )}
                 </ul>
               </div>
             ))}
@@ -179,7 +186,7 @@ export async function Footer({
         )}
 
         <div className="flex flex-col items-start justify-between gap-5 border-t border-uva-divider pt-[22px] sm:flex-row sm:items-center">
-          <p className="text-uva-detalle text-uva-text-muted">© 2026 UVA. Hecho en obra, para LATAM.</p>
+          <p className="text-uva-detalle text-uva-text-muted">© {new Date().getFullYear()} UVA. Hecho en obra, para LATAM.</p>
           <ul aria-label="UVA en redes" className="flex flex-wrap gap-2">
             {socials.map(({ label, Icon, href }) => (
               <li key={label}>
