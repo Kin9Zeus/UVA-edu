@@ -36,6 +36,8 @@ export type OpcionesCsp = {
   sentryDsn?: string;
   /** GA4 encendido (lib/analitica.ts): abre sus orígenes. Apagado, nada. */
   analitica?: boolean;
+  /** Microsoft Clarity encendido (lib/analitica.ts). Apagado, nada. */
+  clarity?: boolean;
 };
 
 /** Host de una URL, o null si no parsea. Nunca lanza: una variable mal puesta
@@ -85,8 +87,15 @@ export const TURNSTILE = "https://challenges.cloudflare.com";
 const GA_SCRIPT = "https://*.googletagmanager.com";
 const GA_RED = ["https://*.google-analytics.com", GA_SCRIPT];
 
+/** Clarity: el tag sale de www.clarity.ms y carga el script de
+ *  scripts.clarity.ms; los datos van a *.clarity.ms y c.bing.com (sincroniza
+ *  su cookie con Bing). Al encenderlo, revisar la consola en producción por si
+ *  pide otro origen. */
+const CLARITY = "https://*.clarity.ms";
+const CLARITY_RED = [CLARITY, "https://c.bing.com"];
+
 export function construirCsp(opciones: OpcionesCsp): string {
-  const { nonce, desarrollo, supabaseUrl, sentryDsn, analitica = false } = opciones;
+  const { nonce, desarrollo, supabaseUrl, sentryDsn, analitica = false, clarity = false } = opciones;
 
   const supabase = host(supabaseUrl);
   const sentry = host(sentryDsn);
@@ -119,6 +128,7 @@ export function construirCsp(opciones: OpcionesCsp): string {
       // GA4: el script lleva nonce; el dominio es el respaldo para CSP 2.
       // Orígenes de la guía de CSP de Google para GA4.
       analitica && GA_SCRIPT,
+      clarity && CLARITY,
       desarrollo && "'unsafe-eval'",
     ],
 
@@ -150,6 +160,7 @@ export function construirCsp(opciones: OpcionesCsp): string {
       "https://image.mux.com",
       "https://img.litix.io",
       ...(analitica ? GA_RED : []),
+      ...(clarity ? CLARITY_RED : []),
       desarrollo && "https://picsum.photos",
     ],
 
@@ -210,6 +221,7 @@ export function construirCsp(opciones: OpcionesCsp): string {
       "https://*.litix.io",
       sentry && `https://${sentry}`,
       ...(analitica ? [...GA_RED, "https://*.analytics.google.com"] : []),
+      ...(clarity ? CLARITY_RED : []),
       desarrollo && "ws:",
     ],
 
