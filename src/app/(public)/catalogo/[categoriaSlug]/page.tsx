@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
-import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
+import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos, type CategoriaInfo } from "@/lib/categoria";
+import { CatalogoCursos, EsqueletoCatalogo } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { slugActual } from "@/lib/slugs-anteriores";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { descripcionEscuela, recortarDescripcion } from "@/lib/seo/descripciones";
-import { filtrosDeUrl, hrefCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { filtrosDeUrl, hrefCatalogo, type FiltrosCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
 import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
@@ -54,7 +55,11 @@ export default async function CategoriaPage({
   const filtros = filtrosDeUrl(await searchParams);
   // resolverCategoria acepta slug o UUID, así que los enlaces anteriores al
   // cambio de rutas siguen resolviendo.
-  const [categoria, niveles] = await Promise.all([resolverCategoria(categoriaSlug), getNivelesConCursos()]);
+  // Primero se comprueba que la escuela existe y DESPUÉS se muestra el
+  // esqueleto: con el esqueleto ya enviado el estado queda en 200 y un 404 o
+  // una redirección solo pueden ir dentro del HTML (SEO fase 14, tarea de
+  // robots.txt, paso 3). resolverCategoria suele salir de caché.
+  const categoria = await resolverCategoria(categoriaSlug);
 
   if (!categoria) {
     // Slug viejo (la escuela cambió de nombre): 308 conservando los filtros.
@@ -71,6 +76,20 @@ export default async function CategoriaPage({
     permanentRedirect(hrefCatalogo(`/catalogo/${categoria.slug}`, filtros, { categoria: undefined, pagina: filtros.pagina }));
   }
 
+  return (
+    <main id="contenido" tabIndex={-1}>
+      {/* Datos estructurados (SEO/GEO fase 14): la misma ruta que pinta
+          CatalogoCursos (Inicio / Catálogo / Escuela). */}
+      <JsonLd data={construirMigasJsonLd([...MIGAS_CATALOGO, { nombre: categoria.nombre, ruta: `/catalogo/${categoria.slug}` }])} />
+      <Suspense fallback={<EsqueletoCatalogo />}>
+        <CursosDeEscuela categoria={categoria} filtros={filtros} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function CursosDeEscuela({ categoria, filtros }: { categoria: CategoriaInfo; filtros: FiltrosCatalogo }) {
+  const niveles = await getNivelesConCursos();
   const resultado = await buscarCatalogoPublico({
     query: filtros.q,
     categoriaId: categoria.id,
@@ -78,18 +97,12 @@ export default async function CategoriaPage({
     pagina: filtros.pagina,
   });
 
-  // Datos estructurados (SEO/GEO fase 14): la misma ruta que pinta
-  // CatalogoCursos (Inicio / Catálogo / Escuela) y la lista de cursos solo en
-  // la primera página sin filtros, que es la que declara el canonical.
-  const migas = construirMigasJsonLd([
-    ...MIGAS_CATALOGO,
-    { nombre: categoria.nombre, ruta: `/catalogo/${categoria.slug}` },
-  ]);
+  // La lista de cursos solo en la primera página sin filtros, que es la que
+  // declara el canonical.
   const lista = debePublicarLista(filtros) ? construirListaCursosJsonLd(resultado) : null;
 
   return (
-    <main id="contenido" tabIndex={-1}>
-      <JsonLd data={migas} />
+    <>
       <JsonLd data={lista} />
       <CatalogoCursos
         contexto="publico"
@@ -99,6 +112,6 @@ export default async function CategoriaPage({
         niveles={niveles}
         categoriaFija={categoria}
       />
-    </main>
+    </>
   );
 }

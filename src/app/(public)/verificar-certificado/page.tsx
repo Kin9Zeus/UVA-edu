@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { VerificacionCertificado } from "@/components/certificados/VerificacionCertificado";
 import { normalizarCodigoCertificado } from "@/lib/certificados/codigo";
 
-/** Sin datos de nadie, pero `robots.ts` bloquea todo el prefijo: se mantiene coherente. */
+/** Sin datos de nadie, pero un formulario vacío no aporta nada en Google: `noindex`, rastreable (ver robots.ts). */
 export const metadata: Metadata = {
   title: "Verificar certificado",
   description: "Escribe el código de un certificado UVA para comprobar que es auténtico.",

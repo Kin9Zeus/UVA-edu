@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getCategoriasActivas, buscarCatalogoPublico, getNivelesConCursos } from "@/lib/categoria";
-import { CatalogoCursos } from "@/components/catalogo/CatalogoCursos";
+import { CatalogoCursos, EsqueletoCatalogo } from "@/components/catalogo/CatalogoCursos";
 import { metadataPublica } from "@/lib/seo/metadata";
 import { DESCRIPCION_META_CATALOGO } from "@/lib/seo/descripciones";
-import { filtrosDeUrl, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { filtrosDeUrl, type FiltrosCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
 import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
@@ -22,6 +23,22 @@ export default async function CatalogoPage({
   searchParams: Promise<ParametrosCatalogo>;
 }) {
   const filtros = filtrosDeUrl(await searchParams);
+  // El esqueleto va aquí y no en un loading.tsx de /catalogo: ese también
+  // envolvía a las escuelas y les impedía responder 404 (ver
+  // [categoriaSlug]/page.tsx).
+  return (
+    <main id="contenido" tabIndex={-1}>
+      {/* Datos estructurados (SEO/GEO fase 14): la ruta que pinta CatalogoCursos
+          (Inicio / Catálogo). La lista de cursos va con los cursos, abajo. */}
+      <JsonLd data={construirMigasJsonLd(MIGAS_CATALOGO)} />
+      <Suspense fallback={<EsqueletoCatalogo />}>
+        <Catalogo filtros={filtros} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function Catalogo({ filtros }: { filtros: FiltrosCatalogo }) {
   const [categorias, niveles] = await Promise.all([getCategoriasActivas(), getNivelesConCursos()]);
 
   const categoriaId = filtros.categoria ? categorias.find((fila) => fila.slug === filtros.categoria)?.id : undefined;
@@ -32,17 +49,13 @@ export default async function CatalogoPage({
     pagina: filtros.pagina,
   });
 
-  // Datos estructurados (SEO/GEO fase 14): la ruta que pinta CatalogoCursos
-  // (Inicio / Catálogo) y la lista de cursos solo sin filtros, que es la
-  // versión que declara el canonical.
-  const migas = construirMigasJsonLd(MIGAS_CATALOGO);
+  // La lista de cursos solo sin filtros, que es la versión que declara el canonical.
   const lista = debePublicarLista(filtros) ? construirListaCursosJsonLd(resultado) : null;
 
   return (
-    <main id="contenido" tabIndex={-1}>
-      <JsonLd data={migas} />
+    <>
       <JsonLd data={lista} />
       <CatalogoCursos contexto="publico" categorias={categorias} resultado={resultado} filtros={filtros} niveles={niveles} />
-    </main>
+    </>
   );
 }

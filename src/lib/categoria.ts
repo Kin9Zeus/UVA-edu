@@ -60,7 +60,7 @@ export { filtroEstadoDeUrl, type FiltroEstado } from "@/lib/filtroEstado";
 import { NIVELES, type FiltroEstado, type FiltroNivel } from "@/lib/filtroEstado";
 
 /** `totalCursos`: cursos publicados de la categoría (siempre 1 o más). */
-export type CategoriaActiva = { id: string; slug: string; nombre: string; totalCursos: number };
+export type CategoriaActiva = { id: string; slug: string; nombre: string; descripcion: string | null; totalCursos: number };
 
 export type CategoriaInfo = { id: string; slug: string; nombre: string; descripcion: string | null };
 
@@ -137,17 +137,18 @@ const categoriasActivasCacheadas = unstable_cache(
     // criterio que el pie de página y el sitemap.
     const { data, error } = await supabase
       .from("categorias")
-      .select("id, slug, nombre, curso_categorias!inner(curso:cursos!inner(id))")
+      .select("id, slug, nombre, descripcion, curso_categorias!inner(curso:cursos!inner(id))")
       .eq("activo", true)
       .eq("curso_categorias.curso.mostrado", true)
       .order("nombre");
     lanzarSiFalla(error, "categorias activas");
     // El `!inner` filtrado por `mostrado` deja una fila de curso_categorias
     // por cada curso publicado: su largo es el conteo que muestra la portada.
-    return (data ?? []).map(({ id, slug, nombre, curso_categorias }) => ({
+    return (data ?? []).map(({ id, slug, nombre, descripcion, curso_categorias }) => ({
       id,
       slug,
       nombre,
+      descripcion,
       totalCursos: curso_categorias.length,
     }));
   },
@@ -177,6 +178,17 @@ const categoriasActivasCacheadas = unstable_cache(
  * `error.tsx` (500, "reintenta"), que un rastreador trata como temporal.
  */
 export const resolverCategoria = cache(async (identificador: string): Promise<CategoriaInfo | null> => {
+  // Camino rápido: casi toda visita es a una escuela con cursos, que ya está
+  // en la lista en caché. Así la página comprueba que existe ANTES de mostrar
+  // el esqueleto (404 real, no un 200 con noindex) sin pagar una consulta
+  // (SEO fase 14, tarea de robots.txt, paso 3). UUID, slug viejo, escuela
+  // sin cursos o inexistente siguen a la consulta de siempre.
+  const enCache = (await getCategoriasActivas()).find((c) => c.slug === identificador);
+  if (enCache) {
+    const { id, slug, nombre, descripcion } = enCache;
+    return { id, slug, nombre, descripcion };
+  }
+
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("categorias")

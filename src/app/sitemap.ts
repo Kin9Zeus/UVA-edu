@@ -42,7 +42,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // menos un curso publicado, igual que el filtro del catálogo y el pie de
   // página. Una escuela vacía no se le ofrece a Google.
   const [{ data: cursos, error: errorCursos }, categorias] = await Promise.all([
-    supabase.from("cursos").select("slug, actualizado_en").eq("mostrado", true),
+    supabase
+      .from("cursos")
+      .select("slug, actualizado_en, curso_categorias(id_categoria)")
+      .eq("mostrado", true),
     getCategoriasActivas(),
   ]);
 
@@ -51,36 +54,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // versión buena (igual que getCategoriasActivas, que ya lanza).
   lanzarSiFalla(errorCursos, "sitemap:cursos");
 
+  // Sin `priority` ni `changeFrequency`: Google los ignora. Lo que usa es
+  // `lastModified`, y solo si es fiable (SEO fase 14, tarea de robots.txt,
+  // paso 2): una escuela, la portada y el catálogo cambian cuando cambia uno
+  // de sus cursos, así que llevan la fecha del curso más reciente.
+  const ultimaPorEscuela = new Map<string, Date>();
+  let ultimaGeneral: Date | undefined;
+  for (const curso of cursos ?? []) {
+    if (!curso.actualizado_en) continue;
+    const fecha = new Date(curso.actualizado_en);
+    if (!ultimaGeneral || fecha > ultimaGeneral) ultimaGeneral = fecha;
+    for (const { id_categoria } of curso.curso_categorias ?? []) {
+      const previa = ultimaPorEscuela.get(id_categoria);
+      if (!previa || fecha > previa) ultimaPorEscuela.set(id_categoria, fecha);
+    }
+  }
+
   const rutasEstaticas: MetadataRoute.Sitemap = [
-    { url: base, changeFrequency: "weekly", priority: 1 },
-    { url: `${base}/catalogo`, changeFrequency: "weekly", priority: 0.9 },
-    ...(PRECIOS_HABILITADOS
-      ? [{ url: `${base}/planes`, changeFrequency: "monthly" as const, priority: 0.7 }]
-      : []),
-    { url: `${base}/soporte`, changeFrequency: "monthly", priority: 0.3 },
+    { url: base, lastModified: ultimaGeneral },
+    { url: `${base}/catalogo`, lastModified: ultimaGeneral },
+    ...(PRECIOS_HABILITADOS ? [{ url: `${base}/planes` }] : []),
+    { url: `${base}/soporte` },
   ];
 
   // Solo los textos legales con una versión vigente: el mapa no puede listar
   // una página que responde 404. Con la bandera apagada no se anuncian.
   const rutasLegales: MetadataRoute.Sitemap = (
     LEGAL_HABILITADO ? await getSlugsConTextoVigente() : []
-  ).map((slug) => ({
-    url: `${base}${rutaLegal(slug)}`,
-    changeFrequency: "yearly",
-    priority: 0.3,
-  }));
+  ).map((slug) => ({ url: `${base}${rutaLegal(slug)}` }));
 
   const rutasCategorias: MetadataRoute.Sitemap = categorias.map((categoria) => ({
     url: `${base}/catalogo/${categoria.slug}`,
-    changeFrequency: "weekly",
-    priority: 0.7,
+    lastModified: ultimaPorEscuela.get(categoria.id),
   }));
 
   const rutasCursos: MetadataRoute.Sitemap = (cursos ?? []).map((curso) => ({
     url: `${base}/cursos/${curso.slug}`,
     lastModified: curso.actualizado_en ?? undefined,
-    changeFrequency: "weekly",
-    priority: 0.8,
   }));
 
   return [...rutasEstaticas, ...rutasLegales, ...rutasCategorias, ...rutasCursos];

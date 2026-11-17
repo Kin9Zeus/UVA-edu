@@ -5,6 +5,7 @@ import { connection } from "next/server";
 
 export const metadata: Metadata = {
   title: "Recuperar contraseña",
+  robots: { index: false, follow: false },
 };
 
 export default async function RecuperarPage({

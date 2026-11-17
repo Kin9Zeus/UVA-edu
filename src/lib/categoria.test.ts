@@ -311,8 +311,26 @@ describe("resolverCategoria — 'no existe' y 'falló' son cosas distintas", () 
     await resolverCategoria("3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f");
     await resolverCategoria("modelado-bim");
 
+    // Cada llamada mira primero la lista en caché (activo + cursos publicados)
+    // y, al no encontrarla ahí, hace la consulta puntual por id o por slug.
     const filtros = servidorFalso.encadenado("from:categorias", "eq").map((args) => args[0]);
-    expect(filtros).toEqual(["id", "activo", "slug", "activo"]);
+    expect(filtros).toEqual([
+      "activo", "curso_categorias.curso.mostrado", "id", "activo",
+      "activo", "curso_categorias.curso.mostrado", "slug", "activo",
+    ]);
+  });
+
+  // La página comprueba que la escuela existe antes de mostrar el esqueleto
+  // (404 real): la escuela con cursos sale de la lista en caché, sin consulta.
+  it("una escuela de la lista en caché no hace la consulta puntual", async () => {
+    servidorFalso.responder("from:categorias", {
+      data: [{ id: "c1", slug: "bim", nombre: "BIM", descripcion: "Texto", curso_categorias: [{}] }],
+      error: null,
+    });
+
+    expect(await resolverCategoria("bim")).toEqual({ id: "c1", slug: "bim", nombre: "BIM", descripcion: "Texto" });
+    const filtros = servidorFalso.encadenado("from:categorias", "eq").map((args) => args[0]);
+    expect(filtros).not.toContain("slug");
   });
 });
 
