@@ -14,7 +14,7 @@ import { connection } from "next/server";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { metadataPublica } from "@/lib/seo/metadata";
-import { organizacionCompleta } from "@/lib/seo/organizacion";
+import { construirGrafoPortada } from "@/lib/seo/sitio";
 
 // P2-6 (AUDIT-2026-09-15.md): la home era la única página del sitio que no
 // exportaba `metadata` en absoluto — heredaba del layout raíz el título
@@ -58,8 +58,9 @@ export default async function Home() {
       {/* La `Organization` completa se publica UNA vez, aquí, y cada ficha
           de curso la referencia por `@id` desde su `provider` (P2-5). Es lo
           que le dice a Google que son la misma entidad y no dos con nombre
-          parecido. */}
-      <JsonLd data={organizacionCompleta()} />
+          parecido. Va junto al `WebSite`, cuyo `publisher` es esa misma
+          organización (lib/seo/sitio.ts). */}
+      <JsonLd data={construirGrafoPortada()} />
       <Header />
       <main id="contenido" tabIndex={-1}>
         <Hero hrefCodigo={hrefCodigo} categorias={categorias} />
