@@ -168,7 +168,14 @@ jobs:
         # en runtime (grep confirma que solo prisma/seed.ts, un script de
         # desarrollo, importa @prisma/adapter-pg) -- `--omit=dev` por sí solo
         # no las excluye porque son optional, no dev.
-        run: npm audit --omit=dev --omit=optional --audit-level=high
+        #
+        # Mismo alcance y mismo umbral (alto o crítico), pero con excepciones
+        # documentadas: `npm audit` no puede aceptar un aviso puntual, y el
+        # 17-nov-2026 GHSA-fc5q-39xc-vjpf (picomatch, sin parche) dejó master
+        # en rojo sin nada que actualizar. Cada excepción lleva motivo y fecha
+        # de revisión en src/lib/seguridad/auditoria-dependencias.ts; un aviso
+        # nuevo o una excepción vencida siguen bloqueando.
+        run: npm run audit:produccion
 
       - name: Auditoría de dependencias completa (no bloqueante)
         # Incluye dev-tooling (lhci -> lighthouse/puppeteer, y la cadena de
