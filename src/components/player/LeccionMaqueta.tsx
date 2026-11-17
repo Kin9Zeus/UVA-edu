@@ -22,6 +22,7 @@ import type { ComentarioConRespuestas } from "@/lib/comentarios";
 import { contarComentarios } from "@/lib/comentarios-visibles";
 import { porcentajeLecciones } from "@/lib/examenes/estadoPorCurso";
 import { PRECIOS_HABILITADOS } from "@/lib/features";
+import { registrarEvento } from "@/lib/analitica";
 import type { LeccionPlayer, LeccionPlayerItem, RecursoLeccion } from "@/lib/leccion";
 import type { NotaLeccion } from "@/lib/notas";
 import { useModuloDiferido } from "@/lib/useModuloDiferido";
@@ -170,6 +171,9 @@ export function LeccionMaqueta({
 
   function alternarVista() {
     const siguienteValor = !completada;
+    // Esta es la última clase con video que faltaba: el curso queda completo.
+    const completaElCurso =
+      siguienteValor && conVideo.has(data.leccionId) && completadas + 1 === data.clasesConVideo;
     setCompletada(siguienteValor);
     setErrorVista(null);
     setCompletadoPorLeccion((mapa) => new Map(mapa).set(data.leccionId, siguienteValor));
@@ -180,6 +184,7 @@ export function LeccionMaqueta({
         setCompletadoPorLeccion((mapa) => new Map(mapa).set(data.leccionId, !siguienteValor));
         setErrorVista("No pudimos guardar el cambio. Intenta de nuevo.");
       } else {
+        if (completaElCurso) registrarEvento("curso_completado");
         router.refresh();
       }
     });
@@ -197,6 +202,17 @@ export function LeccionMaqueta({
   useEffect(() => {
     if (conSesion) void iniciarProgresoLeccion(data.leccionId);
   }, [conSesion, data.leccionId]);
+
+  // Primera clase que abre de este curso (sin avance previo en ninguna): da
+  // igual si llegó por «Comenzar curso», el temario o un enlace. Una sola vez
+  // por clase aunque el efecto se repita (modo estricto de React).
+  const inicioRegistrado = useRef<string | null>(null);
+  const cursoIniciado = data.cursoIniciado;
+  useEffect(() => {
+    if (!conSesion || cursoIniciado || inicioRegistrado.current === data.leccionId) return;
+    inicioRegistrado.current = data.leccionId;
+    registrarEvento("inicio_curso");
+  }, [conSesion, cursoIniciado, data.leccionId]);
 
   // --- Notas (solo con sesión) ---
   // Viven acá y no en NotasTab: cambiar de pestaña desmonta la pestaña y lo

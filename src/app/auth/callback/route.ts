@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
+import {
+  ANALITICA_ACTIVA,
+  COOKIE_REGISTRO_PENDIENTE,
+  DURACION_REGISTRO_PENDIENTE_S,
+  esRegistroNuevoConGoogle,
+} from "@/lib/analitica";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -20,9 +27,18 @@ export async function GET(request: NextRequest) {
     logError("auth/callback", "proveedor devolvió error", null, { providerError });
   } else if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      // Cuenta nueva con Google: aviso para la analítica (lib/analitica.ts).
+      if (ANALITICA_ACTIVA && esRegistroNuevoConGoogle(data.user)) {
+        (await cookies()).set(COOKIE_REGISTRO_PENDIENTE, "google", {
+          path: "/",
+          maxAge: DURACION_REGISTRO_PENDIENTE_S,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+        });
+      }
       redirect(next);
     }
 

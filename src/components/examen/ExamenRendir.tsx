@@ -10,6 +10,7 @@ import { PreguntaEmparejar } from "@/components/examen/PreguntaEmparejar";
 import { Uvas } from "@/components/examen/Uvas";
 import { Cota } from "@/components/examen/Cota";
 import { enviarIntento, responderPregunta } from "@/actions/examenes/intento";
+import { registrarEvento } from "@/lib/analitica";
 import type { IntentoEnCurso } from "@/lib/examen";
 import { VIDAS_INICIALES } from "@/lib/examenes/tipos";
 import type { PreguntaParaEstudiante, RespuestaEstudiante } from "@/lib/examenes/tipos";
@@ -252,6 +253,9 @@ export function ExamenRendir({
       // nada que pintar, nada que gastar. El estudiante sigue tocando el
       // resto de los pares con las mismas tarjetas en pantalla.
       if (resultado.enProgreso) return;
+
+      // Aprobar emite el certificado en la base (trigger de supabase/sql/068).
+      if (resultado.cerrado && resultado.aprobado) registrarEvento("certificado_emitido");
 
       setVidas(resultado.vidasRestantes);
       if (resultado.acierto) {

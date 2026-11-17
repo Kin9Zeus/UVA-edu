@@ -227,3 +227,20 @@ describe("construirCsp — GA4 (lib/analitica.ts)", () => {
     expect(directiva(politica, "frame-src")).not.toContain("google");
   });
 });
+
+describe("construirCsp — Clarity (lib/analitica.ts)", () => {
+  it("apagado no abre ningún origen de Clarity ni de Bing", () => {
+    const politica = csp({ analitica: true });
+    expect(politica).not.toContain("clarity");
+    expect(politica).not.toContain("bing");
+  });
+
+  it("encendido abre script, imágenes y conexiones, sin marcos ni 'unsafe-inline'", () => {
+    const politica = csp({ clarity: true });
+    expect(directiva(politica, "script-src")).toContain("https://*.clarity.ms");
+    expect(directiva(politica, "script-src")).not.toContain("'unsafe-inline'");
+    expect(directiva(politica, "img-src")).toContain("https://c.bing.com");
+    expect(directiva(politica, "connect-src")).toContain("https://*.clarity.ms");
+    expect(directiva(politica, "frame-src")).not.toContain("clarity");
+  });
+});
