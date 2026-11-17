@@ -340,6 +340,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npx playwright test e2e/retroceso-accesibilidad.spec.ts
 
+      # Falla si una página pública pierde su título, descripción, canónica,
+      # h1 o JSON-LD, si dos páginas repiten título o descripción, si una
+      # pantalla privada pierde el noindex o queda mal en robots.txt, o si una
+      # página que no existe deja de dar 404 (SEO fase 14).
+      - name: SEO contra retrocesos
+        if: ${{ !cancelled() }}
+        run: npx playwright test e2e/seo.spec.ts
+
       # Compara contra e2e/retroceso-visual.spec.ts-snapshots/. Si el cambio
       # visual es intencional: Run workflow con "actualizar_capturas" (docs/qa/pruebas-visuales.md).
       # Las diferencias quedan en el artefacto playwright-e2e (test-results/).
