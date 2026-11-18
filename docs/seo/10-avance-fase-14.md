@@ -11,7 +11,7 @@
 ## 1. Cómo usar este documento
 
 1. Lee la sección 2 para entender qué es SEO y GEO en este proyecto y dónde vive el código.
-2. La sección 3 dice qué ya está hecho. No lo rehagas.
+2. La sección 3 dice qué ya está hecho y con qué resultado. No lo rehagas.
 3. La sección 4 lista **lo que falta, en el orden en que hay que hacerlo**. Cada punto dice quién lo hace, qué hace falta antes, los pasos y cómo comprobar que quedó bien.
 4. La sección 5 tiene las reglas para no romper el SEO al tocar código.
 5. La sección 6 resume el estado de cada tarea de Notion, para actualizarla al terminar.
@@ -70,7 +70,7 @@ npm run audit:html-rastreadores -- --base-url=http://localhost:3100
 
 ---
 
-## 3. Lo que ya está en `master`
+## 3. Lo completado y sus resultados
 
 | PR | Qué hizo | Quién |
 | --- | --- | --- |
@@ -87,6 +87,21 @@ npm run audit:html-rastreadores -- --base-url=http://localhost:3100
 - en `/admin/categorias`, la introducción y hasta 5 preguntas frecuentes por escuela, con marcado `FAQPage`;
 - migas completas en la ficha del curso y un bloque de 3 cursos relacionados;
 - `npm run audit:huerfanas`, que detecta páginas huérfanas y enlaces rotos.
+
+### Resultados verificados
+
+Lo que se midió o comprobó antes de fusionar cada entrega. Salvo que diga otra cosa, se probó contra un build de producción en local apuntando a staging, con `curl` o Playwright, haciéndose pasar por navegador y por rastreadores.
+
+| Entrega | Resultado |
+| --- | --- |
+| Metadatos (#47) | En `master` y desplegado en beta; capturas del CI actualizadas. Sin probar al compartir en redes (necesita dominio público) ni «Generar con IA» (sin saldo de Gemini) |
+| Historial de slugs (#49) | Slug viejo de un curso: **308** a la URL nueva. UUID: **308** al slug. Slug nuevo: 200. Inexistente: **404**. La clase conserva el `?t=` del video al redirigir. Base de producción con la migración `20261117000000_slugs_anteriores` y el SQL 137 aplicados (`prisma migrate status`: *up to date*). Tras el arreglo, la escuela por UUID o por slug viejo también da **308 real** (#52) |
+| `robots.txt` y sitemap (#52) | `/robots.txt` y `/sitemap.xml`: **200** para navegador, Googlebot, Bingbot, GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot y Claude-SearchBot. Las **13 URL** del sitemap: 200 y sin `noindex`. Escuela y texto legal inexistentes: de **200 + `noindex`** (soft 404) a **404**. Tiempo de respuesta de la escuela: **34 → 32 ms** (sin costo por comprobar antes del esqueleto) |
+| Contenido para rastreadores (#54) | Catálogo, cursos en el HTML inicial para rastreadores: **0/7 → 7/7**. Escuela: **0/1 → 1/1**. Soporte, respuestas: **0/5 → 5/5**. Ficha del curso: título, descripción completa, módulos y clases ya estaban completos. Acordeón de soporte probado a mano en el navegador (abre, cierra y Ctrl+F encuentra respuestas cerradas). Las 5 páginas públicas: 200 para los 8 user-agents |
+| Analítica (#54) | Sin `NEXT_PUBLIC_GA_ID` ni `NEXT_PUBLIC_CLARITY_ID` no carga nada ni se abre la CSP. Prueba e2e `e2e/analitica-consentimiento.spec.ts`: nada carga sin aceptar. El aviso funciona con teclado y pasa axe |
+| Pruebas de SEO en CI (#55) | `e2e/seo.spec.ts`: **4 de 4** en verde contra staging. Probado que detecta retrocesos: con un error introducido a propósito falla en el punto exacto. Corre en el job `e2e`, que es obligatorio para fusionar |
+| Auditoría de dependencias (#53) | `npm run audit:produccion` en verde; picomatch aceptado por excepción con fecha de revisión |
+| Todo el código | `tsc`, `lint`, `vitest` (**2081** pruebas al cierre) y `build` en verde en cada PR, con Next **16.4.5** |
 
 ---
 
