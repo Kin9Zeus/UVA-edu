@@ -260,6 +260,43 @@ bloque "Entra con una invitación" en lugar de los planes, `/planes` responde
 404 y el centro de ayuda (`src/lib/soporte.tsx`) explica el acceso por
 código de invitación.
 
+## SEO de una página nueva
+
+`e2e/seo.spec.ts` corre en cada PR (job `e2e` del CI, obligatorio para
+fusionar) y falla si se rompe algo de esta lista. Lo que no puede medir va
+marcado como «a mano».
+
+**Página pública (debe salir en Google)**
+- [ ] Usa `metadataPublica()` (`src/lib/seo/metadata.ts`) con su propio
+      título y descripción. El título lleva solo el nombre de la página: la
+      marca la pone la plantilla del layout. Título y descripción no se
+      repiten en otra página.
+- [ ] Un solo `<h1>`.
+- [ ] Canónica a la URL limpia, sin filtros ni parámetros (`ruta` en
+      `metadataPublica`).
+- [ ] Si la ruta puede no existir, `notFound()` va **antes** de cualquier
+      esqueleto (`loading.tsx` o `<Suspense>` con fallback): con el esqueleto
+      ya enviado el estado queda en 200 (soft 404).
+- [ ] Lo importante llega en el HTML sin JavaScript (la mayoría de los
+      rastreadores de IA no lo ejecutan): nada de cargarlo al hacer clic. Un
+      acordeón de Base UI con contenido público lleva `hiddenUntilFound`; una
+      lista detrás de un `<Suspense>` se manda sin esqueleto a los
+      rastreadores (`esRastreador()`, `src/lib/seo/rastreador.ts`). Se mide
+      con `npm run audit:html-rastreadores`.
+- [ ] Datos estructurados con las funciones de `src/lib/seo/` y el
+      componente `JsonLd`, nunca JSON escrito a mano.
+- [ ] Si se lista para Google, entra en `src/app/sitemap.ts` con un
+      `lastModified` real (o ninguno).
+- [ ] A mano: si cambia el slug de algo que ya tenía URL, la vieja redirige
+      (historial de slugs, `src/lib/slugs-anteriores.ts`).
+
+**Pantalla que no debe salir en Google**
+- [ ] Sin sesión (login, formularios, confirmaciones): `robots: { index:
+      false, follow: false }` en la metadata y **fuera** del `disallow` de
+      `src/app/robots.ts`, para que Google pueda leer el `noindex`. Se agrega
+      a `SIN_INDEXAR` en `e2e/seo.spec.ts`.
+- [ ] Con sesión: bajo un prefijo de `RUTAS_PRIVADAS` en `src/app/robots.ts`.
+
 ## Otros comandos útiles
 
 ```bash
@@ -351,6 +388,7 @@ ofrecer borrar la base si detecta diferencias.
 | `npm run audit:lighthouse:compare` | Igual, pero comparando contra el baseline anterior. |
 | `npm run audit:screenshots` | Captura screenshots de página completa de cada ruta pública en 6 anchos de viewport (320 a 2560 px). |
 | `npm run audit:overflow` | Detecta overflow horizontal en cada ruta pública, en los mismos 6 anchos (320 a 2560 px). |
+| `npm run audit:html-rastreadores` | Tabla por página pública y por rastreador (Googlebot, GPTBot, ClaudeBot…) de qué contenido llega en el HTML sin JavaScript. |
 
 ## Errores a evitar
 
