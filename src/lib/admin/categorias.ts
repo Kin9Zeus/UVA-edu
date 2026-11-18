@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { leerPreguntas, type PreguntaFrecuente } from "@/lib/escuela-contenido";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 
 export type CursoDeCategoria = { id: string; slug: string; titulo: string; mostrado: boolean };
@@ -8,6 +9,9 @@ export type Categoria = {
   slug: string;
   nombre: string;
   descripcion: string | null;
+  /** Texto de la página de la escuela (lib/escuela-contenido.ts). */
+  introduccion: string | null;
+  preguntas: PreguntaFrecuente[];
   activo: boolean;
   publicados: number;
   borradores: number;
@@ -30,7 +34,15 @@ export type ResumenCategorias = {
 
 export const DIAS_ESTUDIO_CATEGORIAS = 30;
 
-type FilaCategoria = { id: string; slug: string; nombre: string; descripcion: string | null; activo: boolean };
+type FilaCategoria = {
+  id: string;
+  slug: string;
+  nombre: string;
+  descripcion: string | null;
+  introduccion: string | null;
+  preguntas_frecuentes: unknown;
+  activo: boolean;
+};
 type FilaEstudio = { id_categoria: string | null; personas: number; certificados: number };
 
 export async function getCategorias(): Promise<ResumenCategorias> {
@@ -39,7 +51,9 @@ export async function getCategorias(): Promise<ResumenCategorias> {
 
   const [{ data: categorias, error: errorCategorias }, { data: filasCursos, error: errorCursos }, { data: estudio, error: errorEstudio }] =
     await Promise.all([
-      supabase.from("categorias").select("id, slug, nombre, descripcion, activo").order("nombre", { ascending: true }),
+      supabase
+        .from("categorias")
+        .select("id, slug, nombre, descripcion, introduccion, preguntas_frecuentes, activo").order("nombre", { ascending: true }),
       supabase.from("curso_categorias").select("id_categoria, curso:cursos(id, slug, titulo, mostrado)"),
       supabase.rpc("admin_estudio_por_categoria", { p_desde: desde }),
     ]);
@@ -63,11 +77,12 @@ export async function getCategorias(): Promise<ResumenCategorias> {
   const total = estudioPorCategoria.get(null);
 
   return {
-    categorias: ((categorias ?? []) as FilaCategoria[]).map((categoria) => {
+    categorias: ((categorias ?? []) as FilaCategoria[]).map(({ preguntas_frecuentes, ...categoria }) => {
       const suyos = cursosPorCategoria.get(categoria.id) ?? [];
       const suEstudio = estudioPorCategoria.get(categoria.id);
       return {
         ...categoria,
+        preguntas: leerPreguntas(preguntas_frecuentes),
         publicados: suyos.filter((curso) => curso.mostrado).length,
         borradores: suyos.filter((curso) => !curso.mostrado).length,
         cursos: suyos,

@@ -54,7 +54,8 @@
     "audit:cwv": "tsx scripts/audit/cwv.ts",
     "audit:contraste": "tsx scripts/audit/contraste.ts",
     "audit:html-rastreadores": "tsx scripts/audit/html-rastreadores.ts",
-    "audit:produccion": "tsx scripts/auditoria-produccion.ts"
+    "audit:produccion": "tsx scripts/auditoria-produccion.ts",
+    "audit:huerfanas": "tsx scripts/audit/huerfanas.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

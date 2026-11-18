@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
-import { resolverCategoria, buscarCatalogoPublico, getNivelesConCursos, type CategoriaInfo } from "@/lib/categoria";
+import {
+  resolverCategoria,
+  buscarCatalogoPublico,
+  getContenidoEscuela,
+  getNivelesConCursos,
+  type CategoriaInfo,
+} from "@/lib/categoria";
+import { ContenidoEscuela } from "@/components/catalogo/ContenidoEscuela";
+import { construirPreguntasJsonLd } from "@/lib/seo/preguntas-frecuentes";
 import { CatalogoCursos, EsqueletoCatalogo } from "@/components/catalogo/CatalogoCursos";
 import { esUuid } from "@/lib/slug";
 import { slugActual } from "@/lib/slugs-anteriores";
@@ -95,7 +103,7 @@ export default async function CategoriaPage({
 }
 
 async function CursosDeEscuela({ categoria, filtros }: { categoria: CategoriaInfo; filtros: FiltrosCatalogo }) {
-  const niveles = await getNivelesConCursos();
+  const [niveles, contenido] = await Promise.all([getNivelesConCursos(), getContenidoEscuela(categoria.id)]);
   const resultado = await buscarCatalogoPublico({
     query: filtros.q,
     categoriaId: categoria.id,
@@ -118,6 +126,10 @@ async function CursosDeEscuela({ categoria, filtros }: { categoria: CategoriaInf
         niveles={niveles}
         categoriaFija={categoria}
       />
+      {/* Introducción y preguntas frecuentes (se editan en /admin/categorias).
+          El FAQPage repite exactamente las preguntas visibles. */}
+      <ContenidoEscuela nombre={categoria.nombre} contenido={contenido} />
+      <JsonLd data={construirPreguntasJsonLd(contenido.preguntas)} />
     </>
   );
 }

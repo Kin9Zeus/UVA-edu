@@ -10,6 +10,7 @@ import { logError } from "@/lib/log";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { numeroDePagina, textoDeBusqueda } from "@/lib/parametros-url";
 import { REVALIDAR_SEGUNDOS, TAG_CATALOGO, TAG_CATEGORIAS } from "@/lib/cache-catalogo";
+import { leerPreguntas, type ContenidoEscuela } from "@/lib/escuela-contenido";
 import {
   estadoDeCurso,
   porcentajeLecciones,
@@ -582,3 +583,65 @@ const cursosParaBuscadorCacheados = unstable_cache(
   ["cursos-para-buscador"],
   { tags: [TAG_CATALOGO], revalidate: REVALIDAR_SEGUNDOS },
 );
+
+/**
+ * Introducción y preguntas frecuentes de una escuela (SEO fase 14, «páginas
+ * de escuela como landings»). Aparte de `getCategoriasActivas` a propósito:
+ * solo las usa la página de la escuela, y meterlas en esa lista las cargaría
+ * también en el pie, la portada y el catálogo.
+ *
+ * Dato secundario: la página sigue con sus cursos si esto falla. El fallo se
+ * REGISTRA y no se cachea (CLAUDE.md §3.2): la consulta lanza dentro de la
+ * caché y se atrapa afuera.
+ */
+const contenidoEscuelaCacheado = unstable_cache(
+  async (categoriaId: string): Promise<ContenidoEscuela> => {
+    const { data, error } = await createPublicClient()
+      .from("categorias")
+      .select("introduccion, preguntas_frecuentes")
+      .eq("id", categoriaId)
+      .eq("activo", true)
+      .maybeSingle();
+    if (error) throw error;
+    return {
+      introduccion: (data?.introduccion as string | null | undefined)?.trim() || null,
+      preguntas: leerPreguntas(data?.preguntas_frecuentes),
+    };
+  },
+  ["contenido-escuela"],
+  { tags: [TAG_CATEGORIAS], revalidate: REVALIDAR_SEGUNDOS },
+);
+
+export async function getContenidoEscuela(categoriaId: string): Promise<ContenidoEscuela> {
+  try {
+    return await contenidoEscuelaCacheado(categoriaId);
+  } catch (error) {
+    unstable_rethrow(error);
+    logError("catalogo:contenido-escuela", "no se pudo leer la introducción de la escuela", error, {
+      area: "catalogo",
+      categoriaId,
+    });
+    return { introduccion: null, preguntas: [] };
+  }
+}
+
+/**
+ * Cursos para el bloque «Cursos relacionados» de la ficha (enlazado interno):
+ * primero los de la misma escuela y, si no alcanzan, otros del catálogo. Sale
+ * del mismo listado cacheado del catálogo, sin consultas nuevas. Si el
+ * catálogo falla, `buscarCatalogoPublico` ya lo registró: no se muestra el
+ * bloque.
+ */
+export async function getCursosRelacionados(
+  cursoId: string,
+  categoriaId: string | undefined,
+  cantidad = 3,
+): Promise<CursoDeCategoria[]> {
+  const deLaEscuela = categoriaId ? await buscarCatalogoPublico({ categoriaId }) : null;
+  const elegidos = (deLaEscuela?.cursos ?? []).filter((c) => c.id !== cursoId).slice(0, cantidad);
+  if (elegidos.length >= cantidad) return elegidos;
+
+  const todos = await buscarCatalogoPublico({});
+  const vistos = new Set([cursoId, ...elegidos.map((c) => c.id)]);
+  return [...elegidos, ...todos.cursos.filter((c) => !vistos.has(c.id))].slice(0, cantidad);
+}
