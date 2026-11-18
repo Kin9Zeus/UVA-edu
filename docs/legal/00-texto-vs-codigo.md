@@ -48,8 +48,12 @@ Resumen del inventario de datos, comprobado contra los formularios y las accione
 | Cloudflare Turnstile | Tercero | Verificar que es una persona en registro, entrada, recuperar y reenviar | `src/components/auth/VerificacionTurnstile`, `src/lib/csp.ts:80` |
 | Sentry (navegador) | Tercero | Registrar errores | `src/lib/sentry-privacidad.ts` |
 | Mux Data (reproductor) | Tercero | Métricas de reproducción | **SIN VERIFICAR** si deja una cookie propia. El inventario dice que manda métricas por defecto. |
+| Decisión de cookies de análisis (`uva-consentimiento-analitica`) | `localStorage` | Recordar si aceptó o rechazó la analítica | `src/lib/consentimiento.ts` |
+| `uva-registro-pendiente` | Cookie (10 min) | Contar un registro con Google en la analítica; solo con la analítica encendida | `src/lib/analitica.ts`, `src/app/auth/callback/route.ts` |
+| `_ga`, `_ga_<id>` (Google Analytics 4) | Cookie de tercero | Medir visitas y eventos; **solo si se acepta** | `src/components/analitica/Analitica.tsx` |
+| `_clck`, `_clsk` (Microsoft Clarity) | Cookie de tercero | Mapas de calor y grabaciones de páginas públicas, con datos enmascarados; **solo si se acepta** | `src/components/analitica/Analitica.tsx` |
 
-**No hay banner de cookies.** No hay analítica de terceros instalada (ni GA4 ni GTM).
+**GA4 y Clarity están instalados pero apagados** (17-nov-2026): sin `NEXT_PUBLIC_GA_ID` ni `NEXT_PUBLIC_CLARITY_ID` no se cargan y sus cookies no existen. Encendidos, hay un **aviso de cookies** (Aceptar o Rechazar) y nada se carga sin aceptar (`docs/seo/09-analitica.md`). Antes de encenderlos hay que cambiar el 4.11, que dice «sin analítica ni rastreo».
 
 ## 3. Terceros que reciben datos
 
@@ -79,7 +83,7 @@ Del inventario de datos, sección 2:
 | D3 | 4.5 lista Supabase, Mux, Stripe, Wompi, Resend y Railway. | Además reciben datos Sentry, Google (inicio de sesión y Gemini), Cloudflare y Better Stack. | `docs/ops/inventario-de-datos.md`, sección 2 | Yo, con el abogado |
 | D4 | 4.5: Mux «no recibe datos personales identificables más allá de tokens de reproducción». | El reproductor puede enviarle métricas con navegador y país aproximado. | `docs/ops/inventario-de-datos.md`, hallazgo 2; `src/components/features/VideoPlayer.tsx` | Yo decido: decirlo en el texto o apagar las métricas (el equipo) |
 | D5 | 4.2 lista nombre, correo, celular (opcional), uso, suscripción y facturación, IP. | Se guardan además país, especialidad, rol en el gremio, foto, publicaciones, adjuntos, reportes y notas. «Datos de suscripción y facturación» describe algo que hoy no existe. | `docs/ops/inventario-de-datos.md`, sección 1 | Yo, con el abogado |
-| D6 | 4.11: solo cookies técnicas de sesión; sin analítica ni rastreo. | Además hay dos cookies de preferencia, tres usos de almacenamiento local, Turnstile y Sentry. Mux sin verificar. | Tabla de la sección 2 | Abogado: si basta con decirlo o hace falta un banner |
+| D6 | 4.11: solo cookies técnicas de sesión; sin analítica ni rastreo. | Además hay dos cookies de preferencia, tres usos de almacenamiento local, Turnstile y Sentry. Mux sin verificar. | Tabla de la sección 2 | Abogado: si basta con decirlo o hace falta un banner. El banner ya existe para la analítica; ver la sección 2 |
 | D7 | 4.4: autorización mediante una casilla no premarcada, que se puede probar. | La casilla existe y parte desmarcada, pero **no se guarda en ningún lado**: es un estado local del formulario. No hay tabla de consentimientos. Quien entra con Google no la ve. | `src/components/auth/RegistroForm.tsx:48,186-190`; `GoogleAuthButton.tsx:35` | Equipo (implementar), abogado (qué debe quedar registrado) |
 | D8 | 4.8: el servicio es para mayores de 18 años. | No hay casilla ni comprobación de edad. | `RegistroForm.tsx` | Abogado y equipo |
 | D9 | 4.9: después de cerrar la cuenta se conservan los datos solo por el plazo contable. Los certificados, «salvo que solicites su supresión». | La bitácora, los reportes, las notificaciones y las copias de textos moderados se conservan **indefinidamente**, sin plazo escrito. Los certificados se conservan siempre, aunque la persona elimine su cuenta. | `docs/ops/inventario-de-datos.md`, hallazgos 4 y 5; `src/app/(public)/cuenta-eliminada/page.tsx:43` | Abogado y yo |

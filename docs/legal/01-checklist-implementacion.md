@@ -15,7 +15,7 @@ Convención: **Existe**, **Parcial** o **Falta**.
 | Casillas separadas y sin marcar en el registro | **Parcial** (una sola casilla) |
 | Tabla de consentimientos | **Falta** |
 | Aceptación para quien entra con Google | **Falta** |
-| Banner de cookies | **Falta** |
+| Banner de cookies | **Existe** para la analítica (apagada) |
 | Canal de solicitudes de los titulares | **Parcial** |
 
 ## Detalle
@@ -57,7 +57,7 @@ Además, los enlaces de la casilla llevan al centro de soporte (`/soporte?tema=t
 
 ### 6. Banner de cookies
 
-**Falta.** No hay ningún componente de aviso o consentimiento de cookies. Ver `docs/legal/00-texto-vs-codigo.md`, sección 2, para lo que se usa hoy. Si el abogado decide que hace falta un banner, hay que instalar uno **antes** de agregar cualquier analítica (la plataforma no tiene ninguna).
+**Existe para la analítica** (17-nov-2026, `src/components/analitica/Analitica.tsx`). Sale solo si GA4 o Clarity están encendidos: «Aceptar» o «Rechazar» con el mismo peso, nada se carga sin aceptar, y «Configurar cookies» en el pie permite cambiar la decisión. Hoy los dos están apagados. Falta que el abogado revise el texto del aviso y la política de cookies, y que diga si las cookies técnicas y de preferencia también necesitan aviso (`docs/legal/00-texto-vs-codigo.md`, sección 2).
 
 ### 7. Canal de solicitudes de los titulares
 

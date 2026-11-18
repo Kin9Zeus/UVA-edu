@@ -13,8 +13,11 @@ import { Toaster } from "@/components/ui/toast";
 import { SaltarAlContenido } from "@/components/SaltarAlContenido";
 import { TemaProvider } from "@/components/tema/TemaProvider";
 import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
-import { ClicsWhatsapp } from "@/components/analitica/ClicsWhatsapp";
-import { GA_ID, scriptInicialGa } from "@/lib/analitica";
+import { Analitica } from "@/components/analitica/Analitica";
+import { ANALITICA_ACTIVA, CLARITY_ID, GA_ID } from "@/lib/analitica";
+import { LEGAL_HABILITADO } from "@/lib/features";
+import { rutaLegal } from "@/lib/legal/slugs";
+import { getSlugsConTextoVigente } from "@/lib/legal/textos";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -64,6 +67,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // script del tema es en línea y, con la CSP de 'strict-dynamic', sin el
   // nonce el navegador lo bloquearía.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // El aviso de cookies enlaza la política solo si ya está publicada (lectura
+  // cacheada, la misma del pie). Con la analítica apagada no se consulta.
+  const politicaCookiesPublicada =
+    ANALITICA_ACTIVA && LEGAL_HABILITADO && (await getSlugsConTextoVigente()).includes("cookies");
 
   return (
     // suppressHydrationWarning: SCRIPT_TEMA_INICIAL pone `.dark` y
@@ -77,14 +84,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
-        {/* GA4, solo si NEXT_PUBLIC_GA_ID tiene un id válido (lib/analitica.ts).
-            Los dos llevan el nonce de la CSP. */}
-        {GA_ID && (
-          <>
-            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: scriptInicialGa(GA_ID) }} />
-            <script nonce={nonce} async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
-          </>
-        )}
       </head>
       <body className="min-h-full flex flex-col">
         <SaltarAlContenido />
@@ -92,7 +91,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Toaster>{children}</Toaster>
         </TemaProvider>
         <SincronizarPestanas />
-        {GA_ID && <ClicsWhatsapp />}
+        {/* GA4 y Clarity: nada se carga sin consentimiento (lib/analitica.ts). */}
+        {ANALITICA_ACTIVA && (
+          <Analitica
+            gaId={GA_ID}
+            clarityId={CLARITY_ID}
+            nonce={nonce}
+            rutaPoliticaCookies={politicaCookiesPublicada ? rutaLegal("cookies") : null}
+          />
+        )}
       </body>
     </html>
   );

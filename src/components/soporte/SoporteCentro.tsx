@@ -38,6 +38,11 @@ const PREGUNTAS = PREGUNTAS_CENTRO_AYUDA.map((item, i) => ({
   ),
 }));
 
+// Los paneles van con `hiddenUntilFound`: cerrados siguen en el HTML
+// (`hidden="until-found"`), así que las respuestas existen para un rastreador
+// sin JavaScript y la búsqueda del navegador las encuentra y las abre (SEO/GEO
+// fase 14, tarea «contenido renderizado en el servidor», paso 3). Sin eso,
+// Base UI no las monta hasta que alguien las abre.
 const PANEL =
   "h-[var(--accordion-panel-height)] overflow-hidden transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0";
 
@@ -163,7 +168,7 @@ export function SoporteCentro({
                   />
                 </Accordion.Trigger>
               </Accordion.Header>
-              <Accordion.Panel className={PANEL}>
+              <Accordion.Panel hiddenUntilFound className={PANEL}>
                 <div className="px-4 pb-4 text-uva-cuerpo text-uva-text-muted sm:px-[22px]">
                   {tema.id === "centro-de-ayuda" ? (
                     <PreguntasFrecuentes
@@ -348,7 +353,7 @@ function PreguntasFrecuentes({
                   <span className="min-w-0 flex-1">{item.pregunta}</span>
                 </Accordion.Trigger>
               </Accordion.Header>
-              <Accordion.Panel className={PANEL}>
+              <Accordion.Panel hiddenUntilFound className={PANEL}>
                 <div className="pb-3.5 pl-[34px] text-uva-cuerpo text-uva-text-muted">{item.respuesta}</div>
               </Accordion.Panel>
             </Accordion.Item>

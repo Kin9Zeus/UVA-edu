@@ -5,6 +5,7 @@ import { CatalogoCursos, EsqueletoCatalogo } from "@/components/catalogo/Catalog
 import { metadataPublica } from "@/lib/seo/metadata";
 import { DESCRIPCION_META_CATALOGO } from "@/lib/seo/descripciones";
 import { filtrosDeUrl, type FiltrosCatalogo, type ParametrosCatalogo } from "@/lib/filtroEstado";
+import { esRastreador } from "@/lib/seo/rastreador";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { MIGAS_CATALOGO, construirMigasJsonLd } from "@/lib/seo/migas";
 import { construirListaCursosJsonLd, debePublicarLista } from "@/lib/seo/lista-cursos";
@@ -31,9 +32,14 @@ export default async function CatalogoPage({
       {/* Datos estructurados (SEO/GEO fase 14): la ruta que pinta CatalogoCursos
           (Inicio / Catálogo). La lista de cursos va con los cursos, abajo. */}
       <JsonLd data={construirMigasJsonLd(MIGAS_CATALOGO)} />
-      <Suspense fallback={<EsqueletoCatalogo />}>
+      {/* Un rastreador recibe la lista en el HTML inicial, sin esqueleto: ver lib/seo/rastreador.ts. */}
+      {(await esRastreador()) ? (
         <Catalogo filtros={filtros} />
-      </Suspense>
+      ) : (
+        <Suspense fallback={<EsqueletoCatalogo />}>
+          <Catalogo filtros={filtros} />
+        </Suspense>
+      )}
     </main>
   );
 }

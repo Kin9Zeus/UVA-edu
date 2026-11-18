@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VerificacionCertificado } from "@/components/certificados/VerificacionCertificado";
+import { EventoAlCargar } from "@/components/analitica/EventoAlCargar";
 import { normalizarCodigoCertificado } from "@/lib/certificados/codigo";
 import { verificarCertificado } from "@/lib/certificados/verificar";
 
@@ -51,5 +52,11 @@ export default async function VerificarCertificadoPage({
   const codigo = normalizarCodigoCertificado(decodificar(crudo));
   const resultado = await verificarCertificado(codigo);
 
-  return <VerificacionCertificado resultado={resultado} codigo={codigo} />;
+  return (
+    <>
+      <VerificacionCertificado resultado={resultado} codigo={codigo} />
+      {/* Solo el resultado; nunca el código ni el nombre del estudiante. */}
+      <EventoAlCargar nombre="verificacion_certificado" parametros={{ resultado: resultado.estado }} />
+    </>
+  );
 }
