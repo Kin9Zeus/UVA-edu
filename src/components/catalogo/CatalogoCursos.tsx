@@ -194,7 +194,9 @@ export function CatalogoCursos({
 
       <div className="flex flex-col gap-2">
         <h1 className="text-uva-titulo-3 text-balance text-uva-text">
-          {categoriaFija ? categoriaFija.nombre : panel ? "Catálogo" : "Catálogo de cursos"}
+          {/* «Cursos de [escuela]»: dice qué hay en la página (SEO fase 14) y
+              coincide con el <title>. La miga de arriba conserva el nombre solo. */}
+          {categoriaFija ? `Cursos de ${categoriaFija.nombre}` : panel ? "Catálogo" : "Catálogo de cursos"}
         </h1>
         <p className="max-w-[60ch] text-uva-lead text-uva-text-muted">
           {categoriaFija

@@ -8,6 +8,21 @@ import { registrarBitacora } from "@/lib/admin/bitacora";
 import { slugificar, slugDisponible } from "@/lib/slug";
 import { slugsOcupados } from "@/lib/admin/slugsOcupados";
 import { planificarReasignacion } from "@/lib/admin/reasignarCategoria";
+import { validarContenidoEscuela, type PreguntaFrecuente } from "@/lib/escuela-contenido";
+
+/** Lo que manda el diálogo del admin. La introducción y las preguntas son de
+ *  la página de la escuela (SEO fase 14, lib/escuela-contenido.ts). */
+export type EntradaCategoria = {
+  nombre: string;
+  descripcion: string;
+  introduccion?: string;
+  preguntas?: PreguntaFrecuente[];
+};
+
+/** Valida el contenido de la página; los campos ausentes quedan vacíos. */
+function contenidoDe(input: EntradaCategoria) {
+  return validarContenidoEscuela({ introduccion: input.introduccion ?? "", preguntas: input.preguntas ?? [] });
+}
 
 export type AdminActionResult = { error?: string; success?: boolean };
 
@@ -25,15 +40,14 @@ async function generarSlug(
   return slugDisponible(base, await slugsOcupados(supabase, "categorias", base, exceptoId));
 }
 
-export async function crearCategoria(input: {
-  nombre: string;
-  descripcion: string;
-}): Promise<AdminActionResult> {
+export async function crearCategoria(input: EntradaCategoria): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   const nombre = input.nombre.trim();
   if (!nombre) return { error: "El nombre es obligatorio." };
+  const contenido = contenidoDe(input);
+  if (!contenido.ok) return { error: contenido.error };
 
   const { data, error } = await admin.supabase
     .from("categorias")
@@ -41,6 +55,8 @@ export async function crearCategoria(input: {
       nombre,
       slug: await generarSlug(admin.supabase, nombre),
       descripcion: input.descripcion.trim() || null,
+      introduccion: contenido.valor.introduccion,
+      preguntas_frecuentes: contenido.valor.preguntas,
       id_admin_creador: admin.adminId,
     })
     .select("id")
@@ -66,13 +82,15 @@ export async function crearCategoria(input: {
 
 export async function actualizarCategoria(
   id: string,
-  input: { nombre: string; descripcion: string },
+  input: EntradaCategoria,
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   if ("error" in admin) return { error: admin.error };
 
   const nombre = input.nombre.trim();
   if (!nombre) return { error: "El nombre es obligatorio." };
+  const contenido = contenidoDe(input);
+  if (!contenido.ok) return { error: contenido.error };
 
   // El slug se regenera al renombrar, como pide el spec ("generado
   // automáticamente desde el nombre"): así corregir un nombre mal escrito
@@ -85,6 +103,9 @@ export async function actualizarCategoria(
       nombre,
       slug: await generarSlug(admin.supabase, nombre, id),
       descripcion: input.descripcion.trim() || null,
+      // Solo lo que llegó: una llamada sin estos campos no los borra.
+      ...(input.introduccion !== undefined ? { introduccion: contenido.valor.introduccion } : {}),
+      ...(input.preguntas !== undefined ? { preguntas_frecuentes: contenido.valor.preguntas } : {}),
     })
     .eq("id", id);
 

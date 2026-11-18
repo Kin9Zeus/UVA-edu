@@ -5,6 +5,7 @@ import { Footer } from "@/components/home/Footer";
 import { getPerfilActual } from "@/lib/perfil";
 import { getDashboardChromeData } from "@/lib/dashboard-chrome";
 import { getCursoPublico } from "@/lib/curso";
+import { getCursosRelacionados } from "@/lib/categoria";
 import { getCalificacionesCurso } from "@/lib/curso-calificaciones";
 import { getSituacionExamen } from "@/lib/examen";
 import { CursoFicha } from "@/components/curso/CursoFicha";
@@ -82,11 +83,13 @@ export default async function CursoDetallePage({
 
   // Sin sesión devuelve SIN_EXAMEN sin tocar la base: el examen no es
   // contenido público, así que la ficha anónima no cambia en nada.
-  const [situacionExamen, calificaciones] = await Promise.all([
+  const [situacionExamen, calificaciones, relacionados] = await Promise.all([
     getSituacionExamen(curso.id, user?.id ?? null),
     // Reseñas: SÍ es contenido público (a diferencia del examen) — visible
     // sin sesión, mismo criterio que el resto de esta ficha.
     getCalificacionesCurso(curso.id, user?.id ?? null),
+    // Enlazado interno (SEO fase 14): del listado cacheado del catálogo.
+    getCursosRelacionados(curso.id, curso.categorias[0]?.id),
   ]);
 
   // P2-5 (AUDIT-2026-09-15.md). Se construye una vez y se imprime en las dos
@@ -115,7 +118,7 @@ export default async function CursoDetallePage({
         <main id="contenido" tabIndex={-1}>
           {/* Sin sesión: sin examen (no es contenido público) y con reseñas
               de solo lectura. */}
-          <CursoFicha curso={curso} calificaciones={calificaciones} sesion={null} />
+          <CursoFicha curso={curso} calificaciones={calificaciones} sesion={null} relacionados={relacionados} />
         </main>
         <Footer />
       </>
@@ -154,6 +157,7 @@ export default async function CursoDetallePage({
             curso={curso}
             calificaciones={calificaciones}
             sesion={{ usuarioId: user.id, esAdmin, situacionExamen }}
+            relacionados={relacionados}
           />
         </main>
         <BottomTabBar />

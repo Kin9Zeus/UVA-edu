@@ -563,17 +563,24 @@ model IntentosPago {
 // ============================================================
 
 model Categorias {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre           String
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre               String
   /// Identificador legible para las URLs del catálogo. Lo genera la app
   /// desde `nombre` con slugificar() (src/lib/slug.ts); es único porque dos
   /// categorías no pueden compartir URL.
-  slug             String   @unique
-  descripcion      String?
-  activo           Boolean  @default(true)
-  id_admin_creador String?  @db.Uuid
-  creado_en        DateTime @default(now()) @db.Timestamptz
-  actualizado_en   DateTime @updatedAt @db.Timestamptz
+  slug                 String   @unique
+  descripcion          String?
+  /// Texto de la página de la escuela (150 a 300 palabras: qué se aprende,
+  /// para qué cargos, qué problemas resuelve). Párrafos separados por una
+  /// línea en blanco. Lo redacta el equipo de contenido desde el admin.
+  introduccion         String?
+  /// Preguntas frecuentes visibles en la escuela: `[{ pregunta, respuesta }]`,
+  /// de 0 a 5. Se validan en src/lib/escuela-contenido.ts.
+  preguntas_frecuentes Json     @default("[]")
+  activo               Boolean  @default(true)
+  id_admin_creador     String?  @db.Uuid
+  creado_en            DateTime @default(now()) @db.Timestamptz
+  actualizado_en       DateTime @updatedAt @db.Timestamptz
 
   cursos           CursoCategorias[]
   admin_creador    Perfiles?                   @relation("CategoriasCreadasPorAdmin", fields: [id_admin_creador], references: [id])

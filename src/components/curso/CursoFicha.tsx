@@ -4,6 +4,8 @@ import { Check, ChevronRight, CircleCheck, Lock, Play } from "lucide-react";
 import { MiniaturaMux } from "@/components/features/MiniaturaMux";
 import { EstrellasCalificacion } from "@/components/curso/EstrellasCalificacion";
 import { ResenasCurso } from "@/components/curso/ResenasCurso";
+import { CursoTarjetaPublica } from "@/components/catalogo/CursoTarjetaPublica";
+import type { CursoDeCategoria } from "@/lib/categoria";
 import { ExamenCta } from "@/components/examen/ExamenCta";
 import { BarrasNivel, NIVEL, RETICULA } from "@/components/catalogo/CursoTarjetaPublica";
 import { IconoCategoria } from "@/components/categorias/IconoCategoria";
@@ -230,10 +232,13 @@ export function CursoFicha({
   curso,
   calificaciones,
   sesion,
+  relacionados = [],
 }: {
   curso: CursoPublico;
   calificaciones: CalificacionesCurso;
   sesion: SesionFicha | null;
+  /** Enlazado interno (SEO fase 14): cursos de la misma escuela primero. */
+  relacionados?: CursoDeCategoria[];
 }) {
   const modulos = curso.modulos.filter((modulo) => modulo.lecciones.length > 0);
   const lecciones = modulos.flatMap((modulo) => modulo.lecciones);
@@ -353,9 +358,20 @@ export function CursoFicha({
       <div className="grid grid-cols-1 gap-7 @4xl:grid-cols-[minmax(0,1fr)_440px] @4xl:grid-rows-[auto_1fr_auto] @4xl:gap-x-14 @4xl:gap-y-4">
         {/* Encabezado: ruta, título y datos del curso. */}
         <div className="order-1 flex min-w-0 flex-col gap-3 @4xl:order-none @4xl:col-start-1 @4xl:row-start-1 @4xl:gap-4">
+          {/* Inicio › Catálogo › Escuela › Curso: la misma ruta que el
+              BreadcrumbList de la página (SEO fase 14, lib/seo/migas.ts). */}
           <nav aria-label="Ruta de navegación">
             <ol className="flex flex-wrap items-center gap-x-2 text-uva-detalle text-uva-text-muted">
               <li>
+                <Link
+                  href={sesion ? "/dashboard" : "/"}
+                  className="inline-flex min-h-11 items-center text-uva-text-muted hover:text-uva-text hover:underline"
+                >
+                  Inicio
+                </Link>
+              </li>
+              <li className="flex items-center gap-x-2">
+                <ChevronRight className="size-4" strokeWidth={2} aria-hidden />
                 <Link
                   href={basePath}
                   className="inline-flex min-h-11 items-center font-bold text-uva-accent-ink hover:underline"
@@ -374,6 +390,14 @@ export function CursoFicha({
                   </Link>
                 </li>
               )}
+              {/* La página actual, sin enlace. Recortada a una línea: el
+                  título completo está justo debajo, en el h1. */}
+              <li className="flex min-w-0 max-w-full items-center gap-x-2">
+                <ChevronRight className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+                <span aria-current="page" className="min-w-0 truncate text-uva-text">
+                  {curso.titulo}
+                </span>
+              </li>
             </ol>
           </nav>
 
@@ -633,7 +657,62 @@ export function CursoFicha({
           }
         />
       </div>
+
+      {relacionados.length > 0 && (
+        <CursosRelacionados cursos={relacionados} escuela={categoria} basePath={basePath} />
+      )}
     </div>
+  );
+}
+
+/**
+ * Enlazado interno (SEO fase 14, «páginas de escuela como landings»): hasta 3
+ * cursos, primero de la misma escuela, y un enlace a la escuela con su nombre.
+ * El texto de cada enlace es el título del curso, nunca «ver más».
+ */
+function CursosRelacionados({
+  cursos,
+  escuela,
+  basePath,
+}: {
+  cursos: CursoDeCategoria[];
+  escuela: { id: string; slug: string; nombre: string } | undefined;
+  basePath: string;
+}) {
+  const todosDeLaEscuela = escuela !== undefined && cursos.every((c) => c.categorias.some((cat) => cat.id === escuela.id));
+  return (
+    <section aria-labelledby="cursos-relacionados" className="mt-10 flex min-w-0 flex-col gap-5 border-t border-uva-divider pt-8 lg:mt-14">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <h2 id="cursos-relacionados" className="m-0 text-uva-titulo-4 text-balance text-uva-text">
+          {todosDeLaEscuela ? `Más cursos de ${escuela.nombre}` : "Cursos relacionados"}
+        </h2>
+        {escuela && (
+          <Link
+            href={`${basePath}/${escuela.slug}`}
+            className="inline-flex min-h-11 items-center gap-1 text-uva-cuerpo font-bold text-uva-accent-ink hover:underline"
+          >
+            Todos los cursos de {escuela.nombre}
+            <ChevronRight className="size-4" strokeWidth={2} aria-hidden />
+          </Link>
+        )}
+      </div>
+      {/* Mismo formato que el catálogo público: fila compacta en celular,
+          tarjetas desde tableta. */}
+      <ul className="border-t border-uva-divider md:grid md:grid-cols-2 md:gap-x-5 md:gap-y-8 md:border-t-0 lg:grid-cols-3">
+        {cursos.map((c) => (
+          <li key={c.id} className="min-w-0 border-b border-uva-divider md:border-b-0">
+            <CursoTarjetaPublica
+              curso={c}
+              categoria={
+                escuela && c.categorias.some((cat) => cat.id === escuela.id)
+                  ? { id: escuela.id, nombre: escuela.nombre }
+                  : c.categorias[0]
+              }
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
