@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 // Llave maestra: el contador de intentos fallidos (registrar_login_fallido, limpiar_intentos_login) es solo para service_role; ver login.ts.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isPasswordValid } from "@/lib/password";
+import { isPasswordValid, mensajeErrorContrasena } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
@@ -113,7 +113,9 @@ export async function cambiarPassword(
   }
 
   if (errorUpdate) {
-    return { error: "No pudimos actualizar tu contraseña. Intenta de nuevo." };
+    const conocido = mensajeErrorContrasena(errorUpdate.code);
+    if (!conocido) logError("cambiarPassword", "updateUser falló", errorUpdate, { area: "auth" });
+    return { error: conocido ?? "No pudimos actualizar tu contraseña. Intenta de nuevo." };
   }
 
   // Best-effort, igual que en actualizarPassword(): un fallo del correo de

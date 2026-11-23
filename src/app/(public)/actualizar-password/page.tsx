@@ -5,6 +5,7 @@ import { NuevaContrasenaFlujo } from "@/components/auth/NuevaContrasenaFlujo";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
+import { faltaCodigoParaCambiarContrasena, rutaSegundoFactor } from "@/lib/auth/aal";
 
 export const metadata: Metadata = {
   title: "Nueva contraseña",
@@ -40,6 +41,12 @@ export default async function ActualizarPasswordPage({
     }
 
     redirect("/actualizar-password");
+  }
+
+  // Con segundo factor, Supabase no deja cambiar la contraseña desde la
+  // sesión del enlace (aal1): primero el código, y de vuelta aquí en aal2.
+  if (await faltaCodigoParaCambiarContrasena()) {
+    redirect(rutaSegundoFactor("verificar", "/actualizar-password"));
   }
 
   // Solo para el gestor de contraseñas (el usuario del formulario). Sin sesión

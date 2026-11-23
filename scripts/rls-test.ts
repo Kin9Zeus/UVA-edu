@@ -753,6 +753,53 @@ async function main() {
       clienteSinAcceso.from("perfiles").update({ nombre: "RLS Test Sin Acceso" }).eq("id", userSinAcceso.user!.id).select(),
     );
 
+    // P1-2 (AUDIT-2026-11-23.md, 139): de su perfil, solo lo que edita «Mi
+    // perfil». Antes, todo esto se podía escribir directo por PostgREST.
+    const idSinAcceso = userSinAcceso.user!.id;
+    const fotoPropia = clienteSinAcceso.storage.from("avatares").getPublicUrl(`${idSinAcceso}/rls-test.webp`).data.publicUrl;
+    await esperarSinPermiso(
+      "estudiante NO puede cambiar su correo directo (bloquearía el registro de otra persona)",
+      clienteSinAcceso.from("perfiles").update({ correo: "victima-rls@ejemplo.invalid" }).eq("id", idSinAcceso),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede ponerse una especialidad (solo la edita el admin)",
+      clienteSinAcceso.from("perfiles").update({ especialidad: "Falsa" }).eq("id", idSinAcceso),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede marcarse anonimizado",
+      clienteSinAcceso.from("perfiles").update({ anonimizado_en: new Date().toISOString() }).eq("id", idSinAcceso),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede poner una foto externa (píxel de rastreo)",
+      clienteSinAcceso.from("perfiles").update({ foto_url: "https://evil.tld/p.png" }).eq("id", idSinAcceso),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede poner una foto externa que imita la ruta de Supabase",
+      clienteSinAcceso
+        .from("perfiles")
+        .update({ foto_url: `https://evil.tld/storage/v1/object/public/avatares/${idSinAcceso}/x.webp` })
+        .eq("id", idSinAcceso),
+    );
+    await esperarSinPermiso(
+      "estudiante NO puede apuntar su foto a la carpeta de otra persona",
+      clienteSinAcceso
+        .from("perfiles")
+        .update({ foto_url: fotoPropia.replace(idSinAcceso, userConAcceso.user!.id) })
+        .eq("id", idSinAcceso),
+    );
+    await esperarPermitido(
+      "estudiante SÍ puede editar su celular",
+      clienteSinAcceso.from("perfiles").update({ celular: "+57 300 000 0000" }).eq("id", idSinAcceso).select(),
+    );
+    await esperarPermitido(
+      "estudiante SÍ puede poner una foto de su propia carpeta (la URL que arma foto.ts)",
+      clienteSinAcceso.from("perfiles").update({ foto_url: fotoPropia }).eq("id", idSinAcceso).select(),
+    );
+    await esperarPermitido(
+      "estudiante SÍ puede quitar su foto",
+      clienteSinAcceso.from("perfiles").update({ foto_url: null }).eq("id", idSinAcceso).select(),
+    );
+
     console.log("\n=== Sesión: ESTUDIANTE CON ACCESO (suscripción ACTIVA) ===\n");
 
     await esperarBloqueado(

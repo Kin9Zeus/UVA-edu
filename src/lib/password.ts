@@ -47,3 +47,14 @@ export const passwordRules: PasswordRule[] = [
 export function isPasswordValid(password: string): boolean {
   return passwordRules.every((rule) => rule.test(password));
 }
+
+/**
+ * Mensaje para los rechazos de Supabase que la persona puede corregir sola.
+ * `null` = un fallo que no le toca a ella: quien llama lo registra y muestra
+ * el genérico.
+ */
+export function mensajeErrorContrasena(codigo: string | undefined): string | null {
+  if (codigo === "same_password") return "La contraseña nueva debe ser distinta de la actual.";
+  if (codigo === "weak_password") return "Esa contraseña es débil o apareció en filtraciones. Elige otra.";
+  return null;
+}
