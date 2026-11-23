@@ -162,6 +162,18 @@ describe("cambiarPassword", () => {
       { area: "email" },
     );
   });
+  it("contraseña débil o filtrada según Supabase: lo dice claro", async () => {
+    servidorFalso.responder("auth:updateUser", { data: null, error: { code: "weak_password", message: "x" } });
+
+    expect(await cambiar()).toEqual({ error: "Esa contraseña es débil o apareció en filtraciones. Elige otra." });
+  });
+
+  it("cualquier otro rechazo de updateUser queda registrado", async () => {
+    servidorFalso.responder("auth:updateUser", { data: null, error: { code: "unexpected_failure", message: "x" } });
+
+    expect(await cambiar()).toEqual({ error: "No pudimos actualizar tu contraseña. Intenta de nuevo." });
+    expect(logError).toHaveBeenCalledWith("cambiarPassword", "updateUser falló", expect.anything(), { area: "auth" });
+  });
 });
 
 describe("actualizarPerfil", () => {

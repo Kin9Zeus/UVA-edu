@@ -161,3 +161,21 @@ export function rutaSegundoFactor(pantalla: PantallaSegundoFactor, destino: stri
 export async function esAdminConSegundoFactor(rol: string | null | undefined): Promise<boolean> {
   return rol === "ADMINISTRADOR" && (await getNivelAalActual()) === "aal2";
 }
+
+/**
+ * ¿Hay que pedir el código de la app antes de cambiar la contraseña?
+ *
+ * Con un factor confirmado, Supabase rechaza el cambio de contraseña desde
+ * una sesión aal1 («AAL2 session is required to update email or password
+ * when MFA is enabled»). El enlace de recuperación del correo deja justo
+ * esa sesión: solo prueba el correo. Sin esto, un administrador que olvidó
+ * su contraseña llenaba el formulario y recibía un error genérico (bug del
+ * 2026-11-23).
+ *
+ * Sin sesión o ya en aal2 no pregunta por los factores (cuesta una ida a
+ * Supabase).
+ */
+export async function faltaCodigoParaCambiarContrasena(): Promise<boolean> {
+  if ((await getNivelAalActual()) !== "aal1") return false;
+  return (await pantallaDeSegundoFactor()) === "verificar";
+}

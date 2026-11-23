@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { isPasswordValid } from "@/lib/password";
 import { enviarCorreoPasswordActualizada } from "@/lib/resend";
 import { logError } from "@/lib/log";
+import { mensajeErrorContrasena } from "@/lib/password";
+import { rutaSegundoFactor } from "@/lib/auth/aal";
+import { redirect } from "next/navigation";
 
 /**
  * `guardada`: la contraseña se cambió y la sesión del enlace ya se cerró; la
@@ -41,8 +44,16 @@ export async function actualizarPassword(
 
   const { error } = await supabase.auth.updateUser({ password });
 
+  // Cuenta con segundo factor y sesión aal1 (la del enlace del correo): la
+  // página ya manda antes a escribir el código; esto cubre quien llegue igual.
+  if (error?.code === "insufficient_aal") {
+    redirect(rutaSegundoFactor("verificar", "/actualizar-password"));
+  }
+
   if (error) {
-    return { error: "No pudimos actualizar tu contraseña. Intenta de nuevo." };
+    const conocido = mensajeErrorContrasena(error.code);
+    if (!conocido) logError("actualizarPassword", "updateUser falló", error, { area: "auth" });
+    return { error: conocido ?? "No pudimos actualizar tu contraseña. Intenta de nuevo." };
   }
 
   // Best-effort: si el correo de aviso falla, no debe bloquear el cambio
