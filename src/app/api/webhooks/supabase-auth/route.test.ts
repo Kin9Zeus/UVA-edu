@@ -3,8 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const enviar = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/resend/client", () => ({ resend: { emails: { send: enviar } } }));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
+// La plantilla y el marco devuelven sus argumentos: así se lee el enlace que
+// recibe el correo sin renderizar React Email.
+vi.mock("@/lib/resend/emails/recuperar-password-email", () => ({
+  ASUNTO_RECUPERAR_PASSWORD: "Recupera tu contraseña",
+  RecuperarPasswordEmail: (props: { actionLink: string }) => props,
+}));
+vi.mock("@/emails/marco/envio", () => ({ envioTransaccional: async (correo: unknown) => correo }));
 
 import { NextRequest } from "next/server";
+import { Webhook } from "standardwebhooks";
 import { POST } from "@/app/api/webhooks/supabase-auth/route";
 import { logError } from "@/lib/log";
 
@@ -49,5 +57,82 @@ describe("webhook de envío de correo de Supabase Auth", () => {
 
     expect(respuesta.status).toBe(401);
     expect(enviar).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * P1-3 (AUDIT-2026-11-23.md): el origen del enlace no sale del payload. Con
+ * un payload firmado (el secreto se filtró, o se comparte entre entornos),
+ * antes se podía mandar un correo auténtico de mail.uvarq.com cuyo botón
+ * llevaba a otro dominio.
+ */
+describe("el enlace del correo siempre apunta al sitio", () => {
+  const SECRETO = Buffer.from("secreto-de-prueba-123456").toString("base64");
+
+  function firmada(emailData: Record<string, string>): NextRequest {
+    const cuerpo = JSON.stringify({
+      user: { email: "persona@ejemplo.co" },
+      email_data: {
+        token_hash: "hash123",
+        email_action_type: "recovery",
+        site_url: "https://proyecto.supabase.co/auth/v1",
+        ...emailData,
+      },
+    });
+    const id = "msg_1";
+    const ahora = new Date();
+    const firma = new Webhook(SECRETO).sign(id, ahora, cuerpo);
+    return new NextRequest("http://localhost/api/webhooks/supabase-auth", {
+      method: "POST",
+      body: cuerpo,
+      headers: {
+        "webhook-id": id,
+        "webhook-timestamp": String(Math.floor(ahora.getTime() / 1000)),
+        "webhook-signature": firma,
+      },
+    });
+  }
+
+  async function enlaceEnviado(emailData: Record<string, string>): Promise<string> {
+    vi.stubEnv("SEND_EMAIL_HOOK_SECRET", `v1,whsec_${SECRETO}`);
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://beta.uvarq.com");
+    enviar.mockResolvedValue({ data: { id: "x" }, error: null });
+
+    const respuesta = await POST(firmada(emailData));
+
+    expect(respuesta.status).toBe(200);
+    expect(enviar).toHaveBeenCalledTimes(1);
+    return enviar.mock.calls[0][0].react.actionLink;
+  }
+
+  it("un redirect_to de otro dominio no llega al correo y queda registrado", async () => {
+    const enlace = await enlaceEnviado({ redirect_to: "https://evil.tld/auth/confirm?next=/x" });
+
+    expect(new URL(enlace).origin).toBe("https://beta.uvarq.com");
+    expect(enlace).not.toContain("evil.tld");
+    expect(logError).toHaveBeenCalledWith(
+      "webhook:supabase-auth",
+      "redirect_to fuera del sitio",
+      undefined,
+      expect.objectContaining({ area: "webhook" }),
+    );
+  });
+
+  it("un site_url ajeno con redirect_to relativo tampoco cambia el origen", async () => {
+    const enlace = await enlaceEnviado({ redirect_to: "/dashboard", site_url: "https://evil.tld" });
+
+    expect(new URL(enlace).origin).toBe("https://beta.uvarq.com");
+    expect(enlace).toContain("next=%2Fdashboard");
+  });
+
+  it("el caso legítimo de recuperación sigue igual, sin anidar /auth/confirm", async () => {
+    const enlace = await enlaceEnviado({
+      redirect_to: "https://beta.uvarq.com/auth/confirm?next=/actualizar-password",
+    });
+
+    expect(enlace).toBe(
+      "https://beta.uvarq.com/auth/confirm?next=%2Factualizar-password&token_hash=hash123&type=recovery",
+    );
+    expect(logError).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { ASUNTO_CONFIRMAR_CUENTA, ConfirmarCuentaEmail } from "@/emails/confirma
 import { asuntoConfirmarAccion, ConfirmarAccionEmail } from "@/emails/confirmar-accion";
 import { envioTransaccional } from "@/emails/marco/envio";
 import { logError } from "@/lib/log";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * Hook de envío de correo de Supabase Auth: recibe el evento, arma el correo
@@ -101,11 +102,19 @@ export async function POST(request: NextRequest) {
   // primer salto consume el token_hash y el segundo llega sin él. Por eso
   // aquí se detecta ese caso y se añaden token_hash/type directo a esa URL
   // en vez de anidarla.
-  // email_data.site_url NO es la Site URL del dashboard — es la URL base
-  // de la API del proyecto Supabase (https://[ref].supabase.co/auth/v1).
-  // El dominio real de la app hay que sacarlo del origin de redirect_to.
-  const redirectTo = new URL(email_data.redirect_to || "/", email_data.site_url);
-  const appOrigin = redirectTo.origin;
+  // El origen es el del despliegue (`siteUrl()`), nunca el del payload:
+  // email_data.site_url es la URL de la API de Supabase, y redirect_to lo
+  // escribe quien firma. Supabase solo pone ahí URLs de su lista permitida,
+  // pero con el secreto filtrado se firma cualquier cosa, y el correo sale
+  // auténtico desde nuestro dominio (P1-3, AUDIT-2026-11-23.md). Un
+  // redirect_to de otro origen no lo produce ningún flujo de la app: se
+  // descarta entero y se registra.
+  const appOrigin = new URL(siteUrl()).origin;
+  let redirectTo = new URL(email_data.redirect_to || "/", appOrigin);
+  if (redirectTo.origin !== appOrigin) {
+    logError("webhook:supabase-auth", "redirect_to fuera del sitio", undefined, { area: "webhook" });
+    redirectTo = new URL("/", appOrigin);
+  }
   let actionLink: string;
   if (redirectTo.pathname === "/auth/confirm") {
     redirectTo.searchParams.set("token_hash", email_data.token_hash);
