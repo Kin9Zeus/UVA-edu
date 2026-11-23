@@ -7,6 +7,8 @@ import { logError } from "@/lib/log";
 import { mensajeErrorContrasena } from "@/lib/password";
 import { rutaSegundoFactor } from "@/lib/auth/aal";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { COOKIE_RECUPERACION } from "@/lib/auth/recuperacion";
 
 /**
  * `guardada`: la contraseña se cambió y la sesión del enlace ya se cerró; la
@@ -38,7 +40,11 @@ export async function actualizarPassword(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  // Solo la sesión que abrió el enlace del correo (lib/auth/recuperacion.ts).
+  // Con una sesión normal, cambiar la contraseña pide la actual: eso es
+  // /dashboard/perfil (cambiarPassword), no esta pantalla.
+  const tienda = await cookies();
+  if (!user || !tienda.has(COOKIE_RECUPERACION)) {
     return { error: "Tu enlace expiró o no es válido. Solicita uno nuevo." };
   }
 
@@ -74,6 +80,7 @@ export async function actualizarPassword(
   // el usuario tenga que iniciar sesión con la contraseña nueva en vez de
   // quedar autenticado de una vez en el dashboard.
   await supabase.auth.signOut();
+  tienda.delete(COOKIE_RECUPERACION);
 
   return { guardada: true, email: user.email ?? null };
 }

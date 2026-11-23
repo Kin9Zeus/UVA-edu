@@ -82,6 +82,7 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
  */
 const MENSAJES_ERROR_QUERY: Record<string, string> = {
   enlace_invalido: "Ese enlace ya no es válido o ya venció. Pide uno nuevo.",
+  recuperacion_sin_cambiar: "Saliste sin cambiar tu contraseña. Inicia sesión o pide otro enlace.",
 };
 
 /** Con el celular girado, el formulario ocupa la columna derecha entera. */

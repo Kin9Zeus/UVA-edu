@@ -14,6 +14,11 @@ import {
   esEnlaceDeRegistro,
   serializarCorreoConfirmado,
 } from "@/lib/correo-confirmado";
+import {
+  COOKIE_RECUPERACION,
+  OPCIONES_COOKIE_RECUPERACION,
+  RUTA_CAMBIO_CONTRASENA,
+} from "@/lib/auth/recuperacion";
 
 /**
  * Antes esta lógica corría directo en el GET de /auth/confirm (auto-verificar
@@ -60,6 +65,10 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
   const next = destinoInternoSeguro(`${nextUrl.pathname}${nextUrl.search}`);
 
   const supabase = await createClient();
+  // Abrir el enlace inicia sesión: si es para cambiar la contraseña, esa
+  // sesión queda marcada y solo sirve para eso (lib/auth/recuperacion.ts).
+  const marcarRecuperacion = async () =>
+    (await cookies()).set(COOKIE_RECUPERACION, "1", OPCIONES_COOKIE_RECUPERACION);
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -67,6 +76,8 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
     if (!error) {
       if (signOutAlConfirmar) {
         await supabase.auth.signOut();
+      } else if (nextUrl.pathname === RUTA_CAMBIO_CONTRASENA) {
+        await marcarRecuperacion();
       }
       redirect(next);
     }
@@ -100,6 +111,8 @@ export async function confirmarEnlace(formData: FormData): Promise<void> {
       }
       if (signOutAlConfirmar) {
         await supabase.auth.signOut();
+      } else if (type === "recovery") {
+        await marcarRecuperacion();
       }
       redirect(
         esRegistro ? `/auth/confirm?estado=confirmada&next=${encodeURIComponent(next)}` : next,

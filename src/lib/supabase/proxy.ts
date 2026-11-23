@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import { DESTINO_POR_DEFECTO } from "@/lib/redirect-seguro";
+import { COOKIE_RECUPERACION, decidirRecuperacion } from "@/lib/auth/recuperacion";
 
 // Los route groups entre paréntesis no aparecen en la URL, así que el muro
 // de acceso debe matchear por el path público (ej. "/dashboard", "/admin"),
@@ -97,6 +98,28 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
   const claims = claimsData?.claims ?? null;
 
   const { pathname } = request.nextUrl;
+
+  // La sesión que abre el enlace de «recuperar contraseña» solo sirve para
+  // cambiarla (lib/auth/recuperacion.ts). Va antes que el salto del home: si
+  // no, tocar el logo llevaba al panel con la sesión del enlace.
+  const recuperacion = decidirRecuperacion({
+    pathname,
+    tieneSesion: claims !== null,
+    enRecuperacion: request.cookies.has(COOKIE_RECUPERACION),
+    // Next precarga los enlaces visibles; eso no es que la persona se fue.
+    esPrecarga: request.headers.has("next-router-prefetch"),
+  });
+  if (recuperacion === "rechazar-precarga") {
+    return new NextResponse(null, { status: 204 });
+  }
+  if (recuperacion === "cerrar") {
+    // signOut borra las cookies de sesión vía `setAll` en `supabaseResponse`.
+    await supabase.auth.signOut();
+    const response = NextResponse.redirect(new URL("/login?error=recuperacion_sin_cambiar", request.url));
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    response.cookies.delete(COOKIE_RECUPERACION);
+    return response;
+  }
 
   // El home es la landing para visitantes: con sesión no se muestra (su
   // header es fijo y ofrecería "Acceder" a quien ya entró). Se manda al mismo

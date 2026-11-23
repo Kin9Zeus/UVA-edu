@@ -9,7 +9,9 @@ vi.mock("@/lib/resend", () => ({
   enviarCorreoPasswordActualizada: vi.fn(async () => ({ success: true })),
 }));
 
+import { cookies } from "next/headers";
 import { actualizarPassword } from "@/actions/auth/actualizar-password";
+import { COOKIE_RECUPERACION } from "@/lib/auth/recuperacion";
 import { faltaCodigoParaCambiarContrasena } from "@/lib/auth/aal";
 import { logError } from "@/lib/log";
 
@@ -27,8 +29,25 @@ function formulario(password: string, password2 = password): FormData {
   return datos;
 }
 
+let enRecuperacion: boolean;
+let cookiesBorradas: string[];
+
 beforeEach(() => {
   servidorFalso.reiniciar();
+  enRecuperacion = true;
+  cookiesBorradas = [];
+  vi.mocked(cookies).mockImplementation(async () => {
+    const tienda = {
+      get: () => undefined,
+      getAll: () => [],
+      has: (nombre: string) => enRecuperacion && nombre === COOKIE_RECUPERACION,
+      set: () => {},
+      delete: (nombre: string) => {
+        cookiesBorradas.push(nombre);
+      },
+    };
+    return tienda as unknown as Awaited<ReturnType<typeof cookies>>;
+  });
 });
 
 describe("actualizarPassword", () => {
@@ -41,6 +60,17 @@ describe("actualizarPassword", () => {
     const operaciones = servidorFalso.operaciones();
     expect(operaciones).toContain("auth:updateUser");
     expect(operaciones.indexOf("auth:signOut")).toBeGreaterThan(operaciones.indexOf("auth:updateUser"));
+    expect(cookiesBorradas).toContain(COOKIE_RECUPERACION);
+  });
+
+  it("con una sesión normal (no del enlace) no cambia nada: P2-1 de AUDIT-2026-11-23", async () => {
+    servidorFalso.conUsuario({ id: "u-1", email: "laura@obra.co" });
+    enRecuperacion = false;
+
+    const resultado = await actualizarPassword(null, formulario("Obra-2026!x"));
+
+    expect(resultado).toEqual({ error: "Tu enlace expiró o no es válido. Solicita uno nuevo." });
+    expect(servidorFalso.operaciones()).not.toContain("auth:updateUser");
   });
 
   it("sin sesión del enlace no guarda y lo dice", async () => {
