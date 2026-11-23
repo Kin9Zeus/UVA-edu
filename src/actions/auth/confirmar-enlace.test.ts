@@ -9,6 +9,7 @@ vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloL
 import { cookies } from "next/headers";
 import { confirmarEnlace } from "@/actions/auth/confirmar-enlace";
 import { COOKIE_CORREO_CONFIRMADO, leerCorreoConfirmado } from "@/lib/correo-confirmado";
+import { COOKIE_RECUPERACION } from "@/lib/auth/recuperacion";
 
 /**
  * Enlaces de registro: al confirmar van a "¡Correo confirmado!" con el carné
@@ -108,13 +109,29 @@ describe("confirmarEnlace con un enlace de registro", () => {
   });
 });
 
-describe("confirmarEnlace con un enlace de recuperar contraseña (sin cambios)", () => {
-  it("al confirmar va directo a su destino, sin cookie del carné", async () => {
+describe("confirmarEnlace con un enlace de recuperar contraseña", () => {
+  it("al confirmar va directo a su destino y marca la sesión como de recuperación (sin carné)", async () => {
     const destino = await destinoDe(() =>
       confirmarEnlace(formulario({ tokenHash: "hash", type: "recovery", next: "/actualizar-password" })),
     );
 
     expect(destino).toBe("/actualizar-password");
+    expect(cookiesPuestas.map((c) => c.nombre)).toEqual([COOKIE_RECUPERACION]);
+    expect(cookiesPuestas[0].opciones).toMatchObject({ httpOnly: true, path: "/", maxAge: 15 * 60 });
+  });
+
+  it("con el respaldo por `code` (correo propio de Supabase) también la marca", async () => {
+    const destino = await destinoDe(() =>
+      confirmarEnlace(formulario({ code: "abc", next: "/actualizar-password" })),
+    );
+
+    expect(destino).toBe("/actualizar-password");
+    expect(cookiesPuestas.map((c) => c.nombre)).toEqual([COOKIE_RECUPERACION]);
+  });
+
+  it("un `code` que no va a cambiar la contraseña no la marca", async () => {
+    await destinoDe(() => confirmarEnlace(formulario({ code: "abc", next: "/dashboard" })));
+
     expect(cookiesPuestas).toHaveLength(0);
   });
 
