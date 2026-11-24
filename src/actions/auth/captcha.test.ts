@@ -11,10 +11,13 @@ vi.mock("@/actions/auth/check-email", () => ({ checkEmail: vi.fn(async () => ({ 
 
 import { login } from "@/actions/auth/login";
 import { registro } from "@/actions/auth/registro";
+import { CASILLAS_LEGALES } from "@/lib/legal/consentimiento";
 import { recuperar } from "@/actions/auth/recuperar";
 import { reenviarVerificacion } from "@/actions/auth/reenviar-verificacion";
 import { registrarEventoDeLaPeticion } from "@/lib/eventos-seguridad";
 import { CAMPO_TURNSTILE, MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
+
+const CASILLAS_MARCADAS = Object.fromEntries(CASILLAS_LEGALES.map((casilla) => [casilla, "on"]));
 
 /**
  * Fase 4: Cloudflare Turnstile. Lo valida Supabase Auth (no la app): aquí se
@@ -88,7 +91,7 @@ describe("registro", () => {
 
     const estado = await registro(
       null,
-      conToken({ email: CORREO, nombre: "Ana", password: "Arquitecta2026!" }),
+      conToken({ email: CORREO, nombre: "Ana", password: "Arquitecta2026!", ...CASILLAS_MARCADAS }),
     );
 
     expect(servidorFalso.argumentosDe("auth:signUp")).toMatchObject({ options: { captchaToken: TOKEN } });

@@ -1,7 +1,7 @@
 "use client";
 
 import { registrarEvento } from "@/lib/analitica";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { LARGO_MAXIMO_NOMBRE } from "@/lib/nombre";
@@ -19,6 +19,9 @@ import {
 } from "@/components/auth/acceso";
 import { isPasswordValid } from "@/lib/password";
 import { registro, type RegistroState } from "@/actions/auth/registro";
+import { CASILLAS_LEGALES, MENSAJE_FALTAN_CASILLAS } from "@/lib/legal/consentimiento";
+
+type CasillaLegalNombre = (typeof CASILLAS_LEGALES)[number];
 
 /**
  * Formulario de crear cuenta (Crear cuenta lab 6, "Carné"). Nombre, correo y
@@ -46,7 +49,14 @@ export function RegistroForm({
   const [nombre, setNombre] = useState(nombreInicial);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
-  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [casillas, setCasillas] = useState<Record<CasillaLegalNombre, boolean>>({
+    terminos: false,
+    "datos-personales": false,
+    "mayoria-de-edad": false,
+  });
+  const aceptaTodo = CASILLAS_LEGALES.every((casilla) => casillas[casilla]);
+  const marcar = (name: CasillaLegalNombre, marcada: boolean) =>
+    setCasillas((antes) => ({ ...antes, [name]: marcada }));
   const [registroState, formAction, pending] = useActionState<
     RegistroState,
     FormData
@@ -55,7 +65,7 @@ export function RegistroForm({
   const passwordValid = isPasswordValid(password);
   const passwordsMatch = password.length > 0 && password === password2;
   const noCoinciden = password2.length > 0 && !passwordsMatch;
-  const canSubmit = passwordValid && passwordsMatch && aceptaTerminos;
+  const canSubmit = passwordValid && passwordsMatch && aceptaTodo;
 
   function cambiar(datos: Partial<DatosCarne>) {
     onCambio?.({ nombre, correo, password, ...datos });
@@ -176,40 +186,23 @@ export function RegistroForm({
           <MensajeError id="reg-pass2-error">Las contraseñas no coinciden.</MensajeError>
         )}
 
-        {/* El <label> entero es el área táctil (44 px de alto); la casilla
-            nativa conserva Espacio para marcarla y el foco visible global. */}
-        <label
-          htmlFor="reg-terminos"
-          className="flex min-h-11 items-center gap-2.5 text-uva-detalle text-uva-text-muted"
-        >
-          <input
-            id="reg-terminos"
-            name="terminos"
-            type="checkbox"
-            required
-            checked={aceptaTerminos}
-            onChange={(event) => setAceptaTerminos(event.target.checked)}
-            className="size-5 shrink-0 accent-uva-btn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
-          />
-          <span>
+        {/* Tres casillas separadas (P1-5, AUDIT-2026-11-23): la autorización
+            de datos no puede ir amarrada a los términos. Los `name` son los de
+            CASILLAS_LEGALES, que la acción exige. */}
+        <fieldset className="grid gap-0">
+          <legend className="sr-only">Autorizaciones para crear tu cuenta</legend>
+          <CasillaLegal name="terminos" marcada={casillas.terminos} onCambio={marcar}>
             Acepto los{" "}
-            <Link
-              href="/soporte?tema=terminos"
-              className="text-uva-accent-ink underline underline-offset-3"
-              target="_blank"
-            >
-              Términos
-            </Link>{" "}
-            y la{" "}
-            <Link
-              href="/soporte?tema=privacidad"
-              className="text-uva-accent-ink underline underline-offset-3"
-              target="_blank"
-            >
-              Política de privacidad
-            </Link>
-          </span>
-        </label>
+            <EnlaceLegal href="/soporte?tema=terminos">Términos y condiciones</EnlaceLegal>.
+          </CasillaLegal>
+          <CasillaLegal name="datos-personales" marcada={casillas["datos-personales"]} onCambio={marcar}>
+            Autorizo el tratamiento de mis datos personales según la{" "}
+            <EnlaceLegal href="/soporte?tema=privacidad">Política de tratamiento de datos</EnlaceLegal>.
+          </CasillaLegal>
+          <CasillaLegal name="mayoria-de-edad" marcada={casillas["mayoria-de-edad"]} onCambio={marcar}>
+            Confirmo que soy mayor de 18 años.
+          </CasillaLegal>
+        </fieldset>
 
         <VerificacionTurnstile reiniciarCon={registroState} accion="registro" />
 
@@ -222,19 +215,61 @@ export function RegistroForm({
           variant="uva-primary"
           size="uva"
           disabled={!canSubmit || pending}
-          aria-describedby={aceptaTerminos ? undefined : "reg-terminos-ayuda"}
+          aria-describedby={aceptaTodo ? undefined : "reg-terminos-ayuda"}
           className={`${ACCESO_BOTON} disabled:border-uva-divider disabled:bg-uva-chip disabled:text-uva-text-muted disabled:opacity-100`}
         >
           {pending ? "Creando cuenta…" : "Crear mi cuenta"}
         </Button>
         {/* El botón deshabilitado no recibe foco con Tab: sin este texto quien
             navega con teclado no sabe por qué no puede avanzar. */}
-        {!aceptaTerminos && (
+        {!aceptaTodo && (
           <p id="reg-terminos-ayuda" className="text-uva-detalle text-uva-text-muted">
-            Acepta los Términos y la Política de privacidad para crear tu cuenta.
+            {MENSAJE_FALTAN_CASILLAS}
           </p>
         )}
       </div>
     </form>
+  );
+}
+
+/** El <label> entero es el área táctil (44 px de alto); la casilla nativa
+ * conserva Espacio para marcarla y el foco visible global. */
+function CasillaLegal({
+  name,
+  marcada,
+  onCambio,
+  children,
+}: {
+  name: CasillaLegalNombre;
+  marcada: boolean;
+  onCambio: (name: CasillaLegalNombre, marcada: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={`reg-${name}`}
+      className="flex min-h-11 items-center gap-2.5 text-uva-detalle text-uva-text-muted"
+    >
+      <input
+        id={`reg-${name}`}
+        name={name}
+        type="checkbox"
+        required
+        checked={marcada}
+        onChange={(event) => onCambio(name, event.target.checked)}
+        className="size-4 shrink-0 accent-uva-btn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+
+/** Lleva a /soporte?tema=…, que ya redirige al texto legal publicado cuando
+ * NEXT_PUBLIC_LEGAL_ENABLED está encendida (lib/legal/redireccion-soporte.ts). */
+function EnlaceLegal({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="text-uva-accent-ink underline underline-offset-3" target="_blank">
+      {children}
+    </Link>
   );
 }

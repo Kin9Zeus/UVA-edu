@@ -25,6 +25,7 @@ romper los certificados ni los registros contables.
 | Sesiones abiertas (incluye IP y navegador) | `auth.sessions` | Mantener la sesión | Hasta cerrar sesión o vencer | Borradas |
 | Secreto del código de 2 pasos | `auth.mfa_factors` | 2FA de administradores | Mientras exista la cuenta | Se conserva, con la cuenta bloqueada. Un administrador no puede borrar su propia cuenta |
 | Nombre, correo, celular, país, especialidad, rol en el gremio, foto | `perfiles`, bucket `avatares` | Perfil y comunidad | Mientras exista la cuenta | Vaciados ("Usuario eliminado"); la foto se borra del bucket |
+| Qué autorizó al registrarse (términos, tratamiento de datos, mayoría de edad), con la versión de cada texto, la fecha y si fue por correo o por Google | `consentimientos` (`supabase/sql/140`) | Prueba de la autorización (Decreto 1377/2013, art. 7) | Mientras exista la fila del perfil | **Se conserva**: es la prueba de que hubo autorización |
 | Cuentas que nunca confirmaron el correo | `auth.users` | — | **7 días** (cron `limpiar-usuarios-no-verificados`, 3:00) | — |
 
 ### Estudio

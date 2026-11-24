@@ -11,9 +11,8 @@ import { VerificarCertificadoForm } from "@/components/home/VerificarCertificado
 import { TEMAS_SOPORTE } from "@/lib/soporte";
 import { REDES, urlWhatsapp } from "@/lib/contacto";
 import { LogoUva } from "@/components/home/LogoUva";
-import { LEGAL_HABILITADO } from "@/lib/features";
 import { NOMBRE_LEGAL, rutaLegal } from "@/lib/legal/slugs";
-import { getSlugsConTextoVigente } from "@/lib/legal/textos";
+import { slugsConTextoVigente } from "@/lib/legal/textos";
 import { ANALITICA_ACTIVA } from "@/lib/analitica";
 import { BotonConfigurarCookies } from "@/components/analitica/BotonConfigurarCookies";
 
@@ -89,9 +88,8 @@ export async function Footer({
   // `[]`, sin cachearlo: la columna se omite.
   const escuelas = await getCategoriasActivas();
   // Solo se enlazan los textos que ya tienen una versión vigente: un enlace
-  // a un 404 incumple "cada llamado a la acción lleva a donde dice". Con la
-  // bandera apagada el pie queda como antes.
-  const textosLegales = LEGAL_HABILITADO ? await getSlugsConTextoVigente() : [];
+  // a un 404 incumple "cada llamado a la acción lleva a donde dice".
+  const textosLegales = slugsConTextoVigente();
 
   return (
     <footer

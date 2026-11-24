@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 /**
- * Formato del contenido de un texto legal (`textos_legales.contenido`): una
- * lista de bloques, no HTML ni Markdown.
+ * Formato del contenido de un texto legal (src/content/legal): una lista de
+ * bloques, no HTML ni Markdown.
  *
  * Por qué bloques y no HTML/Markdown
  * ----------------------------------
  * Un texto legal lo escribe un humano y lo publica otro, y una vez publicado
- * no se toca. HTML en la base obligaría a inyectarlo con
+ * no se toca. HTML obligaría a inyectarlo con
  * `dangerouslySetInnerHTML` (y con la CSP de `strict-dynamic` cualquier
  * descuido es un XSS persistente en la página más visitada del sitio);
  * Markdown pediría una librería nueva y dejaría sin resolver cómo se ve una
@@ -16,11 +16,10 @@ import { z } from "zod";
  * no está en esta lista simplemente no existe: un enlace `javascript:` o una
  * etiqueta `<script>` no tienen dónde entrar.
  *
- * La base solo exige que `contenido` sea una lista (CHECK en
- * supabase/sql/130); la forma de cada bloque se valida aquí, al leer y antes
- * de publicar. Los límites de tamaño no son decoración: zod 4.4 se quedaba sin
- * memoria al validar colecciones enormes (GHSA-mrhx-c7xc-m3w5), y esto se
- * valida con datos que vienen de la base.
+ * La forma de cada bloque se valida aquí; `textos.test.ts` la comprueba en
+ * cada archivo de src/content/legal antes de que llegue a producción. Los
+ * límites de tamaño vienen de cuando se validaban datos de la base (zod 4.4
+ * se quedaba sin memoria con colecciones enormes, GHSA-mrhx-c7xc-m3w5).
  */
 
 const MAX_BLOQUES = 1_000;

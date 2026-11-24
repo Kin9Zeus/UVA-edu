@@ -17,8 +17,8 @@ vi.mock("@/lib/categoria", () => ({
     { id: "viz", slug: "visualizacion" },
   ],
 }));
-vi.mock("@/lib/features", () => ({ LEGAL_HABILITADO: false, PRECIOS_HABILITADOS: false }));
-vi.mock("@/lib/legal/textos", () => ({ getSlugsConTextoVigente: async () => [] }));
+vi.mock("@/lib/features", () => ({ PRECIOS_HABILITADOS: false }));
+vi.mock("@/lib/legal/textos", () => ({ slugsConTextoVigente: () => [] }));
 
 const B = "http://localhost:3000";
 

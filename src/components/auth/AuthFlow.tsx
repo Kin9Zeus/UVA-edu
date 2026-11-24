@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -398,6 +399,21 @@ export function AuthFlow({
 
             {separador}
             {botonGoogle}
+            {/* Aquí Google puede crear una cuenta nueva: sin casillas, el
+                aviso es la autorización (P1-5, AUDIT-2026-11-23). La prueba la
+                guarda /auth/callback. En los pasos "oauth" y "both" la cuenta
+                ya existe y no se repite. */}
+            <p className="text-uva-detalle text-uva-text-muted">
+              Al continuar con Google aceptas los{" "}
+              <Link href="/soporte?tema=terminos" target="_blank" className="text-uva-accent-ink underline underline-offset-3">
+                Términos y condiciones
+              </Link>
+              , autorizas el tratamiento de tus datos según la{" "}
+              <Link href="/soporte?tema=privacidad" target="_blank" className="text-uva-accent-ink underline underline-offset-3">
+                Política de tratamiento de datos
+              </Link>{" "}
+              y confirmas que eres mayor de 18 años.
+            </p>
           </div>
         ) : (
           <div className={`grid grid-cols-1 gap-3 bajo:gap-2 ${COLUMNA_FORMULARIO}`}>

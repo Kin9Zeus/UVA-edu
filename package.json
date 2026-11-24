@@ -26,8 +26,6 @@
     "db:check-fk-indexes": "tsx scripts/check-fk-indexes.ts",
     "db:check-rls-initplan": "tsx scripts/check-rls-initplan.ts",
     "db:check-permisos-funciones": "tsx scripts/check-permisos-funciones.ts",
-    "legal:sembrar": "tsx scripts/legal/sembrar.ts",
-    "legal:publicar": "tsx scripts/legal/publicar.ts",
     "test": "vitest run",
     "test:rls": "tsx --conditions=react-server scripts/rls-test.ts",
     "test:webhooks": "tsx scripts/webhook-test.ts",

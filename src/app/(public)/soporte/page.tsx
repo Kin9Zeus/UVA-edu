@@ -29,7 +29,7 @@ export default async function SoportePublicoPage({
   const [{ tema }, perfilActual] = await Promise.all([searchParams, getPerfilActual()]);
 
   // Términos y Privacidad pasan a su texto legal cuando ya está publicado.
-  const destinoLegal = await destinoLegalDeTema(tema);
+  const destinoLegal = destinoLegalDeTema(tema);
   if (destinoLegal) redirect(destinoLegal);
 
   return (

@@ -50,6 +50,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     { data: notificaciones, error: errorNotificaciones },
     { data: notas, error: errorNotas },
     { data: diasDeEstudio, error: errorDiasDeEstudio },
+    { data: consentimientos, error: errorConsentimientos },
   ] = await Promise.all([
     supabase
       .from("perfiles")
@@ -114,6 +115,12 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
       .order("creado_en"),
     // Días con avance en alguna clase, para la racha (supabase/sql/119).
     supabase.from("actividad_diaria").select("fecha").eq("id_usuario", user.id).order("fecha"),
+    // Qué autorizó al registrarse y con qué versión de cada texto (supabase/sql/140).
+    supabase
+      .from("consentimientos")
+      .select("tipo, version_texto, origen, aceptado_en")
+      .eq("id_usuario", user.id)
+      .order("aceptado_en"),
   ]);
 
   // Una exportación a medias entregada como completa es peor que un error: la
@@ -134,6 +141,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     notificaciones: errorNotificaciones,
     notas: errorNotas,
     dias_de_estudio: errorDiasDeEstudio,
+    consentimientos: errorConsentimientos,
   };
   const fallidas = Object.entries(erroresPorSeccion).filter(([, error]) => error);
   if (fallidas.length > 0) {
@@ -166,6 +174,7 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     notificaciones: notificaciones ?? [],
     notas: notas ?? [],
     dias_de_estudio: (diasDeEstudio ?? []).map((dia) => dia.fecha),
+    consentimientos: consentimientos ?? [],
   };
 
   return {

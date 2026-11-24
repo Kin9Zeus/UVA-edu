@@ -32,19 +32,10 @@ export type ExcepcionAuditoria = {
   revisarAntes: string;
 };
 
-export const EXCEPCIONES_AUDITORIA: ExcepcionAuditoria[] = [
-  {
-    ghsa: "GHSA-fc5q-39xc-vjpf",
-    paquete: "picomatch",
-    motivo:
-      "ReDoS con patrones glob escritos por un atacante. Solo entra por @sentry/nextjs: " +
-      "@rollup/plugin-commonjs (empaquetado durante el build) y @sentry/cloudflare → vite " +
-      "(Cloudflare Workers; la app corre en Railway). Ninguna petición llega a picomatch y " +
-      "los patrones los escribe el equipo. Sin versión con parche al 17-nov-2026 (afecta <= 4.0.7).",
-    // 7 días: el plazo para un aviso alto en docs/ops/respuesta-a-incidentes.md.
-    revisarAntes: "2026-11-24",
-  },
-];
+// Vacía: GHSA-fc5q-39xc-vjpf (picomatch) dejó de aparecer en `npm audit` al
+// revisarla el 2026-11-24 (venció su plazo). Se agrega una aquí solo con
+// motivo y fecha de revisión.
+export const EXCEPCIONES_AUDITORIA: ExcepcionAuditoria[] = [];
 
 const SEVERIDADES_BLOQUEANTES = new Set(["high", "critical"]);
 

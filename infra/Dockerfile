@@ -52,7 +52,6 @@ ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_PRICING_ENABLED
-ARG NEXT_PUBLIC_LEGAL_ENABLED
 # Vacío es el build de verdad. El CI usa `compile` (compila todo pero
 # no pre-genera páginas): no tiene la URL de Supabase y el sitemap se arma
 # consultando la base. Una imagen para desplegar NUNCA va con `compile`.

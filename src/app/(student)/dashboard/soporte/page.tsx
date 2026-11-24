@@ -20,7 +20,7 @@ export default async function SoportePage({
   const { tema } = await searchParams;
 
   // Términos y Privacidad pasan a su texto legal cuando ya está publicado.
-  const destinoLegal = await destinoLegalDeTema(tema);
+  const destinoLegal = destinoLegalDeTema(tema);
   if (destinoLegal) redirect(destinoLegal);
 
   return <SoporteCentro temaAbierto={esTemaSoporte(tema) ? tema : undefined} conSesion verificacionEnPagina />;

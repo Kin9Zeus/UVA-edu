@@ -28,9 +28,8 @@ en Mux y los correos en Resend. Solo se mueve el servidor de la app.
    con el Dockerfile `infra/Dockerfile` y como contexto la raíz del repo.
 2. **Variables de build** (públicas): `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` (el dominio
-   definitivo), `NEXT_PUBLIC_SENTRY_DSN`, y las banderas
-   `NEXT_PUBLIC_PRICING_ENABLED` y `NEXT_PUBLIC_LEGAL_ENABLED` con el mismo
-   valor que en Railway.
+   definitivo), `NEXT_PUBLIC_SENTRY_DSN`, y la bandera
+   `NEXT_PUBLIC_PRICING_ENABLED` con el mismo valor que en Railway.
 3. **Variables del servidor**: las mismas de Railway (lista en la tabla de
    llaves), **incluida** `ORIGEN_SECRETO`. `TRUSTED_PROXY_HOPS` puede
    cambiar si el proveedor pone su propio proxy delante: comprobarlo con la
