@@ -84,6 +84,8 @@ const PERMITIDAS_DEFINER_CON_SESION: Record<string, string> = {
   consumir_limite: "Solo gasta el cupo de auth.uid(); los topes los fija la base (134).",
   reclamar_reproduccion: "Solo reemplaza el token de reproducción de auth.uid(); exige sesión (136).",
   reproduccion_vigente: "Solo responde por el token de reproducción de auth.uid(); exige sesión (136).",
+  registrar_consentimientos_google:
+    "Solo escribe el consentimiento de auth.uid(), si entró con Google y aún no tiene filas (140).",
 };
 
 /** Nombres de las funciones de `public` que define algún script de esta rama. */

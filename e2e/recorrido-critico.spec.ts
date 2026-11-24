@@ -80,7 +80,8 @@ test("recorrido crítico: código -> registro -> canje -> catálogo -> curso -> 
     await page.fill("#reg-nombre", nombre);
     await page.fill("#reg-pass", password);
     await page.fill("#reg-pass2", password);
-    await page.getByRole("checkbox").check();
+    // Las tres autorizaciones del registro (P1-5): términos, datos y mayoría de edad.
+    for (const casilla of await page.getByRole("checkbox").all()) await casilla.check();
     await esperarTurnstile(page);
     await page.getByRole("button", { name: "Crear mi cuenta" }).click();
     await expect(
