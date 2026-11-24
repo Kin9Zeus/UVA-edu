@@ -30,8 +30,22 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      const cuentaNuevaConGoogle = esRegistroNuevoConGoogle(data.user);
+      // Prueba del consentimiento: quien crea la cuenta con Google aceptó el
+      // aviso que está debajo del botón (P1-5, supabase/sql/140). La función
+      // no duplica si ya hay filas. Si falla, la cuenta ya existe: se
+      // registra para completarla a mano en vez de dejar a la persona fuera.
+      if (cuentaNuevaConGoogle) {
+        const { error: errorConsentimiento } = await supabase.rpc("registrar_consentimientos_google");
+        if (errorConsentimiento) {
+          logError("auth/callback", "no se guardó el consentimiento de Google", errorConsentimiento, {
+            area: "auth",
+            id_usuario: data.user.id,
+          });
+        }
+      }
       // Cuenta nueva con Google: aviso para la analítica (lib/analitica.ts).
-      if (ANALITICA_ACTIVA && esRegistroNuevoConGoogle(data.user)) {
+      if (ANALITICA_ACTIVA && cuentaNuevaConGoogle) {
         (await cookies()).set(COOKIE_REGISTRO_PENDIENTE, "google", {
           path: "/",
           maxAge: DURACION_REGISTRO_PENDIENTE_S,

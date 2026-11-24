@@ -800,6 +800,58 @@ async function main() {
       clienteSinAcceso.from("perfiles").update({ foto_url: null }).eq("id", idSinAcceso).select(),
     );
 
+    // P1-5 (AUDIT-2026-11-23.md, 140): prueba del consentimiento. Las filas
+    // solo las pone la base; nadie las escribe ni las borra por la API.
+    {
+      const { data: conConsentimiento, error: errConsentimiento } = await admin.auth.admin.createUser({
+        email: `rls-test-consentimiento-${sufijo}@uva.test`,
+        password,
+        email_confirm: true,
+        user_metadata: { nombre: "RLS Consentimiento", acepta_legal: true },
+      });
+      if (errConsentimiento || !conConsentimiento.user) {
+        throw new Error(`No pude crear el usuario del consentimiento: ${errConsentimiento?.message}`);
+      }
+      const idConsentimiento = conConsentimiento.user.id;
+      try {
+        const { data: filas, error } = await admin
+          .from("consentimientos")
+          .select("tipo, origen")
+          .eq("id_usuario", idConsentimiento);
+        const tipos = (filas ?? []).map((fila) => fila.tipo).sort().join(",");
+        registrar(
+          "el registro con las casillas marcadas guarda las tres filas de consentimiento",
+          !error && tipos === "datos-personales,mayoria-de-edad,terminos" && (filas ?? []).every((f) => f.origen === "registro-correo"),
+          error?.message ?? tipos,
+        );
+
+        const { data: sinMarca } = await admin.from("consentimientos").select("id").eq("id_usuario", idSinAcceso);
+        registrar("una cuenta creada sin la marca no recibe consentimientos inventados", (sinMarca ?? []).length === 0);
+
+        await esperarBloqueado(
+          "estudiante NO puede leer el consentimiento de otra persona",
+          clienteSinAcceso.from("consentimientos").select("id").eq("id_usuario", idConsentimiento),
+        );
+        await esperarBloqueado(
+          "estudiante NO puede escribirse un consentimiento directo",
+          clienteSinAcceso
+            .from("consentimientos")
+            .insert({ id_usuario: idSinAcceso, tipo: "terminos", origen: "registro-correo" })
+            .select(),
+        );
+        await esperarBloqueado(
+          "estudiante NO puede borrar el consentimiento de otra persona",
+          clienteSinAcceso.from("consentimientos").delete().eq("id_usuario", idConsentimiento).select(),
+        );
+        await esperarSinPermiso(
+          "una cuenta de correo NO puede registrarse un consentimiento «de Google»",
+          clienteSinAcceso.rpc("registrar_consentimientos_google"),
+        );
+      } finally {
+        await admin.auth.admin.deleteUser(idConsentimiento);
+      }
+    }
+
     console.log("\n=== Sesión: ESTUDIANTE CON ACCESO (suscripción ACTIVA) ===\n");
 
     await esperarBloqueado(

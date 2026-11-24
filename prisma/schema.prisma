@@ -244,6 +244,7 @@ model Perfiles {
   notificaciones_generadas       Notificaciones[]              @relation("NotificacionesGeneradasPorActor")
   notas_leccion                  NotasLeccion[]
   actividad_diaria               ActividadDiaria[]
+  consentimientos                Consentimientos[]
 
   @@map("perfiles")
 }
@@ -1905,4 +1906,29 @@ model TextosLegales {
   @@unique([slug, version])
   @@index([slug, estado, vigente_desde])
   @@map("textos_legales")
+}
+
+/// Prueba de la autorización que dio cada persona al registrarse (Decreto
+/// 1377/2013; P1-5 de auditorias/AUDIT-2026-11-23.md). Una fila por cosa
+/// aceptada. Append-only: nadie la escribe por la API; las filas las ponen
+/// el trigger del registro con correo y `registrar_consentimientos_google()`
+/// (supabase/sql/140). `version_texto` la busca la base en `textos_legales`
+/// al momento de aceptar: null significa que aún no había texto publicado.
+/// Sobrevive a la supresión de la cuenta (la fila del perfil se anonimiza,
+/// no se borra).
+model Consentimientos {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario    String   @db.Uuid
+  /// 'terminos' | 'datos-personales' | 'mayoria-de-edad'
+  tipo          String
+  version_texto String?
+  /// 'registro-correo' | 'registro-google'
+  origen        String
+  aceptado_en   DateTime @default(now()) @db.Timestamptz
+
+  usuario Perfiles @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
+
+  @@unique([id_usuario, tipo, version_texto])
+  @@index([id_usuario])
+  @@map("consentimientos")
 }

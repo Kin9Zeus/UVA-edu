@@ -10,8 +10,11 @@ vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloL
 
 import { login } from "@/actions/auth/login";
 import { registro } from "@/actions/auth/registro";
+import { CASILLAS_LEGALES } from "@/lib/legal/consentimiento";
 import { confirmarEnlace } from "@/actions/auth/confirmar-enlace";
 import { GET as callbackOAuth } from "@/app/auth/callback/route";
+
+const CASILLAS_MARCADAS = Object.fromEntries(CASILLAS_LEGALES.map((casilla) => [casilla, "on"]));
 
 /**
  * Open redirect en los cuatro puntos que reciben un destino del usuario.
@@ -92,7 +95,7 @@ describe("registro", () => {
     const destino = await destinoDe(() =>
       registro(
         null,
-        formulario({ email: "ana@uva.co", nombre: "Ana", password: "Segura12345!x", redirect: hostil }),
+        formulario({ email: "ana@uva.co", nombre: "Ana", password: "Segura12345!x", redirect: hostil, ...CASILLAS_MARCADAS }),
       ),
     );
     expect(destino).toBe("/dashboard");

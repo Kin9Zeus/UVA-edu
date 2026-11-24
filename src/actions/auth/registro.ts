@@ -9,6 +9,7 @@ import { logError } from "@/lib/log";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import { LARGO_MAXIMO_NOMBRE, MENSAJE_NOMBRE_LARGO } from "@/lib/nombre";
 import { MENSAJE_CAPTCHA, esFalloCaptcha, tokenTurnstile } from "@/lib/turnstile";
+import { CASILLAS_LEGALES, MENSAJE_FALTAN_CASILLAS } from "@/lib/legal/consentimiento";
 
 export type RegistroState =
   | { error: string; needsConfirmation?: never; email?: never }
@@ -37,6 +38,9 @@ export async function registro(
   if (!isPasswordValid(password)) {
     return { error: "La contraseña no cumple los requisitos." };
   }
+  if (!CASILLAS_LEGALES.every((casilla) => formData.get(casilla) === "on")) {
+    return { error: MENSAJE_FALTAN_CASILLAS };
+  }
 
   const check = await checkEmail(email);
   if ("error" in check) {
@@ -52,7 +56,10 @@ export async function registro(
     email,
     password,
     options: {
-      data: { nombre },
+      // `acepta_legal`: el trigger de supabase/sql/140 guarda la prueba del
+      // consentimiento (con la versión vigente de cada texto) en la misma
+      // transacción que crea la cuenta.
+      data: { nombre, acepta_legal: true },
       // El webhook de correo (src/app/api/webhooks/supabase-auth/route.ts)
       // ya envuelve este valor dentro de su propio /auth/confirm?...&next=
       // <esto>; apuntar aquí también a /auth/confirm anidaría el redirect
