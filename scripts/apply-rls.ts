@@ -50,6 +50,17 @@
  * del lote vive dentro del cuerpo de `private.limpiar_usuarios_no_verificados()`
  * (010) y solo lo dispara el cron, no la aplicación del script.
  *
+ * Solo lo que cambió (P2-4, AUDIT-2026-11-23.md)
+ * ------------------------------------------------
+ * Reaplicar los 140 en cada corrida congelaba la app: cientos de bloqueos
+ * exclusivos retenidos hasta el COMMIT, más de 2 minutos en producción. Ahora
+ * se aplica desde el primer script nuevo o cambiado hasta el final, o todos
+ * si hubo una migración de Prisma después de la última corrida (la regla y
+ * su porqué: src/lib/db/scripts-por-aplicar.ts). `--todo` fuerza la corrida
+ * completa; CI la usa contra staging para probar que aplican desde cero.
+ * Además, `lock_timeout` de 5 s: si una tabla está ocupada se revierte y se
+ * reintenta en vez de quedarse esperando con todo lo demás bloqueado.
+ *
  * Sale con código 1 si algo falla, para usarse como gate de CI.
  */
 
@@ -57,6 +68,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
+import { scriptsPorAplicar } from "../src/lib/db/scripts-por-aplicar";
 
 // .env.local no existe en CI, donde las variables llegan del entorno.
 try {
@@ -69,6 +81,7 @@ const DIRECTORIO = join("supabase", "sql");
 /** Para imprimir: join() usa "\\" en Windows y se ve mezclado con el resto. */
 const DIRECTORIO_VISIBLE = "supabase/sql";
 const SOLO_VERIFICAR = process.argv.includes("--check");
+const TODO = process.argv.includes("--todo");
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -98,7 +111,7 @@ function migracionRequerida(sql: string): string | null {
 }
 
 /** Los scripts se aplican por su prefijo numérico, no por orden alfabético. */
-function scriptsEnOrden(): { nombre: string; orden: number; sql: string }[] {
+function scriptsEnOrden(): { nombre: string; orden: number; sql: string; sha256: string }[] {
   const archivos = readdirSync(DIRECTORIO).filter((n) => n.endsWith(".sql"));
 
   if (archivos.length === 0) {
@@ -118,11 +131,8 @@ function scriptsEnOrden(): { nombre: string; orden: number; sql: string }[] {
         );
         process.exit(1);
       }
-      return {
-        nombre,
-        orden: Number(prefijo[1]),
-        sql: readFileSync(join(DIRECTORIO, nombre), "utf8"),
-      };
+      const sql = readFileSync(join(DIRECTORIO, nombre), "utf8");
+      return { nombre, orden: Number(prefijo[1]), sql, sha256: sha256(sql) };
     })
     .sort((a, b) => a.orden - b.orden);
 }
@@ -158,8 +168,14 @@ const DDL_REGISTRO = `
   alter table private.rls_aplicados enable row level security;
 `;
 
+/**
+ * Huella del contenido, con los saltos de línea normalizados: el mismo
+ * archivo sale con CRLF en un checkout de Windows y con LF en CI (Linux), y
+ * sin esto cada máquina vería «cambiados» todos los scripts que aplicó la
+ * otra, y db:rls volvería a reaplicarlo todo (P2-4).
+ */
 function sha256(contenido: string): string {
-  return createHash("sha256").update(contenido, "utf8").digest("hex");
+  return createHash("sha256").update(contenido.replaceAll("\r\n", "\n"), "utf8").digest("hex");
 }
 
 /** Traduce el offset de carácter que reporta Postgres a un número de línea. */
@@ -184,7 +200,7 @@ function hostVisible(url: string): string {
 async function main() {
   const scripts = scriptsEnOrden();
 
-  console.log(`\n${SOLO_VERIFICAR ? "Verificando" : "Aplicando"} ${scripts.length} scripts de ${DIRECTORIO_VISIBLE}/`);
+  console.log(`\n${SOLO_VERIFICAR ? "Verificando" : "Aplicando"} scripts de ${DIRECTORIO_VISIBLE}/ (${scripts.length} en el repositorio)`);
   console.log(`Base de datos: ${hostVisible(DATABASE_URL!)}`);
   if (SOLO_VERIFICAR) {
     console.log("Modo --check: se abre la transacción y se hace ROLLBACK, no se escribe nada.");
@@ -225,10 +241,35 @@ async function main() {
       aplicados = 0;
       try {
         await client.query("BEGIN");
+        // Esperar un bloqueo más de 5 s falla con 55P03 (reintentable, abajo)
+        // en vez de dejar a la app esperando detrás de este lote.
+        await client.query("set local lock_timeout = '5s'");
 
         // Dentro de la misma transacción que los scripts: si el lote se revierte,
         // el registro se revierte con él y nunca afirma algo que no pasó.
         await client.query(DDL_REGISTRO);
+
+        const { rows: filasRegistro } = await client.query<{ nombre: string; sha256: string }>(
+          `select nombre, sha256 from private.rls_aplicados`,
+        );
+        const {
+          rows: [marcas],
+        } = await client.query<{ ultima_migracion: Date | null; ultimo_rls: Date | null }>(
+          `select (select max(finished_at) from public._prisma_migrations) as ultima_migracion,
+                  (select max(aplicado_en) from private.rls_aplicados) as ultimo_rls`,
+        );
+        const { scripts: porAplicar, motivo } = scriptsPorAplicar({
+          scripts,
+          registrados: new Map(filasRegistro.map((f) => [f.nombre, f.sha256])),
+          ultimaMigracion: marcas.ultima_migracion,
+          ultimoRls: marcas.ultimo_rls,
+          todo: TODO,
+        });
+        console.log(
+          porAplicar.length === 0
+            ? `Nada que aplicar: ${motivo}.`
+            : `${porAplicar.length} de ${scripts.length} por aplicar: ${motivo}.`,
+        );
 
         // Las dependencias declaradas se comprueban TODAS antes de aplicar nada:
         // más vale un mensaje claro al principio que un fallo de sintaxis a mitad
@@ -254,7 +295,7 @@ async function main() {
           }
         }
 
-        for (const { nombre, orden, sql } of scripts) {
+        for (const { nombre, orden, sql, sha256: huella } of porAplicar) {
           try {
             await client.query(sql);
             await client.query(
@@ -264,7 +305,7 @@ async function main() {
                  set orden = excluded.orden,
                      sha256 = excluded.sha256,
                      aplicado_en = excluded.aplicado_en`,
-              [nombre, orden, sha256(sql)],
+              [nombre, orden, huella],
             );
             aplicados += 1;
             console.log(`✅ ${nombre}`);
@@ -296,10 +337,10 @@ async function main() {
 
         if (SOLO_VERIFICAR) {
           await client.query("ROLLBACK");
-          console.log(`\n✅ Los ${scripts.length} scripts aplican limpio. Revertido, la base quedó intacta.\n`);
+          console.log(`\n✅ Los ${aplicados} scripts aplican limpio. Revertido, la base quedó intacta.\n`);
         } else {
           await client.query("COMMIT");
-          console.log(`\n✅ ${scripts.length} scripts aplicados.`);
+          console.log(`\n✅ ${aplicados} scripts aplicados.`);
           console.log("   Siguiente paso: npm run test:rls\n");
         }
         break;
@@ -316,7 +357,7 @@ async function main() {
           continue;
         }
         console.error(
-          `\n❌ Falló en el script #${aplicados + 1} de ${scripts.length}.` +
+          `\n❌ Falló en el script #${aplicados + 1} de los que tocaba aplicar.` +
             `\n   Se revirtió la transacción completa: la base quedó como estaba,` +
             `\n   sin ningún script a medio aplicar.\n`,
         );

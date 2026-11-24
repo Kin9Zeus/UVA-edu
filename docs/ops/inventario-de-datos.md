@@ -73,7 +73,7 @@ romper los certificados ni los registros contables.
 | **Cloudflare (Turnstile)** (fase 4) | Al usar registro, la contraseña al entrar, recuperar o reenviar: la IP y señales del navegador de la visita, para decidir si es una persona. La app no le pasa nombre ni correo | Lo procesa Cloudflare según su política; la app no guarda nada |
 | **Resend** | Correo y nombre de quien recibe cada correo, y el texto del correo | Panel de Resend, Emails |
 | **Sentry** | Errores con ids y la ruta. Correos, tokens de enlaces, cookies, IP y cuerpo se quitan antes de salir (`src/lib/sentry-privacidad.ts`) | Panel de Sentry |
-| **Mux** | Los videos. El reproductor manda por defecto métricas de reproducción (navegador, país aproximado por la IP); la app no le pasa nombre ni correo, solo el título del video | Panel de Mux, Data |
+| **Mux** | Los videos. El reproductor manda métricas de reproducción (navegador, país aproximado por la IP), sin la cookie `muxData` que reconocía al espectador entre visitas (apagada en noviembre de 2026, P2-3); la app no le pasa nombre ni correo, solo el título del video | Panel de Mux, Data |
 | **Google (Gemini)** | Transcripciones de las clases y datos del curso, para generar preguntas y descripciones. **Ningún dato de estudiantes** | — |
 | **Google (inicio de sesión)** | Google sabe que la persona entró a U.V.A con su cuenta | Cuenta de Google de la persona |
 | **Wompi / Stripe** | Nada hoy (el cobro está apagado). Al activarse: datos de pago | — |

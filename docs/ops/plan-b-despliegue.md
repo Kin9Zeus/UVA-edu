@@ -5,6 +5,10 @@ salir de él, U.V.A queda arriba en otro proveedor en **menos de 2 horas**.
 Con Cloudflare delante (fases 1 y 2), el cambio final es solo apuntar el DNS
 al origen nuevo: los estudiantes no notan nada más.
 
+Desde noviembre de 2026 Railway ya corre esta misma imagen (`railway.json`
+en la raíz apunta a `infra/Dockerfile`): cada despliegue de producción prueba
+el plan B.
+
 Lo que no cambia: la base y la autenticación siguen en Supabase, los videos
 en Mux y los correos en Resend. Solo se mueve el servidor de la app.
 
@@ -28,7 +32,9 @@ en Mux y los correos en Resend. Solo se mueve el servidor de la app.
    con el Dockerfile `infra/Dockerfile` y como contexto la raíz del repo.
 2. **Variables de build** (públicas): `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` (el dominio
-   definitivo), `NEXT_PUBLIC_SENTRY_DSN`, y la bandera
+   definitivo), `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+   (sin ella el login falla con el CAPTCHA activo), `NEXT_PUBLIC_GA_ID` y
+   `NEXT_PUBLIC_CLARITY_ID` si están puestas, y la bandera
    `NEXT_PUBLIC_PRICING_ENABLED` con el mismo valor que en Railway.
 3. **Variables del servidor**: las mismas de Railway (lista en la tabla de
    llaves), **incluida** `ORIGEN_SECRETO`. `TRUSTED_PROXY_HOPS` puede

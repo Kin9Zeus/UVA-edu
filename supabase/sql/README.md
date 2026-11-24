@@ -12,6 +12,7 @@ comando, en orden y dentro de una sola transacción:
 ```bash
 npm run db:rls          # aplica (COMMIT)
 npm run db:rls:check    # aplica y hace ROLLBACK — verifica sin escribir nada
+npm run db:rls -- --todo  # reaplica los 140 aunque no hayan cambiado
 ```
 
 La secuencia completa para dejar un entorno al día:
@@ -51,9 +52,17 @@ la única forma de lograrlo. **`001` no lo tenía** —se escribió antes de que
 adoptara el idiom en `002`— y fallaba con «policy ... already exists» en la
 segunda corrida. Lo detectó `npm run db:rls:check` la primera vez que se usó,
 sin haber escrito nada. Si agregas un script nuevo, corre `db:rls:check` dos
-veces: la idempotencia es una afirmación que se verifica, no que se supone. El único `DELETE` del lote vive dentro del cuerpo
+veces con `-- --todo` (en una corrida normal la segunda no aplicaría nada): la idempotencia es una afirmación que se verifica, no que se supone. El único `DELETE` del lote vive dentro del cuerpo
 de `private.limpiar_usuarios_no_verificados()` (`010`) y solo lo dispara el cron
 diario, nunca la aplicación del script.
+
+### Solo lo que cambió (P2-4, noviembre de 2026)
+
+`db:rls` ya no reaplica todo cada vez: aplica desde el primer script nuevo o
+cambiado hasta el final, o todos si hubo una migración de Prisma después de la
+última corrida (`src/lib/db/scripts-por-aplicar.ts`). Reaplicar los 140
+congelaba la app en producción más de 2 minutos. CI usa `--todo` contra
+staging para seguir probando la corrida completa.
 
 ## Qué se hizo (proyecto de desarrollo, agosto 2026)
 

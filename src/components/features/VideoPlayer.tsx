@@ -464,6 +464,11 @@ export function VideoPlayer({
       autoPlay={reproducirAlCargar || reanudarAlCargar ? "any" : false}
       style={CONTROLES_SIEMPRE_VISIBLES}
       metadata={{ video_title: titulo }}
+      // Sin la cookie `muxData` (P2-3, AUDIT-2026-11-23): Mux Data la usaba
+      // para reconocer al espectador entre visitas, y eso es rastreo sin
+      // consentimiento. Las métricas de reproducción siguen saliendo, por
+      // sesión.
+      disableCookies
       accentColor="#ff007a"
       className="aspect-video w-full"
       startTime={tiempoInicio > 0 ? tiempoInicio : undefined}
