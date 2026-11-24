@@ -72,16 +72,14 @@ ENV NEXT_OUTPUT=standalone \
     NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID} \
     NEXT_PUBLIC_CLARITY_ID=${NEXT_PUBLIC_CLARITY_ID}
 
-# El token de Sentry (subir los source maps) es opcional y entra como secreto
-# de BuildKit: existe solo durante este RUN y no queda en ninguna capa.
-#   docker build --secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN ...
+# Sin token de Sentry (no se suben source maps): Railway rechaza el Dockerfile
+# si lleva `RUN --mount=type=secret` (solo acepta type=cache). Si algún día
+# hace falta, ver cerebro/modulos/operacion.md antes de agregarlo.
 #
 # `compile` se salta la revisión de tipos que sí hace el build normal: se
 # corre a mano, para que el CI detecte lo que rompería la imagen de verdad
 # (así se encontró que faltaba copiar src/generated).
-RUN --mount=type=secret,id=sentry_auth_token \
-    if [ -f /run/secrets/sentry_auth_token ]; then export SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token)"; fi; \
-    if [ "${NEXT_BUILD_MODE}" = "compile" ]; then \
+RUN if [ "${NEXT_BUILD_MODE}" = "compile" ]; then \
       npx next typegen && npx tsc --noEmit && npx next build --experimental-build-mode=compile; \
     else \
       npx next build; \
