@@ -36,6 +36,19 @@ const PATRONES_PELIGROSOS: Array<{ nombre: string; regex: RegExp }> = [
   { nombre: "RENAME TO / RENAME TABLE", regex: /rename\s+to|rename\s+table/i },
 ];
 
+/**
+ * Excepciones conscientes: DROP/RENAME ya decididos, con el motivo de por qué
+ * un rollback del código no se rompe. Solo por archivo de migración entero;
+ * una migración nueva con DROP sigue bloqueando hasta que alguien la anote
+ * aquí en un PR (y quien revisa lo ve).
+ */
+const EXCEPCIONES: Record<string, string> = {
+  "prisma/migrations/20261124130000_textos_legales_en_codigo/migration.sql":
+    "2026-11-24: textos_legales nunca tuvo filas (los textos pasaron a src/content/legal). " +
+    "El build anterior solo la lee con NEXT_PUBLIC_LEGAL_ENABLED encendida y, sin la tabla, " +
+    "el pie degrada a sin enlaces y lo registra; /legal/* ya daba 404.",
+};
+
 // No bloquean el build — ver el comentario de P3-4 arriba.
 const PATRONES_ADVERTENCIA: Array<{ nombre: string; regex: RegExp }> = [
   { nombre: "SET NOT NULL", regex: /set\s+not\s+null/i },
@@ -74,7 +87,7 @@ function main() {
     if (!linea.startsWith("+") || linea.startsWith("+++")) continue;
 
     for (const { nombre, regex } of PATRONES_PELIGROSOS) {
-      if (regex.test(linea)) {
+      if (regex.test(linea) && !EXCEPCIONES[archivoActual]) {
         hallazgos.push(`${archivoActual}: ${nombre} → ${linea.slice(1).trim()}`);
       }
     }
@@ -98,6 +111,13 @@ function main() {
         "   NOT VALID, validarlo aparte, y recién ahí SET NOT NULL) o hacer el UPDATE\n" +
         "   por lotes.\n",
     );
+  }
+
+  const exceptuadas = Object.keys(EXCEPCIONES).filter((archivo) => diff.includes(`+++ b/${archivo}`));
+  for (const archivo of exceptuadas) {
+    console.warn(`
+⚠️  Excepción consciente con DROP/RENAME: ${archivo}
+   ${EXCEPCIONES[archivo]}`);
   }
 
   if (hallazgos.length === 0) {
