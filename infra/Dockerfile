@@ -4,9 +4,10 @@
 # La misma imagen corre en Railway, Render, Fly.io o un servidor propio: es
 # el plan B si Railway falla o hay que salir de él (docs/ops/plan-b-despliegue.md).
 #
-# Va en infra/ y no en la raíz A PROPÓSITO: Railway usa solo un Dockerfile
-# que encuentre en la raíz, y hoy construye con su propio sistema y arranca
-# con `next start`. Pasar Railway a esta imagen es una decisión aparte.
+# Railway la usa porque `railway.json` (raíz) se lo indica (P2-6 de la
+# auditoría 2026-11-23): Railway le pasa como build-arg cada variable del
+# servicio que aquí se declare con ARG. Una variable NEXT_PUBLIC_* nueva que
+# no se declare aquí llega vacía al navegador.
 #
 # Construir (desde la raíz del repo):
 #   docker build -f infra/Dockerfile \
@@ -52,6 +53,9 @@ ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_PRICING_ENABLED
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ARG NEXT_PUBLIC_GA_ID
+ARG NEXT_PUBLIC_CLARITY_ID
 # Vacío es el build de verdad. El CI usa `compile` (compila todo pero
 # no pre-genera páginas): no tiene la URL de Supabase y el sitemap se arma
 # consultando la base. Una imagen para desplegar NUNCA va con `compile`.
@@ -64,7 +68,9 @@ ENV NEXT_OUTPUT=standalone \
     NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL} \
     NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN} \
     NEXT_PUBLIC_PRICING_ENABLED=${NEXT_PUBLIC_PRICING_ENABLED} \
-    NEXT_PUBLIC_LEGAL_ENABLED=${NEXT_PUBLIC_LEGAL_ENABLED}
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY} \
+    NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID} \
+    NEXT_PUBLIC_CLARITY_ID=${NEXT_PUBLIC_CLARITY_ID}
 
 # El token de Sentry (subir los source maps) es opcional y entra como secreto
 # de BuildKit: existe solo durante este RUN y no queda en ninguna capa.

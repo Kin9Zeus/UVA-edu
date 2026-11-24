@@ -264,8 +264,8 @@ function CasillaLegal({
   );
 }
 
-/** Lleva a /soporte?tema=…, que ya redirige al texto legal publicado cuando
- * NEXT_PUBLIC_LEGAL_ENABLED está encendida (lib/legal/redireccion-soporte.ts). */
+/** Lleva a /soporte?tema=…, que redirige al texto legal vigente cuando ya
+ * hay uno en src/content/legal (lib/legal/redireccion-soporte.ts). */
 function EnlaceLegal({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link href={href} className="text-uva-accent-ink underline underline-offset-3" target="_blank">
