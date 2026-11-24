@@ -232,12 +232,15 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Verificar que los scripts de RLS aplican limpio
-        run: npm run db:rls:check
+        # --todo: en staging se prueban los 140 desde cero (idempotencia). En
+        # producción `db:rls` aplica solo lo nuevo para no bloquear la app
+        # (P2-4, AUDIT-2026-11-23.md, src/lib/db/scripts-por-aplicar.ts).
+        run: npm run db:rls:check -- --todo
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Aplicar RLS, triggers y funciones
-        run: npm run db:rls
+        run: npm run db:rls -- --todo
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
