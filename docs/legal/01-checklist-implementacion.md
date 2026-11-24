@@ -30,11 +30,11 @@ Convención: **Existe**, **Parcial** o **Falta**.
 | `/legal/cookies` | Existe | `slugs.ts:26` |
 | `/legal/comunidad` | Existe | `slugs.ts:27` |
 
-Las rutas aparecen en el pie y en el sitemap solo si la bandera `NEXT_PUBLIC_LEGAL_ENABLED` está en `true` (`src/lib/features.ts:29`, `Footer.tsx:87`, `sitemap.ts:67`) y solo para los textos que tengan una versión vigente.
+Las rutas aparecen en el pie y en el sitemap apenas un texto tiene una versión vigente (`src/lib/legal/textos.ts`).
 
 ### 2. Texto cargado y publicado
 
-**Falta.** `TEXTOS_LEGALES_FUENTE` está vacío (`src/content/legal/index.ts:29`). El comentario del archivo explica que los cinco textos se cargan ahí cuando tengan la aprobación del abogado y del CEO. La base guarda la versión publicada en la tabla `textos_legales`, inmutable una vez publicada (`prisma/schema.prisma:1853`). Los comandos que cargan y publican son `npm run legal:sembrar` y `npm run legal:publicar` (`package.json:29-30`). La publicación se niega a continuar mientras quede un dato entre corchetes.
+**Falta.** `TEXTOS_LEGALES_FUENTE` está vacío (`src/content/legal/index.ts`). Los textos viven en el código (2026-11-24): cada versión es un archivo `src/content/legal/<slug>.<version>.ts` que se revisa en un pull request; una versión que ya rigió no se edita, se agrega otra. `textos.test.ts` falla si queda un dato entre corchetes.
 
 ### 3. Casillas del registro
 

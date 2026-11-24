@@ -15,9 +15,8 @@ import { TemaProvider } from "@/components/tema/TemaProvider";
 import { SincronizarPestanas } from "@/components/sesion/SincronizarPestanas";
 import { Analitica } from "@/components/analitica/Analitica";
 import { ANALITICA_ACTIVA, CLARITY_ID, GA_ID } from "@/lib/analitica";
-import { LEGAL_HABILITADO } from "@/lib/features";
 import { rutaLegal } from "@/lib/legal/slugs";
-import { getSlugsConTextoVigente } from "@/lib/legal/textos";
+import { obtenerTextoVigente } from "@/lib/legal/textos";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -67,10 +66,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // script del tema es en línea y, con la CSP de 'strict-dynamic', sin el
   // nonce el navegador lo bloquearía.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  // El aviso de cookies enlaza la política solo si ya está publicada (lectura
-  // cacheada, la misma del pie). Con la analítica apagada no se consulta.
-  const politicaCookiesPublicada =
-    ANALITICA_ACTIVA && LEGAL_HABILITADO && (await getSlugsConTextoVigente()).includes("cookies");
+  // El aviso de cookies enlaza la política solo si ya tiene versión vigente.
+  const politicaCookiesPublicada = ANALITICA_ACTIVA && obtenerTextoVigente("cookies") !== null;
 
   return (
     // suppressHydrationWarning: SCRIPT_TEMA_INICIAL pone `.dark` y

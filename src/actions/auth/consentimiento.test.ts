@@ -8,6 +8,9 @@ vi.mock("next/navigation", () => import("@/test/servidor-falso").then((m) => m.m
 vi.mock("next/headers", () => import("@/test/servidor-falso").then((m) => m.moduloNextHeaders()));
 vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 vi.mock("@/actions/auth/check-email", () => ({ checkEmail: vi.fn(async () => ({ exists: false })) }));
+vi.mock("@/lib/legal/textos", () => ({
+  versionesQueSeAceptan: () => ({ terminos: "1.2", "datos-personales": null }),
+}));
 
 import { registro } from "@/actions/auth/registro";
 import { GET as callbackOAuth } from "@/app/auth/callback/route";
@@ -49,7 +52,9 @@ describe("registro con correo", () => {
       email: CUENTA.email,
     });
     expect(servidorFalso.argumentosDe("auth:signUp")).toMatchObject({
-      options: { data: { nombre: "Ana", acepta_legal: true } },
+      options: {
+        data: { nombre: "Ana", acepta_legal: true, versiones_legales: { terminos: "1.2", "datos-personales": null } },
+      },
     });
   });
 });
@@ -78,7 +83,9 @@ describe("/auth/callback con Google", () => {
     servidorFalso.responder("rpc:registrar_consentimientos_google", { data: null, error: null });
 
     expect(await entrar()).toBe("/dashboard");
-    expect(servidorFalso.llamadasA("rpc:registrar_consentimientos_google")).toHaveLength(1);
+    const llamadas = servidorFalso.llamadasA("rpc:registrar_consentimientos_google");
+    expect(llamadas).toHaveLength(1);
+    expect(llamadas[0].argumentos[0]).toEqual({ p_version_terminos: "1.2", p_version_datos: null });
   });
 
   it("cuenta que ya existía: no lo vuelve a pedir", async () => {

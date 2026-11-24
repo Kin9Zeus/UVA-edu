@@ -257,7 +257,7 @@ function CasillaLegal({
         required
         checked={marcada}
         onChange={(event) => onCambio(name, event.target.checked)}
-        className="size-5 shrink-0 accent-uva-btn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
+        className="size-4 shrink-0 accent-uva-btn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uva-accent"
       />
       <span>{children}</span>
     </label>

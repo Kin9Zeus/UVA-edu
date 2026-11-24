@@ -4,6 +4,7 @@ import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/log";
 import { nivelFalloEnlace } from "@/lib/enlace-auth";
+import { versionesQueSeAceptan } from "@/lib/legal/textos";
 import { destinoInternoSeguro } from "@/lib/redirect-seguro";
 import {
   ANALITICA_ACTIVA,
@@ -36,7 +37,11 @@ export async function GET(request: NextRequest) {
       // no duplica si ya hay filas. Si falla, la cuenta ya existe: se
       // registra para completarla a mano en vez de dejar a la persona fuera.
       if (cuentaNuevaConGoogle) {
-        const { error: errorConsentimiento } = await supabase.rpc("registrar_consentimientos_google");
+        const versiones = versionesQueSeAceptan();
+        const { error: errorConsentimiento } = await supabase.rpc("registrar_consentimientos_google", {
+          p_version_terminos: versiones.terminos,
+          p_version_datos: versiones["datos-personales"],
+        });
         if (errorConsentimiento) {
           logError("auth/callback", "no se guardó el consentimiento de Google", errorConsentimiento, {
             area: "auth",

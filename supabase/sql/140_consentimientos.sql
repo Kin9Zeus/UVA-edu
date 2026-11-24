@@ -7,18 +7,23 @@
 -- 20261124120000_consentimientos y de 000-139.
 --
 -- Una fila por cosa aceptada: 'terminos', 'datos-personales' y
--- 'mayoria-de-edad'. `version_texto` es la versión de `textos_legales` (130)
--- PUBLICADA y vigente en ese momento; la busca la base, nunca el navegador,
--- para que nadie pueda declarar que aceptó una versión que no existía. Null
--- = aún no había texto publicado (o no aplica, como la mayoría de edad).
+-- 'mayoria-de-edad'. `version_texto` es la versión vigente del texto en el
+-- código (src/content/legal) al aceptar; la pone el servidor de la app, no
+-- el navegador. Null = aún no había texto (o no aplica: mayoría de edad).
 --
 -- Nadie escribe por la API. Entran por dos caminos:
 --   · Registro con correo: `registro` (src/actions/auth/registro.ts) manda
---     `acepta_legal: true` en los metadatos de signUp solo si las tres
---     casillas venían marcadas; el trigger de abajo, en la MISMA transacción
---     que crea el usuario, guarda las tres filas. Si falla, no hay cuenta.
+--     `acepta_legal: true` y `versiones_legales` en los metadatos de signUp
+--     solo si las tres casillas venían marcadas; el trigger de abajo, en la
+--     MISMA transacción que crea el usuario, guarda las tres filas. Si
+--     falla, no hay cuenta.
 --   · Registro con Google: el aviso está debajo del botón; /auth/callback
---     llama a `registrar_consentimientos_google()` para la cuenta nueva.
+--     llama a `registrar_consentimientos_google(...)` para la cuenta nueva.
+--
+-- Límite conocido: quien llame a signUp directo con la llave pública puede
+-- escribir en sus metadatos la versión que quiera. Solo afecta a su propia
+-- cuenta y la fecha (`aceptado_en`) la pone la base: con el historial de
+-- git de src/content/legal se sabe qué versión regía ese día.
 -- Append-only: ni UPDATE ni DELETE (la prueba no se corrige). Al suprimir
 -- la cuenta el perfil se anonimiza y estas filas quedan.
 -- ============================================================
@@ -43,22 +48,18 @@ exception
 end;
 $$;
 
--- La versión vigente de un texto legal, o null si no hay ninguna publicada.
-create or replace function private.version_legal_vigente(p_slug text)
-returns text
-language sql
-stable
-security definer set search_path = public
-as $$
-  select version from public.textos_legales
-  where slug = p_slug and estado = 'PUBLICADO' and vigente_desde <= now()
-  order by vigente_desde desc
-  limit 1;
-$$;
+-- Versión anterior de este script (la versión la buscaba la base en
+-- `textos_legales`, que ya no existe).
+drop function if exists public.registrar_consentimientos_google();
+drop function if exists private.guardar_consentimientos(uuid, text);
+drop function if exists private.version_legal_vigente(text);
 
-revoke execute on function private.version_legal_vigente(text) from public, anon, authenticated;
-
-create or replace function private.guardar_consentimientos(p_usuario uuid, p_origen text)
+create or replace function private.guardar_consentimientos(
+  p_usuario uuid,
+  p_origen text,
+  p_version_terminos text,
+  p_version_datos text
+)
 returns void
 language plpgsql
 security definer set search_path = public
@@ -66,13 +67,13 @@ as $$
 begin
   insert into public.consentimientos (id_usuario, tipo, version_texto, origen)
   values
-    (p_usuario, 'terminos', private.version_legal_vigente('terminos'), p_origen),
-    (p_usuario, 'datos-personales', private.version_legal_vigente('datos-personales'), p_origen),
+    (p_usuario, 'terminos', nullif(left(p_version_terminos, 40), ''), p_origen),
+    (p_usuario, 'datos-personales', nullif(left(p_version_datos, 40), ''), p_origen),
     (p_usuario, 'mayoria-de-edad', null, p_origen);
 end;
 $$;
 
-revoke execute on function private.guardar_consentimientos(uuid, text) from public, anon, authenticated;
+revoke execute on function private.guardar_consentimientos(uuid, text, text, text) from public, anon, authenticated;
 
 -- Registro con correo. Corre después de `on_auth_user_created` (000, que
 -- crea el perfil): los triggers del mismo evento van en orden alfabético.
@@ -84,7 +85,12 @@ security definer set search_path = public
 as $$
 begin
   if coalesce((new.raw_user_meta_data ->> 'acepta_legal')::boolean, false) then
-    perform private.guardar_consentimientos(new.id, 'registro-correo');
+    perform private.guardar_consentimientos(
+      new.id,
+      'registro-correo',
+      new.raw_user_meta_data -> 'versiones_legales' ->> 'terminos',
+      new.raw_user_meta_data -> 'versiones_legales' ->> 'datos-personales'
+    );
   end if;
   return new;
 end;
@@ -100,7 +106,10 @@ create trigger on_auth_user_created_consentimientos
 -- Registro con Google. Solo para quien entró con Google y aún no tiene
 -- ninguna fila: llamarla de nuevo no duplica, y una cuenta de correo no
 -- puede usarla para inventarse un consentimiento con otro origen.
-create or replace function public.registrar_consentimientos_google()
+create or replace function public.registrar_consentimientos_google(
+  p_version_terminos text,
+  p_version_datos text
+)
 returns void
 language plpgsql
 security definer set search_path = public, auth
@@ -119,12 +128,12 @@ begin
   if exists (select 1 from public.consentimientos where id_usuario = v_usuario) then
     return;
   end if;
-  perform private.guardar_consentimientos(v_usuario, 'registro-google');
+  perform private.guardar_consentimientos(v_usuario, 'registro-google', p_version_terminos, p_version_datos);
 end;
 $$;
 
-revoke execute on function public.registrar_consentimientos_google() from public, anon;
-grant execute on function public.registrar_consentimientos_google() to authenticated;
+revoke execute on function public.registrar_consentimientos_google(text, text) from public, anon;
+grant execute on function public.registrar_consentimientos_google(text, text) to authenticated;
 
 -- ------------------------------------------------------------
 -- RLS: cada quien lee lo suyo; el administrador, todo. Sin escritura.
