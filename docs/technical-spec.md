@@ -1,15 +1,20 @@
 # **Technical Specification: U.V.A — Plataforma de Cursos v2**
 
+> **Revisada el 2026-11-25** (P2-15, `auditorias/AUDIT-2026-11-23.md`). Cuando esta spec y el código no coinciden, manda el código, y la spec se corrige en el mismo PR. El esquema exacto (columnas, tipos, índices) está en `prisma/schema.prisma`; RLS, triggers y funciones están en `supabase/sql/`. Este documento explica el porqué y las reglas que no se ven en esos archivos.
+
 ## **1\. Stack Tecnológico**
 
 El proyecto utiliza un stack moderno basado en React y servicios gestionados para minimizar la carga operativa.
 
-> * **Framework Principal:** Next.js (App Router, versión 14+) con TypeScript.  
+> * **Framework Principal:** Next.js 16 (App Router) con TypeScript estricto. La versión exacta está en `package.json`.  
 > * **Estilos y UI:** Tailwind CSS \+ shadcn/ui (Librería base de componentes accesibles).  
 > * **Base de Datos y Auth:** Supabase (PostgreSQL) \+ Supabase Auth.  
 > * **ORM / Esquema:** Prisma (Exclusivamente para migraciones y definición de esquema schema.prisma).  
 > * **Video y Streaming:** Mux (con @mux/mux-player-react para el reproductor).  
-> * **Pagos:** Stripe (Facturación internacional) y Wompi (Local Colombia).  
+> * **Pagos:** Stripe (Facturación internacional) y Wompi (Local Colombia). El MVP es gratuito y por códigos de invitación: el código de pagos existe pero está apagado tras `NEXT_PUBLIC_PRICING_ENABLED` (§7).  
+> * **IA:** Gemini (Developer API) para generar exámenes desde la transcripción del video y descripciones de cursos (§11).  
+> * **Protección:** Cloudflare delante del sitio; Cloudflare Turnstile como CAPTCHA en registro e inicio de sesión (validado por Supabase Auth).  
+> * **Observabilidad:** Sentry (errores, reportes de CSP) y registros enviados a Vector.  
 > * **Correos Transaccionales:** Resend \+ React Email.  
 > * **Generación PDF:** pdf-lib (Generación de certificados ultraligera en backend).  
 > * **Hosting / Infraestructura:** Railway.
@@ -24,7 +29,8 @@ El proyecto utiliza un stack moderno basado en React y servicios gestionados par
 ### **2.2 Patrón de Comunicación (Server Actions vs API Routes)**
 
 > * Las mutaciones (crear curso, editar perfil, guardar progreso) se realizarán principalmente mediante **Next.js Server Actions**, eliminando la necesidad de crear endpoints REST tradicionales (/api/) para uso interno.  
-> * Las rutas /api/ (Route Handlers) se reservarán estrictamente para recibir **Webhooks externos** (Mux, Stripe, Wompi).
+> * Las rutas /api/ (Route Handlers) se reservan para recibir **Webhooks externos** (Mux, Stripe, Wompi y el hook de correos de Supabase Auth). Hay dos excepciones: `/api/health`, un chequeo de solo lectura para el monitor de disponibilidad, y `/api/progreso/beacon`, que guarda el último segundo visto al cerrar la pestaña porque `navigator.sendBeacon` no puede llamar a una Server Action.  
+> * El contrato de las Server Actions (forma de la respuesta, validación, permisos y pruebas) está en `src/actions/README.md`.
 
 ## **3\. Estructura del Proyecto**
 
@@ -32,21 +38,87 @@ Se adoptará una arquitectura *Feature-based* adaptada al App Router de Next.js:
 
 UVA_EDU/  
 ├── prisma/                 \# Esquema (schema.prisma) y migraciones  
+├── supabase/sql/           \# RLS, triggers y funciones, numerados (ver su README)  
+├── infra/                  \# Dockerfile (plan B de despliegue) y configuración  
+├── scripts/                \# Tareas de operación (barredores, RLS, seed, auditorías)  
+├── e2e/                    \# Pruebas de Playwright contra staging  
 ├── src/  
 │   ├── app/                \# Next.js App Router (Páginas y Layouts)  
-│   │   ├── (public)/       \# Rutas públicas (Home, Catálogo)  
-│   │   ├── (student)/      \# Área de estudiante (Mis cursos, Reproductor)  
-│   │   ├── (admin)/        \# Panel de administración (CMS)  
-│   │   └── api/            \# Route Handlers para Webhooks  
-│   ├── components/  
-│   │   ├── ui/             \# Componentes base (shadcn/ui: botones, modales)  
-│   │   └── features/       \# Componentes de negocio (VideoPlayer, CourseCard)  
-│   ├── lib/                \# Utilidades, configuración de Supabase, Stripe  
-│   └── actions/            \# Server Actions (Lógica de mutación de datos)
+│   │   ├── (public)/       \# Portada, catálogo, ficha de curso, verificar certificado  
+│   │   ├── (student)/      \# Panel del estudiante (/dashboard): cursos, lección, examen, perfil  
+│   │   ├── (admin)/        \# Panel de administración (/admin)  
+│   │   ├── auth/, seguridad/ \# Inicio de sesión, registro, recuperación, segundo factor  
+│   │   └── api/            \# Webhooks, /api/health y /api/progreso/beacon  
+│   ├── components/         \# ui/ (base) y una carpeta por módulo (curso, examen, admin…)  
+│   ├── content/            \# Textos públicos (cifras y funciones anunciadas)  
+│   ├── emails/             \# Plantillas de React Email  
+│   ├── lib/                \# Clientes de Supabase, Mux, Resend, Gemini y lógica compartida  
+│   ├── proxy.ts            \# Sesión, CSP con nonce y cierre de origen en cada petición  
+│   └── actions/            \# Server Actions, una carpeta por módulo
 
 ## **4\. Base de Datos: Diccionario de Datos (Esquema de Tablas)**
 
-A continuación se detallan todas las entidades con sus atributos y tipos de datos sugeridos para PostgreSQL / Prisma.
+La fuente de verdad del esquema es `prisma/schema.prisma`: cada modelo lleva un comentario `///` con sus reglas. Este capítulo tiene dos partes:
+
+- **§4.0, índice de tablas:** las 47 tablas públicas, con una línea por tabla. `src/lib/spec-tablas.test.ts` hace fallar la suite si una tabla de `schema.prisma` no aparece aquí.
+- **Los diccionarios por módulo** que siguen. Se escribieron al diseñar el MVP y explican la intención de cada columna. Para el tipo exacto, ve al esquema.
+
+### **4.0 Índice de tablas**
+
+**Usuarios, acceso y pagos**
+- `perfiles`: una fila por cuenta de `auth.users`, con el rol (estudiante, profesor o administrador), el estado de la cuenta y los datos propios. `anonimizado_en` marca una cuenta suprimida.
+- `consentimientos`: qué texto legal aceptó cada persona, en qué versión y desde dónde (Ley 1581). Se agrega y nunca se borra.
+- `codigos_invitacion`: los códigos que dan acceso en el MVP, con su límite de usos y la duración del acceso.
+- `lotes_codigos_invitacion`: agrupa los códigos creados juntos para exportarlos o desactivarlos. No duplica su estado.
+- `suscripciones`: el acceso vigente de cada persona, sea por invitación, manual o de pago. Es el muro de acceso.
+- `inscripciones`: el alta de una persona en un curso: automática por membresía, o una cortesía que otorga un administrador con fecha de fin.
+- `planes`: duración y precio de cada plan.
+- `planes_precios`: el id del precio en cada pasarela (Stripe y Wompi). Vacía hasta que entre el cobro.
+- `intentos_pago`: la intención de cobro que crea el servidor. El navegador solo elige un plan y un cupón, nunca el monto.
+- `pagos`: los cobros confirmados por webhook. Un reembolso es otra fila, nunca un monto negativo.
+- `cupones`: descuentos para cuando entre el cobro.
+- `eventos_webhook`: idempotencia de todo webhook entrante (§7).
+
+**Catálogo y contenido**
+- `categorias`: las escuelas del catálogo.
+- `categorias_slugs_anteriores`: los slugs viejos de cada escuela, para redirigir con 308.
+- `cursos`: el curso, con su estado de publicación.
+- `cursos_slugs_anteriores`: los slugs viejos de cada curso, para redirigir con 308 (`supabase/sql/137`).
+- `curso_categorias`: a qué escuelas pertenece un curso.
+- `instructores`: tabla vestigial; la app no la lee ni la escribe. Se borra cuando los instructores sin cuenta se registren (ver su comentario en el esquema).
+- `curso_instructores`: quién dicta cada curso. Apunta a `perfiles` con rol PROFESOR; las rutas públicas leen la vista `curso_instructores_publico`.
+- `modulos`: las secciones del temario.
+- `lecciones`: la clase, con su video de Mux y el estado del video. Solo cuentan para el avance las que tienen el video LISTO.
+- `recursos_descargables`: los materiales de cada lección, guardados en Storage.
+- `transcripciones_video`: la transcripción de cada video, que se usa para generar el examen.
+- `mux_assets_pendientes_eliminacion`: los videos de Mux que hay que borrar, para reintentar si Mux falla.
+- `tokens_vista_previa`: enlaces temporales para ver un curso sin publicar.
+
+**Exámenes**
+- `examenes`: el examen final de un curso.
+- `preguntas_examen`: preguntas y respuestas correctas. Solo las leen los administradores (§5).
+- `intentos_examen`: cada intento del estudiante. Solo el servidor escribe (§5).
+- `trabajos_generacion_examen`: cada generación de un examen con IA, con su candado por curso y su estado.
+
+**Avance del estudiante**
+- `progreso`: lección vista, segundo actual y completado.
+- `actividad_diaria`: los días con estudio, que alimentan la racha.
+- `notas_leccion`: las notas privadas del estudiante en cada lección.
+- `certificados`: los certificados emitidos, con el código que se verifica en `/verificar-certificado`.
+- `notificaciones`: los avisos dentro de la app. Solo el servidor decide a quién le llegan.
+
+**Comentarios, comunidad y reseñas**
+- `comentarios`: las preguntas y comentarios bajo cada lección.
+- `comentario_likes`: los «me gusta» de los comentarios.
+- `comentario_moderacion`: el motivo cuando un administrador borra un comentario. Solo la leen los administradores.
+- `configuracion_comunidad`: fila única de la ventana de acceso a Comunidad. Está en pausa desde `supabase/sql/084`; se conserva para reactivar el requisito.
+- `comunidad_posts`, `comunidad_respuestas`, `comunidad_reacciones`, `comunidad_adjuntos`, `comunidad_moderacion`, `comunidad_reportes`: ver «Módulo de Comunidad».
+- `curso_calificaciones`, `curso_calificacion_reacciones`: ver «Módulo de Calificaciones de Curso».
+
+**Operación**
+- `bitacora_administrativa`: quién hizo qué en el panel de administración.
+
+**Tablas del esquema `private`** (las crea `supabase/sql/`, no Prisma; nadie las lee desde la app): los límites de intentos (`intentos_login`, `intentos_check_email`, `intentos_canjear_codigo`, `intentos_validar_cupon`, `intentos_verificar_certificado`, `intentos_generar_examen`, `limites_uso`, `verificacion_reenvios`, `recuperacion_reenvios`) y `reproduccion_activa`, que guarda el dispositivo que está reproduciendo para que una cuenta no vea videos en dos a la vez.
 
 ### **Módulo de Usuarios y Membresía**
 
@@ -558,7 +630,7 @@ trigger reconoce. Es el mismo mecanismo que `purgar_bitacora_de_admin` (074).
 
 ## **5\. Seguridad y RLS (Row Level Security)**
 
-Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
+Al usar Postgres en Supabase, la seguridad se delega a la base de datos. Las políticas, triggers y funciones viven en `supabase/sql/` (140 scripts numerados al 2026-11-25; orden y convenciones en su README). `npm run db:rls` los aplica todos; en producción se aplican con la skill `pasar-a-produccion` antes de fusionar. Railway no corre migraciones.
 
 > * **Tabla Progreso y Certificados:** SELECT, INSERT, UPDATE limitados a auth.uid() \= id\_usuario.  
 > * **Tablas de Exámenes (asimetría deliberada, ver supabase/sql/067):** `preguntas_examen` solo es legible por administradores —contiene las respuestas correctas, un SELECT sería el examen resuelto—. `intentos_examen` tiene SELECT para el dueño (o un administrador) y **ninguna** política de INSERT/UPDATE/DELETE: con RLS activo y sin política, Postgres deniega, así que un `PATCH /rest/v1/intentos_examen` con `{"estado":"APROBADO"}` no afecta ninguna fila. Es la excepción a la regla del proyecto de escribir con el cliente de sesión: el dato a escribir (la nota) es exactamente el que el usuario querría falsificar, y el trigger de certificación confía en él. Iniciar/autoguardar/enviar pasan por `src/actions/examenes/intento.ts`, que usa las lecturas de sesión para autorizar (RLS decide si ve el examen) y Service Role solo para escribir, siempre filtrando por el `id_usuario` de `auth.getUser()`.  
@@ -568,6 +640,8 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
   * SELECT habilitado para todos los usuarios, condicionado a mostrado \= true.  
   * INSERT, UPDATE, DELETE restringidos estrictamente a perfiles donde rol \= 'administrador'.  
 > * **Generación de Firmas (Mux):** Las URLs firmadas de Mux solo se generan en el backend si el sistema detecta que existe un registro válido en Suscripciones (estado \= 'activa' o 'past\_due') o en Inscripciones asociado al usuario solicitante.  
+> * **Una reproducción a la vez:** `private.reproduccion_activa` guarda qué dispositivo reproduce. Si la misma cuenta empieza a ver un video en otro dispositivo, el primero deja de guardar avance y avisa (RPC `reproduccion_vigente`).  
+> * **Límites de intentos:** inicio de sesión, comprobación de correo, canje de códigos, cupones, verificación de certificados y generación de exámenes tienen su contador en `private.intentos_*`. Comentarios y comunidad usan `private.limites_uso`.  
 > * **Verificación de correo:** private.correo\_verificado() (SECURITY DEFINER, mismo criterio que private.es\_administrador()) chequea auth.users.email\_confirmed\_at para auth.uid() y se agrega al with check de inscripciones\_insert\_propio y progreso\_propio — un usuario sin correo confirmado no puede autoinscribirse a una membresía ni escribir su progreso de reproducción, ver Flujo 02.  
 > * **Patrón "privilegio de columna \+ trigger de transiciones" (P3-10, AUDIT-2026-09-15.md):** para una tabla donde el mismo UPDATE lo puede disparar tanto el autor (editar/borrar lo propio) como un administrador (moderar), una sola policy de RLS no alcanza — una policy autoriza la fila, no decide qué columnas cambian ni qué transición de estado es válida para cada rol. El patrón, usado en `comentarios` (065\_comentario\_moderacion.sql), `comunidad\_posts`/`comunidad\_respuestas` (083\_comunidad.sql, 087\_comunidad\_editar\_publicacion.sql) y `curso\_calificaciones` (102\_curso\_calificaciones.sql), tiene dos capas:  
 >   1. **Privilegio por columna** (`revoke update on tabla from authenticated; grant update (col\_a, col\_b, …) on tabla to authenticated;`) — acota QUÉ columnas puede tocar el rol en general, cerrando por defecto las que Supabase concede abiertas al crear la tabla.  
@@ -579,7 +653,12 @@ Al usar Postgres en Supabase, la seguridad se delega a la base de datos:
 > * **Proveedor:** Supabase Auth (Email/Contraseña \+ Google OAuth).  
 > * **Sincronización:** Se creará un *Database Trigger* en Postgres que, al insertar un registro en auth.users, cree automáticamente la fila correspondiente en la tabla pública Perfiles asignando el rol estudiante por defecto.  
 > * **Sesión:** Manejo nativo mediante Supabase Auth Helpers para Next.js App Router (Persistencia en cookies HTTP-Only).  
-> * **Verificación de correo obligatoria:** el token del correo "Confirm signup" expira a los 15 minutos (config. en el Dashboard de Supabase, Authentication → Emails). El reenlace ("Reenviar enlace de verificación") está limitado a 1 solicitud cada 60 segundos por correo, vía la función public.registrar\_reenvio\_verificacion(). Un job de pg\_cron (private.limpiar\_usuarios\_no\_verificados(), diario) elimina de auth.users las cuentas sin confirmar con más de 7 días de antigüedad; la fila de Perfiles se limpia en cascada gracias al FK perfiles\_id\_fkey (auth.users(id) on delete cascade). Ver Flujo 02.
+> * **Verificación de correo obligatoria:** el token del correo "Confirm signup" expira a los 15 minutos (config. en el Dashboard de Supabase, Authentication → Emails). El reenlace ("Reenviar enlace de verificación") está limitado a 1 solicitud cada 60 segundos por correo, vía la función public.registrar\_reenvio\_verificacion(). Un job de pg\_cron (private.limpiar\_usuarios\_no\_verificados(), diario) elimina de auth.users las cuentas sin confirmar con más de 7 días de antigüedad; la fila de Perfiles se limpia en cascada gracias al FK perfiles\_id\_fkey (auth.users(id) on delete cascade). Ver Flujo 02.  
+> * **CAPTCHA:** registro e inicio de sesión mandan un token de Cloudflare Turnstile (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`); Supabase Auth lo valida con la llave secreta configurada en su panel.  
+> * **Consentimientos (Ley 1581):** al registrarse, con correo o con Google, se guarda en `consentimientos` qué texto aceptó la persona y en qué versión.  
+> * **Verificación en dos pasos (FASE 8.1):** obligatoria para administradores. `requireAdmin()` exige sesión aal2: contraseña más un código TOTP de la app de autenticación. Desde Mi perfil se puede registrar un segundo dispositivo o quitar uno (`src/actions/seguridad/`), y eso también exige aal2.  
+> * **Cerrar sesión en todos los dispositivos:** `logoutEnTodos()` revoca todas las sesiones de la cuenta.  
+> * **Cuentas suspendidas y suprimidas:** el proxy cierra la sesión de una cuenta suspendida. La supresión (Habeas Data) anonimiza el perfil con `solicitar_supresion_propia` / `anonimizar_usuario`, y la persona puede descargar antes sus datos (`exportarMisDatos`).
 
 ## **7\. Flujo de Pago e Idempotencia**
 
@@ -643,7 +722,7 @@ suscripción de pago abre el contenido por el mismo camino que una invitación.
 
 > * **Imágenes (Portadas/PDFs):** Se subirán directamente a Supabase Storage. Se restringirá mediante políticas de Storage para aceptar exclusivamente MIME types de imagen (imagen/\*) o PDF (application/pdf), con un límite prudente (ej. 5MB).  
 > * **Video (Mux Direct Uploads):**  
-  * El navegador del administrador solicita una URL de subida temporal a nuestro backend (POST /api/video/upload).  
+  * El navegador del administrador pide una URL de subida temporal con la Server Action `iniciarSubidaVideoLeccion` (`src/actions/admin/mux.ts`).  
   * El navegador transfiere el .mp4 directamente a la infraestructura de Mux, evitando agotar recursos o el ancho de banda del servidor de Next.js.  
   * Al terminar, Mux notifica vía Webhook cuando el activo está listo para actualizar la base de datos (id\_video\_mux).
 > * **Adjuntos de Comunidad (bucket privado `comunidad-adjuntos`, 086):** es el único bucket donde escribe un usuario que no es administrador. Límite de 10 MB. La policy de INSERT en Storage exige acceso a Comunidad y que la ruta empiece por `auth.uid()`. **No hay policy de SELECT en Storage:** la lectura se autoriza leyendo la fila de `comunidad_adjuntos` con el cliente de sesión, y solo entonces se firma la ruta con Service Role (1 h para imágenes del feed, 5 min para descargar documentos, `obtenerUrlAdjuntoComunidad`). Las imágenes se re-codifican a WebP (máximo 1600 px) con `sharp`; los documentos se validan por magic bytes contra la misma lista que los materiales de lección.
@@ -651,21 +730,27 @@ suscripción de pago abre el contenido por el mismo camino que una invitación.
 ## **9\. Envío de Emails (Correos Transaccionales)**
 
 > * **Stack:** Resend (Infraestructura de envío por API) \+ React Email (Para diseñar las plantillas).  
+> * **Plantillas:** `src/emails/`, con un marco común (`src/emails/marco/`) y versión en texto plano. Sus pruebas están en `src/emails/correos.test.ts`.  
+> * **Correos de Supabase Auth:** Supabase no envía sus propios correos: llama a `/api/webhooks/supabase-auth` (firmado con `SEND_EMAIL_HOOK_SECRET`) y la app los envía con Resend. Son tres: confirmar cuenta, recuperar contraseña y `confirmar-accion` para el resto (invitación, enlace mágico, cambio de correo).  
 > * **Flujos Configurados:**  
-  * Bienvenida (Disparado tras la confirmación de la primera suscripción activa).  
-  * Confirmación de registro / verificación de correo (Integrado de forma nativa con Supabase Auth, token de 15 minutos, reenvío limitado a 1 cada 60 segundos).  
-  * Recuperación de contraseña (Integrado de forma nativa con Supabase Auth).  
-  * Aviso de fallo de pago y entrada al período de gracia.
+  * Bienvenida (`welcome.tsx`): al canjear un código de invitación.  
+  * Confirmación de registro / verificación de correo (token de 15 minutos, reenvío limitado a 1 cada 60 segundos).  
+  * Recuperación de contraseña, y aviso de seguridad al cambiarla (`contrasena-actualizada.tsx`).  
+  * Certificado emitido (`certificado-emitido.tsx`).  
+  * Aviso de que el acceso está por terminar (`vencimiento-proximo.tsx`).  
+  * Recibo de pago (`recibo-pago.tsx`): listo para cuando entre el cobro.
   * Aviso de moderación en Comunidad (`enviarCorreoComunidadModerada`, plantilla `src/emails/comunidad-moderada.tsx`): al autor cuyo contenido eliminó un administrador, con el motivo. Best-effort: si Resend falla, se registra y la moderación no se revierte.
 
 ## **10\. Entornos y CI/CD (Deploy)**
 
 > * **Entornos (Environments):**  
-  1. **Staging (Pruebas):** Conectado a un proyecto de prueba independiente en Supabase, llaves de test de Stripe, y un entorno de prueba en Mux.  
-  2. **Production (Producción):** Datos reales, cobros reales, URLs definitivas al público.  
+  1. **Staging (Pruebas):** proyecto propio de Supabase. Lo usan el desarrollo local (`.env.local`), el CI (environment `supabase-test` de GitHub) y las pruebas e2e. Nunca se corre `test:rls`, `db:seed` ni `db:reset` contra otra base.  
+  2. **Production (Producción):** Railway, detrás de Cloudflare. Sus llaves solo están en Railway y en `.env.produccion.local` (sin commitear). GitHub no tiene credenciales de producción.  
 > * **Flujo de Despliegue (Continuous Deployment):**  
-  * El repositorio de código fuente en GitHub estará enlazado directamente a Railway.  
-  * Al hacer *push* o *merge* a la rama main, Railway detecta los cambios, inicia la fase de construcción de Next.js (npm run build), y despliega automáticamente la nueva versión.
+  * Railway construye y despliega cada push a `master` (`npm run build`, `npm start`). El comando de inicio vive en el panel de Railway, no en el repo.  
+  * Railway **no** corre migraciones. Los cambios de base (Prisma y `supabase/sql/`) se aplican a producción con la skill `pasar-a-produccion` antes de fusionar.  
+  * `infra/Dockerfile` es el plan B de despliegue (`docs/ops/plan-b-despliegue.md`); el job `imagen` del CI lo construye para que no se pudra. Antes de cambiar cómo construye o arranca Railway, se prueba en un servicio aparte: el 2026-11-24 pasar Railway al Dockerfile tumbó producción.  
+> * **CI (`.github/workflows/ci.yml`):** tsc, lint y vitest en todo PR (`checks`); RLS contra staging (`rls`); recorrido crítico y examen en Playwright (`e2e`); Lighthouse, que solo avisa (`lighthouse`); capturas visuales (`capturas`), y la imagen de Docker (`imagen`). Aparte corren `codeql.yml` y `respaldo.yml` (copia cifrada de producción, apagada hasta tener su environment).
 
 ## **11\. Variables de Entorno (Secretos)**
 
@@ -689,8 +774,33 @@ MUX\_WEBHOOK\_SECRET=
 MUX\_SIGNING\_KEY\_ID= \# Key ID del signing key de Mux, para firmar playback URLs  
 MUX\_SIGNING\_KEY\_PRIVATE= \# Private key (base64) del mismo signing key
 
+\# Pasarelas de Pago (resto; el cobro está apagado)  
+WOMPI\_PUB\_KEY=  
+WOMPI\_EVENTS\_SECRET= \# firma de los eventos del webhook de Wompi  
+WOMPI\_INTEGRITY\_SECRET= \# firma de integridad del checkout  
+WOMPI\_API\_URL=  
+WOMPI\_CHECKOUT\_URL=  
+WOMPI\_SIMULADOR= \# "1" simula el pago fuera de producción  
+PAGOS\_SIN\_CORREO= \# "1" no envía el recibo (pruebas de pagos)
+
 \# Correo y Utilidades  
-RESEND\_API\_KEY=
+RESEND\_API\_KEY=  
+RESEND\_FROM\_EMAIL= \# remitente verificado en Resend  
+SEND\_EMAIL\_HOOK\_SECRET= \# firma del hook de correos de Supabase Auth  
+CORREO\_ORIGEN\_IMAGENES= \# opcional; de dónde cargan las imágenes de los correos
+
+\# Sitio y navegador (NEXT\_PUBLIC\_*: se fijan al construir; deben estar como ARG en infra/Dockerfile, lo comprueba src/lib/dockerfile-variables.test.ts)  
+NEXT\_PUBLIC\_SITE\_URL= \# dominio público: canonicals, sitemap y QR de certificados  
+NEXT\_PUBLIC\_PRICING\_ENABLED= \# "true" muestra precios y /planes  
+NEXT\_PUBLIC\_TURNSTILE\_SITE\_KEY= \# CAPTCHA de registro e inicio de sesión  
+NEXT\_PUBLIC\_GA\_ID= \# opcional; GA4, solo con consentimiento  
+NEXT\_PUBLIC\_CLARITY\_ID= \# opcional; Clarity, solo con consentimiento
+
+\# Red y registros  
+ORIGEN\_SECRETO= \# cierre de origen: solo se atiende lo que llega por Cloudflare ("nuevo,viejo" al rotarlo, docs/ops/cloudflare.md)  
+TRUSTED\_PROXY\_HOPS= \# proxies delante de la app, para leer la IP real (1 por defecto)  
+VECTOR\_URL= \# opcional; adónde se envían los registros  
+MUX\_ATASCADO\_UMBRAL\_MINUTOS= \# 120; cuándo un video en proceso se da por atascado (scripts/mux-verificar-atascados.ts)
 
 \# Observabilidad (Sentry — P1-3, AUDIT-2026-08-24.md)  
 NEXT\_PUBLIC\_SENTRY\_DSN= \# init del cliente (src/instrumentation-client.ts)  

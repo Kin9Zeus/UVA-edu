@@ -191,7 +191,7 @@ function PasosAnadir({ onListo }: { onListo: () => void }) {
   const [confirmacion, confirmar, confirmando] = useActionState<ConfirmarDispositivoState, FormData>(
     async (estadoAnterior, datos) => {
       const resultado = await confirmarOtroDispositivo(estadoAnterior, datos);
-      if (resultado?.exito) onListo();
+      if (resultado?.success) onListo();
       return resultado;
     },
     null,

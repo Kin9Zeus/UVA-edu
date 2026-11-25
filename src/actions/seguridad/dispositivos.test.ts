@@ -107,7 +107,7 @@ describe("confirmarOtroDispositivo", () => {
 
   it("código correcto: confirma, deja bitácora y revalida Mi perfil", async () => {
     expect(await confirmarOtroDispositivo(null, formulario({ factorId: "f-2", codigo: "123 456" }))).toEqual({
-      exito: true,
+      success: true,
     });
     expect(servidorFalso.llamadasA("auth.mfa:challengeAndVerify")[0].argumentos[0]).toEqual({
       factorId: "f-2",
@@ -150,7 +150,7 @@ describe("quitarDispositivo", () => {
     });
     servidorFalso.responder("auth.mfa:unenroll", { data: {}, error: null });
 
-    expect(await quitarDispositivo("f-2")).toEqual({ exito: true });
+    expect(await quitarDispositivo("f-2")).toEqual({ success: true });
     expect(servidorFalso.llamadasA("auth.mfa:unenroll")[0].argumentos[0]).toEqual({ factorId: "f-2" });
     expect(registrarBitacora).toHaveBeenCalledWith(
       expect.anything(),

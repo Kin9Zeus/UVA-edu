@@ -143,7 +143,7 @@ export function CheckoutContent({
     const resultado = await validarCodigoCupon(nuevoId, cuponAplicado);
     setValidando(false);
 
-    if (resultado.ok) {
+    if (resultado.success) {
       setDesglose(resultado.desglose);
       return;
     }
@@ -162,7 +162,7 @@ export function CheckoutContent({
     const resultado = await validarCodigoCupon(idPlan, codigo);
     setValidando(false);
 
-    if (resultado.ok) {
+    if (resultado.success) {
       setDesglose(resultado.desglose);
       setCuponAplicado(codigo.trim().toUpperCase());
       setMostrarCampo(false);

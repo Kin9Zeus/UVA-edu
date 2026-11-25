@@ -40,14 +40,14 @@ describe("sin sesión ninguna escribe", () => {
   });
 
   it("guardarSegundoActual", async () => {
-    expect(await guardarSegundoActual("leccion-1", 30)).toEqual({ ok: false });
+    expect(await guardarSegundoActual("leccion-1", 30)).toEqual({ success: false });
     expect(upserts()).toEqual([]);
   });
 });
 
 describe("marcarLeccion", () => {
   it.each([true, false])("completado=%s con el id de la sesión", async (completado) => {
-    expect(await marcarLeccion("leccion-1", completado)).toEqual({ ok: true, completado });
+    expect(await marcarLeccion("leccion-1", completado)).toEqual({ success: true, completado });
     expect(upserts()).toEqual([
       [{ id_usuario: ESTUDIANTE.id, id_leccion: "leccion-1", completado }, { onConflict: "id_usuario,id_leccion" }],
     ]);
@@ -83,7 +83,7 @@ describe("guardarSegundoActual", () => {
     [-40, 0],
     [0, 0],
   ])("%s s → guarda %s", async (entrada, guardado) => {
-    expect(await guardarSegundoActual("leccion-1", entrada)).toEqual({ ok: true });
+    expect(await guardarSegundoActual("leccion-1", entrada)).toEqual({ success: true });
     expect(upserts()[0][0]).toEqual({ id_usuario: ESTUDIANTE.id, id_leccion: "leccion-1", segundo_actual: guardado });
   });
 
@@ -94,7 +94,7 @@ describe("guardarSegundoActual", () => {
   });
 
   it.each([Number.NaN, Number.POSITIVE_INFINITY])("%s no se escribe", async (entrada) => {
-    expect(await guardarSegundoActual("leccion-1", entrada)).toEqual({ ok: false });
+    expect(await guardarSegundoActual("leccion-1", entrada)).toEqual({ success: false });
     expect(upserts()).toEqual([]);
   });
 });

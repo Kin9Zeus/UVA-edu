@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
 import { reproduccionVigente } from "@/lib/video/reproduccionUnica";
 
-export type MarcarLeccionState = { error: string } | { ok: true; completado: boolean };
+export type MarcarLeccionState = { error: string } | { success: true; completado: boolean };
 
 /**
  * Marca o desmarca una clase como completada desde el reproductor. El mockup
@@ -39,7 +39,7 @@ export async function marcarLeccion(
   }
 
   revalidatePath("/dashboard", "layout");
-  return { ok: true, completado };
+  return { success: true, completado };
 }
 
 /**
@@ -93,17 +93,17 @@ export async function guardarSegundoActual(
   leccionId: string,
   segundos: number,
   sesion: string | null = null,
-): Promise<{ ok: boolean; otroDispositivo?: true }> {
+): Promise<{ success: boolean; otroDispositivo?: true }> {
   const supabase = await createClient();
   const user = await getUsuarioActual();
 
-  if (!user) return { ok: false };
-  if (!Number.isFinite(segundos)) return { ok: false };
+  if (!user) return { success: false };
+  if (!Number.isFinite(segundos)) return { success: false };
 
   // Este guardado es el latido del Flujo 05 (un video a la vez por cuenta):
   // si otro equipo reclamó la reproducción, no se guarda —su posición es la
   // que vale— y el reproductor se pausa.
-  if (!(await reproduccionVigente(supabase, sesion))) return { ok: false, otroDispositivo: true };
+  if (!(await reproduccionVigente(supabase, sesion))) return { success: false, otroDispositivo: true };
 
   const segundoActual = Math.max(0, Math.floor(segundos));
 
@@ -114,5 +114,5 @@ export async function guardarSegundoActual(
       { onConflict: "id_usuario,id_leccion" },
     );
 
-  return { ok: !error };
+  return { success: !error };
 }

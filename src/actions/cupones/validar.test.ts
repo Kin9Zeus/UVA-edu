@@ -44,7 +44,7 @@ beforeEach(() => {
 
 describe("antes del rate limit", () => {
   it("un código vacío no toca la base", async () => {
-    expect(await validarCodigoCupon("plan-1", "  ")).toEqual({ ok: false, error: "Escribe un código." });
+    expect(await validarCodigoCupon("plan-1", "  ")).toEqual({ success: false, error: "Escribe un código." });
     expect(servidorFalso.clientesCreados).toEqual({ sesion: 0, admin: 0 });
   });
 
@@ -53,7 +53,7 @@ describe("antes del rate limit", () => {
 
     const resultado = await validarCodigoCupon("plan-1", "PROMO20");
 
-    expect(resultado).toMatchObject({ ok: false, error: expect.stringMatching(/sesión expiró/) });
+    expect(resultado).toMatchObject({ success: false, error: expect.stringMatching(/sesión expiró/) });
     expect(servidorFalso.clientesCreados.admin).toBe(0);
   });
 
@@ -62,7 +62,7 @@ describe("antes del rate limit", () => {
 
     const resultado = await validarCodigoCupon("plan-x", "PROMO20");
 
-    expect(resultado).toEqual({ ok: false, error: "Ese plan ya no está disponible." });
+    expect(resultado).toEqual({ success: false, error: "Ese plan ya no está disponible." });
     expect(servidorFalso.encadenado("from:planes", "eq")).toEqual([
       ["id", "plan-x"],
       ["activo", true],
@@ -90,7 +90,7 @@ describe("rate limit (P2-1)", () => {
     const resultado = await validarCodigoCupon("plan-1", "PROMO20");
 
     expect(resultado).toEqual({
-      ok: false,
+      success: false,
       error: "Demasiados intentos. Espera un momento antes de volver a intentar.",
       segundosEspera: 600,
     });
@@ -102,7 +102,7 @@ describe("rate limit (P2-1)", () => {
 
     const resultado = await validarCodigoCupon("plan-1", "PROMO20");
 
-    expect(resultado.ok).toBe(false);
+    expect(resultado.success).toBe(false);
     expect(servidorFalso.llamadasA("from:cupones")).toHaveLength(0);
   });
 });
@@ -117,7 +117,7 @@ describe("cupón inválido: todos los rechazos cuestan un intento", () => {
   ])("%s", async (_caso, fila, mensaje) => {
     servidorFalso.responder("from:cupones", { data: fila });
 
-    expect(await validarCodigoCupon("plan-1", "PROMO20")).toEqual({ ok: false, error: mensaje });
+    expect(await validarCodigoCupon("plan-1", "PROMO20")).toEqual({ success: false, error: mensaje });
     expect(servidorFalso.argumentosDe("rpc:registrar_validacion_cupon_fallida")).toEqual({
       p_usuario_id: ESTUDIANTE.id,
     });
@@ -139,7 +139,7 @@ describe("cupón válido", () => {
 
     const resultado = await validarCodigoCupon("plan-1", "  PROMO20 ");
 
-    expect(resultado).toMatchObject({ ok: true, desglose: { totalCentavos: 40_000_000 } });
+    expect(resultado).toMatchObject({ success: true, desglose: { totalCentavos: 40_000_000 } });
     expect(servidorFalso.encadenado("from:cupones", "eq")).toEqual([["codigo", "PROMO20"]]);
     expect(servidorFalso.argumentosDe("rpc:limpiar_intentos_validar_cupon")).toEqual({
       p_usuario_id: ESTUDIANTE.id,
@@ -151,7 +151,7 @@ describe("cupón válido", () => {
     servidorFalso.responder("from:cupones", { data: cupon({ valor: 100 }) });
 
     expect(await validarCodigoCupon("plan-1", "GRATIS")).toEqual({
-      ok: false,
+      success: false,
       error: "Ese cupón cubre el plan completo. Pídenos un código de invitación.",
     });
   });
