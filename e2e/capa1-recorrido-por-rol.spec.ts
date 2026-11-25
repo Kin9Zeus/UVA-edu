@@ -84,8 +84,8 @@ const RUIDO_CONSOLA = [
   /Download the React DevTools/i,
   /\[HMR\]/,
   /\[Fast Refresh\]/,
-  // Informativo de Chrome mientras la CSP sea Report-Only: la directiva
-  // (src/lib/csp.ts) empieza a aplicarse sola cuando se fuerce la política.
+  // Informativo de Chrome si la CSP vuelve a Report-Only (forzada desde
+  // 2026-11-25, src/proxy.ts).
   /'upgrade-insecure-requests' is ignored when delivered in a report-only policy/,
 ];
 const ES_CSP = /Content Security Policy|Report Only|\[Report Only\]/i;

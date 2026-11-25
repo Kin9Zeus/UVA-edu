@@ -119,3 +119,22 @@ facturación de cada proveedor.
 **Si cambia algo.** Si una factura sale fuera de lo normal, se separa la
 llave por entorno y se activan las alertas del proveedor afectado. Es
 decisión del equipo, no un pendiente de auditoría.
+
+## 7. CSP con nonce en todo el sitio, sin páginas pregeneradas (P2-9, AUDIT-2026-11-23)
+
+**Estado:** decisión del equipo, 2026-11-25. La CSP ya está **forzada**
+(`src/proxy.ts`); lo que se descarta es la segunda mitad de P2-9.
+
+**Qué proponía la auditoría.** Sacar la portada, el catálogo y otras páginas
+públicas del nonce para que Next las genere en el build (más rápidas de
+servir).
+
+**Por qué no.** Sin nonce habría que pasar a la integridad por hash (SRI),
+que en Next 16 sigue siendo **experimental**, y no cubre los scripts en línea
+que Next escribe en cada página ni el script del tema: la CSP quedaría más
+débil justo en las páginas públicas. La mejora de velocidad no está medida, y
+Lighthouse en producción ya da 90+ en esas pantallas.
+
+**Cuándo se vuelve a mirar.** Si Lighthouse en móvil, medido en producción,
+baja de 90 en Rendimiento en la portada o el catálogo, o si Next saca SRI de
+experimental.

@@ -11,6 +11,12 @@ import { NOMBRE_ORGANIZACION } from "@/lib/seo/organizacion";
  *
  * El nombre sale de la misma constante que el JSON-LD de la organización:
  * cuando se decida el nombre oficial, cambia en un solo lugar.
+ *
+ * Mientras Cloudflare Access cierre beta.uvarq.com, el navegador pide este
+ * archivo SIN cookies (Next solo pone crossOrigin="use-credentials" en las
+ * previews de Vercel), Access lo redirige a su login y la CSP lo reporta
+ * (UVA-EDU-3P). No es un fallo de la app: se va solo cuando el dominio sea
+ * público, o antes con una regla Bypass de Access para /manifest.webmanifest.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
