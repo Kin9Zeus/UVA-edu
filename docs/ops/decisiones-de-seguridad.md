@@ -138,3 +138,25 @@ Lighthouse en producción ya da 90+ en esas pantallas.
 **Cuándo se vuelve a mirar.** Si Lighthouse en móvil, medido en producción,
 baja de 90 en Rendimiento en la portada o el catálogo, o si Next saca SRI de
 experimental.
+
+## 8. Sin umbral de cobertura en el CI (P2-12, AUDIT-2026-11-23)
+
+**Estado:** decisión del equipo, 2026-11-25.
+
+**Qué proponía la auditoría.** Un porcentaje mínimo de cobertura que haga
+fallar el CI, porque 74 de 134 acciones no tenían una prueba que las nombrara.
+
+**Por qué no.** Ese conteo no ve `src/actions/admin/autorizacion.test.ts`,
+que recorre **todas** las acciones de administrador (las futuras entran
+solas) y comprueba que sin rol de admin no tocan nada. Lo que faltaba era la
+lógica de negocio, y se cubrió por riesgo: códigos de invitación y lotes,
+descarga del certificado, exportación de datos y lo delicado del editor de
+cursos (publicar, borrar, reordenar, portada). Un umbral pide instalar otra
+herramienta y premia pruebas escritas para subir el número, no para
+encontrar fallos: las de esta tanda encontraron dos.
+
+**Regla en su lugar.** Toda acción nueva que mueva datos de una persona, dé
+acceso o borre algo llega con su prueba en el mismo PR.
+
+**Cuándo se vuelve a mirar.** Si entra una persona nueva al equipo o un
+fallo llega a producción por una acción sin prueba.
