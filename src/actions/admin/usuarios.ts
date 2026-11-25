@@ -585,9 +585,11 @@ export async function anonimizarUsuario(usuarioId: string): Promise<AdminActionR
   // ser el administrador para que la guardia de "no a ti mismo" signifique
   // algo del lado de la base. Extendida en 104 para cubrir también
   // Comunidad y las reseñas de curso.
-  const { error } = await admin.supabase.rpc("anonimizar_usuario", {
-    p_id_usuario: usuarioId,
-  });
+  // Hasta 30 s en la base (111): pasa su propia señal sobre el límite de 10 s
+  // de los clientes (src/lib/limite-de-red.ts).
+  const { error } = await admin.supabase
+    .rpc("anonimizar_usuario", { p_id_usuario: usuarioId })
+    .abortSignal(AbortSignal.timeout(40_000));
 
   if (error) {
     logError("admin/usuarios", "No se pudo anonimizar la cuenta", error, { usuarioId });

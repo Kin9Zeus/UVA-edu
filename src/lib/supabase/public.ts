@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { fetchConLimite } from "@/lib/limite-de-red";
 
 /**
  * Cliente de solo lectura con la Anon Key, sin sesión ni cookies.
@@ -18,6 +19,7 @@ export function createPublicClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: fetchConLimite() },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
