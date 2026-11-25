@@ -31,7 +31,7 @@
 # (ecosistema docker) propone el digest nuevo.
 
 # ---------- 1. Dependencias (exactas, del lockfile) ----------
-FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS dependencias
+FROM node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS dependencias
 WORKDIR /app
 # `postinstall` corre `prisma generate`: necesita el esquema y su config.
 COPY package.json package-lock.json prisma.config.ts ./
@@ -39,7 +39,7 @@ COPY prisma ./prisma
 RUN npm ci --no-audit --no-fund
 
 # ---------- 2. Build ----------
-FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS build
+FROM node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS build
 WORKDIR /app
 COPY --from=dependencias /app/node_modules ./node_modules
 COPY . .
@@ -87,7 +87,7 @@ RUN if [ "${NEXT_BUILD_MODE}" = "compile" ]; then \
     fi
 
 # ---------- 3. Imagen final: solo lo que corre ----------
-FROM node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS app
+FROM node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS app
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
