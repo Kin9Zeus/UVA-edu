@@ -5,10 +5,6 @@ salir de él, U.V.A queda arriba en otro proveedor en **menos de 2 horas**.
 Con Cloudflare delante (fases 1 y 2), el cambio final es solo apuntar el DNS
 al origen nuevo: los estudiantes no notan nada más.
 
-Desde noviembre de 2026 Railway ya corre esta misma imagen (`railway.json`
-en la raíz apunta a `infra/Dockerfile`): cada despliegue de producción prueba
-el plan B.
-
 Lo que no cambia: la base y la autenticación siguen en Supabase, los videos
 en Mux y los correos en Resend. Solo se mueve el servidor de la app.
 

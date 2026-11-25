@@ -4,10 +4,11 @@
 # La misma imagen corre en Railway, Render, Fly.io o un servidor propio: es
 # el plan B si Railway falla o hay que salir de él (docs/ops/plan-b-despliegue.md).
 #
-# Railway la usa porque `railway.json` (raíz) se lo indica (P2-6 de la
-# auditoría 2026-11-23): Railway le pasa como build-arg cada variable del
-# servicio que aquí se declare con ARG. Una variable NEXT_PUBLIC_* nueva que
-# no se declare aquí llega vacía al navegador.
+# Va en infra/ y no en la raíz A PROPÓSITO: Railway construye con su propio
+# sistema y arranca con `npm start` (`next start`). El intento de pasar
+# Railway a esta imagen (2026-11-24) se revirtió: el panel tiene un comando
+# de arranque `npm start` que pisa el CMD y la imagen standalone no trae
+# `next`. Antes de reintentarlo, quitar ese comando en Settings → Deploy.
 #
 # Construir (desde la raíz del repo):
 #   docker build -f infra/Dockerfile \
