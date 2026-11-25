@@ -36,9 +36,12 @@ export async function descargarCertificadoPdf(certificadoId: string): Promise<De
     .eq("id", certificadoId)
     .maybeSingle();
 
-  if (errorCertificado || !certificado) {
-    return { error: "No encontramos ese certificado." };
+  // Un fallo de la base no es "no existe": le diría que perdió su certificado.
+  if (errorCertificado) {
+    logError("descargarCertificadoPdf", "No se pudo leer el certificado", errorCertificado, { area: "certificados" });
+    return { error: "No pudimos cargar tu certificado. Intenta de nuevo." };
   }
+  if (!certificado) return { error: "No encontramos ese certificado." };
 
   // La versión del diseño va en el nombre del archivo: al cambiar el diseño
   // del certificado, un PDF guardado con otra versión (o ninguno) se vuelve
