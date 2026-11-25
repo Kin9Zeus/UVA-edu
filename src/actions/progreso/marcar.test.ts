@@ -3,7 +3,10 @@ import { servidorFalso } from "@/test/servidor-falso";
 
 vi.mock("@/lib/supabase/server", () => import("@/test/servidor-falso").then((m) => m.moduloSupabaseServer()));
 vi.mock("next/cache", () => import("@/test/servidor-falso").then((m) => m.moduloNextCache()));
+vi.mock("@/lib/log", () => import("@/test/servidor-falso").then((m) => m.moduloLog()));
 
+import { logError } from "@/lib/log";
+import { reiniciarUnaVezPorMinuto } from "@/lib/una-vez-por-minuto";
 import { guardarSegundoActual, iniciarProgresoLeccion, marcarLeccion } from "@/actions/progreso/marcar";
 
 /**
@@ -24,6 +27,8 @@ function upserts(): unknown[][] {
 beforeEach(() => {
   servidorFalso.reiniciar();
   servidorFalso.conUsuario(ESTUDIANTE);
+  reiniciarUnaVezPorMinuto();
+  vi.mocked(logError).mockClear();
 });
 
 describe("sin sesión ninguna escribe", () => {
@@ -91,6 +96,25 @@ describe("guardarSegundoActual", () => {
     await guardarSegundoActual("leccion-1", 10);
 
     expect(upserts()[0][0]).not.toHaveProperty("completado");
+  });
+
+  it("si la base rechaza el guardado, responde false y queda UN aviso por minuto (P3-1)", async () => {
+    servidorFalso.responder("from:progreso", { data: null, error: { message: "timeout", code: "57014" } });
+
+    for (let i = 0; i < 10; i++) expect(await guardarSegundoActual("leccion-1", 30)).toEqual({ success: false });
+
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalledWith(
+      "guardarSegundoActual",
+      expect.any(String),
+      expect.objectContaining({ code: "57014" }),
+      expect.objectContaining({ leccionId: "leccion-1", nivel: "warning" }),
+    );
+  });
+
+  it("si guarda, no registra nada", async () => {
+    await guardarSegundoActual("leccion-1", 30);
+    expect(logError).not.toHaveBeenCalled();
   });
 
   it.each([Number.NaN, Number.POSITIVE_INFINITY])("%s no se escribe", async (entrada) => {
