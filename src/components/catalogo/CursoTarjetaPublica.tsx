@@ -106,6 +106,9 @@ export function CursoTarjetaPublica({
 }) {
   const tarjeta = disposicion === "tarjeta";
   const conPortada = esPortadaReal(curso.imagenPortada);
+  // Todas las clases del temario, con o sin video, a propósito: es el mismo
+  // número de la ficha y del «clase 3 de 10» del reproductor. Lo que cuenta
+  // solo clases con video LISTO es el AVANCE (estadoDeCurso), no el temario.
   const clases = `${curso.totalClases} ${curso.totalClases === 1 ? "clase" : "clases"}`;
   const duracion = curso.duracionTotalSegundos ? formatHoras(curso.duracionTotalSegundos) : null;
 

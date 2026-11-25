@@ -144,3 +144,59 @@ describe("getCursoPublico", () => {
     expect(filtros).toEqual(["id", "slug"]);
   });
 });
+
+describe("getCursoPublico: estado del curso (P2-11, misma regla que el panel)", () => {
+  const conClaseSinVideo = {
+    ...filaCurso,
+    modulos: [
+      {
+        ...filaCurso.modulos[0],
+        lecciones: [
+          ...filaCurso.modulos[0].lecciones,
+          { id: "l2", slug: "pendiente", titulo: "Pendiente", orden: 20, duracion: null, estado_procesamiento: "PROCESANDO", id_video_mux: null },
+        ],
+      },
+    ],
+  };
+
+  function cursoVisto(examen: "sin" | "pendiente" | "aprobado") {
+    servidorFalso.responder("from:cursos", { data: conClaseSinVideo, error: null });
+    servidorFalso.responder("from:progreso", { data: [{ id_leccion: "l1", completado: true }], error: null });
+    servidorFalso.responder("from:examenes", { data: examen === "sin" ? [] : [{ id: "e1", id_curso: "k1" }], error: null });
+    servidorFalso.responder("from:intentos_examen", { data: examen === "aprobado" ? [{ id_examen: "e1" }] : [], error: null });
+  }
+
+  it("todas las clases con video vistas y sin examen: COMPLETADO, sin mandar a la clase sin video", async () => {
+    cursoVisto("sin");
+
+    const curso = await getCursoPublico("revit-desde-cero", "u1");
+
+    expect(curso).toMatchObject({ estado: "COMPLETADO", leccionContinuarId: null });
+  });
+
+  it("clases vistas pero el examen sin aprobar: EXAMEN_PENDIENTE, no «Completaste»", async () => {
+    cursoVisto("pendiente");
+
+    expect((await getCursoPublico("revit-desde-cero", "u1"))?.estado).toBe("EXAMEN_PENDIENTE");
+  });
+
+  it("con el examen aprobado: COMPLETADO", async () => {
+    cursoVisto("aprobado");
+
+    expect((await getCursoPublico("revit-desde-cero", "u1"))?.estado).toBe("COMPLETADO");
+  });
+
+  it("sin sesión: null y no se consultan exámenes", async () => {
+    servidorFalso.responder("from:cursos", { data: filaCurso, error: null });
+
+    expect((await getCursoPublico("revit-desde-cero", null))?.estado).toBeNull();
+    expect(servidorFalso.llamadasA("from:examenes")).toHaveLength(0);
+  });
+
+  it("si fallan los exámenes: LANZA (no puede salir «Completaste» por un fallo)", async () => {
+    cursoVisto("pendiente");
+    servidorFalso.responder("from:examenes", { data: null, error: ERROR_PG });
+
+    await expect(getCursoPublico("revit-desde-cero", "u1")).rejects.toThrow(/examenes/);
+  });
+});

@@ -402,7 +402,8 @@ export function CursoFicha({
           </nav>
 
           <h1 className="m-0 text-uva-titulo-2 text-balance text-uva-text @4xl:text-uva-titulo-3">{curso.titulo}</h1>
-          {conAcceso && completado && (
+          {/* Misma regla que el panel (estadoDeCurso): con examen, hay que aprobarlo. */}
+          {conAcceso && curso.estado === "COMPLETADO" && (
             <p className="m-0 inline-flex w-fit items-center gap-1.5 rounded-full bg-uva-accent-2 px-3 py-1 text-uva-detalle font-bold text-uva-on-bright">
               <CircleCheck className="size-4" strokeWidth={2.4} aria-hidden />
               Completaste este curso
