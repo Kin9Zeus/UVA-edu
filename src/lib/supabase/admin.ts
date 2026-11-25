@@ -1,6 +1,7 @@
 // Lee SUPABASE_SERVICE_ROLE_KEY: importarlo desde un componente de cliente hace fallar el build (fase 7).
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { fetchConLimite } from "@/lib/limite-de-red";
 
 /**
  * Cliente con Service Role Key: se salta RLS por diseño.
@@ -20,6 +21,7 @@ export function createAdminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
+      global: { fetch: fetchConLimite() },
       auth: {
         autoRefreshToken: false,
         persistSession: false,

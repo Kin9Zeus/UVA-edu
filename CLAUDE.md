@@ -46,7 +46,7 @@ Aplica siempre, tanto en tareas de diseño como de código:
 
 ### 3.1 Mutaciones y Endpoints
 - **Server Actions:** Utiliza Next.js Server Actions para todas las mutaciones internas (crear curso, editar perfil, guardar progreso). Evita crear rutas `/api/` para uso interno.
-- **Route Handlers (`/api/`):** Reservados **únicamente** para recibir Webhooks externos de Stripe, Wompi, Mux y el hook de envío de correos de Supabase Auth (`/api/webhooks/supabase-auth`), salvo `/api/health` (chequeo de disponibilidad de solo lectura para monitoreo externo — un monitor de uptime solo puede hacer GET a una URL, no invocar una Server Action).
+- **Route Handlers (`/api/`):** Reservados **únicamente** para recibir Webhooks externos de Stripe, Wompi, Mux y el hook de envío de correos de Supabase Auth (`/api/webhooks/supabase-auth`), salvo `/api/health` (chequeo de disponibilidad de solo lectura para monitoreo externo — un monitor de uptime solo puede hacer GET a una URL, no invocar una Server Action) y `/api/progreso/beacon` (guarda el último segundo visto al cerrar la pestaña: `navigator.sendBeacon` no puede llamar a una Server Action). Contrato de las Server Actions (respuesta `{ success } | { error }`, validación, permisos y pruebas): `src/actions/README.md`.
 - **Idempotencia:** Todo Webhook entrante debe registrarse previamente en la tabla `Eventos_Webhook` antes de ejecutar la lógica de negocio.
 
 ### 3.2 Seguridad y Permisos

@@ -52,16 +52,13 @@ export async function proxy(request: NextRequest) {
 
   const response = await updateSession(request, cabecerasPeticion);
 
-  // En la RESPUESTA va en modo informe. La política todavía no se ha
-  // probado contra tráfico real —el riesgo concreto es que el reproductor
-  // de Mux o el editor TipTap tropiecen con `style-src` sin más aviso que
-  // la consola—, así que durante la fase de observación esto no bloquea
-  // nada: solo reporta a Sentry vía el `report-uri` que arma construirCsp().
-  //
-  // Para forzarla, cuando el informe salga limpio, basta cambiar el nombre
-  // de esta cabecera por "Content-Security-Policy". Ese cambio es de una
-  // línea a propósito: el resto ya está en su sitio y probado.
-  response.headers.set("Content-Security-Policy-Report-Only", csp);
+  // Forzada desde 2026-11-25 (P2-9, AUDIT-2026-11-23), tras observarla en
+  // Report-Only desde septiembre: en 90 días Sentry solo registró una
+  // extensión del navegador (UVA-EDU-30) y el manifest bloqueado por
+  // Cloudflare Access (UVA-EDU-3P, ver src/app/manifest.ts). Las violaciones
+  // siguen llegando a Sentry por el `report-uri`. Si algo legítimo se rompe,
+  // volver a "Content-Security-Policy-Report-Only" es el arreglo inmediato.
+  response.headers.set("Content-Security-Policy", csp);
 
   return response;
 }

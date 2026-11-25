@@ -123,7 +123,11 @@ export async function eliminarMiCuenta(
     await borrarAdjuntoComunidad(admin, adjunto.id, adjunto.ruta_storage);
   }
 
-  const { error: errorSupresion } = await supabase.rpc("solicitar_supresion_propia");
+  // Hasta 30 s en la base (111): pasa su propia señal sobre el límite de 10 s
+  // de los clientes (src/lib/limite-de-red.ts).
+  const { error: errorSupresion } = await supabase
+    .rpc("solicitar_supresion_propia")
+    .abortSignal(AbortSignal.timeout(40_000));
 
   if (errorSupresion) {
     // 42501 es el código que la propia RPC levanta a propósito (sesión sin

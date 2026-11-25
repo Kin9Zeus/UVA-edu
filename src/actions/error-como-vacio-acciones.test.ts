@@ -182,7 +182,7 @@ describe("Estudiante: un fallo no se dice como 'no existe' ni como 'quitaste'", 
     servidorFalso.responder("from:planes", FALLO);
 
     expect(await validarCodigoCupon(PLAN, "VERANO")).toEqual({
-      ok: false,
+      success: false,
       error: "No pudimos validar el cupón. Intenta de nuevo.",
     });
   });

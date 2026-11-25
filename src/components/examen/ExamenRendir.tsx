@@ -13,6 +13,7 @@ import { enviarIntento, responderPregunta } from "@/actions/examenes/intento";
 import { registrarEvento } from "@/lib/analitica";
 import type { IntentoEnCurso } from "@/lib/examen";
 import { VIDAS_INICIALES } from "@/lib/examenes/tipos";
+import { avisoDeTiempo } from "@/lib/examenes/aviso-tiempo";
 import type { PreguntaParaEstudiante, RespuestaEstudiante } from "@/lib/examenes/tipos";
 
 const LETRAS = "ABCDEFGHIJ";
@@ -241,7 +242,18 @@ export function ExamenRendir({
       setError(null);
       setBorrador(valor);
 
-      const resultado = await responderPregunta(intento.id, preguntaActualId, valor);
+      // Sin red, la Server Action LANZA (no devuelve `{ error }`): sin este
+      // catch la pantalla quedaba en "Calificando…" con las opciones
+      // bloqueadas para siempre. Si la petición no llegó, reintentar es
+      // seguro; si llegó y acertó, el servidor la reconoce como resuelta.
+      let resultado: Awaited<ReturnType<typeof responderPregunta>>;
+      try {
+        resultado = await responderPregunta(intento.id, preguntaActualId, valor);
+      } catch {
+        setEnviando(false);
+        setError("No pudimos enviar tu respuesta. Revisa tu conexión y vuelve a tocarla.");
+        return;
+      }
       setEnviando(false);
 
       if ("error" in resultado) {
@@ -453,7 +465,6 @@ export function ExamenRendir({
                 className={`m-0 flex items-center gap-1 font-mono text-uva-cuerpo font-bold tabular-nums ${
                   tiempoCritico ? "animate-pulse text-uva-error-text motion-reduce:animate-none" : "text-uva-text"
                 }`}
-                aria-live={tiempoCritico ? "assertive" : "off"}
               >
                 <Clock className="size-4" aria-hidden />
                 <span className="sr-only">Tiempo restante: </span>
@@ -551,6 +562,12 @@ export function ExamenRendir({
         {accion}
         <p role="status" aria-live="polite" className="sr-only">
           {anuncio}
+        </p>
+        {/* El reloj de arriba no se anuncia (cambia cada segundo); esta
+            región habla solo al cruzar 5 min, 1 min y 10 s. Va aparte de la
+            de arriba para no pisar el resultado de la respuesta. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {segundosRestantes !== null && avisoDeTiempo(segundosRestantes)}
         </p>
       </div>
     </div>

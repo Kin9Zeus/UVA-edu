@@ -3,12 +3,13 @@ import { adminClient, borrarUsuarioPorEmail, crearUsuarioConfirmado, limpiarDato
 import { esperarTurnstile } from "./turnstile";
 
 /**
- * Capa 2 — manipulación del examen final como lo haría un estudiante real:
- * doble clic, recargar a mitad, dos pestañas, quedarse sin red al guardar o
- * al enviar, y la sesión que caduca con el examen abierto.
+ * Capa 2 — el examen final (lo que emite certificados) como lo usaría un
+ * estudiante real: aprobarlo, doble clic, recargar a mitad, dos pestañas,
+ * quedarse sin red al responder y la sesión que caduca con el examen
+ * abierto. Corre en CI (P2-13, AUDIT-2026-11-23).
  *
  * NO usa el examen del curso fixture: publicarlo, aunque fuera por unos
- * minutos, lo mostraría a estudiantes reales (no hay staging). Se crea un
+ * minutos, cambiaría lo que ven los demás usuarios de staging. Se crea un
  * curso desechable con `mostrado = false` — invisible en el catálogo; solo
  * lo ven los usuarios de prueba porque tienen progreso en él
  * (private.tiene_acceso_vigente_curso, supabase/sql/030) — y se borra al
@@ -206,101 +207,92 @@ test("doble clic en 'Iniciar examen' abre un solo intento", async ({ page }) => 
   expect(excepciones).toEqual([]);
 });
 
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("recargar a mitad del examen conserva las respuestas autoguardadas y el mismo intento", async ({ page }) => {
+/** Botón de una opción. «Correcta 1» no casa con «Incorrecta 1» (mayúscula). */
+const opcion = (page: Page, texto: string) => page.getByRole("button", { name: new RegExp(`${texto}$`) });
+
+type Progreso = { resueltas: Record<string, unknown>; fallos: number; cola: string[] };
+async function progresoDe(usuarioId: string) {
+  const [intento] = await intentosDe(usuarioId);
+  return { estado: intento?.estado as string | undefined, ...((intento?.respuestas ?? {}) as Progreso) };
+}
+
+async function responderTodoBien(page: Page) {
+  await opcion(page, "Correcta 1").click();
+  await page.getByRole("button", { name: /^Siguiente/ }).click();
+  await expect(page.getByText(PREGUNTAS[1].texto)).toBeVisible({ timeout: 30_000 });
+  await opcion(page, "Correcta 2").click();
+  await expect(page.getByRole("button", { name: /^Ver resultado/ })).toBeVisible({ timeout: 30_000 });
+}
+
+test("aprobar el examen lo cierra APROBADO y emite el certificado", async ({ page }) => {
+  const { email, id } = await estudianteListo("aprueba");
+  const excepciones = vigilarExcepciones(page);
+  await iniciarSesion(page, email);
+  await empezarExamen(page);
+
+  await responderTodoBien(page);
+
+  const [intento] = await intentosDe(id);
+  expect(intento.estado).toBe("APROBADO");
+  expect(Number(intento.puntaje_pct)).toBe(100);
+  // El trigger de la base emite el certificado al aprobar (068/114).
+  const { data: certificados } = await admin.from("certificados").select("id").eq("id_usuario", id).eq("id_curso", cursoId);
+  expect(certificados).toHaveLength(1);
+  expect(excepciones).toEqual([]);
+});
+
+test("recargar a mitad del examen sigue en el mismo intento y en la pregunta siguiente", async ({ page }) => {
   const { email, id } = await estudianteListo("recarga");
   const excepciones = vigilarExcepciones(page);
   await iniciarSesion(page, email);
   await empezarExamen(page);
 
-  await page.getByLabel("Correcta 1", { exact: true }).check();
-  // El autoguardado corre cada 10 s (INTERVALO_AUTOGUARDADO_MS).
-  await expect
-    .poll(async () => JSON.stringify((await intentosDe(id))[0]?.respuestas ?? {}), { timeout: 25_000 })
-    .toContain(PREGUNTAS[0].correcta);
+  await opcion(page, "Correcta 1").click();
+  await expect(page.getByRole("button", { name: /^Siguiente/ })).toBeVisible({ timeout: 30_000 });
 
   await page.reload();
-  await expect(page.getByLabel("Correcta 1", { exact: true })).toBeChecked({ timeout: 30_000 });
+  await expect(page.getByText(PREGUNTAS[1].texto)).toBeVisible({ timeout: 30_000 });
   expect(await intentosDe(id)).toHaveLength(1);
+  expect(Object.keys((await progresoDe(id)).resueltas)).toHaveLength(1);
   expect(excepciones).toEqual([]);
 });
 
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("si el autoguardado falla por la red, la respuesta se guarda cuando vuelve la conexión", async ({ page }) => {
-  test.setTimeout(3 * 60_000);
-  const { email, id } = await estudianteListo("autoguardado");
+test("doble toque en una opción incorrecta cobra UNA sola vida", async ({ page }) => {
+  const { email, id } = await estudianteListo("dobletoque");
   const excepciones = vigilarExcepciones(page);
   await iniciarSesion(page, email);
   await empezarExamen(page);
 
-  // Se cae la red, el estudiante responde y el autoguardado de ese ciclo falla.
-  await cortarServerActions(page);
-  await page.getByLabel("Correcta 1", { exact: true }).check();
-  await page.waitForTimeout(13_000);
+  await opcion(page, "Incorrecta 1").dblclick();
+  await expect(page.getByRole("button", { name: /^Siguiente/ })).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(2_000);
 
-  // Vuelve la red. El estudiante no toca nada más: está leyendo la pregunta 2.
-  await page.unroute("**/*");
-  await page.waitForTimeout(25_000);
-
-  // Lo que importa: si ahora se le acaba el tiempo o cierra la pestaña, el
-  // servidor califica con lo guardado en la base, no con lo de la pantalla.
-  const guardado = JSON.stringify((await intentosDe(id))[0]?.respuestas ?? {});
-  expect(
-    guardado,
-    "la respuesta marcada durante el corte nunca llegó a la base, aunque la red volvió hace 25 s",
-  ).toContain(PREGUNTAS[0].correcta);
+  expect((await progresoDe(id)).fallos).toBe(1);
   expect(excepciones).toEqual([]);
 });
 
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("doble clic en 'Sí, enviar examen' califica una sola vez", async ({ page }) => {
-  const { email, id } = await estudianteListo("dobleenvio");
+test("se cae la red al responder: avisa, no se congela y al volver la red se puede responder", async ({ page }) => {
+  const { email, id } = await estudianteListo("sinred");
   const excepciones = vigilarExcepciones(page);
   await iniciarSesion(page, email);
   await empezarExamen(page);
-
-  await page.getByLabel("Correcta 1", { exact: true }).check();
-  await page.getByLabel("Correcta 2", { exact: true }).check();
-  await page.getByRole("button", { name: "Enviar examen" }).click();
-  await page.getByRole("button", { name: "Sí, enviar examen" }).dblclick();
-
-  await expect.poll(async () => (await intentosDe(id))[0]?.estado, { timeout: 30_000 }).toBe("APROBADO");
-  await page.waitForTimeout(3_000);
-  const intentos = await intentosDe(id);
-  expect(intentos).toHaveLength(1);
-  expect(Number(intentos[0].puntaje_pct)).toBe(100);
-  // Tras el envío no debe quedar un "Este intento ya fue enviado" del segundo clic.
-  await expect(page.getByText("Este intento ya fue enviado")).toHaveCount(0);
-  expect(excepciones).toEqual([]);
-});
-
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("se cae la red al enviar: el examen no se queda congelado y se puede reenviar", async ({ page }) => {
-  const { email, id } = await estudianteListo("enviosinred");
-  const excepciones = vigilarExcepciones(page);
-  await iniciarSesion(page, email);
-  await empezarExamen(page);
-
-  await page.getByLabel("Correcta 1", { exact: true }).check();
-  await page.getByLabel("Correcta 2", { exact: true }).check();
-  await page.getByRole("button", { name: "Enviar examen" }).click();
 
   await cortarServerActions(page);
-  await page.getByRole("button", { name: "Sí, enviar examen" }).click();
-
-  // Esperado: un aviso de que no se pudo enviar y el botón otra vez activo.
-  await expect(page.getByRole("button", { name: "Sí, enviar examen" })).toBeEnabled({ timeout: 15_000 });
-  // Next monta su propio anunciador de rutas con role="alert", que repite el título de la página.
-  await expect(page.getByRole("alert").filter({ hasNotText: "UVA" })).toBeVisible();
+  await opcion(page, "Correcta 1").click();
+  // Next monta su propio anunciador de rutas con role="alert": se filtra por el texto.
+  await expect(page.getByRole("alert").filter({ hasText: /conexión/ })).toBeVisible({ timeout: 15_000 });
+  await expect(opcion(page, "Correcta 1")).toBeEnabled();
 
   await page.unroute("**/*");
-  await page.getByRole("button", { name: "Sí, enviar examen" }).click();
-  await expect.poll(async () => (await intentosDe(id))[0]?.estado, { timeout: 30_000 }).toBe("APROBADO");
+  await opcion(page, "Correcta 1").click();
+  await expect(page.getByRole("button", { name: /^Siguiente/ })).toBeVisible({ timeout: 30_000 });
+  const progreso = await progresoDe(id);
+  expect(Object.keys(progreso.resueltas)).toHaveLength(1);
+  expect(progreso.fallos).toBe(0);
   expect(excepciones).toEqual([]);
 });
 
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("dos pestañas: enviar en una y luego en la otra no recalifica ni rompe la pantalla", async ({ browser }) => {
+test("dos pestañas: aprobar en una y responder mal en la otra no recalifica", async ({ browser }) => {
   const { email, id } = await estudianteListo("dospestanas");
   const context = await browser.newContext();
   const pestanaA = await context.newPage();
@@ -313,33 +305,20 @@ test.fixme("dos pestañas: enviar en una y luego en la otra no recalifica ni rom
   await pestanaB.goto(RUTA_EXAMEN);
   await expect(pestanaB.getByText(PREGUNTAS[0].texto)).toBeVisible({ timeout: 30_000 });
 
-  // A: todo bien. B: todo mal. Se envía primero A.
-  await pestanaA.getByLabel("Correcta 1", { exact: true }).check();
-  await pestanaA.getByLabel("Correcta 2", { exact: true }).check();
-  await pestanaA.getByRole("button", { name: "Enviar examen" }).click();
-  await pestanaA.getByRole("button", { name: "Sí, enviar examen" }).click();
-  await expect.poll(async () => (await intentosDe(id))[0]?.estado, { timeout: 30_000 }).toBe("APROBADO");
+  await responderTodoBien(pestanaA);
+  await opcion(pestanaB, "Incorrecta 1").click();
 
-  await pestanaB.getByLabel("Incorrecta 1", { exact: true }).check();
-  await pestanaB.getByLabel("Incorrecta 2", { exact: true }).check();
-  await pestanaB.getByRole("button", { name: "Enviar examen" }).click();
-  await pestanaB.getByRole("button", { name: "Sí, enviar examen" }).click();
-
-  // La pestaña vieja debe enterarse: un aviso, o llevarlo al resultado.
-  await expect(
-    pestanaB.getByText("Este intento ya fue enviado").or(pestanaB.getByRole("button", { name: /Iniciar/ })).first(),
-  ).toBeVisible({ timeout: 20_000 });
-
+  await expect(pestanaB.getByText("Este intento ya fue enviado")).toBeVisible({ timeout: 20_000 });
   const intentos = await intentosDe(id);
   expect(intentos).toHaveLength(1);
   expect(intentos[0].estado).toBe("APROBADO");
   expect(Number(intentos[0].puntaje_pct)).toBe(100);
+  expect((await progresoDe(id)).fallos).toBe(0);
   expect(excepciones).toEqual([]);
   await context.close();
 });
 
-// FIXME(examen-rediseñado): el examen ahora es una pregunta a la vez que califica al tocar; este test sigue el flujo viejo (radios, autoguardado, «Enviar examen»).
-test.fixme("la sesión se cierra con el examen abierto: enviar no deja la pantalla congelada", async ({ browser }) => {
+test("la sesión se cierra con el examen abierto: responder no deja la pantalla congelada", async ({ browser }) => {
   const { email, id } = await estudianteListo("sesion");
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -347,16 +326,16 @@ test.fixme("la sesión se cierra con el examen abierto: enviar no deja la pantal
   await iniciarSesion(page, email);
   await empezarExamen(page);
 
-  await page.getByLabel("Correcta 1", { exact: true }).check();
-  await page.getByRole("button", { name: "Enviar examen" }).click();
   await context.clearCookies();
-  await page.getByRole("button", { name: "Sí, enviar examen" }).click();
+  await opcion(page, "Correcta 1").click();
 
-  // Vale un aviso de sesión o que lo lleve a /login; no vale "Enviando…" para siempre.
+  // Vale un aviso o que lo lleve a /login; no vale "Calificando…" para siempre.
   await expect(
-    page.getByText(/sesión/i).or(page.locator("#auth-email")).first(),
+    page.getByRole("alert").filter({ hasNotText: "UVA" }).or(page.locator("#auth-email")).first(),
   ).toBeVisible({ timeout: 20_000 });
-  expect((await intentosDe(id))[0]?.estado).toBe("EN_CURSO");
+  const progreso = await progresoDe(id);
+  expect(progreso.estado).toBe("EN_CURSO");
+  expect(Object.keys(progreso.resueltas ?? {})).toHaveLength(0);
   expect(excepciones).toEqual([]);
   await context.close();
 });

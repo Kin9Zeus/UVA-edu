@@ -11,6 +11,12 @@ import { getInstructoresDeCurso, type InstructorPublico } from "@/lib/instructor
 import { esUuid } from "@/lib/slug";
 import { lanzarSiFalla } from "@/lib/supabase/errores";
 import { logError } from "@/lib/log";
+import {
+  estadoDeCurso,
+  getEstadoExamenPorCurso,
+  porcentajeLecciones,
+  type EstadoCursoConExamen,
+} from "@/lib/examenes/estadoPorCurso";
 
 export type LeccionPublica = {
   id: string;
@@ -75,8 +81,16 @@ export type CursoPublico = {
   /** true si hay al menos una clase con progreso guardado (completada o no). */
   progresoIniciado: boolean;
   /**
-   * Primera clase del temario todavía sin completar, para "Seguir viendo".
-   * `null` si no hay progreso o si ya se completaron todas las clases.
+   * Estado del curso para este estudiante con la regla de todo el panel
+   * (`estadoDeCurso`: clases con video LISTO y examen si lo exige), para que
+   * la ficha no diga «Completaste» donde el panel dice «En progreso»
+   * (P2-11, AUDIT-2026-11-23). `null` sin sesión. Sin progreso sale
+   * EN_PROGRESO: la ficha solo mira si es COMPLETADO.
+   */
+  estado: EstadoCursoConExamen | null;
+  /**
+   * Primera clase con video LISTO todavía sin completar, para "Seguir viendo".
+   * `null` si no hay progreso o si ya se completaron todas las que tienen video.
    */
   leccionContinuarId: string | null;
   leccionContinuarSlug: string | null;
@@ -227,7 +241,7 @@ async function armarCursoPublico(
   // `tieneAcceso` en la condición: el progreso es del estudiante y sobrevive
   // al vencimiento — los ✓ y "Seguir viendo" tienen que seguir ahí cuando
   // renueve, en la clase donde se quedó.
-  const [{ count: totalRecursos, error: errorRecursos }, acceso, instructores, progreso] = await Promise.all([
+  const [{ count: totalRecursos, error: errorRecursos }, acceso, instructores, progreso, examenes] = await Promise.all([
     leccionIds.length > 0
       ? supabase
           .from("recursos_descargables")
@@ -243,6 +257,8 @@ async function armarCursoPublico(
           .eq("id_usuario", usuarioId)
           .in("id_leccion", leccionIds)
       : Promise.resolve({ data: null, error: null }),
+    // Lanza si falla: sin esto el curso podría salir «Completaste» sin examen.
+    usuarioId ? getEstadoExamenPorCurso(supabase, [cursoId], usuarioId) : Promise.resolve(null),
   ]);
   if (errorRecursos) {
     logError("curso:ficha", "no se pudo contar los recursos del curso", errorRecursos, { area: "catalogo", cursoId });
@@ -285,9 +301,19 @@ async function armarCursoPublico(
   );
 
   const leccionesPlanas = modulosPublicos.flatMap((modulo) => modulo.lecciones);
+  // Solo clases con video: una sin video no se puede completar, y mandar a
+  // "Seguir viendo" ahí dejaría al estudiante sin poder terminar nunca.
+  const conVideo = leccionesPlanas.filter((leccion) => leccion.videoListo);
   const siguiente = progresoIniciado
-    ? leccionesPlanas.find((leccion) => !leccion.completado)
+    ? conVideo.find((leccion) => !leccion.completado)
     : undefined;
+  // Sin exigir progreso: aprobar el examen basta aunque no haya visto clases.
+  const estado = examenes
+    ? estadoDeCurso(
+        porcentajeLecciones(conVideo.filter((leccion) => leccion.completado).length, conVideo.length),
+        examenes.get(cursoId),
+      )
+    : null;
   const leccionContinuarId = siguiente?.id ?? null;
   const leccionContinuarSlug = siguiente?.slug ?? null;
   const leccionContinuarTitulo = siguiente?.titulo ?? null;
@@ -312,6 +338,7 @@ async function armarCursoPublico(
     tieneAcceso,
     accesoVencido,
     progresoIniciado,
+    estado,
     leccionContinuarId,
     leccionContinuarSlug,
     leccionContinuarTitulo,

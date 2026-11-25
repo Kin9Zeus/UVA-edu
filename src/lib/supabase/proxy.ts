@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { fetchConLimite } from "@/lib/limite-de-red";
 import { NextResponse, type NextRequest } from "next/server";
 import { getGuardiaSesion } from "@/lib/supabase/guardia-sesion";
 import { DESTINO_POR_DEFECTO } from "@/lib/redirect-seguro";
@@ -57,6 +58,7 @@ export async function updateSession(request: NextRequest, cabecerasPeticion?: He
     supabaseUrl,
     supabaseAnonKey,
     {
+      global: { fetch: fetchConLimite() },
       cookies: {
         getAll() {
           return request.cookies.getAll();

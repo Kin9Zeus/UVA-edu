@@ -316,7 +316,7 @@ export function VideoPlayer({
           dejarAlOtroDispositivo();
           return;
         }
-        proximoIntentoRef.current = Date.now() + (resultado.ok ? INTERVALO_GUARDADO_MS : INTERVALO_REINTENTO_MS);
+        proximoIntentoRef.current = Date.now() + (resultado.success ? INTERVALO_GUARDADO_MS : INTERVALO_REINTENTO_MS);
       } catch {
         proximoIntentoRef.current = Date.now() + INTERVALO_REINTENTO_MS;
       } finally {

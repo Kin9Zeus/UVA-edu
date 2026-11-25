@@ -7,9 +7,9 @@ import { formatearPrecio } from "@/lib/planes";
 import { getUsuarioActual } from "@/lib/perfil";
 
 export type ValidarCuponResult =
-  | { ok: true; desglose: DesgloseVisible }
+  | { success: true; desglose: DesgloseVisible }
   | {
-      ok: false;
+      success: false;
       error: string;
       /**
        * Solo presente cuando el rechazo vino del rate limit de
@@ -54,7 +54,7 @@ export async function validarCodigoCupon(
 ): Promise<ValidarCuponResult> {
   const codigo = codigoCupon.trim();
   if (!codigo) {
-    return { ok: false, error: "Escribe un código." };
+    return { success: false, error: "Escribe un código." };
   }
 
   const supabase = await createClient();
@@ -62,7 +62,7 @@ export async function validarCodigoCupon(
 
   // Autenticado: no es un validador público de códigos.
   if (!user) {
-    return { ok: false, error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+    return { success: false, error: "Tu sesión expiró. Vuelve a iniciar sesión." };
   }
 
   const { data: plan, error: errorPlan } = await supabase
@@ -73,27 +73,27 @@ export async function validarCodigoCupon(
     .maybeSingle();
 
   // Un fallo no es "ese plan ya no está disponible".
-  if (errorPlan) return { ok: false, error: "No pudimos validar el cupón. Intenta de nuevo." };
+  if (errorPlan) return { success: false, error: "No pudimos validar el cupón. Intenta de nuevo." };
   if (!plan) {
-    return { ok: false, error: "Ese plan ya no está disponible." };
+    return { success: false, error: "Ese plan ya no está disponible." };
   }
 
   const busqueda = await buscarCuponVigente(codigo, user.id);
   if (!busqueda.ok) {
-    return { ok: false, error: busqueda.error, segundosEspera: busqueda.segundosEspera };
+    return { success: false, error: busqueda.error, segundosEspera: busqueda.segundosEspera };
   }
 
   const desglose = calcularDesglose(Number(plan.precio_centavos), busqueda.cupon);
 
   if (desglose.totalCentavos <= 0) {
     return {
-      ok: false,
+      success: false,
       error: "Ese cupón cubre el plan completo. Pídenos un código de invitación.",
     };
   }
 
   return {
-    ok: true,
+    success: true,
     desglose: {
       subtotal: formatearPrecio(desglose.subtotalCentavos, plan.moneda),
       descuento: formatearPrecio(desglose.descuentoCentavos, plan.moneda),

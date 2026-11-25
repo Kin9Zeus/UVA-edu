@@ -99,3 +99,64 @@ hallazgo:
   importa contar, no quién. El tráfico normal usa `CF-Connecting-IP`.
 - **Sin restricción por IP en Postgres**, porque la IP de quien administra es
   dinámica. No está en el criterio de terminado de la fase 5.
+
+## 6. Llave de Gemini compartida y sin topes de gasto (P2-8, AUDIT-2026-11-23)
+
+**Estado:** riesgo aceptado y cerrado (decisión del equipo, 2026-11-25).
+**Una auditoría no lo vuelve a reportar como hallazgo.**
+
+**Qué se aceptó.**
+- La misma `GEMINI_API_KEY` sirve en staging y en producción.
+- Ningún proveedor con cobro por uso (Gemini, Mux, Resend, Railway,
+  Supabase) tiene un tope o una alerta de gasto configurada. El checklist
+  de `limites-de-gasto.md` queda como guía, no como pendiente.
+
+**Por qué.** No hay usuarios reales, y el gasto lo puede disparar solo un
+administrador o un bug. La app ya pone un tope de 15 generaciones de examen
+por hora a cada administrador (`supabase/sql/107`), y el equipo revisa la
+facturación de cada proveedor.
+
+**Si cambia algo.** Si una factura sale fuera de lo normal, se separa la
+llave por entorno y se activan las alertas del proveedor afectado. Es
+decisión del equipo, no un pendiente de auditoría.
+
+## 7. CSP con nonce en todo el sitio, sin páginas pregeneradas (P2-9, AUDIT-2026-11-23)
+
+**Estado:** decisión del equipo, 2026-11-25. La CSP ya está **forzada**
+(`src/proxy.ts`); lo que se descarta es la segunda mitad de P2-9.
+
+**Qué proponía la auditoría.** Sacar la portada, el catálogo y otras páginas
+públicas del nonce para que Next las genere en el build (más rápidas de
+servir).
+
+**Por qué no.** Sin nonce habría que pasar a la integridad por hash (SRI),
+que en Next 16 sigue siendo **experimental**, y no cubre los scripts en línea
+que Next escribe en cada página ni el script del tema: la CSP quedaría más
+débil justo en las páginas públicas. La mejora de velocidad no está medida, y
+Lighthouse en producción ya da 90+ en esas pantallas.
+
+**Cuándo se vuelve a mirar.** Si Lighthouse en móvil, medido en producción,
+baja de 90 en Rendimiento en la portada o el catálogo, o si Next saca SRI de
+experimental.
+
+## 8. Sin umbral de cobertura en el CI (P2-12, AUDIT-2026-11-23)
+
+**Estado:** decisión del equipo, 2026-11-25.
+
+**Qué proponía la auditoría.** Un porcentaje mínimo de cobertura que haga
+fallar el CI, porque 74 de 134 acciones no tenían una prueba que las nombrara.
+
+**Por qué no.** Ese conteo no ve `src/actions/admin/autorizacion.test.ts`,
+que recorre **todas** las acciones de administrador (las futuras entran
+solas) y comprueba que sin rol de admin no tocan nada. Lo que faltaba era la
+lógica de negocio, y se cubrió por riesgo: códigos de invitación y lotes,
+descarga del certificado, exportación de datos y lo delicado del editor de
+cursos (publicar, borrar, reordenar, portada). Un umbral pide instalar otra
+herramienta y premia pruebas escritas para subir el número, no para
+encontrar fallos: las de esta tanda encontraron dos.
+
+**Regla en su lugar.** Toda acción nueva que mueva datos de una persona, dé
+acceso o borre algo llega con su prueba en el mismo PR.
+
+**Cuándo se vuelve a mirar.** Si entra una persona nueva al equipo o un
+fallo llega a producción por una acción sin prueba.

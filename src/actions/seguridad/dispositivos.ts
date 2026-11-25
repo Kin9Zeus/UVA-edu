@@ -32,8 +32,8 @@ const RUTA_PERFIL = "/dashboard/perfil";
 const LARGO_MAXIMO_NOMBRE = 40;
 const SIN_PERMISO = "No pudimos comprobar tus permisos. Intenta de nuevo.";
 
-export type ConfirmarDispositivoState = { error: string; exito?: never } | { error?: never; exito: true } | null;
-export type QuitarDispositivoResultado = { error: string } | { exito: true };
+export type ConfirmarDispositivoState = { error: string; success?: never } | { error?: never; success: true } | null;
+export type QuitarDispositivoResultado = { error: string } | { success: true };
 
 /**
  * Crea un factor SIN confirmar con el nombre que elija la persona y devuelve el
@@ -120,7 +120,7 @@ export async function confirmarOtroDispositivo(
   });
 
   revalidatePath(RUTA_PERFIL);
-  return { exito: true };
+  return { success: true };
 }
 
 /**
@@ -162,5 +162,5 @@ export async function quitarDispositivo(factorId: string): Promise<QuitarDisposi
   });
 
   revalidatePath(RUTA_PERFIL);
-  return { exito: true };
+  return { success: true };
 }

@@ -170,13 +170,15 @@ export async function toggleActivoCodigoInvitacion(
     .maybeSingle();
 
   if (error) return { error: "No pudimos actualizar el código." };
+  // Cero filas: lo borró otro administrador. No es un éxito ni va a la bitácora.
+  if (!codigo) return { error: "Ese código ya no existe." };
 
   await registrarBitacora(admin.supabase, {
     idAdmin: admin.adminId,
     accion: activo ? "Activó un código de invitación" : "Desactivó un código de invitación",
     entidadAfectada: "codigos_invitacion",
     idEntidadAfectada: id,
-    detalles: codigo?.codigo,
+    detalles: codigo.codigo as string,
   });
 
   revalidatePath("/admin/codigos");

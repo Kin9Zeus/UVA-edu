@@ -69,7 +69,13 @@ async function verificarSupabase(): Promise<{ ok: boolean; error?: string }> {
 
 async function consultarSupabase(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { error } = await createPublicClient().from("categorias").select("id").limit(1);
+    // 3 s y no los 10 s de los clientes (P2-14): el monitor y el chequeo de
+    // despliegue de Railway necesitan un "no" rápido, no una espera larga.
+    const { error } = await createPublicClient()
+      .from("categorias")
+      .select("id")
+      .limit(1)
+      .abortSignal(AbortSignal.timeout(3_000));
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (error) {

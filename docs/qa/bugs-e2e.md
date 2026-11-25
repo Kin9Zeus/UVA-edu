@@ -11,14 +11,13 @@ rodeo) · **Baja** (cosmético).
 
 ## Abiertos
 
-### BUG-005 — Los 6 tests de manipulación del examen siguen el examen viejo
-
-- **Severidad:** Media (sin cobertura automática del examen, no un fallo de la app)
-- **Encontrado por:** `e2e/capa2-examen-manipulacion.spec.ts` (tarea "Pruebas automáticas contra retrocesos", 2026-11-05).
-- **Dónde:** el examen se rediseñó (`src/components/examen/ExamenRendir.tsx`): una pregunta a la vez, tocar una opción la califica al instante, uvas como vidas. Ya no hay radios, autoguardado cada 10 s ni botón «Enviar examen», que es lo que estos tests comprueban.
-- **Estado:** los 6 quedaron como `test.fixme` con la nota `FIXME(examen-rediseñado)`. Falta reescribirlos para el flujo nuevo (doble toque, red caída al responder, dos pestañas, sesión cerrada). «Doble clic en Iniciar examen» sigue vigente y pasa.
-
 ## Resueltos
+
+### BUG-005 — Los 6 tests de manipulación del examen seguían el examen viejo (2026-11-25)
+
+- **Severidad:** Media (el examen, que emite los certificados, no tenía prueba automática activa).
+- **Arreglo:** `e2e/capa2-examen-manipulacion.spec.ts` reescrito para el examen de una pregunta a la vez: aprobar y que se emita el certificado (nueva), recarga a mitad, doble toque en una opción incorrecta, red caída al responder, dos pestañas y sesión cerrada. Las 7 pasan contra staging (2,9 min) y corren en el CI, paso «Examen final» (P2-13, AUDIT-2026-11-23).
+- **Bug de la app que encontró:** sin red, la Server Action de responder lanzaba y la pantalla quedaba en «Calificando…» con las opciones bloqueadas. `ExamenRendir.tsx` ahora lo atrapa y avisa; la prueba falla sin ese arreglo.
 
 ### BUG-006 — La suite e2e se quedó atrás de la app (2026-11-05)
 
