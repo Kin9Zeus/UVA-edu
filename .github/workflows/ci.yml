@@ -52,6 +52,10 @@ name: CI
 #   cada PR, y las pruebas de RLS dejarían de correr antes de mezclar (son
 #   las que atraparon el problema de los tipos de archivo de la 135). El
 #   riesgo que el límite cubría ya está cubierto: la base es staging.
+# · Secretos (P3-5, AUDIT-2026-11-23): nunca en el `env` del job, donde los
+#   vería `npm ci` (scripts de instalación de terceros). Van en el `env` del
+#   paso que los usa, o en el paso «Llaves de staging (después de
+#   instalar)». Lo vigila src/lib/ci-secretos.test.ts.
 # · Permisos (9.1): el token del workflow solo lee el repo. Ningún job
 #   escribe; si uno llega a necesitarlo, se abre en ese job, no aquí.
 # · Acciones (9.2): fijadas por el SHA exacto del commit, con la versión en
@@ -299,24 +303,14 @@ jobs:
       # correo de Supabase apunta a la app desplegada y los pagos están apagados.
       RESEND_API_KEY: re_ci_sin_envio
       STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
-      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
-      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
       SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       CI: "true"
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
       # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
       # staging encendido con la secreta de prueba, el login de Playwright
       # pasa por el recuadro igual que un estudiante.
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # global-setup.ts reinicia el límite de check-email de staging con esto.
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      # Firma del token de reproducción: sin esto el video del fixture no carga.
-      MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
-      MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -330,6 +324,27 @@ jobs:
 
       - name: Instalar Chromium de Playwright
         run: npx playwright install --with-deps chromium
+
+      # P3-5 (AUDIT-2026-11-23): las llaves de staging entran DESPUÉS de
+      # instalar. `npm ci` corre los scripts de instalación de cientos de
+      # paquetes de terceros; si uno sale comprometido, no las tiene a la vista.
+      # Desde aquí, $GITHUB_ENV las deja a los pasos siguientes (build, pruebas).
+      - name: Llaves de staging (después de instalar)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+          MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+          # global-setup.ts reinicia el límite de check-email de staging con esto.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Firma del token de reproducción: sin esto el video del fixture no carga.
+          MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+        run: |
+          for nombre in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY MUX_TOKEN_ID MUX_TOKEN_SECRET DATABASE_URL MUX_SIGNING_KEY_ID MUX_SIGNING_KEY_PRIVATE; do
+            { echo "$nombre<<FIN_$nombre"; echo "${!nombre}"; echo "FIN_$nombre"; } >> "$GITHUB_ENV"
+          done
 
       - name: Build
         run: npm run build
@@ -397,18 +412,13 @@ jobs:
       # correo de Supabase apunta a la app desplegada y los pagos están apagados.
       RESEND_API_KEY: re_ci_sin_envio
       STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
-      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
-      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
       SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
       # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
       # staging encendido con la secreta de prueba, el login de Playwright
       # pasa por el recuadro igual que un estudiante.
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -419,6 +429,22 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      # P3-5 (AUDIT-2026-11-23): las llaves de staging entran DESPUÉS de
+      # instalar. `npm ci` corre los scripts de instalación de cientos de
+      # paquetes de terceros; si uno sale comprometido, no las tiene a la vista.
+      # Desde aquí, $GITHUB_ENV las deja a los pasos siguientes (build, pruebas).
+      - name: Llaves de staging (después de instalar)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+          MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+        run: |
+          for nombre in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY MUX_TOKEN_ID MUX_TOKEN_SECRET; do
+            { echo "$nombre<<FIN_$nombre"; echo "${!nombre}"; echo "FIN_$nombre"; } >> "$GITHUB_ENV"
+          done
 
       - name: Build
         run: npm run build
@@ -463,24 +489,20 @@ jobs:
       # correo de Supabase apunta a la app desplegada y los pagos están apagados.
       RESEND_API_KEY: re_ci_sin_envio
       STRIPE_SECRET_KEY: sk_test_ci_sin_cobro
-      MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
-      MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
       SEND_EMAIL_HOOK_SECRET: v1,whsec_Y2lzaW5ob29r
       CI: "true"
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       # Fase 4: llave PÚBLICA de prueba de Cloudflare Turnstile (siempre
       # aprueba; no es secreta, la publica Cloudflare). Con el CAPTCHA de
       # staging encendido con la secreta de prueba, el login de Playwright
       # pasa por el recuadro igual que un estudiante.
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
-      MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
     steps:
+      # P3-5: el token con permiso de escritura no queda en .git/config
+      # mientras corren npm ci y la build; solo lo recibe el `git push`.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -493,6 +515,27 @@ jobs:
       - name: Instalar Chromium de Playwright
         run: npx playwright install --with-deps chromium
 
+      # P3-5 (AUDIT-2026-11-23): las llaves de staging entran DESPUÉS de
+      # instalar. `npm ci` corre los scripts de instalación de cientos de
+      # paquetes de terceros; si uno sale comprometido, no las tiene a la vista.
+      # Desde aquí, $GITHUB_ENV las deja a los pasos siguientes (build, pruebas).
+      - name: Llaves de staging (después de instalar)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID || 'ci-sin-api' }}
+          MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET || 'ci-sin-api' }}
+          # global-setup.ts reinicia el límite de check-email de staging con esto.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Firma del token de reproducción: sin esto el video del fixture no carga.
+          MUX_SIGNING_KEY_ID: ${{ secrets.MUX_SIGNING_KEY_ID }}
+          MUX_SIGNING_KEY_PRIVATE: ${{ secrets.MUX_SIGNING_KEY_PRIVATE }}
+        run: |
+          for nombre in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY MUX_TOKEN_ID MUX_TOKEN_SECRET DATABASE_URL MUX_SIGNING_KEY_ID MUX_SIGNING_KEY_PRIVATE; do
+            { echo "$nombre<<FIN_$nombre"; echo "${!nombre}"; echo "FIN_$nombre"; } >> "$GITHUB_ENV"
+          done
+
       - name: Build
         run: npm run build
 
@@ -500,6 +543,8 @@ jobs:
         run: npx playwright test e2e/retroceso-visual.spec.ts --update-snapshots
 
       - name: Subir las capturas a la rama
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -508,7 +553,7 @@ jobs:
             echo "Las capturas no cambiaron."
           else
             git commit -m "Pruebas: capturas de referencia actualizadas"
-            git push
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
           fi
 
   # Fase 11.1: la imagen de Docker (plan B si hay que salir de Railway) se
