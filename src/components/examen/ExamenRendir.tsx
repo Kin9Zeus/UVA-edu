@@ -241,7 +241,18 @@ export function ExamenRendir({
       setError(null);
       setBorrador(valor);
 
-      const resultado = await responderPregunta(intento.id, preguntaActualId, valor);
+      // Sin red, la Server Action LANZA (no devuelve `{ error }`): sin este
+      // catch la pantalla quedaba en "Calificando…" con las opciones
+      // bloqueadas para siempre. Si la petición no llegó, reintentar es
+      // seguro; si llegó y acertó, el servidor la reconoce como resuelta.
+      let resultado: Awaited<ReturnType<typeof responderPregunta>>;
+      try {
+        resultado = await responderPregunta(intento.id, preguntaActualId, valor);
+      } catch {
+        setEnviando(false);
+        setError("No pudimos enviar tu respuesta. Revisa tu conexión y vuelve a tocarla.");
+        return;
+      }
       setEnviando(false);
 
       if ("error" in resultado) {
