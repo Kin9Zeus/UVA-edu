@@ -99,3 +99,23 @@ hallazgo:
   importa contar, no quién. El tráfico normal usa `CF-Connecting-IP`.
 - **Sin restricción por IP en Postgres**, porque la IP de quien administra es
   dinámica. No está en el criterio de terminado de la fase 5.
+
+## 6. Llave de Gemini compartida y sin topes de gasto (P2-8, AUDIT-2026-11-23)
+
+**Estado:** riesgo aceptado y cerrado (decisión del equipo, 2026-11-25).
+**Una auditoría no lo vuelve a reportar como hallazgo.**
+
+**Qué se aceptó.**
+- La misma `GEMINI_API_KEY` sirve en staging y en producción.
+- Ningún proveedor con cobro por uso (Gemini, Mux, Resend, Railway,
+  Supabase) tiene un tope o una alerta de gasto configurada. El checklist
+  de `limites-de-gasto.md` queda como guía, no como pendiente.
+
+**Por qué.** No hay usuarios reales, y el gasto lo puede disparar solo un
+administrador o un bug. La app ya pone un tope de 15 generaciones de examen
+por hora a cada administrador (`supabase/sql/107`), y el equipo revisa la
+facturación de cada proveedor.
+
+**Si cambia algo.** Si una factura sale fuera de lo normal, se separa la
+llave por entorno y se activan las alertas del proveedor afectado. Es
+decisión del equipo, no un pendiente de auditoría.
