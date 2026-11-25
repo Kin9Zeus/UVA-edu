@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { registrarBitacora } from "@/lib/admin/bitacora";
 import type { AdminActionResult } from "@/actions/admin/categorias";
@@ -36,6 +36,6 @@ export async function fijarPostComunidad(
     idEntidadAfectada: postId,
   });
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }

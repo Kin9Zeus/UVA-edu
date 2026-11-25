@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { createClient } from "@/lib/supabase/server";
 import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
@@ -33,7 +33,7 @@ async function reaccionar(
   if (esLimiteDeUso(error)) return respuestaLimiteDeUso("reaccionar");
   if (error && error.code !== "23505") return { error: "No pudimos guardar tu reacción." };
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
 
@@ -54,7 +54,7 @@ async function quitarReaccion(
 
   if (error) return { error: "No pudimos quitar tu reacción." };
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
 

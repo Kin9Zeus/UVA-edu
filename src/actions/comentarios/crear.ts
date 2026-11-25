@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
@@ -80,6 +80,6 @@ export async function crearComentario(
     return { error: "No pudimos publicar tu comentario. Intenta de nuevo." };
   }
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true, id: data.id };
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { createClient } from "@/lib/supabase/server";
 import { consumirLimite } from "@/lib/limites-uso";
 import { prepararAdjuntosNuevos, subirAdjuntosProcesados, borrarAdjuntoComunidad } from "@/lib/comunidad-adjuntos";
@@ -148,6 +148,6 @@ export async function editarPostComunidad(
     }
   }
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }

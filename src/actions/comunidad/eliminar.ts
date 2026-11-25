@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { registrarBitacora } from "@/lib/admin/bitacora";
@@ -156,7 +156,7 @@ export async function eliminarPostComunidad(
     await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_post", postId);
   }
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
 
@@ -234,6 +234,6 @@ export async function eliminarRespuestaComunidad(
     await supabase.from("comunidad_reportes").update({ revisado: true }).eq("id_respuesta", respuestaId);
   }
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
