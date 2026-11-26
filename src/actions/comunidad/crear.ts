@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { consumirLimite, esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
@@ -170,7 +170,7 @@ export async function crearPostComunidad(
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idPost: postId, idUsuario: user.id });
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true, id: data.id };
 }
 
@@ -262,6 +262,6 @@ export async function responderPostComunidad(
 
   await subirAdjuntosProcesados(supabase, resultadoAdjuntos.procesados, { idRespuesta: respuestaId, idUsuario: user.id });
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true, id: data.id };
 }

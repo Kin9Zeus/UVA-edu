@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { unaVezPorMinuto } from "@/lib/una-vez-por-minuto";
 
 /**
  * Excepción deliberada a CLAUDE.md §3.1 ("Route Handlers reservados
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
 
   if (!user) return NextResponse.json({ error: "Sin sesión." }, { status: 401 });
 
-  await supabase.from("progreso").upsert(
+  const { error } = await supabase.from("progreso").upsert(
     {
       id_usuario: user.id,
       id_leccion: resultado.data.leccionId,
@@ -104,5 +106,17 @@ export async function POST(request: Request) {
     { onConflict: "id_usuario,id_leccion" },
   );
 
-  return NextResponse.json({ ok: true });
+  // P3-1 (AUDIT-2026-11-23): antes respondía éxito aunque el guardado fallara.
+  // sendBeacon no lee la respuesta; el 500 y el aviso son para los registros.
+  if (error) {
+    if (unaVezPorMinuto("progresoBeacon")) {
+      registrarSiFalla(error, "progresoBeacon", "No se pudo guardar el segundo visto al cerrar", {
+        leccionId: resultado.data.leccionId,
+        nivel: "warning",
+      });
+    }
+    return NextResponse.json({ error: "No se pudo guardar." }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }

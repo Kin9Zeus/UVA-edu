@@ -108,4 +108,23 @@ describe("RUTA_SIN_SESION", () => {
       expect(RUTA_SIN_SESION.test(ruta), ruta).toBe(false);
     }
   });
+
+  it("los archivos de public/ se saltan el proxy", () => {
+    for (const ruta of ["/logo-uva.png", "/og-uva.png", "/correo/logo-tinta.png"]) {
+      expect(RUTA_SIN_SESION.test(ruta), ruta).toBe(true);
+    }
+  });
+
+  it("bajo /dashboard, /admin y /seguridad nada se salta el proxy por su extensión (P3-4)", () => {
+    for (const ruta of [
+      "/dashboard/x.png",
+      "/dashboard/cursos/a/b.webp",
+      "/admin/y.svg",
+      "/seguridad/z.jpg",
+      "/dashboard",
+      "/dashboard.png/x",
+    ]) {
+      expect(RUTA_SIN_SESION.test(ruta), ruta).toBe(false);
+    }
+  });
 });

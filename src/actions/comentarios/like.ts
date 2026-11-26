@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { createClient } from "@/lib/supabase/server";
 import { esLimiteDeUso, respuestaLimiteDeUso } from "@/lib/limites-uso";
 import { getUsuarioActual } from "@/lib/perfil";
@@ -32,7 +32,7 @@ export async function darLikeComentario(
   // Fase 3: el tope lo aplica la base (trigger), compartido con las reacciones.
   if (esLimiteDeUso(error)) return respuestaLimiteDeUso("reaccionar");
   if (error) return { error: "No pudimos guardar tu like." };
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
 
@@ -53,6 +53,6 @@ export async function quitarLikeComentario(
     .eq("id_usuario", user.id);
 
   if (error) return { error: "No pudimos quitar tu like." };
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }

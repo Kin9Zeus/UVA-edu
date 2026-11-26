@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
 import { reproduccionVigente } from "@/lib/video/reproduccionUnica";
+import { registrarSiFalla } from "@/lib/supabase/registrar";
+import { unaVezPorMinuto } from "@/lib/una-vez-por-minuto";
 
 export type MarcarLeccionState = { error: string } | { success: true; completado: boolean };
 
@@ -113,6 +115,16 @@ export async function guardarSegundoActual(
       { id_usuario: user.id, id_leccion: leccionId, segundo_actual: segundoActual },
       { onConflict: "id_usuario,id_leccion" },
     );
+
+  // P3-1 (AUDIT-2026-11-23): el reproductor reintenta, pero antes nadie se
+  // enteraba si la base rechazaba los guardados. Aviso, no error, y uno por
+  // minuto: en una caída esto se dispara cada 10 s por cada persona viendo.
+  if (error && unaVezPorMinuto("guardarSegundoActual")) {
+    registrarSiFalla(error, "guardarSegundoActual", "No se pudo guardar el segundo visto", {
+      leccionId,
+      nivel: "warning",
+    });
+  }
 
   return { success: !error };
 }

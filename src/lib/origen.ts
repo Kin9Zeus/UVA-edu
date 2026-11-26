@@ -27,8 +27,14 @@ const RUTAS_SIN_CABECERA = new Set(["/api/health"]);
 /**
  * Lo que no necesita sesión ni CSP: archivos del build, imágenes optimizadas
  * y archivos de `public/`. `src/proxy.ts` las revisa solo para el cierre del origen.
+ *
+ * La regla de la extensión no vale bajo /dashboard, /admin ni /seguridad
+ * (P3-4, AUDIT-2026-11-23): `/dashboard/x.png` se saltaba el refresco de la
+ * sesión, el cierre de cuentas suspendidas y la CSP. Ahí no hay archivos de
+ * `public/`, y los slugs (`[a-z0-9-]`) nunca terminan en una extensión.
  */
-export const RUTA_SIN_SESION = /^\/(?:_next\/static\/|_next\/image|favicon\.ico$)|\.(?:svg|png|jpg|jpeg|gif|webp)$/;
+export const RUTA_SIN_SESION =
+  /^\/(?:_next\/static\/|_next\/image|favicon\.ico$)|^\/(?!(?:dashboard|admin|seguridad)(?:\/|$))[^?#]*\.(?:svg|png|jpg|jpeg|gif|webp)$/;
 
 /**
  * Los secretos vigentes; vacío si el cierre está apagado. Para cambiar el

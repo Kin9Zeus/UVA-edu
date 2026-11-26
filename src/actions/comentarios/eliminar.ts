@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarRutaDelCliente } from "@/lib/revalidar-ruta";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/perfil";
 import { esAdminConSegundoFactor } from "@/lib/auth/aal";
@@ -74,6 +74,6 @@ export async function eliminarComentario(
 
   if (error) return { error: "No pudimos eliminar el comentario." };
 
-  revalidatePath(ruta);
+  revalidarRutaDelCliente(ruta);
   return { success: true };
 }
