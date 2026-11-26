@@ -12,7 +12,7 @@ comando, en orden y dentro de una sola transacción:
 ```bash
 npm run db:rls          # aplica (COMMIT)
 npm run db:rls:check    # aplica y hace ROLLBACK — verifica sin escribir nada
-npm run db:rls -- --todo  # reaplica los 140 aunque no hayan cambiado
+npm run db:rls -- --todo  # reaplica los 141 aunque no hayan cambiado
 ```
 
 La secuencia completa para dejar un entorno al día:
@@ -60,7 +60,7 @@ diario, nunca la aplicación del script.
 
 `db:rls` ya no reaplica todo cada vez: aplica desde el primer script nuevo o
 cambiado hasta el final, o todos si hubo una migración de Prisma después de la
-última corrida (`src/lib/db/scripts-por-aplicar.ts`). Reaplicar los 140
+última corrida (`src/lib/db/scripts-por-aplicar.ts`). Reaplicar los 141
 congelaba la app en producción más de 2 minutos. CI usa `--todo` contra
 staging para seguir probando la corrida completa.
 

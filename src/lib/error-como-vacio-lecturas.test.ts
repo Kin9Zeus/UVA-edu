@@ -135,17 +135,14 @@ describe("Exportar mis datos", () => {
     "progreso",
     "certificados",
     "intentos_examen",
-    "comentarios",
-    "comunidad_posts",
-    "comunidad_respuestas",
-    "curso_calificaciones",
+    "intentos_pago",
     "notificaciones",
     "notas_leccion",
   ];
 
   // La clave de cada sección en el registro no siempre es el nombre de la tabla.
   const NOMBRE_EN_EL_ARCHIVO: Record<string, string> = {
-    curso_calificaciones: "calificaciones_de_curso",
+    intentos_pago: "intentos_de_pago",
     notas_leccion: "notas",
   };
 
@@ -157,6 +154,8 @@ describe("Exportar mis datos", () => {
         tabla === "perfiles" ? { data: { nombre: "Ana" }, error: null } : { data: [], error: null },
       );
     }
+    // Comunidad, comentarios y reseñas (supabase/sql/141).
+    servidorFalso.responder("rpc:exportar_mi_actividad", { data: { comentarios: [] }, error: null });
   }
 
   it("con todo bien entrega el archivo", async () => {

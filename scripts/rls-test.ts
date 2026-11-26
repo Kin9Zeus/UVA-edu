@@ -3555,6 +3555,41 @@ async function main() {
       throw new Error("El post de prueba de Comunidad no devolvió id; las pruebas de UPDATE de abajo no significan nada.");
     }
 
+    // Exportación de datos (141, P3-8 de AUDIT-2026-11-23): sin suscripción
+    // la comunidad sigue cerrada, pero lo propio sale por exportar_mi_actividad.
+    const { data: postSinAcceso, error: errPostSinAcceso } = await admin
+      .from("comunidad_posts")
+      .insert({
+        id_usuario: userSinAcceso.user!.id,
+        categoria: "PROYECTOS",
+        titulo: `Post propio sin acceso ${sufijo}`,
+        contenido: "Escrito cuando aún tenía suscripción",
+      })
+      .select("id")
+      .single();
+    if (errPostSinAcceso || !postSinAcceso) throw new Error(`No se pudo crear el post sin acceso: ${errPostSinAcceso?.message}`);
+
+    await esperarBloqueado(
+      "141: estudiante sin suscripción NO lee ni su propia publicación en comunidad_posts",
+      clienteSinAcceso.from("comunidad_posts").select("id").eq("id", postSinAcceso.id),
+    );
+    const { data: actividadSinAcceso, error: errActividad } = await clienteSinAcceso.rpc("exportar_mi_actividad");
+    const titulosExportados = ((actividadSinAcceso as { comunidad_posts?: { titulo: string }[] } | null)?.comunidad_posts ?? []).map(
+      (p) => p.titulo,
+    );
+    registrar(
+      "141: exportar_mi_actividad SÍ le entrega su publicación a quien no tiene suscripción",
+      !errActividad && titulosExportados.includes(`Post propio sin acceso ${sufijo}`),
+      errActividad?.message ?? JSON.stringify(titulosExportados),
+    );
+    registrar(
+      "141: exportar_mi_actividad NO incluye publicaciones de otra persona",
+      !titulosExportados.includes(`Post RLS test ${sufijo}`),
+      JSON.stringify(titulosExportados),
+    );
+    const { error: errActividadAnon } = await clienteAnonimo.rpc("exportar_mi_actividad");
+    registrar("141: anon NO puede ejecutar exportar_mi_actividad", !!errActividadAnon, errActividadAnon?.message ?? "sin error");
+
     await esperarBloqueado(
       "estudiante con acceso NO puede publicar en ANUNCIOS (solo admin)",
       clienteConAcceso

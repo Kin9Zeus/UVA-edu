@@ -86,6 +86,7 @@ const PERMITIDAS_DEFINER_CON_SESION: Record<string, string> = {
   reproduccion_vigente: "Solo responde por el token de reproducción de auth.uid(); exige sesión (136).",
   registrar_consentimientos_google:
     "Solo escribe el consentimiento de auth.uid(), si entró con Google y aún no tiene filas (140).",
+  exportar_mi_actividad: "Solo lee filas de auth.uid(), para la exportación de datos (141).",
 };
 
 /** Nombres de las funciones de `public` que define algún script de esta rama. */

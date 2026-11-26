@@ -21,6 +21,13 @@ export type ExportarDatosResultado =
  * a mano, ni riesgo de que este endpoint devuelva la fila de otra persona
  * por un `.eq()` mal puesto.
  *
+ * Excepción: comunidad, comentarios y reseñas salen de la función
+ * `exportar_mi_actividad` (supabase/sql/141), que devuelve solo filas de
+ * auth.uid(). Con RLS esas tablas se leen solo con acceso vigente, y la
+ * regla de negocio es que sin suscripción la comunidad no se ve: a quien se
+ * le venció, esas secciones le salían vacías sin error (P3-8,
+ * AUDIT-2026-11-23). La función es la única salida y no abre las tablas.
+ *
  * Vuelve JSON (no CSV/PDF): es la única forma que preserva la estructura
  * anidada (p. ej. los pagos DENTRO de la suscripción) sin inventar un
  * formato tabular para cada tabla. La descarga la dispara el cliente con un
@@ -43,10 +50,8 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     { data: progreso, error: errorProgreso },
     { data: certificados, error: errorCertificados },
     { data: intentosExamen, error: errorIntentos },
-    { data: comentarios, error: errorComentarios },
-    { data: comunidadPosts, error: errorPosts },
-    { data: comunidadRespuestas, error: errorRespuestas },
-    { data: calificaciones, error: errorCalificaciones },
+    { data: actividad, error: errorActividad },
+    { data: intentosPago, error: errorIntentosPago },
     { data: notificaciones, error: errorNotificaciones },
     { data: notas, error: errorNotas },
     { data: diasDeEstudio, error: errorDiasDeEstudio },
@@ -81,26 +86,12 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
       .from("intentos_examen")
       .select("respuestas, nota_requerida, iniciado_en, finalizado_en")
       .eq("id_usuario", user.id),
+    supabase.rpc("exportar_mi_actividad"),
     supabase
-      .from("comentarios")
-      .select("contenido, creado_en, leccion:lecciones(titulo)")
+      .from("intentos_pago")
+      .select("referencia, monto_centavos, moneda, estado, creado_en")
       .eq("id_usuario", user.id)
-      .eq("eliminado", false),
-    supabase
-      .from("comunidad_posts")
-      .select("titulo, contenido, categoria, creado_en")
-      .eq("id_usuario", user.id)
-      .eq("eliminado", false),
-    supabase
-      .from("comunidad_respuestas")
-      .select("contenido, creado_en, post:comunidad_posts(titulo)")
-      .eq("id_usuario", user.id)
-      .eq("eliminado", false),
-    supabase
-      .from("curso_calificaciones")
-      .select("puntuacion, comentario, creado_en, curso:cursos(titulo)")
-      .eq("id_usuario", user.id)
-      .eq("eliminado", false),
+      .order("creado_en"),
     supabase
       .from("notificaciones")
       .select("tipo, leida, creado_en")
@@ -134,10 +125,9 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     progreso: errorProgreso,
     certificados: errorCertificados,
     intentos_examen: errorIntentos,
-    comentarios: errorComentarios,
-    comunidad_posts: errorPosts,
-    comunidad_respuestas: errorRespuestas,
-    calificaciones_de_curso: errorCalificaciones,
+    // Sin error pero sin objeto también es un fallo: faltarían 9 secciones.
+    actividad: errorActividad ?? (actividad && typeof actividad === "object" ? null : { message: "exportar_mi_actividad no devolvió datos" }),
+    intentos_de_pago: errorIntentosPago,
     notificaciones: errorNotificaciones,
     notas: errorNotas,
     dias_de_estudio: errorDiasDeEstudio,
@@ -167,10 +157,8 @@ export async function exportarMisDatos(): Promise<ExportarDatosResultado> {
     progreso: progreso ?? [],
     certificados: certificados ?? [],
     intentos_examen: intentosExamen ?? [],
-    comentarios: comentarios ?? [],
-    comunidad_posts: comunidadPosts ?? [],
-    comunidad_respuestas: comunidadRespuestas ?? [],
-    calificaciones_de_curso: calificaciones ?? [],
+    ...(actividad as Record<string, unknown[]>),
+    intentos_de_pago: intentosPago ?? [],
     notificaciones: notificaciones ?? [],
     notas: notas ?? [],
     dias_de_estudio: (diasDeEstudio ?? []).map((dia) => dia.fecha),

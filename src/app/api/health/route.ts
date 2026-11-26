@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/log";
+import { unaVezPorMinuto } from "@/lib/una-vez-por-minuto";
 
 /**
  * "Monitoreo, alertas, respaldo de base de datos y plan de reversión" —
@@ -96,7 +97,10 @@ export async function GET() {
     resend: { ok: resend },
   };
 
-  if (!ok) {
+  // Un aviso por minuto (P3-10, AUDIT-2026-11-23): la ruta es anónima y en
+  // una caída cada llamada fallaría, agotando la cuota de Sentry. El 503 sí
+  // sale siempre: es lo que mira el monitor.
+  if (!ok && unaVezPorMinuto("health")) {
     // El mensaje de error de Supabase (supabase.error) se manda a Sentry,
     // nunca a la respuesta pública: un healthcheck sin autenticación no
     // debería filtrar detalles internos a quien le pegue.

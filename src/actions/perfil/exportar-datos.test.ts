@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { servidorFalso } from "@/test/servidor-falso";
 
@@ -26,14 +27,27 @@ const SECCIONES: [tabla: string, seccion: string][] = [
   ["progreso", "progreso"],
   ["certificados", "certificados"],
   ["intentos_examen", "intentos_examen"],
-  ["comentarios", "comentarios"],
-  ["comunidad_posts", "comunidad_posts"],
-  ["comunidad_respuestas", "comunidad_respuestas"],
-  ["curso_calificaciones", "calificaciones_de_curso"],
+  ["intentos_pago", "intentos_de_pago"],
   ["notificaciones", "notificaciones"],
   ["notas_leccion", "notas"],
   ["actividad_diaria", "dias_de_estudio"],
   ["consentimientos", "consentimientos"],
+];
+
+/**
+ * Lo que RLS esconde sin acceso vigente sale de `exportar_mi_actividad`
+ * (supabase/sql/141), una sección por clave.
+ */
+const SECCIONES_ACTIVIDAD = [
+  "comentarios",
+  "me_gusta_en_comentarios",
+  "comunidad_posts",
+  "comunidad_respuestas",
+  "comunidad_reacciones",
+  "comunidad_adjuntos",
+  "comunidad_reportes_enviados",
+  "calificaciones_de_curso",
+  "reacciones_a_calificaciones",
 ];
 
 beforeEach(() => {
@@ -41,6 +55,9 @@ beforeEach(() => {
   vi.mocked(getUsuarioActual).mockResolvedValue({ id: USUARIO } as never);
   vi.mocked(logError).mockClear();
   servidorFalso.responder("from:perfiles", { data: { nombre: "Ana", correo: "ana@x.co" } });
+  servidorFalso.responder("rpc:exportar_mi_actividad", {
+    data: Object.fromEntries(SECCIONES_ACTIVIDAD.map((s) => [s, []])),
+  });
 });
 
 describe("exportarMisDatos", () => {
@@ -72,19 +89,27 @@ describe("exportarMisDatos", () => {
     if (!("success" in resultado)) throw new Error(resultado.error);
     expect(resultado.nombreArchivo).toMatch(/^uva-mis-datos-\d{4}-\d{2}-\d{2}\.json$/);
     const datos = JSON.parse(resultado.datos);
-    expect(Object.keys(datos).sort()).toEqual(["exportado_en", "perfil", ...SECCIONES.map(([, s]) => s)].sort());
+    expect(Object.keys(datos).sort()).toEqual(
+      ["exportado_en", "perfil", ...SECCIONES.map(([, s]) => s), ...SECCIONES_ACTIVIDAD].sort(),
+    );
     expect(datos.perfil).toEqual({ nombre: "Ana", correo: "ana@x.co" });
     expect(datos.dias_de_estudio).toEqual(["2026-11-20", "2026-11-21"]);
     expect(datos.consentimientos).toHaveLength(1);
     expect(datos.certificados).toEqual([]);
   });
 
-  it("los comentarios, publicaciones y reseñas borrados no salen", async () => {
-    await exportarMisDatos();
+  it("si exportar_mi_actividad falla o no devuelve nada, no entrega nada", async () => {
+    servidorFalso.responder("rpc:exportar_mi_actividad", { data: null, error: ERROR_PG });
+    expect(await exportarMisDatos()).toHaveProperty("error");
+    expect(logError).toHaveBeenLastCalledWith(
+      "exportarMisDatos",
+      expect.any(String),
+      ERROR_PG,
+      expect.objectContaining({ secciones: ["actividad"] }),
+    );
 
-    for (const tabla of ["comentarios", "comunidad_posts", "comunidad_respuestas", "curso_calificaciones"]) {
-      expect(servidorFalso.encadenado(`from:${tabla}`, "eq"), tabla).toContainEqual(["eliminado", false]);
-    }
+    servidorFalso.responder("rpc:exportar_mi_actividad", { data: null });
+    expect(await exportarMisDatos()).toHaveProperty("error");
   });
 
   it.each(SECCIONES)("si falla %s, no entrega nada y registra qué sección falló", async (tabla, seccion) => {
@@ -106,5 +131,34 @@ describe("exportarMisDatos", () => {
     servidorFalso.responder("from:perfiles", { data: null, error: { message: "0 filas", code: "PGRST116" } });
     expect(await exportarMisDatos()).toHaveProperty("error");
     expect(logError).toHaveBeenLastCalledWith("exportarMisDatos", "No se encontró el perfil de la sesión actual", undefined, expect.anything());
+  });
+});
+
+/**
+ * Guardia (P3-8): toda tabla del esquema con datos de una persona sale en la
+ * exportación (consulta directa o SQL 141) o está aquí con su motivo.
+ */
+const NO_SE_EXPORTAN: Record<string, string> = {
+  perfiles: "Es la sección `perfil` (filtra por `id`, no por `id_usuario`).",
+};
+
+describe("cobertura de la exportación", () => {
+  it("cada tabla con id_usuario o id_reportante se exporta", () => {
+    const esquema = readFileSync("prisma/schema.prisma", "utf8");
+    const accion = readFileSync("src/actions/perfil/exportar-datos.ts", "utf8");
+    const sql141 = readFileSync("supabase/sql/141_exportar_mi_actividad.sql", "utf8");
+
+    const conPersona = [...esquema.matchAll(/^model \w+ \{([\s\S]*?)^\}/gm)]
+      .filter(([, cuerpo]) => /^\s+id_(?:usuario|reportante)\s/m.test(cuerpo))
+      .map(([, cuerpo]) => /@@map\("([^"]+)"\)/.exec(cuerpo)![1]);
+
+    expect(conPersona.length).toBeGreaterThan(15);
+    const sinExportar = conPersona.filter(
+      (tabla) =>
+        !NO_SE_EXPORTAN[tabla] &&
+        !accion.includes(`.from("${tabla}")`) &&
+        !new RegExp(`from public\\.${tabla}\\b`).test(sql141),
+    );
+    expect(sinExportar).toEqual([]);
   });
 });
